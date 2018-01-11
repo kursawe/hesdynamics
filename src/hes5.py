@@ -1,5 +1,6 @@
 import PyDDE
 import numpy as np
+import scipy.signal
 
 
 def generate_single_trajectory(duration, 
@@ -128,6 +129,55 @@ def hes5_ddegrad(y, parameters, time):
     dprotein = translation_rate*mRNA - protein_degradation_rate*protein;
     
     return np.array( [dmRNA,dprotein] )
+
+def measure_period_and_amplitude_of_signal(x_values, signal_values):
+    '''Measure the period of a signal generated with an ODE or DDE. 
+    This function will identify all peaks in the signal that are not at the boundary
+    and return their average distance from each other. Will also return the relative amplitude
+    defined as the signal difference of each peak to the previous lowest dip relative to the mean
+    of the signal; and the variation of that amplitude
+    
+    Warning: This function will return nonsense on stochastic data
+
+    Parameters
+    ----------
+    
+    x_values : ndarray
+        list of values, usually in time, at which the signal is measured
+        
+    signal_values : ndarray
+        list of measured values 
+        
+    Returns
+    -------
+    
+    period : float
+        period that was detected in the signal
+        
+    amplitude : float
+        mean amplitude of the signal
+    
+    amplitude_variation : float
+        standard variation of the signal amplitudes
+    
+    '''
+    signal_mean = np.mean(signal_values)
+    peak_indices = scipy.signal.argrelmax(signal_values)
+    x_peaks = x_values[peak_indices]
+    if len(x_peaks) < 2:
+        return 0.0, 0.0, 0.0
+    peak_distances = np.zeros( len( x_peaks ) - 1)
+    peak_amplitudes = np.zeros( len( x_peaks ) - 1)
+    for x_index, x_peak in enumerate( x_peaks[1:] ):
+        previous_peak = x_peaks[ x_index ]
+        interval_values = signal_values[peak_indices[0][x_index]:peak_indices[0][x_index + 1]]
+        peak_value = signal_values[peak_indices[0][x_index + 1]] # see for loop indexing
+        previous_dip_value = np.min(interval_values)
+        amplitude_difference = np.abs(peak_value - previous_dip_value)/signal_mean
+        peak_distances[ x_index ] = x_peak - previous_peak
+        peak_amplitudes[x_index] = amplitude_difference
+    
+    return np.mean(peak_distances), np.mean(peak_amplitudes), np.std(peak_amplitudes)
 
 # plt.show()
 #     P0=par(1);
