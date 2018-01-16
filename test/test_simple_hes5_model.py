@@ -16,11 +16,11 @@ class TestSimpleHes5Model(unittest.TestCase):
                                  
     def test_generate_single_oscillatory_trajectory(self):
         #First: run the model for 100 minutes
-        my_trajectory = hes5.generate_single_trajectory( duration = 720,
+        my_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                          repression_threshold = 100,
                                                          mRNA_degradation_rate = 0.03,
                                                          protein_degradation_rate = 0.03,
-                                                         repression_delay = 18.5,
+                                                         transcription_delay = 18.5,
                                                          initial_mRNA = 3,
                                                          initial_protein = 100 )
 
@@ -40,12 +40,12 @@ class TestSimpleHes5Model(unittest.TestCase):
 
     def test_generate_hes5_predicted_trajectory(self):
         #First: run the model for 100 minutes
-        my_trajectory = hes5.generate_single_trajectory( duration = 720,
+        my_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                          repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30,
                                                          protein_degradation_rate = np.log(2)/90,
                                                          translation_rate = 230,
-                                                         repression_delay = 29,
+                                                         transcription_delay = 29,
                                                          initial_mRNA = 3,
                                                          initial_protein = 23000 )
 
@@ -106,12 +106,12 @@ class TestSimpleHes5Model(unittest.TestCase):
 
     def test_generate_non_dimensionalised_trajectory(self):
         #First: run the model for 100 minutes
-#         my_trajectory = hes5.generate_single_trajectory( duration = 720/29.0,
-        my_trajectory = hes5.generate_single_trajectory( duration = 60,
+#         my_trajectory = hes5.generate_deterministic_trajectory( duration = 720/29.0,
+        my_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                                          repression_threshold = 100.0/np.power(29.0,2),
                                                          mRNA_degradation_rate = np.log(2)/30*29.0,
                                                          protein_degradation_rate = np.log(2)/90*29.0,
-                                                         repression_delay = 29.0/29.0,
+                                                         transcription_delay = 29.0/29.0,
                                                          initial_mRNA = 3.0/(29),
                                                          initial_protein = 100.0/np.power(29.0,2) )
 
@@ -172,3 +172,76 @@ class TestSimpleHes5Model(unittest.TestCase):
         
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','extract_frequency.pdf'))
+
+    def test_stochastic_trajectory(self):
+        my_trajectory = hes5.generate_stochastic_trajectory( duration = 720,
+                                                             repression_threshold = 100,
+                                                             mRNA_degradation_rate = 0.03,
+                                                             protein_degradation_rate = 0.03,
+                                                             transcription_delay = 18.5,
+                                                             initial_mRNA = 3,
+                                                             initial_protein = 100 )
+
+        #Second, plot the model
+
+        figuresize = (4,2.75)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1], label = 'mRNA', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','stochastic_trajectory.pdf'))
+
+    def test_validate_stochastic_implementation(self):
+        mRNA_trajectories, protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 10,
+                                                                     duration = 720,
+                                                                     repression_threshold = 10000,
+                                                                     mRNA_degradation_rate = 0.03,
+                                                                     protein_degradation_rate = 0.03,
+                                                                     transcription_delay = 18.5,
+                                                                     basal_transcription_rate = 10,
+                                                                     translation_rate = 10,
+                                                                     initial_mRNA = 30,
+                                                                     initial_protein = 10000 )
+        
+        mean_protein_trajectory = np.mean(protein_trajectories[:,1:], axis = 1)
+        protein_deviation = np.std(mRNA_trajectories[:,1:])
+        mean_mRNA_trajectory = np.mean(mRNA_trajectories[:,1:], axis = 1)
+        mRNA_deviation = np.std(mRNA_trajectories[:,1:])
+        
+        deterministic_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
+                                                                           repression_threshold = 10000,
+                                                                           mRNA_degradation_rate = 0.03,
+                                                                           protein_degradation_rate = 0.03,
+                                                                           transcription_delay = 18.5,
+                                                                           basal_transcription_rate = 10,
+                                                                           translation_rate = 10,
+                                                                           initial_mRNA = 100,
+                                                                           initial_protein = 100 )
+
+        figuresize = (4,2.75)
+        my_figure = plt.figure()
+        # want to plot: protein and mRNA for stochastic and deterministic system,
+        # example stochastic system
+        plt.plot( mRNA_trajectories[:,0],
+                  mRNA_trajectories[:,1], label = 'mRNA example', color = 'black' )
+        plt.plot( protein_trajectories[:,0],
+                  protein_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--' )
+        plt.plot( mRNA_trajectories[:,0],
+                  mean_mRNA_trajectory, label = 'Mean mRNA', color = 'blue' )
+        plt.plot( protein_trajectories[:,0],
+                  mean_protein_trajectory, label = 'Mean protein', color = 'blue', ls = '--' )
+        plt.plot( deterministic_trajectory[:,0],
+                  deterministic_trajectory[:,1], label = 'Deterministic mRNA', color = 'green' )
+        plt.plot( deterministic_trajectory[:,0],
+                  deterministic_trajectory[:,2], label = 'Deterministic Protein', color = 'green', ls = '--' )
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','stochastic_model_validation.pdf'))
+
