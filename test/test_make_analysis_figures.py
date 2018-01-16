@@ -25,13 +25,14 @@ class TestSimpleHes5Model(unittest.TestCase):
         repression_threshold_results = np.zeros((number_of_parameter_points,4))
         index = 0
         for p0 in np.linspace(0.01,1,number_of_parameter_points):
-            this_trajectory = hes5.generate_single_trajectory( duration = 60,
+            this_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                                          repression_threshold = p0,
                                                          mRNA_degradation_rate = np.log(2)/30*29.0,
                                                          protein_degradation_rate = np.log(2)/90*29.0,
-                                                         repression_delay = 1.0,
+                                                         transcription_delay = 1.0,
                                                          initial_mRNA = 3.0/(29),
-                                                         initial_protein = 100.0/np.power(29.0,2) )
+#                                                          initial_protein = p0 )
+                                                        initial_protein = 100.0/np.power(29.0,2) )
             this_period, this_amplitude, this_variation = hes5.measure_period_and_amplitude_of_signal(this_trajectory[:,0],
                                                          this_trajectory[:,1])
 
@@ -69,11 +70,11 @@ class TestSimpleHes5Model(unittest.TestCase):
         mrna_degradation_results = np.zeros((number_of_parameter_points,4))
         index = 0
         for mu_m in np.linspace(0.01,1,number_of_parameter_points):
-            this_trajectory = hes5.generate_single_trajectory( duration = 60,
+            this_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                                          repression_threshold = 100.0/np.power(29.0,2),
                                                          mRNA_degradation_rate = mu_m,
                                                          protein_degradation_rate = np.log(2)/90*29.0,
-                                                         repression_delay = 1.0,
+                                                         transcription_delay = 1.0,
                                                          initial_mRNA = 3.0/(29),
                                                          initial_protein = 100.0/np.power(29.0,2) )
             this_period, this_amplitude, this_variation = hes5.measure_period_and_amplitude_of_signal(this_trajectory[:,0],
@@ -114,11 +115,11 @@ class TestSimpleHes5Model(unittest.TestCase):
         protein_degradation_results = np.zeros((number_of_parameter_points,4))
         index = 0
         for mu_p in np.linspace(0.01,1,number_of_parameter_points):
-            this_trajectory = hes5.generate_single_trajectory( duration = 60,
+            this_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                                          repression_threshold = 100.0/np.power(29.0,2),
                                                          mRNA_degradation_rate = np.log(2)/30*29.0,
                                                          protein_degradation_rate = mu_p,
-                                                         repression_delay = 1.0,
+                                                         transcription_delay = 1.0,
                                                          initial_mRNA = 3.0/(29),
                                                          initial_protein = 100.0/np.power(29.0,2) )
             this_period, this_amplitude, this_variation = hes5.measure_period_and_amplitude_of_signal(this_trajectory[:,0],
@@ -165,11 +166,11 @@ class TestSimpleHes5Model(unittest.TestCase):
         mrna_degradation_results = np.zeros((number_of_parameter_points,4))
         index = 0
         for mu_m in np.linspace(0.01,1,number_of_parameter_points):
-            this_trajectory = hes5.generate_single_trajectory( duration = 60,
+            this_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                                          repression_threshold = 100.0/np.power(29.0,2),
                                                          mRNA_degradation_rate = mu_m,
                                                          protein_degradation_rate = np.log(2)/90*29.0,
-                                                         repression_delay = 1.0,
+                                                         transcription_delay = 1.0,
                                                          initial_mRNA = 3.0/(29),
                                                          initial_protein = 100.0/np.power(29.0,2) )
             this_period, this_amplitude, this_variation = hes5.measure_period_and_amplitude_of_signal(this_trajectory[:,0],
@@ -197,27 +198,27 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.ylabel('Relative amplitude')  
         
         my_figure.add_subplot(122)
-        first_trajectory = hes5.generate_single_trajectory( duration = 60,
+        first_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                              repression_threshold = 100.0/np.power(29.0,2),
                                              mRNA_degradation_rate = np.log(2)/30*29.0,
                                              protein_degradation_rate = np.log(2)/90*29.0,
-                                             repression_delay = 1.0,
+                                             transcription_delay = 1.0,
                                              initial_mRNA = 3.0/(29),
                                              initial_protein = 100.0/np.power(29.0,2) )
 
-        second_trajectory = hes5.generate_single_trajectory( duration = 60,
+        second_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                              repression_threshold = 100.0/np.power(29.0,2),
                                              mRNA_degradation_rate = 0.75,
                                              protein_degradation_rate = np.log(2)/90*29.0,
-                                             repression_delay = 1.0,
+                                             transcription_delay = 1.0,
                                              initial_mRNA = 3.0/(29),
                                              initial_protein = 100.0/np.power(29.0,2) )
 
-        third_trajectory = hes5.generate_single_trajectory( duration = 60,
+        third_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                              repression_threshold = 100.0/np.power(29.0,2),
                                              mRNA_degradation_rate = 0.2,
                                              protein_degradation_rate = np.log(2)/90*29.0,
-                                             repression_delay = 1.0,
+                                             transcription_delay = 1.0,
                                              initial_mRNA = 3.0/(29),
                                              initial_protein = 100.0/np.power(29.0,2) )
 
@@ -238,35 +239,35 @@ class TestSimpleHes5Model(unittest.TestCase):
     def test_investigate_different_p0_values(self):
         
         my_figure = plt.figure( figsize = (4.5, 2.5) )
-        first_trajectory = hes5.generate_single_trajectory( duration = 60,
+        first_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                              repression_threshold = 100.0/np.power(29.0,2),
                                              mRNA_degradation_rate = np.log(2)/30*29.0,
                                              protein_degradation_rate = np.log(2)/90*29.0,
-                                             repression_delay = 1.0,
+                                             transcription_delay = 1.0,
                                              initial_mRNA = 3.0/(29),
                                              initial_protein = 100.0/np.power(29.0,2) )
 
-        second_trajectory = hes5.generate_single_trajectory( duration = 60,
+        second_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                              repression_threshold = 1.0,
                                              mRNA_degradation_rate = np.log(2)/30*29.0,
                                              protein_degradation_rate = np.log(2)/90*29.0,
-                                             repression_delay = 1.0,
+                                             transcription_delay = 1.0,
                                              initial_mRNA = 3.0/(29),
                                              initial_protein = 100.0/np.power(29.0,2) )
 
-        third_trajectory = hes5.generate_single_trajectory( duration = 60,
+        third_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                              repression_threshold = 0.8,
                                              mRNA_degradation_rate = np.log(2)/30*29.0,
                                              protein_degradation_rate = np.log(2)/90*29.0,
-                                             repression_delay = 1.0,
+                                             transcription_delay = 1.0,
                                              initial_mRNA = 3.0/(29),
                                              initial_protein = 100.0/np.power(29.0,2) )
 
-        fourth_trajectory = hes5.generate_single_trajectory( duration = 60,
+        fourth_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
                                              repression_threshold = 0.05,
                                              mRNA_degradation_rate = np.log(2)/30*29.0,
                                              protein_degradation_rate = np.log(2)/90*29.0,
-                                             repression_delay = 1.0,
+                                             transcription_delay = 1.0,
                                              initial_mRNA = 3.0/(29),
                                              initial_protein = 100.0/np.power(29.0,2) )
 
@@ -298,12 +299,12 @@ class TestSimpleHes5Model(unittest.TestCase):
         repression_threshold_results = np.zeros((number_of_parameter_points,4))
         index = 0
         for p0 in np.linspace(1,60000,number_of_parameter_points):
-            this_trajectory = hes5.generate_single_trajectory( duration = 720,
+            this_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                          repression_threshold = p0,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = 230,
-                                                         repression_delay = 29.0,
+                                                         transcription_delay = 29.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
@@ -352,12 +353,12 @@ class TestSimpleHes5Model(unittest.TestCase):
         mrna_degradation_results = np.zeros((number_of_parameter_points,4))
         index = 0
         for mu_m in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
-            this_trajectory = hes5.generate_single_trajectory( duration = 720.0,
+            this_trajectory = hes5.generate_deterministic_trajectory( duration = 720.0,
                                                          repression_threshold = 23000,
                                                          mRNA_degradation_rate = mu_m,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = 230,
-                                                         repression_delay = 29.0,
+                                                         transcription_delay = 29.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
@@ -401,12 +402,12 @@ class TestSimpleHes5Model(unittest.TestCase):
         protein_degradation_results = np.zeros((number_of_parameter_points,4))
         index = 0
         for mu_p in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
-            this_trajectory = hes5.generate_single_trajectory( duration = 720.0,
+            this_trajectory = hes5.generate_deterministic_trajectory( duration = 720.0,
                                                          repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = mu_p,
                                                          translation_rate = 230,
-                                                         repression_delay = 29.0,
+                                                         transcription_delay = 29.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
@@ -450,12 +451,12 @@ class TestSimpleHes5Model(unittest.TestCase):
         time_delay_results = np.zeros((number_of_parameter_points,4))
         index = 0
         for tau in np.linspace(5.0,40.0,number_of_parameter_points):
-            this_trajectory = hes5.generate_single_trajectory( duration = 720.0,
+            this_trajectory = hes5.generate_deterministic_trajectory( duration = 720.0,
                                                          repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = 230,
-                                                         repression_delay = tau,
+                                                         transcription_delay = tau,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
@@ -499,12 +500,12 @@ class TestSimpleHes5Model(unittest.TestCase):
         translation_rate_results = np.zeros((number_of_parameter_points,4))
         index = 0
         for alpha_p in np.linspace(1.0,400.0,number_of_parameter_points):
-            this_trajectory = hes5.generate_single_trajectory( duration = 720.0,
+            this_trajectory = hes5.generate_deterministic_trajectory( duration = 720.0,
                                                          repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = alpha_p,
-                                                         repression_delay = 29.0,
+                                                         transcription_delay = 29.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
@@ -548,39 +549,39 @@ class TestSimpleHes5Model(unittest.TestCase):
         
     def test_different_tau_values(self):
         my_figure = plt.figure( figsize = (4.5, 2.5) )
-        first_trajectory = hes5.generate_single_trajectory( duration = 720,
+        first_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = 230,
-                                                         repression_delay = 29.0,
+                                                         transcription_delay = 29.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
-        second_trajectory = hes5.generate_single_trajectory( duration = 720,
+        second_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = 230,
-                                                         repression_delay = 12.0,
+                                                         transcription_delay = 12.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
-        third_trajectory = hes5.generate_single_trajectory( duration = 720,
+        third_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = 230,
-                                                         repression_delay = 20.0,
+                                                         transcription_delay = 20.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
-        fourth_trajectory = hes5.generate_single_trajectory( duration = 720,
+        fourth_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = 230,
-                                                         repression_delay = 40.0,
+                                                         transcription_delay = 40.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
@@ -604,39 +605,39 @@ class TestSimpleHes5Model(unittest.TestCase):
         
     def test_different_protein_degradation_values(self):
         my_figure = plt.figure( figsize = (6.5, 2.5) )
-        first_trajectory = hes5.generate_single_trajectory( duration = 720,
+        first_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = 230,
-                                                         repression_delay = 29.0,
+                                                         transcription_delay = 29.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
-        second_trajectory = hes5.generate_single_trajectory( duration = 720,
+        second_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/30.0,
                                                          translation_rate = 230,
-                                                         repression_delay = 12.0,
+                                                         transcription_delay = 12.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
-        third_trajectory = hes5.generate_single_trajectory( duration = 720,
+        third_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
                                                          mRNA_degradation_rate = np.log(2)/90.0,
                                                          protein_degradation_rate = np.log(2)/90.0,
                                                          translation_rate = 230,
-                                                         repression_delay = 20.0,
+                                                         transcription_delay = 20.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
-        fourth_trajectory = hes5.generate_single_trajectory( duration = 720,
+        fourth_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
                                                          mRNA_degradation_rate = 0.03,
                                                          protein_degradation_rate = 0.03,
                                                          translation_rate = 230,
-                                                         repression_delay = 40.0,
+                                                         transcription_delay = 40.0,
                                                          initial_mRNA = 3.0,
                                                          initial_protein = 23000)
 
