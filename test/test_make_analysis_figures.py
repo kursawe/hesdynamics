@@ -295,8 +295,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         # REPRESSION THRESHOLD
         #
         ########
-        number_of_parameter_points = 2
-        number_of_trajectories = 2
+        number_of_parameter_points = 10
+        number_of_trajectories = 10
         repression_threshold_results = np.zeros((number_of_parameter_points,5))
         index = 0
         for p0 in np.linspace(1,60000,number_of_parameter_points):
@@ -324,7 +324,7 @@ class TestSimpleHes5Model(unittest.TestCase):
             repression_threshold_results[index,4] = np.std(these_protein_values[:,1:])
             index +=1
 
-        my_figure = plt.figure( figsize = (6, 9) )
+        my_figure = plt.figure( figsize = (6.5, 9) )
         my_figure.add_subplot(631)
         plt.plot(repression_threshold_results[:,0]/10000,
                  repression_threshold_results[:,1], color = 'black')
@@ -353,7 +353,7 @@ class TestSimpleHes5Model(unittest.TestCase):
 
         my_figure.add_subplot(633)
 #         plt.plot(repression_threshold_results[:,0],
-        plt.plot(repression_threshold_results[:,0]/10000,
+        plt.errorbar(repression_threshold_results[:,0]/10000,
                  repression_threshold_results[:,3]/10000, 
                  yerr = repression_threshold_results[:,4]/10000, color = 'black')
 #         plt.axvline( 23000 )
@@ -362,8 +362,9 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
 #                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
 #                          lw = 0, color = 'grey')
+        plt.ylim(0,15)
         plt.xlabel('Repression threshold/1e4')
-        plt.ylabel('Mean expression/1e4')
+        plt.ylabel('Expression/1e4')
 
         ########
         #
@@ -421,17 +422,14 @@ class TestSimpleHes5Model(unittest.TestCase):
 
         my_figure.add_subplot(636)
 #         plt.plot(repression_threshold_results[:,0],
-        plt.plot(mrna_degradation_results_results[:,0]/10000,
-                 mrna_degradation_results_results[:,3]/10000, 
-                 yerr = repression_threshold_results[:,4]/10000, color = 'black')
-#         plt.axvline( 23000 )
+        plt.errorbar(mrna_degradation_results[:,0],
+                 mrna_degradation_results[:,3]/10000, 
+                 yerr = mrna_degradation_results[:,4]/10000, color = 'black')
         plt.axvline( np.log(2)/30 )
-#         plt.fill_between(repression_threshold_results[:,0],
-#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
-#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
-#                          lw = 0, color = 'grey')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.ylim(0,15)
         plt.xlabel('mRNA degradation [1/min]')
-        plt.ylabel('Mean expression/1e4')
+        plt.ylabel('Expression/1e4')
        
         ########
         #
@@ -470,7 +468,7 @@ class TestSimpleHes5Model(unittest.TestCase):
                  protein_degradation_results[:,1], color = 'black')
         plt.axvline( np.log(2)/90 )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
-        plt.xlabel('Protein degradation [1/min]')
+        plt.xlabel('Hes5 degradation [1/min]')
         plt.ylabel('Period [min]')
         plt.ylim(0,700)
 
@@ -483,22 +481,20 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
 #                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
 #                          lw = 0, color = 'grey')
-        plt.xlabel('Protein degradation [1/min]')
+        plt.xlabel('Hes5 degradation [1/min]')
         plt.ylabel('Coherence')
         plt.ylim(0,1)
         
         my_figure.add_subplot(639)
 #         plt.plot(repression_threshold_results[:,0],
-        plt.plot(protein_degradation_results[:,0],
+        plt.errorbar(protein_degradation_results[:,0],
                  protein_degradation_results[:,3]/10000, 
                  yerr = protein_degradation_results[:,4]/10000, color = 'black')
         plt.axvline( np.log(2)/90 )
-#         plt.fill_between(repression_threshold_results[:,0],
-#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
-#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
-#                          lw = 0, color = 'grey')
-        plt.xlabel('Protein degradation [1/min]')
-        plt.ylabel('Mean expression/1e4')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.ylim(0,15)
+        plt.xlabel('Hes5 degradation [1/min]')
+        plt.ylabel('Expression/1e4')
  
         ########
         #
@@ -537,10 +533,11 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.axvline( 29.0 )
 #         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.xlabel('Time delay [min]')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.ylabel('Period [min]')
         plt.ylim(0,700)
 
-        my_figure.add_subplot(628)
+        my_figure.add_subplot(6,3,11)
         plt.plot(time_delay_results[:,0],
                  time_delay_results[:,2], color = 'black')
         plt.axvline( 29.0 )
@@ -549,25 +546,22 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
 #                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
 #                          lw = 0, color = 'grey')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.xlabel('Time delay [min]')
         plt.ylabel('Coherence')
-        plt.ylim(0,2)
+        plt.ylim(0,1)
 
-        my_figure.add_subplot(633)
+        my_figure.add_subplot(6,3,12)
 #         plt.plot(repression_threshold_results[:,0],
-        plt.plot(time_delay_results[:,0],
+        plt.errorbar(time_delay_results[:,0],
                  time_delay_results[:,3]/10000, 
                  yerr = time_delay_results[:,4]/10000, color = 'black')
 #         plt.axvline( 23000 )
-        plt.axvline( 3.14 )
-#         plt.fill_between(repression_threshold_results[:,0],
-#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
-#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
-#                          lw = 0, color = 'grey')
-        plt.xlabel('Time delay')
-        plt.ylabel('Mean expression/1e4')
-        plt.ylim(0,2)
-
+        plt.axvline( 29.0 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.ylim(0,15)
+        plt.xlabel('Time delay [min]')
+        plt.ylabel('Expression/1e4')
 
         ########
         #
@@ -601,7 +595,7 @@ class TestSimpleHes5Model(unittest.TestCase):
             translation_rate_results[index,4] = np.std(these_protein_values[:,1:])
             index +=1
 
-        my_figure.add_subplot(629)
+        my_figure.add_subplot(6,3,13)
         plt.plot(translation_rate_results[:,0],
                  translation_rate_results[:,1], color = 'black')
         plt.axvline( 29 )
@@ -611,7 +605,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.ylabel('Period [min]')
         plt.ylim(0,700)
 
-        my_figure.add_subplot(6,2,10)
+        my_figure.add_subplot(6,3,14)
         plt.plot(translation_rate_results[:,0],
                  translation_rate_results[:,2], color = 'black')
         plt.axvline( 29 )
@@ -623,30 +617,24 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                          lw = 0, color = 'grey')
         plt.xlabel('Translation rate [1/min]')
         plt.ylabel('Coherence')
-        plt.ylim(0,2)
+        plt.ylim(0,1)
 
-        my_figure.add_subplot(633)
-#         plt.plot(repression_threshold_results[:,0],
-        plt.plot(translation_rate_results[:,0],
+        my_figure.add_subplot(6,3,15)
+        plt.errorbar(translation_rate_results[:,0],
                  translation_rate_results[:,3]/10000, 
                  yerr = translation_rate_results[:,4]/10000, color = 'black')
-#         plt.axvline( 23000 )
-        plt.axvline( 3.14 )
-#         plt.fill_between(repression_threshold_results[:,0],
-#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
-#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
-#                          lw = 0, color = 'grey')
-        plt.xlabel('Translation_rate')
-        plt.ylabel('Mean expression/1e4')
-        plt.ylim(0,2)
-
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.axvline( 29 )
+        plt.ylim(0,15)
+        plt.xlabel('Translation rate [1/min]')
+        plt.ylabel('Expression/1e4')
 
         ########
         #
         # TRANSCRIPTION RATE
         #
         ########       
-        trancription_rate_results = np.zeros((number_of_parameter_points,5))
+        transcription_rate_results = np.zeros((number_of_parameter_points,5))
         index = 0
         for alpha_m in np.linspace(1.0,100.0,number_of_parameter_points):
             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
@@ -672,45 +660,35 @@ class TestSimpleHes5Model(unittest.TestCase):
             transcription_rate_results[index,4] = np.std(these_protein_values[:,1:])
             index +=1
 
-        my_figure.add_subplot(6,2,11)
+        my_figure.add_subplot(6,3,16)
         plt.plot(transcription_rate_results[:,0],
                  transcription_rate_results[:,1], color = 'black')
         plt.axvline( 29 )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=5)
-        plt.xlabel('Basal trancription rate [1/min]')
+        plt.xlabel('Trancription rate [1/min]')
         plt.ylabel('Period [min]')
         plt.ylim(0,700)
 
-        my_figure.add_subplot(6,2,12)
+        my_figure.add_subplot(6,3,17)
         plt.plot(transcription_rate_results[:,0],
                  transcription_rate_results[:,2], color = 'black')
         plt.axvline( 29 )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
-#         plt.gca().locator_params(axis='y', tight = True, nbins=5)
-#         plt.fill_between(repression_threshold_results[:,0],
-#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
-#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
-#                          lw = 0, color = 'grey')
-        plt.xlabel('Basal transcription rate [1/min]')
+        plt.xlabel('Transcription rate [1/min]')
         plt.ylabel('Coherence')
-        plt.ylim(0,2)
+        plt.ylim(0,1)
 
-        my_figure.add_subplot(633)
+        my_figure.add_subplot(6,3,18)
 #         plt.plot(repression_threshold_results[:,0],
-        plt.plot(transcription_rate_results[:,0],
+        plt.errorbar(transcription_rate_results[:,0],
                  transcription_rate_results[:,3]/10000, 
                  yerr = transcription_rate_results[:,4]/10000, color = 'black')
-#         plt.axvline( 23000 )
-        plt.axvline( 3.14 )
-#         plt.fill_between(repression_threshold_results[:,0],
-#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
-#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
-#                          lw = 0, color = 'grey')
-        plt.xlabel('Basal transcription rate [1/min]')
-        plt.ylabel('Mean expression/1e4')
-        plt.ylim(0,2)
-
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.axvline( 29 )
+        plt.ylim(0,15)
+        plt.xlabel('Transcription rate [1/min]')
+        plt.ylabel('Expression/1e4')
 
         plt.tight_layout()
 

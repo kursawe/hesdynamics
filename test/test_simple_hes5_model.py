@@ -302,7 +302,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','hes5_stochastic_trajectory_more_rna.pdf'))
     
-    def xest_equlibrate_stochastic_trajectory(self):
+    def test_equlibrate_stochastic_trajectory(self):
         #for profiling
         np.random.seed(0)
         my_trajectory = hes5.generate_stochastic_trajectory( duration = 1500,
@@ -489,7 +489,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','fourier_spectra.pdf'))
 
-    def test_power_spectra_of_mean_behaviours_fewer_trajectories(self):
+    def xest_power_spectra_of_mean_behaviours_fewer_trajectories(self):
         ##
         # Hes1 samples
         ##
