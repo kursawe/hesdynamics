@@ -14,7 +14,7 @@ import hes5
 
 class TestSimpleHes5Model(unittest.TestCase):
                                  
-    def test_make_simple_parameter_sweep(self):
+    def xest_make_simple_parameter_sweep(self):
         # First, vary the rescaled repression threshold
         ########
         #
@@ -156,7 +156,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 
                     'output','rescaled_parameter_sweep.pdf'))
 
-    def test_investigate_discontinuities_in_parameter_sweep(self): 
+    def xest_investigate_discontinuities_in_parameter_sweep(self): 
         ########
         #
         # MRNA DEGRADATION REPEAT
@@ -236,7 +236,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 
                     'output','discontinuities_in_parameter_sweep_investigation.pdf'))
         
-    def test_investigate_different_p0_values(self):
+    def xest_investigate_different_p0_values(self):
         
         my_figure = plt.figure( figsize = (4.5, 2.5) )
         first_trajectory = hes5.generate_deterministic_trajectory( duration = 60,
@@ -289,7 +289,435 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 
                     'output','p0_investigation.pdf'))
  
-    def test_make_full_parameter_sweep(self):
+    def test_make_full_parameter_sweep_stochastic(self):
+        ########
+        #
+        # REPRESSION THRESHOLD
+        #
+        ########
+        number_of_parameter_points = 2
+        number_of_trajectories = 2
+        repression_threshold_results = np.zeros((number_of_parameter_points,5))
+        index = 0
+        for p0 in np.linspace(1,60000,number_of_parameter_points):
+            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+                                                         number_of_trajectories = number_of_trajectories,
+                                                         duration = 1500,
+#                                                          repression_threshold = 31400,
+                                                         repression_threshold = p0,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+                                                         these_protein_values )
+
+            repression_threshold_results[index,0] = p0
+            repression_threshold_results[index,1] = this_period
+            repression_threshold_results[index,2] = this_coherence
+            repression_threshold_results[index,3] = np.mean(these_protein_values[:,1:])
+            repression_threshold_results[index,4] = np.std(these_protein_values[:,1:])
+            index +=1
+
+        my_figure = plt.figure( figsize = (6, 9) )
+        my_figure.add_subplot(631)
+        plt.plot(repression_threshold_results[:,0]/10000,
+                 repression_threshold_results[:,1], color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( 3.14 )
+#         plt.gca().locator_params(axis='x', tight = True, nbins=3)
+#         plt.gca().xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%0.0e'))
+#         plt.gca().ticklabel_format(axis = 'x', style = 'sci')
+        plt.ylim(0,700)
+        plt.xlabel('Repression threshold/1e4')
+        plt.ylabel('Period [min]')
+
+        my_figure.add_subplot(632)
+#         plt.plot(repression_threshold_results[:,0],
+        plt.plot(repression_threshold_results[:,0]/10000,
+                 repression_threshold_results[:,2], color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( 3.14 )
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Repression threshold/1e4')
+        plt.ylabel('Coherence')
+        plt.ylim(0,1)
+
+        my_figure.add_subplot(633)
+#         plt.plot(repression_threshold_results[:,0],
+        plt.plot(repression_threshold_results[:,0]/10000,
+                 repression_threshold_results[:,3]/10000, 
+                 yerr = repression_threshold_results[:,4]/10000, color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( 3.14 )
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Repression threshold/1e4')
+        plt.ylabel('Mean expression/1e4')
+
+        ########
+        #
+        # MRNA DEGRADATION
+        #
+        ########       
+        mrna_degradation_results = np.zeros((number_of_parameter_points,5))
+        index = 0
+        for mu_m in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
+            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+                                                         number_of_trajectories = number_of_trajectories,
+                                                         duration = 1500,
+                                                        repression_threshold = 31400,
+                                                         mRNA_degradation_rate = mu_m,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+                                                         these_protein_values )
+
+
+            mrna_degradation_results[index,0] = mu_m
+            mrna_degradation_results[index,1] = this_period
+            mrna_degradation_results[index,2] = this_coherence
+            mrna_degradation_results[index,3] = np.mean(these_protein_values[:,1:])
+            mrna_degradation_results[index,4] = np.std(these_protein_values[:,1:])
+            index +=1
+
+        my_figure.add_subplot(634)
+        plt.plot(mrna_degradation_results[:,0],
+                 mrna_degradation_results[:,1], color = 'black')
+        plt.axvline( np.log(2)/30 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('mRNA degradation [1/min]')
+        plt.ylabel('Period [min]')
+        plt.ylim(0,700)
+
+        my_figure.add_subplot(635)
+        plt.plot(mrna_degradation_results[:,0],
+                 mrna_degradation_results[:,2], color = 'black')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.axvline( np.log(2)/30 )
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('mRNA degradation [1/min]')
+        plt.ylabel('Coherence')       
+        plt.ylim(0,1)
+
+        my_figure.add_subplot(636)
+#         plt.plot(repression_threshold_results[:,0],
+        plt.plot(mrna_degradation_results_results[:,0]/10000,
+                 mrna_degradation_results_results[:,3]/10000, 
+                 yerr = repression_threshold_results[:,4]/10000, color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( np.log(2)/30 )
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('mRNA degradation [1/min]')
+        plt.ylabel('Mean expression/1e4')
+       
+        ########
+        #
+        # PROTEIN DEGRADATION
+        #
+        ########       
+        protein_degradation_results = np.zeros((number_of_parameter_points,5))
+        index = 0
+        for mu_p in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
+            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+                                                         number_of_trajectories = number_of_trajectories,
+                                                         duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+#                                                          protein_degradation_rate = np.log(2)/90,
+                                                         protein_degradation_rate = mu_p,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+                                                         these_protein_values )
+
+            protein_degradation_results[index,0] = mu_p
+            protein_degradation_results[index,1] = this_period
+            protein_degradation_results[index,2] = this_coherence
+            protein_degradation_results[index,3] = np.mean(these_protein_values[:,1:])
+            protein_degradation_results[index,4] = np.std(these_protein_values[:,1:])
+            index +=1
+
+        my_figure.add_subplot(637)
+        plt.plot(protein_degradation_results[:,0],
+                 protein_degradation_results[:,1], color = 'black')
+        plt.axvline( np.log(2)/90 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Protein degradation [1/min]')
+        plt.ylabel('Period [min]')
+        plt.ylim(0,700)
+
+        my_figure.add_subplot(638)
+        plt.plot(protein_degradation_results[:,0],
+                 protein_degradation_results[:,2], color = 'black')
+        plt.axvline( np.log(2)/90 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Protein degradation [1/min]')
+        plt.ylabel('Coherence')
+        plt.ylim(0,1)
+        
+        my_figure.add_subplot(639)
+#         plt.plot(repression_threshold_results[:,0],
+        plt.plot(protein_degradation_results[:,0],
+                 protein_degradation_results[:,3]/10000, 
+                 yerr = protein_degradation_results[:,4]/10000, color = 'black')
+        plt.axvline( np.log(2)/90 )
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Protein degradation [1/min]')
+        plt.ylabel('Mean expression/1e4')
+ 
+        ########
+        #
+        # TIME DELAY
+        #
+        ########       
+        time_delay_results = np.zeros((number_of_parameter_points,5))
+        index = 0
+        for tau in np.linspace(5.0,40.0,number_of_parameter_points):
+            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+                                                         number_of_trajectories = number_of_trajectories,
+                                                         duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = tau,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+                                                         these_protein_values )
+
+            time_delay_results[index,0] = tau
+            time_delay_results[index,1] = this_period
+            time_delay_results[index,2] = this_coherence
+            time_delay_results[index,3] = np.mean(these_protein_values[:,1:])
+            time_delay_results[index,4] = np.std(these_protein_values[:,1:])
+            index +=1
+
+        my_figure.add_subplot(6,3,10)
+        plt.plot(time_delay_results[:,0],
+                 time_delay_results[:,1], color = 'black')
+        plt.axvline( 29.0 )
+#         plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Time delay [min]')
+        plt.ylabel('Period [min]')
+        plt.ylim(0,700)
+
+        my_figure.add_subplot(628)
+        plt.plot(time_delay_results[:,0],
+                 time_delay_results[:,2], color = 'black')
+        plt.axvline( 29.0 )
+#         plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Time delay [min]')
+        plt.ylabel('Coherence')
+        plt.ylim(0,2)
+
+        my_figure.add_subplot(633)
+#         plt.plot(repression_threshold_results[:,0],
+        plt.plot(time_delay_results[:,0],
+                 time_delay_results[:,3]/10000, 
+                 yerr = time_delay_results[:,4]/10000, color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( 3.14 )
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Time delay')
+        plt.ylabel('Mean expression/1e4')
+        plt.ylim(0,2)
+
+
+        ########
+        #
+        # TRANSLATION RATE
+        #
+        ########       
+        translation_rate_results = np.zeros((number_of_parameter_points,5))
+        index = 0
+        for alpha_p in np.linspace(1.0,100.0,number_of_parameter_points):
+            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+                                                         number_of_trajectories = number_of_trajectories,
+                                                         duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+                                                         translation_rate = alpha_p,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+                                                         these_protein_values )
+
+            translation_rate_results[index,0] = alpha_p
+            translation_rate_results[index,1] = this_period
+            translation_rate_results[index,2] = this_coherence
+            translation_rate_results[index,3] = np.mean(these_protein_values[:,1:])
+            translation_rate_results[index,4] = np.std(these_protein_values[:,1:])
+            index +=1
+
+        my_figure.add_subplot(629)
+        plt.plot(translation_rate_results[:,0],
+                 translation_rate_results[:,1], color = 'black')
+        plt.axvline( 29 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=5)
+        plt.xlabel('Translation rate [1/min]')
+        plt.ylabel('Period [min]')
+        plt.ylim(0,700)
+
+        my_figure.add_subplot(6,2,10)
+        plt.plot(translation_rate_results[:,0],
+                 translation_rate_results[:,2], color = 'black')
+        plt.axvline( 29 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=5)
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Translation rate [1/min]')
+        plt.ylabel('Coherence')
+        plt.ylim(0,2)
+
+        my_figure.add_subplot(633)
+#         plt.plot(repression_threshold_results[:,0],
+        plt.plot(translation_rate_results[:,0],
+                 translation_rate_results[:,3]/10000, 
+                 yerr = translation_rate_results[:,4]/10000, color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( 3.14 )
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Translation_rate')
+        plt.ylabel('Mean expression/1e4')
+        plt.ylim(0,2)
+
+
+        ########
+        #
+        # TRANSCRIPTION RATE
+        #
+        ########       
+        trancription_rate_results = np.zeros((number_of_parameter_points,5))
+        index = 0
+        for alpha_m in np.linspace(1.0,100.0,number_of_parameter_points):
+            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+                                                         number_of_trajectories = number_of_trajectories,
+                                                         duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = alpha_m,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+                                                         these_protein_values )
+
+            transcription_rate_results[index,0] = alpha_m
+            transcription_rate_results[index,1] = this_period
+            transcription_rate_results[index,2] = this_coherence
+            transcription_rate_results[index,3] = np.mean(these_protein_values[:,1:])
+            transcription_rate_results[index,4] = np.std(these_protein_values[:,1:])
+            index +=1
+
+        my_figure.add_subplot(6,2,11)
+        plt.plot(transcription_rate_results[:,0],
+                 transcription_rate_results[:,1], color = 'black')
+        plt.axvline( 29 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=5)
+        plt.xlabel('Basal trancription rate [1/min]')
+        plt.ylabel('Period [min]')
+        plt.ylim(0,700)
+
+        my_figure.add_subplot(6,2,12)
+        plt.plot(transcription_rate_results[:,0],
+                 transcription_rate_results[:,2], color = 'black')
+        plt.axvline( 29 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=5)
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Basal transcription rate [1/min]')
+        plt.ylabel('Coherence')
+        plt.ylim(0,2)
+
+        my_figure.add_subplot(633)
+#         plt.plot(repression_threshold_results[:,0],
+        plt.plot(transcription_rate_results[:,0],
+                 transcription_rate_results[:,3]/10000, 
+                 yerr = transcription_rate_results[:,4]/10000, color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( 3.14 )
+#         plt.fill_between(repression_threshold_results[:,0],
+#                          repression_threshold_results[:,2] + repression_threshold_results[:,3],
+#                          np.max(repression_threshold_results[:,2]- repression_threshold_results[:,3],0),
+#                          lw = 0, color = 'grey')
+        plt.xlabel('Basal transcription rate [1/min]')
+        plt.ylabel('Mean expression/1e4')
+        plt.ylim(0,2)
+
+
+        plt.tight_layout()
+
+        plt.savefig(os.path.join(os.path.dirname(__file__), 
+                    'output','full_parameter_sweep_stochastic.pdf'))
+
+    def xest_make_full_parameter_sweep(self):
         ########
         #
         # REPRESSION THRESHOLD
@@ -547,7 +975,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 
                     'output','full_parameter_sweep.pdf'))
         
-    def test_different_tau_values(self):
+    def xest_different_tau_values(self):
         my_figure = plt.figure( figsize = (4.5, 2.5) )
         first_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
@@ -603,7 +1031,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 
                     'output','tau_investigation.pdf'))
         
-    def test_different_protein_degradation_values(self):
+    def xest_different_protein_degradation_values(self):
         my_figure = plt.figure( figsize = (6.5, 2.5) )
         first_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
                                                           repression_threshold = 23000,
