@@ -278,6 +278,15 @@ def generate_stochastic_trajectory( duration = 720,
     equlibration_time : float
         add a neglected simulation period at beginning of the trajectory of length equilibration_time 
         at the beginning of the trajectory in order to get rid of any overshoots, for example
+        
+    return_transcription_times : bool
+        at the end of each simulation there are a set of already-scheduled but not yet executed 
+        transcription times that have been calculated. If this option is true, these
+        transcription times will be returned as second return parameter.
+        
+    transcription_schedule : list
+        List of pre-scheduled transcription events. This can be used to synchronise traces, as is done
+        in generate_multiple_trajectories()
 
     Returns
     -------
@@ -364,6 +373,9 @@ def generate_stochastic_trajectory( duration = 720,
 
     trace[:,0] -= equilibration_time
 
+#     if return_transcription_times: 
+#        return trace, delayed_transcription_times
+#     else:
     return trace
 
 def generate_multiple_trajectories( number_of_trajectories = 10,
@@ -378,7 +390,7 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
                                     equilibration_time = 0.0):
-    '''Generate multiple stochastic traces the Hes5 modelby using
+    '''Generate multiple stochastic traces the Hes5 model by using
        generate_stochastic_trajectory.
     
     Parameters
@@ -419,6 +431,10 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
     equlibration_time : float
         add a neglected simulation period at beginning of the trajectory of length equilibration_time 
         at the beginning of the trajectory in order to get rid of any overshoots, for example
+        
+    synchronize : bool
+        if True, only one trajectory will be run for the equilibration period, and all recorded traces
+        will start along this trajectory.
 
     Returns
     -------
@@ -432,7 +448,10 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
         each further column is one trace of protein copy numbers 
     '''
 
-    pool_of_processes = mp.Pool(processes=4)
+#     if synchronize:
+
+
+    pool_of_processes = mp.Pool(processes=3)
     arguments = [ (duration, repression_threshold, hill_coefficient,
                   mRNA_degradation_rate, protein_degradation_rate, 
                   basal_transcription_rate, translation_rate,
@@ -440,11 +459,14 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
                   equilibration_time) ]*number_of_trajectories
     process_results = [ pool_of_processes.apply_async(generate_stochastic_trajectory, args=x)
                         for x in arguments ]
+    ## Let the pool know that these are all so that the pool will exit afterwards
+    pool_of_processes.close()
+
     list_of_traces = []
     for result in process_results:
         this_trace = result.get()
         list_of_traces.append(this_trace)
-
+    
     first_trace = list_of_traces[0]
 
     sample_times = first_trace[:,0]
@@ -462,48 +484,6 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
  
     return mRNA_trajectories, protein_trajectories
 
-#     first_trace = generate_stochastic_trajectory( duration, 
-#                                                   repression_threshold, 
-#                                                   hill_coefficient, 
-#                                                   mRNA_degradation_rate, 
-#                                                   protein_degradation_rate, 
-#                                                   basal_transcription_rate, 
-#                                                   translation_rate, 
-#                                                   transcription_delay, 
-#                                                   initial_mRNA, 
-#                                                   initial_protein,
-#                                                   equilibration_time)
-#     
-
-#     sample_times = first_trace[:,0]
-    
-#     mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
-#     protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
-    
-#     mRNA_trajectories[:,0] = sample_times
-#     mRNA_trajectories[:,1] = first_trace[:,1]
-#     protein_trajectories[:,0] = sample_times
-#     protein_trajectories[:,1] = first_trace[:,2]
-
-#     for trajectory_index in range(1,number_of_trajectories): # range argument because the first 
-                                                             # trajectory has already been created
-#         this_trace = generate_stochastic_trajectory( duration, 
-#                                                   repression_threshold, 
-#                                                   hill_coefficient, 
-#                                                   mRNA_degradation_rate, 
-#                                                   protein_degradation_rate, 
-#                                                   basal_transcription_rate, 
-#                                                   translation_rate, 
-#                                                   transcription_delay, 
-#                                                   initial_mRNA, 
-#                                                   initial_protein)
-# 
-#         # offset one index for time column
-#         mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
-#         protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
-    
-#     return mRNA_trajectories, protein_trajectories
-      
 @autojit(nopython = True)
 def identify_reaction(random_number, base_propensity, propensities):
     '''Choose a reaction from a set of possiblities using a random number and the corresponding
@@ -547,7 +527,7 @@ def identify_reaction(random_number, base_propensity, propensities):
     raise(RuntimeError("This line should never be reached."))
         
 def calculate_power_spectrum_of_trajectories(trajectories):
-    '''Calculate the power spectrum, coherence, and period, of a set
+    '''Calculate the power spectrum, coherence, and period of a set
     of trajectories. Works by applying discrete fourier transforms to the mean
     of the trajectories. We define the power spectrum as the square of the
     absolute of the fourier transform, and we define the coherence as in 
@@ -555,7 +535,8 @@ def calculate_power_spectrum_of_trajectories(trajectories):
     occopied by a 20% frequency band around the maximum frequency.
     The maximum frequency corresponds to the inverse of the period.
     The returned power spectum excludes the frequency 0 and thus neglects
-    the mean of the signal.
+    the mean of the signal. The power spectrum is normalised such that
+    all entries add to one.
     
     Parameters:
     ---------- 
