@@ -1,7 +1,9 @@
 import PyDDE
 import numpy as np
 import scipy.signal
+import multiprocessing as mp
 # import collections
+from numba import jit, autojit
 
 
 def generate_deterministic_trajectory( duration = 720, 
@@ -223,6 +225,7 @@ def measure_period_and_amplitude_of_signal(x_values, signal_values):
     
     return np.mean(peak_distances), np.mean(peak_amplitudes), np.std(peak_amplitudes)
 
+@autojit(nopython=True)
 def generate_stochastic_trajectory( duration = 720, 
                                     repression_threshold = 10000,
                                     hill_coefficient = 5,
@@ -428,47 +431,80 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
         2 dimensional array with [number_of_trajectories] columns, first column is time, 
         each further column is one trace of protein copy numbers 
     '''
-    first_trace = generate_stochastic_trajectory( duration, 
-                                                  repression_threshold, 
-                                                  hill_coefficient, 
-                                                  mRNA_degradation_rate, 
-                                                  protein_degradation_rate, 
-                                                  basal_transcription_rate, 
-                                                  translation_rate, 
-                                                  transcription_delay, 
-                                                  initial_mRNA, 
-                                                  initial_protein,
-                                                  equilibration_time)
-    
+
+    pool_of_processes = mp.Pool(processes=4)
+    arguments = [ (duration, repression_threshold, hill_coefficient,
+                  mRNA_degradation_rate, protein_degradation_rate, 
+                  basal_transcription_rate, translation_rate,
+                  transcription_delay, initial_mRNA, initial_protein,
+                  equilibration_time) ]*number_of_trajectories
+    process_results = [ pool_of_processes.apply_async(generate_stochastic_trajectory, args=x)
+                        for x in arguments ]
+    list_of_traces = []
+    for result in process_results:
+        this_trace = result.get()
+        list_of_traces.append(this_trace)
+
+    first_trace = list_of_traces[0]
+
     sample_times = first_trace[:,0]
-    
     mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
     protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
     
     mRNA_trajectories[:,0] = sample_times
-    mRNA_trajectories[:,1] = first_trace[:,1]
     protein_trajectories[:,0] = sample_times
-    protein_trajectories[:,1] = first_trace[:,2]
 
-    for trajectory_index in range(1,number_of_trajectories): # range argument because the first 
-                                                             # trajectory has already been created
-        this_trace = generate_stochastic_trajectory( duration, 
-                                                  repression_threshold, 
-                                                  hill_coefficient, 
-                                                  mRNA_degradation_rate, 
-                                                  protein_degradation_rate, 
-                                                  basal_transcription_rate, 
-                                                  translation_rate, 
-                                                  transcription_delay, 
-                                                  initial_mRNA, 
-                                                  initial_protein)
-
+    for trajectory_index, this_trace in enumerate(list_of_traces): # range argument because the first 
+                                                                 # trajectory has already been created
         # offset one index for time column
         mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
         protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
-    
+ 
     return mRNA_trajectories, protein_trajectories
+
+#     first_trace = generate_stochastic_trajectory( duration, 
+#                                                   repression_threshold, 
+#                                                   hill_coefficient, 
+#                                                   mRNA_degradation_rate, 
+#                                                   protein_degradation_rate, 
+#                                                   basal_transcription_rate, 
+#                                                   translation_rate, 
+#                                                   transcription_delay, 
+#                                                   initial_mRNA, 
+#                                                   initial_protein,
+#                                                   equilibration_time)
+#     
+
+#     sample_times = first_trace[:,0]
+    
+#     mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+#     protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+    
+#     mRNA_trajectories[:,0] = sample_times
+#     mRNA_trajectories[:,1] = first_trace[:,1]
+#     protein_trajectories[:,0] = sample_times
+#     protein_trajectories[:,1] = first_trace[:,2]
+
+#     for trajectory_index in range(1,number_of_trajectories): # range argument because the first 
+                                                             # trajectory has already been created
+#         this_trace = generate_stochastic_trajectory( duration, 
+#                                                   repression_threshold, 
+#                                                   hill_coefficient, 
+#                                                   mRNA_degradation_rate, 
+#                                                   protein_degradation_rate, 
+#                                                   basal_transcription_rate, 
+#                                                   translation_rate, 
+#                                                   transcription_delay, 
+#                                                   initial_mRNA, 
+#                                                   initial_protein)
+# 
+#         # offset one index for time column
+#         mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
+#         protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
+    
+#     return mRNA_trajectories, protein_trajectories
       
+@autojit(nopython = True)
 def identify_reaction(random_number, base_propensity, propensities):
     '''Choose a reaction from a set of possiblities using a random number and the corresponding
     reaction propensities. To be used, for example, in a Gillespie SSA. 
@@ -482,6 +518,11 @@ def identify_reaction(random_number, base_propensity, propensities):
     
     random_number : float
         needs to be between 0 and 1
+        
+    base_propensity : float
+        the sum of all propensities in the propensities argument. This is a function argument
+        to avoid repeated calculation of this value throughout the algorithm, which improves
+        performance
         
     propensities : ndarray
         one-dimensional array of arbitrary length. Each entry needs to be larger than zero.
@@ -505,3 +546,98 @@ def identify_reaction(random_number, base_propensity, propensities):
     ##Make sure we never exit the for loop:
     raise(RuntimeError("This line should never be reached."))
         
+def calculate_power_spectrum_of_trajectories(trajectories):
+    '''Calculate the power spectrum, coherence, and period, of a set
+    of trajectories. Works by applying discrete fourier transforms to the mean
+    of the trajectories. We define the power spectrum as the square of the
+    absolute of the fourier transform, and we define the coherence as in 
+    Phillips et al (eLife, 2016): the relative area of the power spectrum
+    occopied by a 20% frequency band around the maximum frequency.
+    The maximum frequency corresponds to the inverse of the period.
+    The returned power spectum excludes the frequency 0 and thus neglects
+    the mean of the signal.
+    
+    Parameters:
+    ---------- 
+    
+    trajectories : ndarray
+        2D array. First column is time, each further column contains one realisation
+        of the signal that is aimed to be analysed.
+    
+    Result:
+    ------
+    
+    power_spectrum : ndarray
+        first column contains frequencies, second column contains the power spectrum
+        |F(x)|^2, where F denotes the Fourier transform and x is the mean signal
+        extracted from the argument `trajectories'.
+    
+    coherence : float
+        coherence value for this trajectory, as defined by Phillips et al
+    
+    period : float
+        period corresponding to the maximum observed frequency
+    '''
+        
+    mean_trajectory = np.vstack((trajectories[:,0], np.mean(trajectories[:,1:], axis = 1))).transpose()
+    
+    power_spectrum, coherence, period = calculate_power_spectrum_of_trajectory(mean_trajectory)
+
+    return power_spectrum, coherence, period
+    
+def calculate_power_spectrum_of_trajectory(trajectory):
+    '''Calculate the power spectrum, coherence, and period, of a trajectory. 
+    Works by applying discrete fourier transformation. We define the power spectrum as the square of the
+    absolute of the fourier transform, and we define the coherence as in 
+    Phillips et al (eLife, 2016): the relative area of the power spectrum
+    occopied by a 20% frequency band around the maximum frequency.
+    The maximum frequency corresponds to the inverse of the period.
+    The returned power spectum excludes the frequency 0 and thus neglects
+    the mean of the signal. The power spectrum is normalised so that all entries add up to one.
+    
+    Parameters:
+    ---------- 
+    
+    trajectories : ndarray
+        2D array. First column is time, second column contains the signal that is aimed to be analysed.
+    
+    Result:
+    ------
+    
+    power_spectrum : ndarray
+        first column contains frequencies, second column contains the power spectrum
+        |F(x)|^2, where F denotes the Fourier transform and x is the mean signal
+        extracted from the argument `trajectories'. The spectrum is normalised
+        to add up to one.
+    
+    coherence : float
+        coherence value for this trajectory, as defined by Phillips et al
+    
+    period : float
+        period corresponding to the maximum observed frequency
+    '''
+    # Calculate power spectrum
+    number_of_data_points = len(trajectory)
+    interval_length = trajectory[-1,0]
+    fourier_transform = np.fft.fft(trajectory[:,1])/number_of_data_points
+    fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
+                                                     1.0/(interval_length) )[1:]
+    power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[1:(number_of_data_points/2)]),2)
+    power_spectrum_without_frequencies/= np.sum(power_spectrum_without_frequencies)
+    power_spectrum = np.vstack((fourier_frequencies, power_spectrum_without_frequencies)).transpose()
+
+
+    # Calculate coherence:
+    max_index = np.argmax(power_spectrum_without_frequencies)
+    coherence_boundary_left = int(np.round(max_index - max_index*0.1))
+    coherence_boundary_right = int(np.round(max_index + max_index*0.1))
+    coherence_area = np.trapz(power_spectrum_without_frequencies[coherence_boundary_left:(coherence_boundary_right+1)])
+    full_area = np.trapz(power_spectrum_without_frequencies)
+    coherence = coherence_area/full_area
+    
+    # calculate period: 
+    max_power_frequency = fourier_frequencies[max_index]
+    period = 1./max_power_frequency
+
+    return power_spectrum, coherence, period
+ 
