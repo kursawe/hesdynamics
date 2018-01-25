@@ -56,11 +56,11 @@ def generate_deterministic_trajectory( duration = 720,
     for_negative_times : string
         decides what protein and MRNA values are assumed for negative times. This 
         is necessary since function values for t-tau are required for all t>0. 
-        The values 'initial' or 'zero' are supported. The default 'initial' will assume that protein and 
+        The values 'initial', 'zero' and 'no_negative' are supported. The default 'initial' will assume that protein and 
         mRNA numbers were constant at the values of the initial condition for all negative times.
         If 'zero' is chosen, then the protein and mRNA numbers are assumed to be 0 at negative times. 
         If 'no_negative' is chosen, no assumptions are made for negative times, and transcription
-        is blocked until transcription_delay is passed.
+        is blocked until transcription_delay has passed.
 
     Returns
     -------
@@ -102,8 +102,7 @@ def generate_deterministic_trajectory( duration = 720,
 
 def hes5_ddegrad(y, parameters, time):
     '''Gradient of the Hes5 delay differential equation for
-    deterministic runs of the model. This gradient function assumes
-    that for t<0 the protein has the same value as the initial condition.
+    deterministic runs of the model. 
     It evaluates the right hand side of DDE 1 in Monk(2003).
     
     Parameters
@@ -117,7 +116,8 @@ def hes5_ddegrad(y, parameters, time):
                             transcription_delay, negative_times_indicator]
         containing the value of these parameters.
         The value of negative_times_indicator corresponds to for_negative_times in generate_deterministic_trajectory().
-        The value 0.0 corresponds to the option 'initial', whereas 1.0 corresponds to 'zero'.
+        The value 0.0 corresponds to the option 'initial', whereas 1.0 corresponds to 'zero',
+        and 2.0 corresponds to 'no_negative'.
     
     time : float
         time at which the gradient is calculated
@@ -179,9 +179,9 @@ def hes5_ddegrad(y, parameters, time):
 def measure_period_and_amplitude_of_signal(x_values, signal_values):
     '''Measure the period of a signal generated with an ODE or DDE. 
     This function will identify all peaks in the signal that are not at the boundary
-    and return their average distance from each other. Will also return the relative amplitude
+    and return the average distance of consecutive peaks. Will also return the relative amplitude
     defined as the signal difference of each peak to the previous lowest dip relative to the mean
-    of the signal; and the variation of that amplitude
+    of the signal; and the variation of that amplitude.
     
     Warning: This function will return nonsense on stochastic data
 
@@ -205,7 +205,6 @@ def measure_period_and_amplitude_of_signal(x_values, signal_values):
     
     amplitude_variation : float
         standard variation of the signal amplitudes
-    
     '''
     signal_mean = np.mean(signal_values)
     peak_indices = scipy.signal.argrelmax(signal_values)
@@ -236,11 +235,99 @@ def generate_stochastic_trajectory( duration = 720,
                                     transcription_delay = 29,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
-                                    equilibration_time = 0.0):
+                                    equilibration_time = 0.0,
+#                                     explicit typing necessary for autojit
+                                    transcription_schedule = np.array([-1.0])):
     '''Generate one trace of the Hes5 model. This function implements a stochastic version of
     the model model in Monk, Current Biology (2003). It applies the rejection method described
     in Cai et al, J. Chem. Phys. (2007) as Algorithm 2. This method is an exact method to calculate
-    the temporal evolution of stochastic reaction systems with delay.
+    the temporal evolution of stochastic reaction systems with delay.     
+
+    Parameters
+    ----------
+    
+    duration : float
+        duration of the trace in minutes
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+        
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time 
+        in order to get rid of any overshoots, for example
+        
+    transcription_schedule : ndarray
+        1D numpy array of floats, corresponding to a list of pre-scheduled transcription events. 
+        This can be used to synchronise traces, as is done in generate_multiple_trajectories().
+        This schedule will be ignored if its first entry is negative, as in the standard value.
+
+    Returns
+    -------
+    
+    trace : ndarray
+        2 dimensional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number
+    '''
+    
+    trace, remaining_transcription_times = generate_stochastic_trajectory_and_transcription_times( duration, 
+                                    repression_threshold,
+                                    hill_coefficient,
+                                    mRNA_degradation_rate,
+                                    protein_degradation_rate, 
+                                    basal_transcription_rate,
+                                    translation_rate,
+                                    transcription_delay,
+                                    initial_mRNA,
+                                    initial_protein,
+                                    equilibration_time,
+                                    transcription_schedule)
+
+    return trace
+
+@autojit(nopython=True)
+def generate_stochastic_trajectory_and_transcription_times( duration = 720, 
+                                    repression_threshold = 10000,
+                                    hill_coefficient = 5,
+                                    mRNA_degradation_rate = np.log(2)/30,
+                                    protein_degradation_rate = np.log(2)/90, 
+                                    basal_transcription_rate = 1,
+                                    translation_rate = 1,
+                                    transcription_delay = 29,
+                                    initial_mRNA = 0,
+                                    initial_protein = 0,
+                                    equilibration_time = 0.0,
+                                    #explicit typing necessary for autojit
+                                    transcription_schedule = np.array([-1.0])):
+    '''Generate one trace of the Hes5 model. This function implements a stochastic version of
+    the model model in Monk, Current Biology (2003). It applies the rejection method described
+    in Cai et al, J. Chem. Phys. (2007) as Algorithm 2. This method is an exact method to calculate
+    the temporal evolution of stochastic reaction systems with delay. At the end of the trajectory,
+    transcription events will have been scheduled to occur after the trajectory has terminated.
+    This function returns this transcription schedule, as well.
     
     Parameters
     ----------
@@ -277,16 +364,17 @@ def generate_stochastic_trajectory( duration = 720,
         
     equlibration_time : float
         add a neglected simulation period at beginning of the trajectory of length equilibration_time 
-        at the beginning of the trajectory in order to get rid of any overshoots, for example
+        trajectory in order to get rid of any overshoots, for example
         
     return_transcription_times : bool
         at the end of each simulation there are a set of already-scheduled but not yet executed 
         transcription times that have been calculated. If this option is true, these
         transcription times will be returned as second return parameter.
         
-    transcription_schedule : list
-        List of pre-scheduled transcription events. This can be used to synchronise traces, as is done
-        in generate_multiple_trajectories()
+    transcription_schedule : ndarray
+        1D numpy array of floats, corresponding to a list of pre-scheduled transcription events. 
+        This can be used to synchronise traces, as is done in generate_multiple_trajectories()
+        This schedule will be ignored if its first entry is negative, as for the standard value.
 
     Returns
     -------
@@ -294,6 +382,9 @@ def generate_stochastic_trajectory( duration = 720,
     trace : ndarray
         2 dimensional array, first column is time, second column mRNA number,
         third column is Hes5 protein copy number
+        
+    remaining_transcription_times : list
+        list entries are floats. Each entry corresponds to the time of one transcription event.
     '''
     total_time = duration + equilibration_time
     sample_times = np.linspace(equilibration_time, total_time, 100)
@@ -315,12 +406,21 @@ def generate_stochastic_trajectory( duration = 720,
     # set up the gillespie algorithm: We first
     # need a list where we store any delayed reaction times
 #     delayed_transcription_times = collections.deque()
-    delayed_transcription_times = []
+    # this requires a bit of faff for autojit to compile
+    delayed_transcription_times = [-1.0]
+    if transcription_schedule[0] < 0:
+        delayed_transcription_times.pop(0)
+        #this is now an empty list
+    else:
+#         delayed_transcription_times += [time for time in transcription_schedule]
+        delayed_transcription_times += [time for time in transcription_schedule]
+        delayed_transcription_times.pop(0)
+        # this is now a list containing all the transcription times passed to this function
     
     # This following index is to keep track at which index of the trace entries
     # we currently are (see definition of trace above). This is necessary since
     # the SSA will calculate reactions at random times and we need to transform
-    # calculated reaction times to the samplin time points 
+    # calculated reaction times to the sampling time points 
     sampling_index = 0
 
     time = 0.0
@@ -376,7 +476,7 @@ def generate_stochastic_trajectory( duration = 720,
 #     if return_transcription_times: 
 #        return trace, delayed_transcription_times
 #     else:
-    return trace
+    return trace, delayed_transcription_times
 
 def generate_multiple_trajectories( number_of_trajectories = 10,
                                     duration = 720, 
@@ -389,7 +489,8 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
                                     transcription_delay = 29,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
-                                    equilibration_time = 0.0):
+                                    equilibration_time = 0.0,
+                                    synchronize = True):
     '''Generate multiple stochastic traces the Hes5 model by using
        generate_stochastic_trajectory.
     
@@ -430,7 +531,7 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
 
     equlibration_time : float
         add a neglected simulation period at beginning of the trajectory of length equilibration_time 
-        at the beginning of the trajectory in order to get rid of any overshoots, for example
+        in order to get rid of any overshoots, for example
         
     synchronize : bool
         if True, only one trajectory will be run for the equilibration period, and all recorded traces
@@ -448,18 +549,41 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
         each further column is one trace of protein copy numbers 
     '''
 
-#     if synchronize:
-
+    if synchronize:
+        equilibrated_trace, transcription_times = generate_stochastic_trajectory_and_transcription_times(
+                                                     equilibration_time, #duration 
+                                                     repression_threshold, 
+                                                     hill_coefficient, 
+                                                     mRNA_degradation_rate, 
+                                                     protein_degradation_rate, 
+                                                     basal_transcription_rate, 
+                                                     translation_rate, 
+                                                     transcription_delay, 
+                                                     initial_mRNA, 
+                                                     initial_protein, 
+                                                     equilibration_time = 0.0, 
+                                                     )
+        initial_mRNA = equilibrated_trace[-1,1]
+        initial_protein = equilibrated_trace[-1,2]
+        transcription_schedule = np.array([transcription_time for transcription_time in 
+                                           transcription_times])
+        transcription_schedule -= equilibration_time
+        equilibration_time = 0.0
+    else:
+        transcription_schedule = np.array([-1.0])
 
     pool_of_processes = mp.Pool(processes=3)
     arguments = [ (duration, repression_threshold, hill_coefficient,
                   mRNA_degradation_rate, protein_degradation_rate, 
                   basal_transcription_rate, translation_rate,
                   transcription_delay, initial_mRNA, initial_protein,
-                  equilibration_time) ]*number_of_trajectories
+                  equilibration_time, transcription_schedule) ]*number_of_trajectories
+#                   equilibration_time, transcription_schedule) ]*number_of_trajectories
     process_results = [ pool_of_processes.apply_async(generate_stochastic_trajectory, args=x)
                         for x in arguments ]
+
     ## Let the pool know that these are all so that the pool will exit afterwards
+    # this is necessary to prevent memory overflows.
     pool_of_processes.close()
 
     list_of_traces = []
@@ -476,8 +600,7 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
     mRNA_trajectories[:,0] = sample_times
     protein_trajectories[:,0] = sample_times
 
-    for trajectory_index, this_trace in enumerate(list_of_traces): # range argument because the first 
-                                                                 # trajectory has already been created
+    for trajectory_index, this_trace in enumerate(list_of_traces): 
         # offset one index for time column
         mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
         protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
@@ -513,8 +636,6 @@ def identify_reaction(random_number, base_propensity, propensities):
     reaction_index : int
         The reaction index 
     '''
-#     base_propensity = np.sum(propensities)
-#     base_propensity = propensities[0] + propensities[1] + propensities[2] + propensities[3]
     scaled_random_number = random_number*base_propensity
     propensity_sum = 0.0
     for reaction_index, propensity in enumerate(propensities):

@@ -295,34 +295,39 @@ class TestSimpleHes5Model(unittest.TestCase):
         # REPRESSION THRESHOLD
         #
         ########
-        number_of_parameter_points = 10
-        number_of_trajectories = 10
+        number_of_parameter_points = 20
+        number_of_trajectories = 100
         repression_threshold_results = np.zeros((number_of_parameter_points,5))
         index = 0
-        for p0 in np.linspace(1,60000,number_of_parameter_points):
-            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
-                                                         number_of_trajectories = number_of_trajectories,
-                                                         duration = 1500,
-#                                                          repression_threshold = 31400,
-                                                         repression_threshold = p0,
-                                                         mRNA_degradation_rate = np.log(2)/30,
-                                                         protein_degradation_rate = np.log(2)/90,
-                                                         translation_rate = 29,
-                                                         basal_transcription_rate = 11,
-                                                         transcription_delay = 29,
-                                                         initial_mRNA = 3,
-                                                         initial_protein = 31400,
-                                                         equilibration_time = 1000)
-
-            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
-                                                         these_protein_values )
-
-            repression_threshold_results[index,0] = p0
-            repression_threshold_results[index,1] = this_period
-            repression_threshold_results[index,2] = this_coherence
-            repression_threshold_results[index,3] = np.mean(these_protein_values[:,1:])
-            repression_threshold_results[index,4] = np.std(these_protein_values[:,1:])
-            index +=1
+#         for p0 in np.linspace(1,60000,number_of_parameter_points):
+#             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+#                                                          number_of_trajectories = number_of_trajectories,
+#                                                          duration = 1500,
+# #                                                          repression_threshold = 31400,
+#                                                          repression_threshold = p0,
+#                                                          mRNA_degradation_rate = np.log(2)/30,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11,
+#                                                          transcription_delay = 29,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 31400,
+#                                                          equilibration_time = 1000)
+# 
+#             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+#                                                          these_protein_values )
+# 
+#             repression_threshold_results[index,0] = p0
+#             repression_threshold_results[index,1] = this_period
+#             repression_threshold_results[index,2] = this_coherence
+#             repression_threshold_results[index,3] = np.mean(these_protein_values[:,1:])
+#             repression_threshold_results[index,4] = np.std(these_protein_values[:,1:])
+#             index +=1
+# 
+#         np.save(os.path.join(os.path.dirname(__file__), 
+#                     'output','repression_threshold_results.npy'), repression_threshold_results)
+        repression_threshold_results = np.load(os.path.join(os.path.dirname(__file__), 
+                    'output','repression_threshold_results.npy'))
 
         my_figure = plt.figure( figsize = (6.5, 9) )
         my_figure.add_subplot(631)
@@ -373,30 +378,36 @@ class TestSimpleHes5Model(unittest.TestCase):
         ########       
         mrna_degradation_results = np.zeros((number_of_parameter_points,5))
         index = 0
-        for mu_m in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
-            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
-                                                         number_of_trajectories = number_of_trajectories,
-                                                         duration = 1500,
-                                                        repression_threshold = 31400,
-                                                         mRNA_degradation_rate = mu_m,
-                                                         protein_degradation_rate = np.log(2)/90,
-                                                         translation_rate = 29,
-                                                         basal_transcription_rate = 11,
-                                                         transcription_delay = 29,
-                                                         initial_mRNA = 3,
-                                                         initial_protein = 31400,
-                                                         equilibration_time = 1000)
+#         for mu_m in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
+#             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+#                                                          number_of_trajectories = number_of_trajectories,
+#                                                          duration = 1500,
+#                                                         repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = mu_m,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11,
+#                                                          transcription_delay = 29,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 31400,
+#                                                          equilibration_time = 1000)
+# 
+#             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+#                                                          these_protein_values )
+# 
+# 
+#             mrna_degradation_results[index,0] = mu_m
+#             mrna_degradation_results[index,1] = this_period
+#             mrna_degradation_results[index,2] = this_coherence
+#             mrna_degradation_results[index,3] = np.mean(these_protein_values[:,1:])
+#             mrna_degradation_results[index,4] = np.std(these_protein_values[:,1:])
+#             index +=1
+# 
+#         np.save(os.path.join(os.path.dirname(__file__), 
+#                     'output','mrna_degradation_results.npy'), mrna_degradation_results)
 
-            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
-                                                         these_protein_values )
-
-
-            mrna_degradation_results[index,0] = mu_m
-            mrna_degradation_results[index,1] = this_period
-            mrna_degradation_results[index,2] = this_coherence
-            mrna_degradation_results[index,3] = np.mean(these_protein_values[:,1:])
-            mrna_degradation_results[index,4] = np.std(these_protein_values[:,1:])
-            index +=1
+        mrna_degradation_results = np.load(os.path.join(os.path.dirname(__file__), 
+                    'output','mrna_degradation_results.npy'))
 
         my_figure.add_subplot(634)
         plt.plot(mrna_degradation_results[:,0],
@@ -438,30 +449,36 @@ class TestSimpleHes5Model(unittest.TestCase):
         ########       
         protein_degradation_results = np.zeros((number_of_parameter_points,5))
         index = 0
-        for mu_p in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
-            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
-                                                         number_of_trajectories = number_of_trajectories,
-                                                         duration = 1500,
-                                                         repression_threshold = 31400,
-                                                         mRNA_degradation_rate = np.log(2)/30.0,
-#                                                          protein_degradation_rate = np.log(2)/90,
-                                                         protein_degradation_rate = mu_p,
-                                                         translation_rate = 29,
-                                                         basal_transcription_rate = 11,
-                                                         transcription_delay = 29,
-                                                         initial_mRNA = 3,
-                                                         initial_protein = 31400,
-                                                         equilibration_time = 1000)
+#         for mu_p in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
+#             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+#                                                          number_of_trajectories = number_of_trajectories,
+#                                                          duration = 1500,
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30.0,
+# #                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          protein_degradation_rate = mu_p,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11,
+#                                                          transcription_delay = 29,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 31400,
+#                                                          equilibration_time = 1000)
+# 
+#             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+#                                                          these_protein_values )
+# 
+#             protein_degradation_results[index,0] = mu_p
+#             protein_degradation_results[index,1] = this_period
+#             protein_degradation_results[index,2] = this_coherence
+#             protein_degradation_results[index,3] = np.mean(these_protein_values[:,1:])
+#             protein_degradation_results[index,4] = np.std(these_protein_values[:,1:])
+#             index +=1
+# 
+#         np.save(os.path.join(os.path.dirname(__file__), 
+#                     'output','protein_degradation_results.npy'), protein_degradation_results)
 
-            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
-                                                         these_protein_values )
-
-            protein_degradation_results[index,0] = mu_p
-            protein_degradation_results[index,1] = this_period
-            protein_degradation_results[index,2] = this_coherence
-            protein_degradation_results[index,3] = np.mean(these_protein_values[:,1:])
-            protein_degradation_results[index,4] = np.std(these_protein_values[:,1:])
-            index +=1
+        protein_degradation_results = np.load(os.path.join(os.path.dirname(__file__), 
+                    'output','protein_degradation_results.npy'))
 
         my_figure.add_subplot(637)
         plt.plot(protein_degradation_results[:,0],
@@ -503,29 +520,35 @@ class TestSimpleHes5Model(unittest.TestCase):
         ########       
         time_delay_results = np.zeros((number_of_parameter_points,5))
         index = 0
-        for tau in np.linspace(5.0,40.0,number_of_parameter_points):
-            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
-                                                         number_of_trajectories = number_of_trajectories,
-                                                         duration = 1500,
-                                                         repression_threshold = 31400,
-                                                         mRNA_degradation_rate = np.log(2)/30.0,
-                                                         protein_degradation_rate = np.log(2)/90,
-                                                         translation_rate = 29,
-                                                         basal_transcription_rate = 11,
-                                                         transcription_delay = tau,
-                                                         initial_mRNA = 3,
-                                                         initial_protein = 31400,
-                                                         equilibration_time = 1000)
+#         for tau in np.linspace(5.0,40.0,number_of_parameter_points):
+#             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+#                                                          number_of_trajectories = number_of_trajectories,
+#                                                          duration = 1500,
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30.0,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11,
+#                                                          transcription_delay = tau,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 31400,
+#                                                          equilibration_time = 1000)
+# 
+#             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+#                                                          these_protein_values )
+# 
+#             time_delay_results[index,0] = tau
+#             time_delay_results[index,1] = this_period
+#             time_delay_results[index,2] = this_coherence
+#             time_delay_results[index,3] = np.mean(these_protein_values[:,1:])
+#             time_delay_results[index,4] = np.std(these_protein_values[:,1:])
+#             index +=1
+# 
+#         np.save(os.path.join(os.path.dirname(__file__), 
+#                     'output','time_delay_results.npy'), time_delay_results)
 
-            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
-                                                         these_protein_values )
-
-            time_delay_results[index,0] = tau
-            time_delay_results[index,1] = this_period
-            time_delay_results[index,2] = this_coherence
-            time_delay_results[index,3] = np.mean(these_protein_values[:,1:])
-            time_delay_results[index,4] = np.std(these_protein_values[:,1:])
-            index +=1
+        time_delay_results = np.load(os.path.join(os.path.dirname(__file__), 
+                    'output','time_delay_results.npy'))
 
         my_figure.add_subplot(6,3,10)
         plt.plot(time_delay_results[:,0],
@@ -570,30 +593,36 @@ class TestSimpleHes5Model(unittest.TestCase):
         ########       
         translation_rate_results = np.zeros((number_of_parameter_points,5))
         index = 0
-        for alpha_p in np.linspace(1.0,100.0,number_of_parameter_points):
-            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
-                                                         number_of_trajectories = number_of_trajectories,
-                                                         duration = 1500,
-                                                         repression_threshold = 31400,
-                                                         mRNA_degradation_rate = np.log(2)/30.0,
-                                                         protein_degradation_rate = np.log(2)/90,
-#                                                          translation_rate = 29,
-                                                         translation_rate = alpha_p,
-                                                         basal_transcription_rate = 11,
-                                                         transcription_delay = 29,
-                                                         initial_mRNA = 3,
-                                                         initial_protein = 31400,
-                                                         equilibration_time = 1000)
+#         for alpha_p in np.linspace(1.0,100.0,number_of_parameter_points):
+#             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+#                                                          number_of_trajectories = number_of_trajectories,
+#                                                          duration = 1500,
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30.0,
+#                                                          protein_degradation_rate = np.log(2)/90,
+# #                                                          translation_rate = 29,
+#                                                          translation_rate = alpha_p,
+#                                                          basal_transcription_rate = 11,
+#                                                          transcription_delay = 29,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 31400,
+#                                                          equilibration_time = 1000)
+# 
+#             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+#                                                          these_protein_values )
+# 
+#             translation_rate_results[index,0] = alpha_p
+#             translation_rate_results[index,1] = this_period
+#             translation_rate_results[index,2] = this_coherence
+#             translation_rate_results[index,3] = np.mean(these_protein_values[:,1:])
+#             translation_rate_results[index,4] = np.std(these_protein_values[:,1:])
+#             index +=1
+# 
+#         np.save(os.path.join(os.path.dirname(__file__), 
+#                     'output','translation_rate_results.npy'), translation_rate_results)
 
-            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
-                                                         these_protein_values )
-
-            translation_rate_results[index,0] = alpha_p
-            translation_rate_results[index,1] = this_period
-            translation_rate_results[index,2] = this_coherence
-            translation_rate_results[index,3] = np.mean(these_protein_values[:,1:])
-            translation_rate_results[index,4] = np.std(these_protein_values[:,1:])
-            index +=1
+        translation_rate_results = np.load(os.path.join(os.path.dirname(__file__), 
+                    'output','translation_rate_results.npy'))
 
         my_figure.add_subplot(6,3,13)
         plt.plot(translation_rate_results[:,0],
@@ -636,34 +665,40 @@ class TestSimpleHes5Model(unittest.TestCase):
         ########       
         transcription_rate_results = np.zeros((number_of_parameter_points,5))
         index = 0
-        for alpha_m in np.linspace(1.0,100.0,number_of_parameter_points):
-            these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
-                                                         number_of_trajectories = number_of_trajectories,
-                                                         duration = 1500,
-                                                         repression_threshold = 31400,
-                                                         mRNA_degradation_rate = np.log(2)/30.0,
-                                                         protein_degradation_rate = np.log(2)/90,
-                                                         translation_rate = 29,
-                                                         basal_transcription_rate = alpha_m,
-                                                         transcription_delay = 29,
-                                                         initial_mRNA = 3,
-                                                         initial_protein = 31400,
-                                                         equilibration_time = 1000)
+#         for alpha_m in np.linspace(1.0,100.0,number_of_parameter_points):
+#             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+#                                                          number_of_trajectories = number_of_trajectories,
+#                                                          duration = 1500,
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30.0,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = alpha_m,
+#                                                          transcription_delay = 29,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 31400,
+#                                                          equilibration_time = 1000)
+# 
+#             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+#                                                          these_protein_values )
+# 
+#             transcription_rate_results[index,0] = alpha_m
+#             transcription_rate_results[index,1] = this_period
+#             transcription_rate_results[index,2] = this_coherence
+#             transcription_rate_results[index,3] = np.mean(these_protein_values[:,1:])
+#             transcription_rate_results[index,4] = np.std(these_protein_values[:,1:])
+#             index +=1
+# 
+#         np.save(os.path.join(os.path.dirname(__file__), 
+#                     'output','transcription_rate_results.npy'), transcription_rate_results)
 
-            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
-                                                         these_protein_values )
-
-            transcription_rate_results[index,0] = alpha_m
-            transcription_rate_results[index,1] = this_period
-            transcription_rate_results[index,2] = this_coherence
-            transcription_rate_results[index,3] = np.mean(these_protein_values[:,1:])
-            transcription_rate_results[index,4] = np.std(these_protein_values[:,1:])
-            index +=1
+        transcription_rate_results = np.load(os.path.join(os.path.dirname(__file__), 
+                    'output','transcription_rate_results.npy'))
 
         my_figure.add_subplot(6,3,16)
         plt.plot(transcription_rate_results[:,0],
                  transcription_rate_results[:,1], color = 'black')
-        plt.axvline( 29 )
+        plt.axvline( 11 )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=5)
         plt.xlabel('Trancription rate [1/min]')
@@ -673,7 +708,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.add_subplot(6,3,17)
         plt.plot(transcription_rate_results[:,0],
                  transcription_rate_results[:,2], color = 'black')
-        plt.axvline( 29 )
+        plt.axvline( 11 )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.xlabel('Transcription rate [1/min]')
         plt.ylabel('Coherence')
@@ -685,7 +720,7 @@ class TestSimpleHes5Model(unittest.TestCase):
                  transcription_rate_results[:,3]/10000, 
                  yerr = transcription_rate_results[:,4]/10000, color = 'black')
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
-        plt.axvline( 29 )
+        plt.axvline( 11 )
         plt.ylim(0,15)
         plt.xlabel('Transcription rate [1/min]')
         plt.ylabel('Expression/1e4')
