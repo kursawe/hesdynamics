@@ -198,7 +198,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','stochastic_trajectory.pdf'))
 
-    def xtest_validate_stochastic_implementation(self):
+    def xest_validate_stochastic_implementation(self):
         mRNA_trajectories, protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 10,
                                                                      duration = 720,
                                                                      repression_threshold = 100000,
@@ -302,7 +302,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','hes5_stochastic_trajectory_more_rna.pdf'))
     
-    def test_equlibrate_stochastic_trajectory(self):
+    def xest_equlibrate_stochastic_trajectory(self):
         #for profiling
         np.random.seed(0)
         my_trajectory = hes5.generate_stochastic_trajectory( duration = 1500,
@@ -489,7 +489,173 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','fourier_spectra.pdf'))
 
-    def xest_power_spectra_of_mean_behaviours_fewer_trajectories(self):
+    def xest_power_spectra_of_mean_behaviours(self):
+        ##
+        # Hes1 samples
+        ##
+        oscillating_mRNA_trajectories, oscillating_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 100,
+                                                                                        duration = 1500,
+                                                         repression_threshold = 100,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.5,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 100,
+                                                         equilibration_time = 1000,
+                                                         synchronize = False )
+
+        oscillating_power_spectrum, oscillating_coherence, oscillating_period = hes5.calculate_power_spectrum_of_trajectories(oscillating_protein_trajectories)
+        
+        mean_oscillating_protein_trajectory = np.mean(oscillating_protein_trajectories[:,1:], axis = 1)
+        mean_oscillating_mRNA_trajectory = np.mean(oscillating_mRNA_trajectories[:,1:], axis = 1)
+        
+        figuresize = (6,6)
+        my_figure = plt.figure(figsize = figuresize)
+        my_figure.add_subplot(321)
+        plt.plot( oscillating_mRNA_trajectories[:,0],
+                  oscillating_mRNA_trajectories[:,1]*10., label = 'mRNA example*10', color = 'black',
+                  lw = 0.5 )
+        plt.plot( oscillating_protein_trajectories[:,0],
+                  oscillating_protein_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.plot( oscillating_mRNA_trajectories[:,0],
+                  mean_oscillating_mRNA_trajectory*10, label = 'Mean mRNA*10', color = 'blue',
+                  lw = 0.5 )
+        plt.plot( oscillating_protein_trajectories[:,0],
+                  mean_oscillating_protein_trajectory, label = 'Mean protein', color = 'blue', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.title('Monk (2003)')
+#         plt.legend()
+       
+        my_figure.add_subplot(322)
+        plt.plot(oscillating_power_spectrum[:,0],
+                 oscillating_power_spectrum[:,1], color = 'black')
+        plt.xlim(0,0.01)
+#         plt.ylim(0,100)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+#         import pdb; pdb.set_trace()
+        plt.text(0.05, 0.95, 'Coherence:\n' + "{:.2f}".format(oscillating_coherence) + 
+                 '\nPeriod:\n' +  "{:.2f}".format(oscillating_period) ,
+                 verticalalignment='top', horizontalalignment='left',
+                 transform=plt.gca().transAxes)
+
+        ##
+        # Hes5 samples
+        ##
+        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 100,
+                                                                                        duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000,
+                                                         synchronize = False)
+
+        hes5_power_spectrum, hes5_coherence, hes5_period = hes5.calculate_power_spectrum_of_trajectories(hes5_protein_trajectories)
+        
+        mean_hes5_protein_trajectory = np.mean(hes5_protein_trajectories[:,1:], axis = 1)
+        mean_hes5_rna_trajectory = np.mean(hes5_mRNA_trajectories[:,1:], axis = 1)
+
+        my_figure.add_subplot(323)
+        mrna_example, = plt.plot( hes5_mRNA_trajectories[:,0],
+                  hes5_mRNA_trajectories[:,1]*1000., label = 'mRNA example*1000', color = 'black',
+                  lw = 0.5 )
+        protein_example, = plt.plot( hes5_protein_trajectories[:,0],
+                  hes5_protein_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        mean_rna, = plt.plot( hes5_mRNA_trajectories[:,0],
+                  mean_hes5_rna_trajectory*1000., label = 'Mean mRNA*10', color = 'blue',
+                  lw = 0.5 )
+        mean_protein, = plt.plot( hes5_protein_trajectories[:,0],
+                  mean_hes5_protein_trajectory, label = 'Mean protein', color = 'blue', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.title('Hes5')
+#         plt.legend()
+
+        my_figure.add_subplot(324)
+        plt.plot(hes5_power_spectrum[:,0],
+                 hes5_power_spectrum[:,1], color = 'black')
+        plt.xlim(0,0.01)
+#         plt.ylim(0,100)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         import pdb; pdb.set_trace()
+        plt.text(0.95, 0.95, 'Coherence:\n' + "{:.2f}".format(hes5_coherence) + 
+                 '\nPeriod:\n' +  "{:.2f}".format(hes5_period) ,
+                 verticalalignment='top', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+        
+        ##
+        # Random samples
+        ##
+        # generate the random samples:
+        random_trajectories = np.zeros((100,101))
+        times_of_trajectories = np.linspace(0,1500,100)
+        random_trajectories[:,0] = times_of_trajectories
+        for trajectory_index in range(100):
+            for time_index in range(1,100):
+                random_trajectories[time_index, trajectory_index+1] = random_trajectories[time_index-1, trajectory_index+1]\
+                                                                    + np.random.randn()*1.0
+
+        random_trajectories[:,1:] += 100
+        # generate power spectrum, measure period etc
+        random_power_spectrum, random_coherence, random_period = \
+            hes5.calculate_power_spectrum_of_trajectories(random_trajectories)
+        
+        mean_random_trajectory = np.mean(random_trajectories[:,1:], axis = 1)
+
+        my_figure.add_subplot(325)
+        plt.plot( random_trajectories[:,0],
+                  random_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.plot( random_trajectories[:,0],
+                  mean_random_trajectory, label = 'Mean protein', color = 'blue', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.title('Random traces')
+#         plt.legend()
+
+        my_figure.add_subplot(326)
+        plt.plot(random_power_spectrum[:,0],
+                 random_power_spectrum[:,1], color = 'black')
+        plt.xlim(0,0.01)
+#         plt.ylim(0,100)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+#         import pdb; pdb.set_trace()
+        plt.text(0.95, 0.95, 'Coherence: ' + "{:.2f}".format(random_coherence) + 
+                 '\nPeriod: ' +  "{:.2f}".format(random_period) ,
+                 verticalalignment='top', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+
+        plt.tight_layout()
+        my_figure.legend((mrna_example, protein_example, mean_rna, mean_protein), 
+                       ('mRNA example (scaled)', 'Protein example',
+                        'mean mRNA (scaled)', 'Mean protein'), 
+                       loc = 'upper right', ncol = 2 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+
+        plt.subplots_adjust(top = 0.85, hspace = 0.7)
+       
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','fourier_spectra_illustration.pdf'))
+
+    def test_power_spectra_of_mean_behaviours_synchronised(self):
         ##
         # Hes1 samples
         ##
@@ -651,7 +817,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.subplots_adjust(top = 0.85, hspace = 0.7)
        
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','fourier_spectra_illustration_10.pdf'))
+                                       'output','fourier_spectra_illustration_synchronised.pdf'))
 
     def xest_plot_100_hes_trajectories(self):
         hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 100,
@@ -664,7 +830,8 @@ class TestSimpleHes5Model(unittest.TestCase):
                                                          transcription_delay = 29,
                                                          initial_mRNA = 3,
                                                          initial_protein = 31400,
-                                                         equilibration_time = 1000)
+                                                         equilibration_time = 1000,
+                                                         synchronize = False)
 
         mean_hes5_protein_trajectory = np.mean(hes5_protein_trajectories[:,1:], axis = 1)
         mean_hes5_rna_trajectory = np.mean(hes5_mRNA_trajectories[:,1:], axis = 1)
@@ -678,7 +845,7 @@ class TestSimpleHes5Model(unittest.TestCase):
                       hes5_protein_trajectories[:,trajectory_index], color = 'black', ls = '--',
                       lw = 0.5, dashes = [1,1], alpha = 0.1 )
         plt.plot( hes5_mRNA_trajectories[:,0],
-                  mean_hes5_rna_trajectory*1000., label = 'mRNA*10', color = 'blue',
+                  mean_hes5_rna_trajectory*1000., label = 'mRNA*1000', color = 'blue',
                   lw = 0.5 )
         plt.plot( hes5_protein_trajectories[:,0],
                   mean_hes5_protein_trajectory, label = 'Protein', color = 'blue', ls = '--',
@@ -686,7 +853,46 @@ class TestSimpleHes5Model(unittest.TestCase):
 
         plt.xlabel('Time')
         plt.ylabel('Copy number')
-        plt.legend()
+        plt.legend(bbox_to_anchor=(1.05, 1.1), loc = 'upper right')
         plt.tight_layout()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','100_trajectories.pdf'))
+        
+    def xest_plot_100_sychronised_hes_trajectories(self):
+        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 100,
+                                                                                        duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000,
+                                                         synchronize = True)
+
+        mean_hes5_protein_trajectory = np.mean(hes5_protein_trajectories[:,1:], axis = 1)
+        mean_hes5_rna_trajectory = np.mean(hes5_mRNA_trajectories[:,1:], axis = 1)
+        figuresize = (4,2.5)
+        my_figure = plt.figure(figsize = figuresize)
+        for trajectory_index in range(1,101):
+            plt.plot( hes5_mRNA_trajectories[:,0],
+                      hes5_mRNA_trajectories[:,trajectory_index]*1000., color = 'black',
+                      lw = 0.5, alpha = 0.1 )
+            plt.plot( hes5_protein_trajectories[:,0],
+                      hes5_protein_trajectories[:,trajectory_index], color = 'black', ls = '--',
+                      lw = 0.5, dashes = [1,1], alpha = 0.1 )
+        plt.plot( hes5_mRNA_trajectories[:,0],
+                  mean_hes5_rna_trajectory*1000., label = 'mRNA*1000', color = 'blue',
+                  lw = 0.5 )
+        plt.plot( hes5_protein_trajectories[:,0],
+                  mean_hes5_protein_trajectory, label = 'Protein', color = 'blue', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend(bbox_to_anchor=(1.05, 1.1), loc = 'upper right')
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','100_sychronised_trajectories.pdf'))    
