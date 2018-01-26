@@ -4,6 +4,8 @@ import scipy.signal
 import multiprocessing as mp
 # import collections
 from numba import jit, autojit
+from numpy import ndarray
+from statsmodels.base.model import Results
 
 
 def generate_deterministic_trajectory( duration = 720, 
@@ -490,7 +492,7 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
-                                    synchronize = True):
+                                    synchronize = False):
     '''Generate multiple stochastic traces the Hes5 model by using
        generate_stochastic_trajectory.
     
@@ -647,7 +649,7 @@ def identify_reaction(random_number, base_propensity, propensities):
     ##Make sure we never exit the for loop:
     raise(RuntimeError("This line should never be reached."))
         
-def calculate_power_spectrum_of_trajectories(trajectories):
+def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
     '''Calculate the power spectrum, coherence, and period of a set
     of trajectories. Works by applying discrete fourier transforms to the mean
     of the trajectories. We define the power spectrum as the square of the
@@ -665,6 +667,12 @@ def calculate_power_spectrum_of_trajectories(trajectories):
     trajectories : ndarray
         2D array. First column is time, each further column contains one realisation
         of the signal that is aimed to be analysed.
+        
+    method : string
+        The options 'standard' and 'mean' are possible. If 'standard', then 
+        the fft will be calculated on each trajectory, and the average of all
+        power spectra will be calculated. If 'mean', then the power spectrum
+        of the mean will be calculated.
     
     Result:
     ------
@@ -681,13 +689,33 @@ def calculate_power_spectrum_of_trajectories(trajectories):
         period corresponding to the maximum observed frequency
     '''
         
-    mean_trajectory = np.vstack((trajectories[:,0], np.mean(trajectories[:,1:], axis = 1))).transpose()
+    if method == 'mean':
+        mean_trajectory = np.vstack((trajectories[:,0], np.mean(trajectories[:,1:], axis = 1))).transpose()
+        power_spectrum, coherence, period = calculate_power_spectrum_of_trajectory(mean_trajectory)
+    elif method == 'standard':
+        times = trajectories[:,0]
+        #calculate the first power spectrum separately to get the extracted frequency values
+        first_compound_trajectory = np.vstack((times, trajectories[:,1])).transpose()
+        first_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(first_compound_trajectory)
+        frequency_values = first_power_spectrum[:,0]
+        all_power_spectra = np.zeros((first_power_spectrum.shape[0], trajectories.shape[1] - 1))
+        all_power_spectra[:,0] = first_power_spectrum[:,1]
+        trajectory_index = 1
+        for trajectory in trajectories[:,2:].transpose():
+            this_compound_trajectory = np.vstack((times, trajectory)).transpose()
+            this_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(this_compound_trajectory)
+            all_power_spectra[:,trajectory_index] = this_power_spectrum[:,1]
+            trajectory_index += 1
+        mean_power_spectrum_without_frequencies = np.mean(all_power_spectra, axis = 1)
+        mean_power_spectrum_without_frequencies /= np.sum(mean_power_spectrum_without_frequencies)
+        power_spectrum = np.vstack((frequency_values, mean_power_spectrum_without_frequencies)).transpose()
+        coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
+    else:
+        raise ValueError("This method of period extraction could not be resolved. Only the options 'mean' and 'standard' are accepted.")
     
-    power_spectrum, coherence, period = calculate_power_spectrum_of_trajectory(mean_trajectory)
-
     return power_spectrum, coherence, period
     
-def calculate_power_spectrum_of_trajectory(trajectory):
+def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     '''Calculate the power spectrum, coherence, and period, of a trajectory. 
     Works by applying discrete fourier transformation. We define the power spectrum as the square of the
     absolute of the fourier transform, and we define the coherence as in 
@@ -695,13 +723,18 @@ def calculate_power_spectrum_of_trajectory(trajectory):
     occopied by a 20% frequency band around the maximum frequency.
     The maximum frequency corresponds to the inverse of the period.
     The returned power spectum excludes the frequency 0 and thus neglects
-    the mean of the signal. The power spectrum is normalised so that all entries add up to one.
+    the mean of the signal. The power spectrum is normalised so that all entries add up to one,
+    unless normalized = False is specified.
     
     Parameters:
     ---------- 
     
     trajectories : ndarray
         2D array. First column is time, second column contains the signal that is aimed to be analysed.
+        
+    normalize : bool
+        If True then the power spectrum is normalised such that all entries add to one. Otherwise
+        no normalization is performed.
     
     Result:
     ------
@@ -725,21 +758,48 @@ def calculate_power_spectrum_of_trajectory(trajectory):
     fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
                                                      1.0/(interval_length) )[1:]
     power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[1:(number_of_data_points/2)]),2)
-    power_spectrum_without_frequencies/= np.sum(power_spectrum_without_frequencies)
+    if normalize:
+        power_spectrum_without_frequencies/= np.sum(power_spectrum_without_frequencies)
     power_spectrum = np.vstack((fourier_frequencies, power_spectrum_without_frequencies)).transpose()
 
-
-    # Calculate coherence:
-    max_index = np.argmax(power_spectrum_without_frequencies)
-    coherence_boundary_left = int(np.round(max_index - max_index*0.1))
-    coherence_boundary_right = int(np.round(max_index + max_index*0.1))
-    coherence_area = np.trapz(power_spectrum_without_frequencies[coherence_boundary_left:(coherence_boundary_right+1)])
-    full_area = np.trapz(power_spectrum_without_frequencies)
-    coherence = coherence_area/full_area
-    
-    # calculate period: 
-    max_power_frequency = fourier_frequencies[max_index]
-    period = 1./max_power_frequency
+    coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
 
     return power_spectrum, coherence, period
  
+def calculate_coherence_and_period_of_power_spectrum(power_spectrum):
+    '''Calculate the coherence and peridod from a power spectrum.
+    We define the coherence as in Phillips et al (eLife, 2016) as 
+    the relative area of the power spectrum
+    occopied by a 20% frequency band around the maximum frequency.
+    The maximum frequency corresponds to the inverse of the period.
+    
+    Parameters 
+    ----------
+    
+    power_spectrum : ndarray
+        2D array of float values. First column contains frequencies,
+        the second column contains power spectum values at these frequencies.
+        
+    Results
+    -------
+    
+    coherence : float
+        Coherence value as calculated around the maximum frequency band.
+        
+    period : float
+        The inverse of the maximum observed frequency.
+    '''
+    # Calculate coherence:
+    max_index = np.argmax(power_spectrum[:,1])
+    coherence_boundary_left = int(np.round(max_index - max_index*0.1))
+    coherence_boundary_right = int(np.round(max_index + max_index*0.1))
+    coherence_area = np.trapz(power_spectrum[coherence_boundary_left:(coherence_boundary_right+1),1])
+    full_area = np.trapz(power_spectrum[:,1])
+    coherence = coherence_area/full_area
+    
+    # calculate period: 
+    max_power_frequency = power_spectrum[max_index,0]
+    period = 1./max_power_frequency
+    
+    return coherence, period
+    
