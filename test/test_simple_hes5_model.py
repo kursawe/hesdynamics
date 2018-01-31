@@ -2,7 +2,6 @@ import unittest
 import os.path
 import sys
 import matplotlib as mpl
-from scipy.signal.spectral import coherence
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
 font = {'size'   : 10}
@@ -489,7 +488,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','fourier_spectra.pdf'))
 
-    def test_mean_power_spectra(self):
+    def xest_mean_power_spectra(self):
         ##
         # Hes1 samples
         ##
@@ -999,8 +998,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','fourier_spectra_illustration_synchronised.pdf'))
 
-    def xest_plot_100_hes_trajectories(self):
-        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 100,
+#     def test_plot_100_hes_trajectories(self):
+        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 50,
                                                                                         duration = 1500,
                                                          repression_threshold = 31400,
                                                          mRNA_degradation_rate = np.log(2)/30,
@@ -1017,7 +1016,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         mean_hes5_rna_trajectory = np.mean(hes5_mRNA_trajectories[:,1:], axis = 1)
         figuresize = (4,2.5)
         my_figure = plt.figure(figsize = figuresize)
-        for trajectory_index in range(1,101):
+        for trajectory_index in range(1,51):
             plt.plot( hes5_mRNA_trajectories[:,0],
                       hes5_mRNA_trajectories[:,trajectory_index]*1000., color = 'black',
                       lw = 0.5, alpha = 0.1 )
@@ -1076,3 +1075,69 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.tight_layout()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','100_sychronised_trajectories.pdf'))    
+        
+    def test_dependence_of_summary_stats_on_number_of_samples(self):
+        # plot mean, standard deviation, period and coherence in dependance of sample number
+        number_of_sample_numbers = 10
+        max_sample_number = 200
+        results = np.zeros((number_of_sample_numbers*2, 5))
+        sample_numbers = np.hstack((np.linspace(1,50,number_of_sample_numbers, dtype = 'int'),
+                                    np.linspace(51,max_sample_number,number_of_sample_numbers, dtype = 'int')))
+        for results_index, sample_number in enumerate(sample_numbers):
+            print 'calculating trajectories with sample number ' + str(sample_number)
+            these_mRNA_traces, these_protein_traces = hes5.generate_multiple_trajectories( number_of_trajectories = sample_number,
+                                                                                        duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+            
+            _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(these_protein_traces)
+            this_mean = np.mean(these_protein_traces[:,1:])
+            this_std = np.std(these_protein_traces[:,1:])
+            results[results_index,0] = sample_number
+            results[results_index,1] = this_mean
+            results[results_index,2] = this_std
+            results[results_index,3] = this_period
+            results[results_index,4] = this_coherence
+         
+        np.save(os.path.join(os.path.dirname(__file__),
+                                       'output','sample_number_results.npy'), results)
+#         results = np.load(os.path.join(os.path.dirname(__file__),
+#                                        'output','sample_number_results.npy'))
+
+        figuresize = (6,4.5)
+        my_figure = plt.figure(figsize = figuresize)
+        my_figure.add_subplot(221)
+        plt.plot(results[:,0], results[:,1])
+        plt.xlabel('Sample number')
+        plt.ylabel('Mean expression')
+        plt.ylim(0,70000)
+       
+        my_figure.add_subplot(222)
+        plt.plot(results[:,0], results[:,2])
+        plt.xlabel('Sample number')
+        plt.ylabel('Expression variation')
+        plt.ylim(0,10000)
+
+        my_figure.add_subplot(223)
+        plt.plot(results[:,0], results[:,3])
+        plt.xlabel('Sample number')
+        plt.ylabel('Period [min]')
+        plt.ylim(0,350)
+        
+        my_figure.add_subplot(224)
+        plt.plot(results[:,0], results[:,4])
+        plt.xlabel('Sample number')
+        plt.ylabel('Coherence')
+        plt.ylim(0,0.5)
+        
+        plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','sample_number_dependance.pdf'))
