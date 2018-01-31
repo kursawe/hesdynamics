@@ -5,8 +5,9 @@ import multiprocessing as mp
 # import collections
 from numba import jit, autojit
 from numpy import ndarray
-from statsmodels.base.model import Results
-
+import os
+import seaborn as sns
+import pandas as pd
 
 def generate_deterministic_trajectory( duration = 720, 
                                        repression_threshold = 10000,
@@ -766,6 +767,215 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
 
     return power_spectrum, coherence, period
  
+def generate_posterior_samples( total_number_of_samples, 
+                                acceptance_ratio,
+                                saving_path = ''):
+    '''Draw samples from the posterior using normal ABC. Posterior is calculated
+    using ABC and the summary statistics mean and relative standard deviation.
+    Also saves all sampled model results.
+    
+    Parameters
+    ----------
+    
+    number_of_samples : int
+        number of samples to be generated from the posterior
+       
+    acceptance_ratio : float
+        ratio of the posterior samples that should be accepted.
+        
+    saving_path : string
+        where to save, specified without file ending
+        
+    Returns
+    -------
+    
+    posterior_samples : ndarray
+        samples from the posterior distribution, are repression_threshold, hill_coefficient,
+                                    mRNA_degradation_rate, protein_degradation_rate, basal_transcription_rate,
+                                    translation_rate, transcription_delay
+    '''
+    # first: keep degradation rates infer translation, transcription, repression threshold,
+    # and time delay
+    prior_samples = generate_prior_samples( total_number_of_samples )
+
+    # collect summary_statistics_at_parameters
+    model_results = calculate_summary_statistics_at_parameters( prior_samples )
+
+    if saving_path == '':
+        saving_path = os.path.join(os.path.dirname(__file__),'..','test','output','sampling_results')
+        
+    np.save(saving_path + '.npy', model_results)
+    np.save(saving_path + '_parameters.npy', prior_samples)
+
+    # calculate distances to data
+    distance_table = calculate_distances_to_data(model_results)
+    
+    posterior_samples = select_posterior_samples( prior_samples, 
+                                                  distance_table, 
+                                                  acceptance_ratio )
+    
+    return posterior_samples
+
+def plot_posterior_distributions( posterior_samples ):
+    '''Plot the posterior samples in a pair plot. Only works if there are
+    more than four samples present
+    
+    Parameters
+    ----------
+    
+    posterior samples : np.array
+        The samples from which the pairplot should be generated.
+        Each row contains a parameter
+    
+    Returns
+    -------
+    
+    paiplot : matplotlib figure handle
+       The handle for the pairplot on which the use can call 'save'
+    '''
+    data_frame = pd.DataFrame( data = posterior_samples,
+                               columns= ['transcription_rate', 
+                                         'translation_rate', 
+                                         'repression_threshold', 
+                                         'transcription_delay'])
+    pairplot = sns.PairGrid(data_frame)
+    pairplot.map_diag(sns.kdeplot)
+    pairplot.map_offdiag(sns.kdeplot, cmap="Blues_d", n_levels=10)
+
+    return pairplot
+
+def select_posterior_samples(prior_samples, distance_table, acceptance_ratio):
+    '''Collect the parameter values of all prior_samples whose distance_table entries are 
+    within the acceptance_ratio closest samples.
+    
+    Parameters
+    ----------
+    
+    prior_samples : ndarray
+        2D, each row contains one set of parameters
+        
+    distance_table : ndarray
+        1D, each entry contains one distance
+        
+    acceptance_ratio : float
+        ratio of values to be accepted
+        
+    Returns
+    -------
+    
+    posterior_samples : ndarray
+        the rows of prior_samples corresponding to the acceptance_ratio smallest entries
+        of distance_table
+    '''
+    # sort distances in ascending order
+    distance_table_sorted_indices = distance_table.argsort()
+    # specify how many samples to keep
+    number_of_accepted_samples = int(round(acceptance_ratio*len(distance_table)))
+    # select these samples
+    posterior_samples = prior_samples[distance_table_sorted_indices[:number_of_accepted_samples]]
+    
+    return posterior_samples
+    
+def calculate_distances_to_data(summary_statistics):
+    '''Calculate the distance of the observed summary statistics to our real data.
+    Only takes the mean and variance into account.
+    
+    Parameters:
+    -----------
+    
+    summary_statistics : ndarray
+        first column contains means, second column contains relative standard deviations
+        
+    Results
+    -------
+    
+    distances : ndarray
+        single column with distances to the datapoint (62000, 0.15)
+    '''
+    summary_statistics = summary_statistics[:,:2]
+    rescaling_values = np.std(summary_statistics, axis = 0)
+    summary_statistics /= rescaling_values
+    
+    reference_summary_statistic = np.array([62000,0.15])/rescaling_values
+    
+    return np.linalg.norm(summary_statistics - reference_summary_statistic, axis = 1)
+    
+def calculate_summary_statistics_at_parameters(parameter_values):
+    '''Calculate the mean, relative standard deviation, period, and coherence
+    of protein traces at each parameter point in parameter_values. 
+    Will assume the arguments to be of the order described in
+    generate_prior_samples.
+    
+    Parameters
+    ----------
+    
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
+        
+    Returns
+    -------
+    
+    summary_statistics : ndarray
+        each row contains the summary statistics (mean, std, period, coherence) for the corresponding
+        parameter set in parameter_values
+    '''
+    summary_statistics = np.zeros((parameter_values.shape[0], 4))
+    for parameter_index, parameter_value in enumerate(parameter_values):
+        these_mRNA_traces, these_protein_traces = generate_multiple_trajectories( 
+                                                        number_of_trajectories = 10, 
+                                                        duration = 1500,
+                                                        basal_transcription_rate = parameter_value[0],
+                                                        translation_rate = parameter_value[1], 
+                                                        repression_threshold = parameter_value[2], 
+                                                        transcription_delay = parameter_value[3],
+                                                        mRNA_degradation_rate = np.log(2)/30, 
+                                                        protein_degradation_rate = np.log(2)/90, 
+                                                        initial_mRNA = 0,
+                                                        initial_protein = parameter_value[2],
+                                                        equilibration_time = 1000)
+        _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
+        this_mean = np.mean(these_protein_traces[:,1:])
+        this_std = np.std(these_protein_traces[:,1:])/this_mean
+        summary_statistics[parameter_index,0] = this_mean
+        summary_statistics[parameter_index,1] = this_std
+        summary_statistics[parameter_index,2] = this_period
+        summary_statistics[parameter_index,3] = this_coherence
+
+    return summary_statistics
+    
+def generate_prior_samples(number_of_samples):
+    '''Sample from the prior. Provides samples of the form 
+    (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
+    
+    Parameters
+    ----------
+    
+    number_of_samples : int
+        number of samples to draw from the prior distribution
+        
+    Returns
+    -------
+    
+    prior_samples : ndarray
+        array of shape (number_of_samples,4) with columns corresponding to
+        (basal_transcription_rate, translation_rate, repression_threshold, time_delay)
+    '''
+    #initialise as random numbers between (0,1)
+    prior_samples = np.random.rand(number_of_samples, 4)
+    #now scale and shift each entry as appropriate
+    #basal_transcription_rate in range (0,100)
+    prior_samples[:,0] *= 100
+    #translation rate in range (0,100)
+    prior_samples[:,1] *= 100
+    #repression_threshold in range (0,100000)
+    prior_samples[:,2] *= 100000
+    #transcriptione_delay in range (5,40)
+    prior_samples[:,3] *= 35
+    prior_samples[:,3] += 5
+    
+    return prior_samples
+    
 def calculate_coherence_and_period_of_power_spectrum(power_spectrum):
     '''Calculate the coherence and peridod from a power spectrum.
     We define the coherence as in Phillips et al (eLife, 2016) as 
