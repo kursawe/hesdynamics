@@ -493,7 +493,8 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
-                                    synchronize = False):
+                                    synchronize = False,
+                                    number_of_cpus = 3):
     '''Generate multiple stochastic traces the Hes5 model by using
        generate_stochastic_trajectory.
     
@@ -540,6 +541,10 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
         if True, only one trajectory will be run for the equilibration period, and all recorded traces
         will start along this trajectory.
 
+    number_of_cpus : int
+        number of cpus that should be used to calculate the traces. Traces will be calculated in paralell on
+        this number of cpus.
+
     Returns
     -------
     
@@ -575,7 +580,7 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
     else:
         transcription_schedule = np.array([-1.0])
 
-    pool_of_processes = mp.Pool(processes=3)
+    pool_of_processes = mp.Pool(processes = number_of_cpus)
     arguments = [ (duration, repression_threshold, hill_coefficient,
                   mRNA_degradation_rate, protein_degradation_rate, 
                   basal_transcription_rate, translation_rate,
@@ -758,7 +763,7 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     fourier_transform = np.fft.fft(trajectory[:,1])/number_of_data_points
     fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
                                                      1.0/(interval_length) )[1:]
-    power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[1:(number_of_data_points/2)]),2)
+    power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[1:(number_of_data_points//2)]),2)
     if normalize:
         power_spectrum_without_frequencies/= np.sum(power_spectrum_without_frequencies)
     power_spectrum = np.vstack((fourier_frequencies, power_spectrum_without_frequencies)).transpose()
@@ -769,6 +774,8 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
  
 def generate_posterior_samples( total_number_of_samples, 
                                 acceptance_ratio,
+                                number_of_traces_per_sample = 10,
+                                number_of_cpus = 3,
                                 saving_path = ''):
     '''Draw samples from the posterior using normal ABC. Posterior is calculated
     using ABC and the summary statistics mean and relative standard deviation.
@@ -783,6 +790,13 @@ def generate_posterior_samples( total_number_of_samples,
     acceptance_ratio : float
         ratio of the posterior samples that should be accepted.
         
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    number_of_cpus : int
+        number of processes that should be used for calculating the samples, parallelisation happens
+        on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
+
     saving_path : string
         where to save, specified without file ending
         
@@ -799,7 +813,7 @@ def generate_posterior_samples( total_number_of_samples,
     prior_samples = generate_prior_samples( total_number_of_samples )
 
     # collect summary_statistics_at_parameters
-    model_results = calculate_summary_statistics_at_parameters( prior_samples )
+    model_results = calculate_summary_statistics_at_parameters( prior_samples, number_of_traces_per_sample, number_of_cpus )
 
     if saving_path == '':
         saving_path = os.path.join(os.path.dirname(__file__),'..','test','output','sampling_results')
@@ -900,7 +914,8 @@ def calculate_distances_to_data(summary_statistics):
     
     return np.linalg.norm(summary_statistics - reference_summary_statistic, axis = 1)
     
-def calculate_summary_statistics_at_parameters(parameter_values):
+def calculate_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
+                                               number_of_cpus = 3):
     '''Calculate the mean, relative standard deviation, period, and coherence
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
@@ -913,6 +928,13 @@ def calculate_summary_statistics_at_parameters(parameter_values):
         each row contains one model parameter set in the order
         (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
         
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    number_of_cpus : int
+        number of processes that should be used for calculating the samples, parallelisation happens
+        on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
+
     Returns
     -------
     
@@ -923,7 +945,7 @@ def calculate_summary_statistics_at_parameters(parameter_values):
     summary_statistics = np.zeros((parameter_values.shape[0], 4))
     for parameter_index, parameter_value in enumerate(parameter_values):
         these_mRNA_traces, these_protein_traces = generate_multiple_trajectories( 
-                                                        number_of_trajectories = 10, 
+                                                        number_of_trajectories = number_of_traces_per_sample, 
                                                         duration = 1500,
                                                         basal_transcription_rate = parameter_value[0],
                                                         translation_rate = parameter_value[1], 
@@ -933,7 +955,8 @@ def calculate_summary_statistics_at_parameters(parameter_values):
                                                         protein_degradation_rate = np.log(2)/90, 
                                                         initial_mRNA = 0,
                                                         initial_protein = parameter_value[2],
-                                                        equilibration_time = 1000)
+                                                        equilibration_time = 1000,
+                                                        number_of_cpus = number_of_cpus)
         _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
         this_mean = np.mean(these_protein_traces[:,1:])
         this_std = np.std(these_protein_traces[:,1:])/this_mean

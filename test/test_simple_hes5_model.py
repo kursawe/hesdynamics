@@ -55,7 +55,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         fourier_transform = np.fft.fft(my_trajectory[:,2])/number_of_data_points
         interval_length = 720.0
         fourier_frequencies = np.arange(0,number_of_data_points/(2.0*interval_length), 1/(interval_length) )
-        print fourier_transform.shape
+        print(fourier_transform.shape)
         #Second, plot the model
 
         figuresize = (4,4.5)
@@ -1084,7 +1084,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         sample_numbers = np.hstack((np.linspace(1,50,number_of_sample_numbers, dtype = 'int'),
                                     np.linspace(51,max_sample_number,number_of_sample_numbers, dtype = 'int')))
         for results_index, sample_number in enumerate(sample_numbers):
-            print 'calculating trajectories with sample number ' + str(sample_number)
+            print('calculating trajectories with sample number ' + str(sample_number))
             these_mRNA_traces, these_protein_traces = hes5.generate_multiple_trajectories( number_of_trajectories = sample_number,
                                                                                         duration = 1500,
                                                          repression_threshold = 31400,
