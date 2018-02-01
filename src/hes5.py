@@ -6,7 +6,7 @@ import multiprocessing as mp
 from numba import jit, autojit
 from numpy import ndarray
 import os
-import seaborn as sns
+import seaborn.apionly as sns
 import pandas as pd
 
 def generate_deterministic_trajectory( duration = 720, 

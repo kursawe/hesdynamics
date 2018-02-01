@@ -1076,7 +1076,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','100_sychronised_trajectories.pdf'))    
         
-    def test_dependence_of_summary_stats_on_number_of_samples(self):
+    def xest_dependence_of_summary_stats_on_number_of_samples(self):
         # plot mean, standard deviation, period and coherence in dependance of sample number
         number_of_sample_numbers = 10
         max_sample_number = 200
@@ -1141,3 +1141,25 @@ class TestSimpleHes5Model(unittest.TestCase):
         
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','sample_number_dependance.pdf'))
+        
+    def test_plot_hill_function(self):
+        x_values = np.linspace(0,3,100)
+        y_values = 1.0/(1.0 + np.power( x_values,5 ))
+
+        figuresize = (6,2.5)
+        my_figure = plt.figure(figsize = figuresize)
+        my_figure.add_subplot(121)
+        plt.plot(x_values,y_values)
+        plt.xlabel('p/p_0')
+        plt.ylabel('Hillfunction')
+
+        my_figure.add_subplot(122)
+        
+        new_y_values = x_values*(1+np.power(x_values,5))
+        plt.plot(x_values,new_y_values)
+        plt.xlabel('p/p_0')
+        plt.ylabel('Rootfunction')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hill_function.pdf'))
