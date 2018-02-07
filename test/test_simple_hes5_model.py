@@ -1142,7 +1142,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','sample_number_dependance.pdf'))
         
-    def test_plot_hill_function(self):
+    def xest_plot_hill_function(self):
         x_values = np.linspace(0,3,100)
         y_values = 1.0/(1.0 + np.power( x_values,5 ))
 
@@ -1163,3 +1163,20 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','hill_function.pdf'))
+        
+    def test_calculate_mean_expression_at_parameter_point(self):
+
+        this_mean_mRNA, this_mean_protein = hes5.calculate_steady_state_of_ode( 
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         )
+
+        print 'expected protein number is ' + str(this_mean_protein) 
+        print 'expected mRNA number is ' + str(this_mean_mRNA)
+        self.assertGreater(this_mean_protein, 58000)
+        self.assertLess(this_mean_protein, 63000)
+        self.assertGreater(this_mean_mRNA, 0)
+        self.assertLess(this_mean_mRNA, 100)
