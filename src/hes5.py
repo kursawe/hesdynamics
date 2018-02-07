@@ -1,6 +1,7 @@
 import PyDDE
 import numpy as np
 import scipy.signal
+import scipy.optimize
 import multiprocessing as mp
 # import collections
 from numba import jit, autojit
@@ -1036,3 +1037,97 @@ def calculate_coherence_and_period_of_power_spectrum(power_spectrum):
     
     return coherence, period
     
+def calculate_steady_state_of_ode(  repression_threshold = 10000,
+                                    hill_coefficient = 5,
+                                    mRNA_degradation_rate = np.log(2)/30,
+                                    protein_degradation_rate = np.log(2)/90, 
+                                    basal_transcription_rate = 1,
+                                    translation_rate = 1 
+                                  ):
+    '''Calculate the steady state of the ODE of the Monk model at a given parameter point.
+    Note that the steady state of the ODE does not depend on the delay.
+    
+    This function needs to be adjusted if the expected steady state is above 100 times
+    the repression threshold.
+    
+    Parameters
+    ----------
+    
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    Returns
+    -------
+    
+    steady_mRNA : float
+        Number of mRNA molecules at the ODE steady state
+        
+    steady_protein : float 
+        Number of protein molecules at the ODE steady state.
+    '''
+
+    characteristic_constant = (translation_rate*basal_transcription_rate/
+                               (mRNA_degradation_rate*protein_degradation_rate*
+                                repression_threshold))
+
+    relative_protein = scipy.optimize.brentq( ode_root_function, 0.0 , 100.0, args=(characteristic_constant, hill_coefficient))
+    
+    steady_protein = relative_protein*repression_threshold
+    
+    steady_mRNA = steady_protein*protein_degradation_rate/translation_rate
+    
+    return steady_mRNA, steady_protein
+
+def ode_root_function(x, characteristic_constant, hill_coefficient):
+    '''Helper function calculate_steady_state_of_ode. Returns
+       
+       f(x) = x*(1+x^n) - D
+       
+       where D is the characteristic_constant and n is the hill_coefficient. The
+       variable x measures ratios of protein over repression threshold, i.e.
+    
+       x = p/p0
+       
+       The root of this function corresponds to the steady-state protein expression
+       of the ODE.
+       
+    Parameters
+    ----------
+       
+    x : float
+        Ratio of protein over repression threshold
+        
+    characteristic_constant : 
+        can be calculated as translation_rate*transcription_rate/
+        (mRNA_degradation_rate*protein_degradation_rate*repression_threshold)
+        
+    Returns
+    -------
+    
+    function_value : float
+        the value of f(x) in the function description
+    '''
+    
+    function_value = x*(1.0+np.power(x,hill_coefficient)) - characteristic_constant
+    
+    return function_value
