@@ -767,7 +767,12 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[1:(number_of_data_points//2)]),2)
     if normalize:
         power_spectrum_without_frequencies/= np.sum(power_spectrum_without_frequencies)
-    power_spectrum = np.vstack((fourier_frequencies, power_spectrum_without_frequencies)).transpose()
+    
+    # this should really be a decision about the even/oddness of number of datapoints
+    try:
+        power_spectrum = np.vstack((fourier_frequencies, power_spectrum_without_frequencies)).transpose()
+    except ValueError:
+        power_spectrum = np.vstack((fourier_frequencies[:-1], power_spectrum_without_frequencies)).transpose()
 
     coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
 
@@ -1210,7 +1215,7 @@ def generate_langevin_trajectory( duration = 720,
     '''
  
     total_time = duration + equilibration_time
-    delta_t = 0.1
+    delta_t = 1
     sample_times = np.arange(0.0, total_time, delta_t)
     full_trace = np.zeros((len(sample_times), 3))
     full_trace[:,0] = sample_times
