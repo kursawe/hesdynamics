@@ -243,7 +243,7 @@ def generate_stochastic_trajectory( duration = 720,
 #                                     explicit typing necessary for autojit
                                     transcription_schedule = np.array([-1.0])):
     '''Generate one trace of the Hes5 model. This function implements a stochastic version of
-    the model model in Monk, Current Biology (2003). It applies the rejection method described
+    the model model in Monk, Current Biology (2003). It applies the Gillespie-rejection method described
     in Cai et al, J. Chem. Phys. (2007) as Algorithm 2. This method is an exact method to calculate
     the temporal evolution of stochastic reaction systems with delay.     
 
@@ -1131,3 +1131,238 @@ def ode_root_function(x, characteristic_constant, hill_coefficient):
     function_value = x*(1.0+np.power(x,hill_coefficient)) - characteristic_constant
     
     return function_value
+
+@autojit(nopython = True)
+def generate_langevin_trajectory( duration = 720, 
+                                    repression_threshold = 10000,
+                                    hill_coefficient = 5,
+                                    mRNA_degradation_rate = np.log(2)/30,
+                                    protein_degradation_rate = np.log(2)/90, 
+                                    basal_transcription_rate = 1,
+                                    translation_rate = 1,
+                                    transcription_delay = 29,
+                                    initial_mRNA = 0,
+                                    initial_protein = 0,
+                                    equilibration_time = 0.0
+                                    ):
+    '''Generate one trace of the protein-autorepression model using a langevin approximation. 
+    This function implements the Ito integral of 
+    
+    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(mu_m+alpha_m*G(P(t-tau))d(ksi)
+    dP/dt = -mu_p*P + alpha_p*M + sqrt(mu_p*alpha_p)d(ksi)
+    
+    Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p are
+    rates of mRNA degradation, protein degradation, basal transcription, and translation; in that order.
+    The variable ksi represents Gaussian white noise with delta-function auto-correlation and G 
+    represents the Hill function G(P) = 1/(1+P/p_0)^n, where p_0 is the repression threshold
+    and n is the Hill coefficient.
+    
+    This model is an approximation of the stochastic version of the model in Monk, Current Biology (2003),
+    which is implemented in generate_stochastic_trajectory(). For negative times we assume that there
+    was no transcription.
+    
+    Warning : The time step of integration is chosen as 0.1 minute, and hence the time-delay is only
+              implemented with this accuracy.   
+
+    Parameters
+    ----------
+    
+    duration : float
+        duration of the trace in minutes
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+        
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time 
+        in order to get rid of any overshoots, for example
+        
+    Returns
+    -------
+    
+    trace : ndarray
+        2 dimensional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number
+    '''
+ 
+    total_time = duration + equilibration_time
+    delta_t = 0.1
+    sample_times = np.arange(0.0, total_time, delta_t)
+    full_trace = np.zeros((len(sample_times), 3))
+    full_trace[:,0] = sample_times
+    full_trace[0,1] = initial_mRNA
+    full_trace[0,2] = initial_protein
+    repression_threshold = float(repression_threshold)
+
+    mRNA_degradation_rate_per_timestep = mRNA_degradation_rate*delta_t
+    protein_degradation_rate_per_timestep = protein_degradation_rate*delta_t
+    basal_transcription_rate_per_timestep = basal_transcription_rate*delta_t
+    translation_rate_per_timestep = translation_rate*delta_t
+    delay_index_count = int(round(transcription_delay/delta_t))
+    
+    for time_index, sample_time in enumerate(sample_times[1:]):
+        last_mRNA = full_trace[time_index,1]
+        last_protein = full_trace[time_index,2]
+        if time_index + 1 < delay_index_count:
+            this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
+            d_mRNA = (-this_average_mRNA_degradation_number
+                      +np.sqrt(this_average_mRNA_degradation_number)*np.random.randn())
+        else:
+            protein_at_delay = full_trace[time_index + 1 - delay_index_count,2]
+            hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
+                                                    hill_coefficient))
+            this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
+            this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
+            d_mRNA = (-this_average_mRNA_degradation_number
+                      +this_average_transcription_number
+                      +np.sqrt(this_average_mRNA_degradation_number
+                            +this_average_transcription_number)*np.random.randn())
+            
+        this_average_protein_degradation_number = protein_degradation_rate_per_timestep*last_protein
+        this_average_translation_number = translation_rate_per_timestep*last_mRNA
+        d_protein = (-this_average_protein_degradation_number
+                     +this_average_translation_number
+                     +np.sqrt(this_average_protein_degradation_number+
+                           this_average_translation_number)*np.random.randn())
+
+        current_mRNA = max(last_mRNA + d_mRNA, 0.0)
+        current_protein = max(last_protein + d_protein, 0.0)
+        full_trace[time_index + 1,1] = current_mRNA
+        full_trace[time_index + 1,2] = current_protein
+    
+    # get rid of the equilibration time now
+    trace = full_trace[ full_trace[:,0]>=equilibration_time ]
+    trace[:,0] -= equilibration_time
+    
+    return trace 
+
+## autojitting this function does not seem to improve runtimes further
+def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
+                                    duration = 720, 
+                                    repression_threshold = 10000,
+                                    hill_coefficient = 5,
+                                    mRNA_degradation_rate = np.log(2)/30,
+                                    protein_degradation_rate = np.log(2)/90, 
+                                    basal_transcription_rate = 1,
+                                    translation_rate = 1,
+                                    transcription_delay = 29,
+                                    initial_mRNA = 0,
+                                    initial_protein = 0,
+                                    equilibration_time = 0.0):
+    '''Generate multiple langevin stochastic traces from the Monk model by using
+       generate_langevin_trajectory.
+    
+    Parameters
+    ----------
+    
+    number_of_trajectories : int
+        number of trajectories that should be calculated
+
+    duration : float
+        duration of the trace in minutes
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time 
+        in order to get rid of any overshoots, for example
+        
+    Returns
+    -------
+    
+    mRNA_trajectories : ndarray
+        2 dimensional array with [number_of_trajectories] columns, first column is time, 
+        each further column is one trace of mRNA copy numbers 
+
+    protein_trajectories : ndarray
+        2 dimensional array with [number_of_trajectories] columns, first column is time, 
+        each further column is one trace of protein copy numbers 
+    '''
+    first_trace = generate_langevin_trajectory(duration, 
+                                               repression_threshold, 
+                                               hill_coefficient, 
+                                               mRNA_degradation_rate, 
+                                               protein_degradation_rate, 
+                                               basal_transcription_rate, 
+                                               translation_rate, 
+                                               transcription_delay, 
+                                               initial_mRNA, 
+                                               initial_protein, 
+                                               equilibration_time)
+
+    sample_times = first_trace[:,0]
+    mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+    protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+    
+    mRNA_trajectories[:,0] = sample_times
+    protein_trajectories[:,0] = sample_times
+    mRNA_trajectories[:,1] = first_trace[:,1]
+    protein_trajectories[:,1] = first_trace[:,2]
+
+    for trajectory_index in range(1,number_of_trajectories): 
+        # offset one index for time column
+        this_trace = generate_langevin_trajectory(duration, 
+                                               repression_threshold, 
+                                               hill_coefficient, 
+                                               mRNA_degradation_rate, 
+                                               protein_degradation_rate, 
+                                               basal_transcription_rate, 
+                                               translation_rate, 
+                                               transcription_delay, 
+                                               initial_mRNA, 
+                                               initial_protein, 
+                                               equilibration_time)
+
+        mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
+        protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
+ 
+    return mRNA_trajectories, protein_trajectories

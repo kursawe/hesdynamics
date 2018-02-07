@@ -488,7 +488,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','fourier_spectra.pdf'))
 
-    def xest_mean_power_spectra(self):
+    def test_mean_power_spectra(self):
         ##
         # Hes1 samples
         ##
@@ -503,11 +503,25 @@ class TestSimpleHes5Model(unittest.TestCase):
                                                          equilibration_time = 1000,
                                                          synchronize = False )
 
+        oscillating_langevin_mRNA_trajectories, oscillating_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = 100,
+                                                                                        duration = 1500,
+                                                         repression_threshold = 100,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.5,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 100,
+                                                         equilibration_time = 1000)
+
+
         oscillating_power_spectrum, oscillating_coherence, oscillating_period = hes5.calculate_power_spectrum_of_trajectories(oscillating_protein_trajectories)
+        oscillating_langevin_power_spectrum, oscillating_langevin_coherence, oscillating_langevin_period = hes5.calculate_power_spectrum_of_trajectories(oscillating_langevin_protein_trajectories)
         
         mean_oscillating_protein_trajectory = np.mean(oscillating_protein_trajectories[:,1:], axis = 1)
         mean_oscillating_mRNA_trajectory = np.mean(oscillating_mRNA_trajectories[:,1:], axis = 1)
         
+        mean_oscillating_langevin_protein_trajectory = np.mean(oscillating_langevin_protein_trajectories[:,1:], axis = 1)
+        mean_oscillating_langevin_mRNA_trajectory = np.mean(oscillating_langevin_mRNA_trajectories[:,1:], axis = 1)
         figuresize = (6,6)
         my_figure = plt.figure(figsize = figuresize)
         my_figure.add_subplot(321)
@@ -516,6 +530,12 @@ class TestSimpleHes5Model(unittest.TestCase):
                   lw = 0.5 )
         plt.plot( oscillating_protein_trajectories[:,0],
                   oscillating_protein_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.plot( oscillating_langevin_mRNA_trajectories[:,0],
+                  oscillating_langevin_mRNA_trajectories[:,1]*10., label = 'mRNA example*10', color = 'green',
+                  lw = 0.5 )
+        plt.plot( oscillating_langevin_protein_trajectories[:,0],
+                  oscillating_langevin_protein_trajectories[:,1], label = 'Protein example', color = 'green', ls = '--',
                   lw = 0.5, dashes = [1,1] )
         plt.plot( oscillating_mRNA_trajectories[:,0],
                   mean_oscillating_mRNA_trajectory*10, label = 'Mean mRNA*10', color = 'blue',
@@ -536,6 +556,8 @@ class TestSimpleHes5Model(unittest.TestCase):
             plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
         plt.plot(oscillating_power_spectrum[:,0],
                  oscillating_power_spectrum[:,1], color = 'black')
+        plt.plot(oscillating_langevin_power_spectrum[:,0],
+                 oscillating_langevin_power_spectrum[:,1], color = 'green')
         plt.xlim(0,0.01)
 #         plt.ylim(0,100)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
@@ -563,7 +585,21 @@ class TestSimpleHes5Model(unittest.TestCase):
                                                          equilibration_time = 1000,
                                                          synchronize = False)
 
+        hes5_langevin_mRNA_trajectories, hes5_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = 100,
+                                                                                        duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+
         hes5_power_spectrum, hes5_coherence, hes5_period = hes5.calculate_power_spectrum_of_trajectories(hes5_protein_trajectories)
+        hes5_langevin_power_spectrum, hes5_langevin_coherence, hes5_langevin_period = hes5.calculate_power_spectrum_of_trajectories(hes5_langevin_protein_trajectories)
         
         mean_hes5_protein_trajectory = np.mean(hes5_protein_trajectories[:,1:], axis = 1)
         mean_hes5_rna_trajectory = np.mean(hes5_mRNA_trajectories[:,1:], axis = 1)
@@ -575,6 +611,14 @@ class TestSimpleHes5Model(unittest.TestCase):
         protein_example, = plt.plot( hes5_protein_trajectories[:,0],
                   hes5_protein_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--',
                   lw = 0.5, dashes = [1,1] )
+
+        plt.plot( hes5_langevin_mRNA_trajectories[:,0],
+                  hes5_langevin_mRNA_trajectories[:,1]*1000., label = 'mRNA example*1000', color = 'green',
+                  lw = 0.5 )
+        plt.plot( hes5_langevin_protein_trajectories[:,0],
+                  hes5_langevin_protein_trajectories[:,1], label = 'Protein example', color = 'green', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+
         mean_rna, = plt.plot( hes5_mRNA_trajectories[:,0],
                   mean_hes5_rna_trajectory*1000., label = 'Mean mRNA*10', color = 'blue',
                   lw = 0.5 )
@@ -594,6 +638,8 @@ class TestSimpleHes5Model(unittest.TestCase):
             plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
         plt.plot(hes5_power_spectrum[:,0],
                  hes5_power_spectrum[:,1], color = 'black')
+        plt.plot(hes5_langevin_power_spectrum[:,0],
+                 hes5_langevin_power_spectrum[:,1], color = 'green')
         plt.xlim(0,0.01)
 #         plt.ylim(0,100)
         plt.xlabel('Frequency')
@@ -1164,7 +1210,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','hill_function.pdf'))
         
-    def test_calculate_mean_expression_at_parameter_point(self):
+    def xest_calculate_mean_expression_at_parameter_point(self):
 
         this_mean_mRNA, this_mean_protein = hes5.calculate_steady_state_of_ode( 
                                                          repression_threshold = 31400,
@@ -1180,3 +1226,159 @@ class TestSimpleHes5Model(unittest.TestCase):
         self.assertLess(this_mean_protein, 63000)
         self.assertGreater(this_mean_mRNA, 0)
         self.assertLess(this_mean_mRNA, 100)
+        
+    def xest_stochastic_hes_trajectory_with_langevin(self):
+        # same plot as before for different transcription ("more_mrna") - not yet
+        # our preferred hes5 values
+        my_trajectory = hes5.generate_langevin_trajectory( duration = 1500,
+                                                         repression_threshold = 23000,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 26,
+                                                         basal_transcription_rate = 9,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 23000)
+
+        
+        self.assertGreaterEqual(np.min(my_trajectory),0.0)
+        figuresize = (4,2.5)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1]*10000, label = 'mRNA*1000', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
+        plt.text(0.95, 0.4, 'Mean protein number: ' + str(np.mean(my_trajectory[:,2])),
+                 verticalalignment='bottom', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_langevin_trajectory.pdf'))
+
+    def xest_equlibrate_langevin_trajectory(self):
+        import time
+        np.random.seed(0)
+
+        start = time.clock()
+        my_trajectory = hes5.generate_langevin_trajectory( duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+        end = time.clock()
+        
+        print 'needed ' + str(end-start) + ' seconds'
+
+        
+        figuresize = (4,2.5)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1]*1000, label = 'mRNA*1000', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
+        plt.text(0.95, 0.4, 'Mean protein number: ' + str(np.mean(my_trajectory[:,2])),
+                 verticalalignment='bottom', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_langevin_trajectory_equilibrated.pdf'))
+
+    def xest_multiple_equlibrated_langevin_trajectories(self):
+        mRNA_trajectories, protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = 100,
+                                                                                        duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+        np.save(os.path.join(os.path.dirname(__file__),
+                                       'output','protein_traces.npy'), protein_trajectories)
+        np.save(os.path.join(os.path.dirname(__file__),
+                                       'output','rna_traces.npy'), mRNA_trajectories)
+
+        mean_protein_trajectory = np.mean(protein_trajectories[:,1:], axis = 1)
+        protein_deviation = np.std(mRNA_trajectories[:,1:])
+        mean_mRNA_trajectory = np.mean(mRNA_trajectories[:,1:], axis = 1)
+        mRNA_deviation = np.std(mRNA_trajectories[:,1:])
+        
+        figuresize = (4,2.75)
+        my_figure = plt.figure()
+        # want to plot: protein and mRNA for stochastic and deterministic system,
+        # example stochastic system
+        plt.plot( mRNA_trajectories[:,0],
+                  mRNA_trajectories[:,1]*1000., label = 'mRNA example', color = 'black' )
+        plt.plot( protein_trajectories[:,0],
+                  protein_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--' )
+        plt.plot( mRNA_trajectories[:,0],
+                  mean_mRNA_trajectory*1000, label = 'Mean mRNA*1000', color = 'blue' )
+        plt.plot( protein_trajectories[:,0],
+                  mean_protein_trajectory, label = 'Mean protein*1000', color = 'blue', ls = '--' )
+        plt.ylabel('Copy number')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','average_hes5_langevin_behaviour.pdf'))
+
+
+    def xest_validate_stochastic_langevin_implementation(self):
+        mRNA_trajectories, protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = 10,
+                                                                     duration = 720,
+                                                                     repression_threshold = 100000,
+                                                                     mRNA_degradation_rate = 0.03,
+                                                                     protein_degradation_rate = 0.03,
+                                                                     transcription_delay = 18.5,
+                                                                     basal_transcription_rate = 1000.0,
+                                                                     translation_rate = 1.0,
+                                                                     initial_mRNA = 3000,
+                                                                     initial_protein = 100000 )
+        
+        mean_protein_trajectory = np.mean(protein_trajectories[:,1:], axis = 1)
+        protein_deviation = np.std(mRNA_trajectories[:,1:])
+        mean_mRNA_trajectory = np.mean(mRNA_trajectories[:,1:], axis = 1)
+        mRNA_deviation = np.std(mRNA_trajectories[:,1:])
+        
+        deterministic_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
+                                                                           repression_threshold = 100000,
+                                                                           mRNA_degradation_rate = 0.03,
+                                                                           protein_degradation_rate = 0.03,
+                                                                           transcription_delay = 18.5,
+                                                                           basal_transcription_rate = 1000.0,
+                                                                           translation_rate = 1.0,
+                                                                           initial_mRNA = 3000,
+                                                                           initial_protein = 100000,
+                                                                           for_negative_times = 'no_negative' )
+
+        figuresize = (4,2.75)
+        my_figure = plt.figure()
+        # want to plot: protein and mRNA for stochastic and deterministic system,
+        # example stochastic system
+        plt.plot( mRNA_trajectories[:,0],
+                  mRNA_trajectories[:,1]/1000., label = 'mRNA example', color = 'black' )
+        plt.plot( protein_trajectories[:,0],
+                  protein_trajectories[:,1]/10000., label = 'Protein example', color = 'black', ls = '--' )
+        plt.plot( mRNA_trajectories[:,0],
+                  mean_mRNA_trajectory/1000., label = 'Mean mRNA', color = 'blue' )
+        plt.plot( protein_trajectories[:,0],
+                  mean_protein_trajectory/10000., label = 'Mean protein', color = 'blue', ls = '--' )
+        plt.plot( deterministic_trajectory[:,0],
+                  deterministic_trajectory[:,1]/1000., label = 'Deterministic mRNA', color = 'green' )
+        plt.plot( deterministic_trajectory[:,0],
+                  deterministic_trajectory[:,2]/10000., label = 'Deterministic Protein', color = 'green', ls = '--' )
+        plt.xlabel('Time')
+        plt.ylabel('Scaled expression')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','stochastic_langevin_model_validation.pdf'))
