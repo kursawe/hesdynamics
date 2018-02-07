@@ -289,6 +289,86 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 
                     'output','p0_investigation.pdf'))
  
+    def xest_sweep_hill_coefficient(self):
+        ########
+        #
+        # HILL COEFFICIENT
+        #
+        ########
+        number_of_parameter_points = 20
+        number_of_trajectories = 100
+#         hill_coefficient_results = np.zeros((number_of_parameter_points,5))
+#         index = 0
+#         for n_hill in np.linspace(1,20,number_of_parameter_points):
+#             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
+#                                                         number_of_trajectories = number_of_trajectories,
+#                                                         duration = 1500,
+#                                                         repression_threshold = 31400,
+# #                                                         repression_threshold = p0,
+#                                                         mRNA_degradation_rate = np.log(2)/30,
+#                                                         protein_degradation_rate = np.log(2)/90,
+#                                                         translation_rate = 29,
+#                                                         basal_transcription_rate = 11,
+#                                                         transcription_delay = 29,
+#                                                         initial_mRNA = 3,
+#                                                         initial_protein = 31400,
+#                                                         hill_coefficient = n_hill,
+#                                                         equilibration_time = 1000)
+# #  
+#             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
+#                                                         these_protein_values )
+# #  
+#             hill_coefficient_results[index,0] = n_hill
+#             hill_coefficient_results[index,1] = this_period
+#             hill_coefficient_results[index,2] = this_coherence
+#             hill_coefficient_results[index,3] = np.mean(these_protein_values[:,1:])
+#             hill_coefficient_results[index,4] = np.std(these_protein_values[:,1:])
+#             index +=1
+# #  
+#         np.save(os.path.join(os.path.dirname(__file__), 
+#                     'output','hill_coefficient_results.npy'), hill_coefficient_results)
+
+        hill_coefficient_results = np.load(os.path.join(os.path.dirname(__file__), 
+                    'output','hill_coefficient_results.npy'))
+
+        my_figure = plt.figure( figsize = (6.5, 1.5) )
+        my_figure.add_subplot(131)
+        plt.plot(hill_coefficient_results[:,0],
+                 hill_coefficient_results[:,1], color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( 5 )
+#         plt.gca().locator_params(axis='x', tight = True, nbins=3)
+#         plt.gca().xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%0.0e'))
+#         plt.gca().ticklabel_format(axis = 'x', style = 'sci')
+        plt.ylim(0,700)
+        plt.xlabel('Hill coefficient')
+        plt.ylabel('Period [min]')
+
+        my_figure.add_subplot(132)
+#         plt.plot(repression_threshold_results[:,0],
+        plt.plot(hill_coefficient_results[:,0],
+                 hill_coefficient_results[:,2], color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( 5 )
+        plt.xlabel('Hill coefficient')
+        plt.ylabel('Coherence')
+        plt.ylim(0,1)
+
+        my_figure.add_subplot(133)
+#         plt.plot(repression_threshold_results[:,0],
+        plt.errorbar(hill_coefficient_results[:,0],
+                 hill_coefficient_results[:,3]/10000, 
+                 yerr = hill_coefficient_results[:,4]/10000, color = 'black')
+#         plt.axvline( 23000 )
+        plt.axvline( 5 )
+        plt.ylim(0,15)
+        plt.xlabel('Hill coefficient')
+        plt.ylabel('Expression/1e4')
+        plt.tight_layout()
+
+        plt.savefig(os.path.join(os.path.dirname(__file__), 
+                    'output','hill_coefficient_sweep.pdf'))
+
     def test_make_full_parameter_sweep_stochastic(self):
         ########
         #
@@ -297,7 +377,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         ########
 #         number_of_parameter_points = 20
 #         number_of_trajectories = 100
-#         repression_threshold_results = np.zeros((number_of_parameter_points,5))
+#         repression_threshold_results = np.zeros((number_of_parameter_points,6))
 #         index = 0
 #         for p0 in np.linspace(1,60000,number_of_parameter_points):
 #             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
@@ -313,23 +393,32 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                                                          initial_mRNA = 3,
 #                                                          initial_protein = 31400,
 #                                                          equilibration_time = 1000)
-#  
+#   
 #             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
 #                                                          these_protein_values )
-#  
+#   
+#             _, this_ode_mean = hes5.calculate_steady_state_of_ode( 
+#                                                          repression_threshold = p0,
+#                                                          mRNA_degradation_rate = np.log(2)/30,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11
+#                                                          )
+# 
 #             repression_threshold_results[index,0] = p0
 #             repression_threshold_results[index,1] = this_period
 #             repression_threshold_results[index,2] = this_coherence
 #             repression_threshold_results[index,3] = np.mean(these_protein_values[:,1:])
 #             repression_threshold_results[index,4] = np.std(these_protein_values[:,1:])
+#             repression_threshold_results[index,5] = this_ode_mean
 #             index +=1
-#  
+  
 #         np.save(os.path.join(os.path.dirname(__file__), 
 #                     'output','repression_threshold_results.npy'), repression_threshold_results)
 
         repression_threshold_results = np.load(os.path.join(os.path.dirname(__file__), 
                     'output','repression_threshold_results.npy'))
-
+        
         my_figure = plt.figure( figsize = (6.5, 9) )
         my_figure.add_subplot(631)
         plt.plot(repression_threshold_results[:,0]/10000,
@@ -362,6 +451,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.errorbar(repression_threshold_results[:,0]/10000,
                  repression_threshold_results[:,3]/10000, 
                  yerr = repression_threshold_results[:,4]/10000, color = 'black')
+        plt.plot(repression_threshold_results[:,0]/10000,
+                 repression_threshold_results[:,5]/10000, color = 'green')
 #         plt.axvline( 23000 )
         plt.axvline( 3.14 )
 #         plt.fill_between(repression_threshold_results[:,0],
@@ -377,9 +468,9 @@ class TestSimpleHes5Model(unittest.TestCase):
         # MRNA DEGRADATION
         #
         ########       
-#         mrna_degradation_results = np.zeros((number_of_parameter_points,5))
+#         mrna_degradation_results = np.zeros((number_of_parameter_points,6))
 #         index = 0
-#         for mu_m in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
+#         for mu_m in np.linspace(0.0001,np.log(2)/15,number_of_parameter_points):
 #             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
 #                                                          number_of_trajectories = number_of_trajectories,
 #                                                          duration = 1500,
@@ -392,18 +483,27 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                                                          initial_mRNA = 3,
 #                                                          initial_protein = 31400,
 #                                                          equilibration_time = 1000)
-#  
+#   
 #             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
 #                                                          these_protein_values )
-#  
-#  
+#   
+#             _, this_ode_mean = hes5.calculate_steady_state_of_ode( 
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = mu_m,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11
+#                                                          )
+# 
+#   
 #             mrna_degradation_results[index,0] = mu_m
 #             mrna_degradation_results[index,1] = this_period
 #             mrna_degradation_results[index,2] = this_coherence
 #             mrna_degradation_results[index,3] = np.mean(these_protein_values[:,1:])
 #             mrna_degradation_results[index,4] = np.std(these_protein_values[:,1:])
+#             mrna_degradation_results[index,5] = this_ode_mean
 #             index +=1
-#  
+  
 #         np.save(os.path.join(os.path.dirname(__file__), 
 #                     'output','mrna_degradation_results.npy'), mrna_degradation_results)
 
@@ -437,6 +537,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.errorbar(mrna_degradation_results[:,0],
                  mrna_degradation_results[:,3]/10000, 
                  yerr = mrna_degradation_results[:,4]/10000, color = 'black')
+        plt.plot(mrna_degradation_results[:,0],
+                 mrna_degradation_results[:,5]/10000, color = 'green')
         plt.axvline( np.log(2)/30 )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.ylim(0,15)
@@ -448,9 +550,9 @@ class TestSimpleHes5Model(unittest.TestCase):
         # PROTEIN DEGRADATION
         #
         ########       
-#         protein_degradation_results = np.zeros((number_of_parameter_points,5))
+#         protein_degradation_results = np.zeros((number_of_parameter_points,6))
 #         index = 0
-#         for mu_p in np.linspace(0.00,np.log(2)/15,number_of_parameter_points):
+#         for mu_p in np.linspace(0.0001,np.log(2)/15,number_of_parameter_points):
 #             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
 #                                                          number_of_trajectories = number_of_trajectories,
 #                                                          duration = 1500,
@@ -464,15 +566,24 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                                                          initial_mRNA = 3,
 #                                                          initial_protein = 31400,
 #                                                          equilibration_time = 1000)
-#  
+#   
 #             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
 #                                                          these_protein_values )
-#  
+#   
+#             _, this_ode_mean = hes5.calculate_steady_state_of_ode( 
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30,
+#                                                          protein_degradation_rate = mu_p,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11
+#                                                          )
+# 
 #             protein_degradation_results[index,0] = mu_p
 #             protein_degradation_results[index,1] = this_period
 #             protein_degradation_results[index,2] = this_coherence
 #             protein_degradation_results[index,3] = np.mean(these_protein_values[:,1:])
 #             protein_degradation_results[index,4] = np.std(these_protein_values[:,1:])
+#             protein_degradation_results[index,5] = this_ode_mean
 #             index +=1
 #  
 #         np.save(os.path.join(os.path.dirname(__file__), 
@@ -508,6 +619,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.errorbar(protein_degradation_results[:,0],
                  protein_degradation_results[:,3]/10000, 
                  yerr = protein_degradation_results[:,4]/10000, color = 'black')
+        plt.plot(protein_degradation_results[:,0],
+                 protein_degradation_results[:,5]/10000, color = 'green')
         plt.axvline( np.log(2)/90 )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.ylim(0,15)
@@ -519,7 +632,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         # TIME DELAY
         #
         ########       
-#         time_delay_results = np.zeros((number_of_parameter_points,5))
+#         time_delay_results = np.zeros((number_of_parameter_points,6))
 #         index = 0
 #         for tau in np.linspace(5.0,40.0,number_of_parameter_points):
 #             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
@@ -534,17 +647,26 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                                                          initial_mRNA = 3,
 #                                                          initial_protein = 31400,
 #                                                          equilibration_time = 1000)
-#  
+#   
 #             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
 #                                                          these_protein_values )
-#  
+#   
+#             _, this_ode_mean = hes5.calculate_steady_state_of_ode( 
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11
+#                                                          )
+# 
 #             time_delay_results[index,0] = tau
 #             time_delay_results[index,1] = this_period
 #             time_delay_results[index,2] = this_coherence
 #             time_delay_results[index,3] = np.mean(these_protein_values[:,1:])
 #             time_delay_results[index,4] = np.std(these_protein_values[:,1:])
+#             time_delay_results[index,5] = this_ode_mean
 #             index +=1
-#  
+# #  
 #         np.save(os.path.join(os.path.dirname(__file__), 
 #                     'output','time_delay_results.npy'), time_delay_results)
 
@@ -580,6 +702,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.errorbar(time_delay_results[:,0],
                  time_delay_results[:,3]/10000, 
                  yerr = time_delay_results[:,4]/10000, color = 'black')
+        plt.plot(time_delay_results[:,0],
+                 time_delay_results[:,5]/10000, color = 'green')
 #         plt.axvline( 23000 )
         plt.axvline( 29.0 )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
@@ -592,7 +716,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         # TRANSLATION RATE
         #
         ########       
-#         translation_rate_results = np.zeros((number_of_parameter_points,5))
+#         translation_rate_results = np.zeros((number_of_parameter_points,6))
 #         index = 0
 #         for alpha_p in np.linspace(1.0,100.0,number_of_parameter_points):
 #             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
@@ -608,17 +732,27 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                                                          initial_mRNA = 3,
 #                                                          initial_protein = 31400,
 #                                                          equilibration_time = 1000)
-#  
+#   
 #             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
 #                                                          these_protein_values )
-#  
+# 
+#             _, this_ode_mean = hes5.calculate_steady_state_of_ode( 
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = alpha_p,
+#                                                          basal_transcription_rate = 11
+#                                                          )
+# 
+# #  
 #             translation_rate_results[index,0] = alpha_p
 #             translation_rate_results[index,1] = this_period
 #             translation_rate_results[index,2] = this_coherence
 #             translation_rate_results[index,3] = np.mean(these_protein_values[:,1:])
 #             translation_rate_results[index,4] = np.std(these_protein_values[:,1:])
+#             translation_rate_results[index,5] = this_ode_mean
 #             index +=1
- 
+#  
 #         np.save(os.path.join(os.path.dirname(__file__), 
 #                     'output','translation_rate_results.npy'), translation_rate_results)
 
@@ -654,6 +788,8 @@ class TestSimpleHes5Model(unittest.TestCase):
                  translation_rate_results[:,3]/10000, 
                  yerr = translation_rate_results[:,4]/10000, color = 'black')
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.plot(translation_rate_results[:,0],
+                 translation_rate_results[:,5]/10000, color = 'green', zorder = 2)
         plt.axvline( 29 )
         plt.ylim(0,15)
         plt.xlabel('Translation rate [1/min]')
@@ -664,7 +800,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         # TRANSCRIPTION RATE
         #
         ########       
-#         transcription_rate_results = np.zeros((number_of_parameter_points,5))
+#         transcription_rate_results = np.zeros((number_of_parameter_points,6))
 #         index = 0
 #         for alpha_m in np.linspace(1.0,100.0,number_of_parameter_points):
 #             these_rna_values, these_protein_values = hes5.generate_multiple_trajectories( 
@@ -679,17 +815,26 @@ class TestSimpleHes5Model(unittest.TestCase):
 #                                                          initial_mRNA = 3,
 #                                                          initial_protein = 31400,
 #                                                          equilibration_time = 1000)
-#  
+#   
 #             _, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(
 #                                                          these_protein_values )
-#  
+#   
+#             _, this_ode_mean = hes5.calculate_steady_state_of_ode( 
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = alpha_m
+#                                                          )
+# 
 #             transcription_rate_results[index,0] = alpha_m
 #             transcription_rate_results[index,1] = this_period
 #             transcription_rate_results[index,2] = this_coherence
 #             transcription_rate_results[index,3] = np.mean(these_protein_values[:,1:])
 #             transcription_rate_results[index,4] = np.std(these_protein_values[:,1:])
+#             transcription_rate_results[index,5] = this_ode_mean
 #             index +=1
-#  
+  
 #         np.save(os.path.join(os.path.dirname(__file__), 
 #                     'output','transcription_rate_results.npy'), transcription_rate_results)
 
@@ -720,6 +865,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.errorbar(transcription_rate_results[:,0],
                  transcription_rate_results[:,3]/10000, 
                  yerr = transcription_rate_results[:,4]/10000, color = 'black')
+        plt.plot(transcription_rate_results[:,0],
+                 transcription_rate_results[:,5]/10000, color = 'green')
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.axvline( 11 )
         plt.ylim(0,15)
