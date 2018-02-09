@@ -782,7 +782,8 @@ def generate_posterior_samples( total_number_of_samples,
                                 acceptance_ratio,
                                 number_of_traces_per_sample = 10,
                                 number_of_cpus = 3,
-                                saving_path = ''):
+                                saving_name = 'sampling_results',
+                                use_langevin = True ):
     '''Draw samples from the posterior using normal ABC. Posterior is calculated
     using ABC and the summary statistics mean and relative standard deviation.
     Also saves all sampled model results.
@@ -803,8 +804,13 @@ def generate_posterior_samples( total_number_of_samples,
         number of processes that should be used for calculating the samples, parallelisation happens
         on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
 
-    saving_path : string
-        where to save, specified without file ending
+    saving_name : string
+        base of the filename, without file ending. The files will be saved in the 'output' subfolder of the
+        project's test folder. The saved results contain a results file with all the summary statistics, and one
+        with the corresponding parameter choices.
+        
+    use_langevin : bool
+        if True then the results will be generated using the langevin equation rather than the full gillespie algorithm.
         
     Returns
     -------
@@ -816,13 +822,15 @@ def generate_posterior_samples( total_number_of_samples,
     '''
     # first: keep degradation rates infer translation, transcription, repression threshold,
     # and time delay
-    prior_samples = generate_prior_samples( total_number_of_samples )
+    prior_samples = generate_prior_samples( total_number_of_samples, use_langevin )
 
     # collect summary_statistics_at_parameters
-    model_results = calculate_summary_statistics_at_parameters( prior_samples, number_of_traces_per_sample, number_of_cpus )
+    model_results = calculate_summary_statistics_at_parameters( prior_samples, 
+                                                                number_of_traces_per_sample, 
+                                                                number_of_cpus,
+                                                                use_langevin )
 
-    if saving_path == '':
-        saving_path = os.path.join(os.path.dirname(__file__),'..','test','output','sampling_results')
+    saving_path = os.path.join(os.path.dirname(__file__),'..','test','output',saving_name)
         
     np.save(saving_path + '.npy', model_results)
     np.save(saving_path + '_parameters.npy', prior_samples)
@@ -853,6 +861,8 @@ def plot_posterior_distributions( posterior_samples ):
     paiplot : matplotlib figure handle
        The handle for the pairplot on which the use can call 'save'
     '''
+    sns.set()
+
     data_frame = pd.DataFrame( data = posterior_samples,
                                columns= ['transcription_rate', 
                                          'translation_rate', 
@@ -861,6 +871,8 @@ def plot_posterior_distributions( posterior_samples ):
     pairplot = sns.PairGrid(data_frame)
     pairplot.map_diag(sns.kdeplot)
     pairplot.map_offdiag(sns.kdeplot, cmap="Blues_d", n_levels=10)
+
+    sns.reset_orig()
 
     return pairplot
 
@@ -921,11 +933,52 @@ def calculate_distances_to_data(summary_statistics):
     return np.linalg.norm(summary_statistics - reference_summary_statistic, axis = 1)
     
 def calculate_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
-                                               number_of_cpus = 3):
+                                               number_of_cpus = 3, use_langevin = True):
     '''Calculate the mean, relative standard deviation, period, and coherence
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
     generate_prior_samples.
+    
+    Parameters
+    ----------
+    
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
+        
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    number_of_cpus : int
+        number of processes that should be used for calculating the samples, parallelisation happens
+        on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
+
+    use_langevin : bool
+        if True then the results will be generated using the langevin equation rather than the full gillespie algorithm.
+
+    Returns
+    -------
+    
+    summary_statistics : ndarray
+        each row contains the summary statistics (mean, std, period, coherence) for the corresponding
+        parameter set in parameter_values
+    '''
+    if use_langevin:
+        summary_statistics = calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample,
+                                                            number_of_cpus)
+    else:
+        summary_statistics = calculate_gillespie_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample,
+                                                            number_of_cpus)
+
+    return summary_statistics
+    
+def calculate_gillespie_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
+                                                         number_of_cpus = 3):
+    '''Calculate the mean, relative standard deviation, period, and coherence
+    of protein traces at each parameter point in parameter_values. 
+    Will assume the arguments to be of the order described in
+    generate_prior_samples. Since the gillespie algorithm is used, this implementation
+    benefits from parallelisation by calculating individual traces of one sample in parallel.
     
     Parameters
     ----------
@@ -972,8 +1025,104 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
         summary_statistics[parameter_index,3] = this_coherence
 
     return summary_statistics
+ 
+def calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 100,
+                                                         number_of_cpus = 3):
+    '''Calculate the mean, relative standard deviation, period, and coherence
+    of protein traces at each parameter point in parameter_values. 
+    Will assume the arguments to be of the order described in
+    generate_prior_samples. Since the langevin algorithm is used, this implementation
+    benefits from parallelisation by calculating samples in parallel.
     
-def generate_prior_samples(number_of_samples):
+    Parameters
+    ----------
+    
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
+        
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    number_of_cpus : int
+        number of processes that should be used for calculating the samples, parallelisation happens
+        on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
+
+    Returns
+    -------
+    
+    summary_statistics : ndarray
+        each row contains the summary statistics (mean, std, period, coherence) for the corresponding
+        parameter set in parameter_values
+    '''
+    summary_statistics = np.zeros((parameter_values.shape[0], 4))
+
+    pool_of_processes = mp.Pool(processes = number_of_cpus)
+
+    process_results = [ pool_of_processes.apply_async(calculate_langevin_summary_statistics_at_parameter_point, 
+                                                      args=(parameter_value,))
+                        for parameter_value in parameter_values ]
+
+    ## Let the pool know that these are all so that the pool will exit afterwards
+    # this is necessary to prevent memory overflows.
+    pool_of_processes.close()
+
+    for parameter_index, process_result in enumerate(process_results):
+        print parameter_index
+        these_summary_statistics = process_result.get()
+        summary_statistics[ parameter_index ] = these_summary_statistics
+
+    return summary_statistics
+
+def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, number_of_traces_per_sample = 100):
+    '''Calculate the mean, relative standard deviation, period, and coherence
+    of protein traces at one parameter point using the langevin equation. 
+    Will assume the arguments to be of the order described in
+    generate_prior_samples. This function is necessary to ensure garbage collection of
+    unnecessary traces.    
+
+    Parameters
+    ----------
+    
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
+        
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    Returns
+    -------
+    
+    summary_statistics : ndarray
+        One dimension, four entries. Contains the summary statistics (mean, std, period, coherence) for the parameters
+        in parameter_values
+    '''
+    these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces_per_sample, # number_of_trajectories 
+                                                                                       1500, #duration 
+                                                                                       parameter_value[2], #repression_threshold, 
+                                                                                       5, #hill_coefficient,
+                                                                                       np.log(2)/30.0, #mRNA_degradation_rate, 
+                                                                                       np.log(2)/90.0, #protein_degradation_rate, 
+                                                                                       parameter_value[0], #basal_transcription_rate, 
+                                                                                       parameter_value[1], #translation_rate,
+                                                                                       parameter_value[3], #transcription_delay, 
+                                                                                       10, #initial_mRNA, 
+                                                                                       parameter_value[2], #initial_protein,
+                                                                                       1000)
+    
+    summary_statistics = np.zeros(4)
+    _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
+    this_mean = np.mean(these_protein_traces[:,1:])
+    this_std = np.std(these_protein_traces[:,1:])/this_mean
+    summary_statistics[0] = this_mean
+    summary_statistics[1] = this_std
+    summary_statistics[2] = this_period
+    summary_statistics[3] = this_coherence
+    
+    return summary_statistics
+
+def generate_prior_samples(number_of_samples, use_langevin = True):
     '''Sample from the prior. Provides samples of the form 
     (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
     
@@ -983,6 +1132,8 @@ def generate_prior_samples(number_of_samples):
     number_of_samples : int
         number of samples to draw from the prior distribution
         
+    use_langevin : bool
+        if True then time_delay samples will be of integer value
     Returns
     -------
     
@@ -1002,6 +1153,9 @@ def generate_prior_samples(number_of_samples):
     #transcriptione_delay in range (5,40)
     prior_samples[:,3] *= 35
     prior_samples[:,3] += 5
+    if use_langevin: 
+        # in this case we can only resolve full minutes anyways
+        prior_samples[:,3] = np.around(prior_samples[:,3])
     
     return prior_samples
     

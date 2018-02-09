@@ -22,7 +22,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
         total_number_of_samples = 2000
         acceptance_ratio = 0.03
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio )
+                                                                acceptance_ratio,
+                                                                use_langevin = False )
         
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 4))
@@ -33,14 +34,15 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','pairplot_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
         
-    def test_make_abc_on_cluster(self):
+    def xest_make_abc_on_cluster(self):
         ## generate posterior samples
         total_number_of_samples = 20000
         acceptance_ratio = 0.03
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 16,
-                                                                number_of_cpus = 16 )
+                                                                number_of_cpus = 16,
+                                                                use_langevin = False )
         
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 4))
@@ -51,7 +53,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','pairplot_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
  
-    def test_plot_abc_differently(self):
+    def xest_plot_abc_differently(self):
         ## generate posterior samples
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results')
         acceptance_ratio = 0.03
@@ -83,7 +85,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','pairplot_dots_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
         
-    def test_plot_abc_in_band(self):
+    def xest_plot_abc_in_band(self):
         ## generate posterior samples
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results')
         acceptance_ratio = 0.03
@@ -111,3 +113,22 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_bands_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
+        
+    def test_make_langevin_abc(self):
+        ## generate posterior samples
+        total_number_of_samples = 2000
+        acceptance_ratio = 0.02
+        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
+                                                                acceptance_ratio,
+                                                                number_of_traces_per_sample = 10,
+                                                                saving_name = 'sampling_results_langevin' )
+        
+        self.assertEquals(my_posterior_samples.shape, 
+                          (int(round(total_number_of_samples*acceptance_ratio)), 4))
+
+        # plot distribution of accepted parameter samples
+        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_langevin_' +  str(total_number_of_samples) + '_'
+                                      + str(acceptance_ratio) + '.pdf'))
+ 
