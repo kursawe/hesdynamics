@@ -786,7 +786,10 @@ def generate_posterior_samples( total_number_of_samples,
                                 prior_bounds = {'basal_transcription_rate' : (0,100),
                                                 'translation_rate' : (0,200),
                                                 'repression_threshold' : (0,100000),
-                                                'time_delay' : (5,40)},
+                                                'time_delay' : (5,40),
+                                                'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
+                                                'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)},
+                                prior_dimension = 'reduced',
                                 use_langevin = True ):
     '''Draw samples from the posterior using normal ABC. Posterior is calculated
     using ABC and the summary statistics mean and relative standard deviation.
@@ -816,6 +819,10 @@ def generate_posterior_samples( total_number_of_samples,
     prior_bounds : dict
         python dictionary containing parameter names and the bounds of the respective uniform prior.
         
+    prior_dimension : string
+        'reduced' or 'full' are possible options. If 'full', then the mRNA and protein degradation rates
+        will be inferred in addition to other model parameters.
+        
     use_langevin : bool
         if True then the results will be generated using the langevin equation rather than the full gillespie algorithm.
         
@@ -830,7 +837,7 @@ def generate_posterior_samples( total_number_of_samples,
     # first: keep degradation rates infer translation, transcription, repression threshold,
     # and time delay
     prior_samples = generate_prior_samples( total_number_of_samples, use_langevin,
-                                            prior_bounds )
+                                            prior_bounds, prior_dimension )
 
     # collect summary_statistics_at_parameters
     model_results = calculate_summary_statistics_at_parameters( prior_samples, 
@@ -870,16 +877,33 @@ def plot_posterior_distributions( posterior_samples ):
        The handle for the pairplot on which the use can call 'save'
     '''
     sns.set()
+    
+    posterior_samples[:,2]/=10000
 
-    data_frame = pd.DataFrame( data = posterior_samples,
-                               columns= ['Transcription rate', 
-                                         'Translation rate', 
-                                         'Repression threshold', 
-                                         'Transcription delay'])
+    if posterior_samples.shape[1] == 4:
+        data_frame = pd.DataFrame( data = posterior_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay'])
+    elif posterior_samples.shape[1] == 6:
+        data_frame = pd.DataFrame( data = posterior_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'mRNA degradation',
+                                             'Protein degradation'])
+    else:
+        raise ValueError("Cannot plot posterior samples of this dimension.")
+        
     pairplot = sns.PairGrid(data_frame)
     pairplot.map_diag(sns.distplot, kde = False, rug = True )
     pairplot.map_offdiag(sns.regplot, scatter_kws = {'alpha' : 0.4}, fit_reg=False) 
     pairplot.set(xlim = (0,None), ylim = (0,None))
+    if posterior_samples.shape[1] == 6:
+        pairplot.axes[5,4].locator_params(axis = 'x', nbins = 5)
+        pairplot.axes[5,5].locator_params(axis = 'x', nbins = 5)
 
 #     pairplot = sns.PairGrid(data_frame)
 #     pairplot.map_diag(sns.kdeplot)
@@ -980,6 +1004,8 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
         summary_statistics = calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample,
                                                             number_of_cpus)
     else:
+        if parameter_values.shape[1] != 4:
+            raise ValueError("Gillespie inference on full parameter space is not implemented.")
         summary_statistics = calculate_gillespie_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample,
                                                             number_of_cpus)
 
@@ -1110,19 +1136,35 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
         One dimension, five entries. Contains the summary statistics (mean, std, period, coherence, mean_mRNA) for the parameters
         in parameter_values
     '''
-    these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                       1500, #duration 
-                                                                                       parameter_value[2], #repression_threshold, 
-                                                                                       5, #hill_coefficient,
-                                                                                       np.log(2)/30.0, #mRNA_degradation_rate, 
-                                                                                       np.log(2)/90.0, #protein_degradation_rate, 
-                                                                                       parameter_value[0], #basal_transcription_rate, 
-                                                                                       parameter_value[1], #translation_rate,
-                                                                                       parameter_value[3], #transcription_delay, 
-                                                                                       10, #initial_mRNA, 
-                                                                                       parameter_value[2], #initial_protein,
-                                                                                       1000)
-    
+    if parameter_value.shape[0] == 4:
+        these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                           1500, #duration 
+                                                                                           parameter_value[2], #repression_threshold, 
+                                                                                           5, #hill_coefficient,
+                                                                                           np.log(2)/30.0, #mRNA_degradation_rate, 
+                                                                                           np.log(2)/90.0, #protein_degradation_rate, 
+                                                                                           parameter_value[0], #basal_transcription_rate, 
+                                                                                           parameter_value[1], #translation_rate,
+                                                                                           parameter_value[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           parameter_value[2], #initial_protein,
+                                                                                           1000)
+    elif parameter_value.shape[0] == 6:
+        these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                           1500, #duration 
+                                                                                           parameter_value[2], #repression_threshold, 
+                                                                                           5, #hill_coefficient,
+                                                                                           parameter_value[4], #mRNA_degradation_rate, 
+                                                                                           parameter_value[5], #protein_degradation_rate, 
+                                                                                           parameter_value[0], #basal_transcription_rate, 
+                                                                                           parameter_value[1], #translation_rate,
+                                                                                           parameter_value[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           parameter_value[2], #initial_protein,
+                                                                                           1000)
+    else: 
+        raise ValueError("This dimension of the prior sample is not recognised.")
+ 
     summary_statistics = np.zeros(5)
     _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
     this_mean = np.mean(these_protein_traces[:,1:])
@@ -1140,7 +1182,10 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
                            prior_bounds = {'basal_transcription_rate' : (0,100),
                                            'translation_rate' : (0,200),
                                            'repression_threshold' : (0,100000),
-                                           'time_delay' : (5,40)}
+                                           'time_delay' : (5,40),
+                                           'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
+                                           'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)},
+                           prior_dimension = 'reduced',
                            ):
     '''Sample from the prior. Provides samples of the form 
     (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
@@ -1157,6 +1202,10 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
     prior_bounds : dict
         python dictionary containing parameter names and the bounds of the respective uniform prior.
 
+    prior_dimension : string
+        'reduced' or 'full' are possible options. If 'full', then the mRNA and protein degradation rates
+        will be inferred in addition to other model parameters.
+
     Returns
     -------
     
@@ -1167,18 +1216,30 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
     index_to_parameter_name_lookup = {0: 'basal_transcription_rate',
                                       1: 'translation_rate',
                                       2: 'repression_threshold',
-                                      3: 'time_delay'}
+                                      3: 'time_delay',
+                                      4: 'mRNA_degradation_rate',
+                                      5: 'protein_degradation_rate'}
     
     standard_prior_bounds = {'basal_transcription_rate' : (0,100),
                              'translation_rate' : (0,200),
                              'repression_threshold' : (0,100000),
-                             'time_delay' : (5,40)}
+                             'time_delay' : (5,40),
+                             'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
+                             'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)}
+
+    # depending on the function argument prior_dimension we create differently sized prior tables
+    if prior_dimension == 'full':
+        number_of_dimensions = 6
+    elif prior_dimension == 'reduced':
+        number_of_dimensions = 4
+    else:
+        raise ValueError("The value for prior_dimension is not recognised, must be 'reduced' or 'full'.")
 
     #initialise as random numbers between (0,1)
-    prior_samples = np.random.rand(number_of_samples, 4)
+    prior_samples = np.random.rand(number_of_samples, number_of_dimensions)
     
     #now scale and shift each entry as appropriate
-    for parameter_index in range(4):
+    for parameter_index in range(number_of_dimensions):
         this_parameter_name = index_to_parameter_name_lookup[parameter_index]
         if this_parameter_name in prior_bounds:
            these_parameter_bounds = prior_bounds[this_parameter_name]
