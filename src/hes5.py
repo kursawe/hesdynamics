@@ -901,9 +901,15 @@ def plot_posterior_distributions( posterior_samples ):
     pairplot.map_diag(sns.distplot, kde = False, rug = True )
     pairplot.map_offdiag(sns.regplot, scatter_kws = {'alpha' : 0.4}, fit_reg=False) 
     pairplot.set(xlim = (0,None), ylim = (0,None))
+    pairplot.axes[-1,0].set_xlim(0,100)
+    pairplot.axes[-1,1].set_xlim(0,200)
+    pairplot.axes[-1,2].set_xlim(0,15)
+    pairplot.axes[-1,3].set_xlim(5,40)
     if posterior_samples.shape[1] == 6:
-        pairplot.axes[5,4].locator_params(axis = 'x', nbins = 5)
-        pairplot.axes[5,5].locator_params(axis = 'x', nbins = 5)
+        pairplot.axes[-1,4].locator_params(axis = 'x', nbins = 5)
+        pairplot.axes[-1,5].locator_params(axis = 'x', nbins = 5)
+        pairplot.axes[-1,4].set_xlim(0,0.04)
+        pairplot.axes[-1,5].set_xlim(0,0.04)
 
 #     pairplot = sns.PairGrid(data_frame)
 #     pairplot.map_diag(sns.kdeplot)
@@ -1413,7 +1419,7 @@ def generate_langevin_trajectory( duration = 720,
     which is implemented in generate_stochastic_trajectory(). For negative times we assume that there
     was no transcription.
     
-    Warning : The time step of integration is chosen as 0.1 minute, and hence the time-delay is only
+    Warning : The time step of integration is chosen as 1 minute, and hence the time-delay is only
               implemented with this accuracy.   
 
     Parameters
@@ -1618,3 +1624,76 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
         protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
  
     return mRNA_trajectories, protein_trajectories
+
+def conduct_protein_degradation_sweep_at_parameters(parameter_samples,
+                                                    number_of_degradation_values = 20,
+                                                    number_of_traces_per_parameter = 100):
+    '''Conduct a parameter sweep of the protein degradation rates at each of the parameter points in
+    parameter_samples. The parameter_samples are four-dimensional, as produced, for example, by 
+    generate_prior_samples() with the 'reduced' dimension. At each parameter point the function
+    will sweep over number_degradation_values of protein_degradation_rate, and from 
+    number_of_trajectories langevin traces the summary statistics [mean expression
+    standard_deviation, period, coherence] will be returned.
+    
+    Parameters:
+    -----------
+    
+    parameter_samples : ndarray
+        four columns, each row corresponds to one parameter. The columns are in the order returned by
+        generate_prior_samples().
+        
+    number_of_degradation_values : int
+        number of different protein degradation rates to consider. These number of values will be evenly spaced
+        between 0.0001 and np.log(2)/15
+        
+    number_of_traces_per_parameter : int
+        number of traces that should be used to calculate summary statistics
+        
+    Results:
+    --------
+    
+    sweep_results : ndarray
+        three-dimensional array. Each entry along the first dimension corresponds to one parameter
+        in parameter_samples and contains a 2d array where the first column is a protein_degradation_rate
+        and each further column contains the summary statistics in the order described above.
+    ''' 
+    # plan: make a table of 6d parameters
+    total_number_of_parameters_required = parameter_samples.shape[0]*number_of_degradation_values
+    all_parameter_values = np.zeros((total_number_of_parameters_required, 6)) 
+    parameter_index = 0
+    for sample in parameter_samples:
+        for protein_degradation_rate in np.linspace(0.0001,np.log(2)/15,number_of_degradation_values):
+            if len(sample) == 4:
+                all_parameter_values[parameter_index,:4] = sample
+                all_parameter_values[parameter_index,4] = np.log(2)/30.0
+                all_parameter_values[parameter_index,5] = protein_degradation_rate
+            else:
+                all_parameter_values[parameter_index] = sample
+#                 all_parameter_values[parameter_index,4] = np.log(2)/30.0
+                all_parameter_values[parameter_index,5] = protein_degradation_rate
+
+            parameter_index += 1
+
+    # pass it to the calculate_summary_statistics_at_parameter_points
+    all_summary_statistics = calculate_summary_statistics_at_parameters(parameter_values = all_parameter_values, 
+                                                                        number_of_traces_per_sample = number_of_traces_per_parameter,
+                                                                        number_of_cpus = 3, 
+                                                                        use_langevin = True)
+    
+    sweep_results = np.zeros((parameter_samples.shape[0], number_of_degradation_values, 5))
+    parameter_index = 0
+    for sample_index, sample in enumerate(parameter_samples):
+        protein_degradation_index = 0
+        for protein_degradation_rate in np.linspace(0.0001,np.log(2)/15,number_of_degradation_values):
+            these_summary_statistics = all_summary_statistics[parameter_index]
+            # the first entry gets the degradation rate
+            sweep_results[sample_index,protein_degradation_index,0] = protein_degradation_rate
+            # the remaining entries get the summary statistics. We discard the last summary statistic, 
+            # which is the mean mRNA
+            sweep_results[sample_index,protein_degradation_index,1:] = these_summary_statistics[:-1]
+            protein_degradation_index+=1
+            parameter_index +=1
+    # repack results into output array
+    
+    return sweep_results
+    
