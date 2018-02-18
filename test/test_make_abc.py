@@ -711,7 +711,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','abc_mrna_distribution.pdf'))
     
-    def xest_make_multiple_parameter_variation(self):
+    def test_make_multiple_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 100
 
@@ -737,11 +737,11 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                                                           number_of_parameter_points,
                                                                                           number_of_trajectories)
         
-        np.save(os.path.join(os.path.dirname(__file__), 'output','multiple_degradation_sweep_results.npy'),
+        np.save(os.path.join(os.path.dirname(__file__), 'output','multiple_degradation_sweep_results_new.npy'),
                 my_parameter_sweep_results)
 
 
-    def xest_plot_multiple_parameter_variation(self):
+    def test_plot_multiple_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 100
 
@@ -759,6 +759,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                    model_results[:,3]>0.3))))) #coherence
 #                                     np.logical_and(model_results[:,3]>0.3, #coherence
 #                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<10))))) #transcription_rate
 #                                                     prior_samples[:,3]>20)))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
@@ -766,7 +767,10 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #         my_parameter_sweep_results = hes5.conduct_protein_degradation_sweep_at_parameters(my_posterior_samples,
 #                                                                                           number_of_parameter_points,
 #                                                                                           number_of_trajectories)
-        my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output','multiple_degradation_sweep_results.npy'))
+        my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output','multiple_degradation_sweep_results_new.npy'))
+        
+        new_accepted_indices = np.where( my_posterior_samples[:,0] < 10 )
+        my_parameter_sweep_results = my_parameter_sweep_results[new_accepted_indices]
 
         my_figure = plt.figure( figsize = (6.5, 1.5) )
         my_figure.add_subplot(131)
@@ -805,7 +809,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','multiple_degradation_sweep.pdf'))
         
-    def test_plot_multiple_parameter_variation_differently(self):
+    def xest_plot_multiple_parameter_variation_differently(self):
         number_of_parameter_points = 20
         number_of_trajectories = 100
 
@@ -940,7 +944,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.plot( this_small_trace[:,0]/100, this_small_trace[:,2]/10000, color = 'purple')
         plt.text(0.1, 0.2, r'$\alpha_m =$ ' + '{:.2f}'.format(this_small_coherence_parameter[0]) +
                            r', $\alpha_p =$ ' + '{:.2f}'.format(this_small_coherence_parameter[1]) + 
-                           '\n' + r' $p_0 = $ ' + '{:.2f}'.format(this_small_coherence_parameter[2]) + 
+                           '\n' + r'$p_0 = $ ' + '{:.2f}'.format(this_small_coherence_parameter[2]) + 
                            r', $\tau = $ ' + '{:.2f}'.format(this_small_coherence_parameter[3]),
                            fontsize = 5,
                            transform=plt.gca().transAxes)
@@ -960,7 +964,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.plot( this_large_trace[:,0]/100, this_large_trace[:,2]/10000, color = 'green')
         plt.text(0.1, 0.2, r'$\alpha_m =$ ' + '{:.2f}'.format(this_large_coherence_parameter[0]) +
                            r', $\alpha_p =$ ' + '{:.2f}'.format(this_large_coherence_parameter[1]) + 
-                           '\n' + r' $p_0 = $ ' + '{:.2f}'.format(this_large_coherence_parameter[2]) + 
+                           '\n' + r'$p_0 = $ ' + '{:.2f}'.format(this_large_coherence_parameter[2]) + 
                            r', $\tau = $ ' + '{:.2f}'.format(this_large_coherence_parameter[3]),
                            fontsize = 5,
                            transform=plt.gca().transAxes)
@@ -980,7 +984,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.plot( this_extra_large_trace[:,0]/100, this_extra_large_trace[:,2]/10000, color = 'blue')
         plt.text(0.1, 0.2, r'$\alpha_m =$ ' + '{:.2f}'.format(this_extra_large_coherence_parameter[0]) +
                            r', $\alpha_p =$ ' + '{:.2f}'.format(this_extra_large_coherence_parameter[1]) + 
-                           '\n' + r' $p_0 = $ ' + '{:.2f}'.format(this_extra_large_coherence_parameter[2]) + 
+                           '\n' + r'$p_0 = $ ' + '{:.2f}'.format(this_extra_large_coherence_parameter[2]) + 
                            r', $\tau = $ ' + '{:.2f}'.format(this_extra_large_coherence_parameter[3]),
                            fontsize = 5,
                            transform=plt.gca().transAxes)
@@ -991,3 +995,274 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','multiple_degradation_sweep_examples.pdf'))
+        
+    def xest_validation_at_low_transcription_rates(self):
+        # pick three parameter values with low mrna and plot example mrna, example protein, and power spectrum
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_100reps')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        number_of_traces = 100
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+#                                                     model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+                                    np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+                                                    prior_samples[:,0]<2))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        ##
+        # first_samples
+        ##
+        first_parameter = my_posterior_samples[0]
+        first_mRNA_trajectories, first_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500,
+                                                         repression_threshold = first_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = first_parameter[3],
+                                                         basal_transcription_rate = first_parameter[0],
+                                                         translation_rate = first_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = first_parameter[2],
+                                                         equilibration_time = 1000,
+                                                         synchronize = False )
+
+        first_langevin_mRNA_trajectories, first_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500,
+                                                         repression_threshold = first_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = first_parameter[3],
+                                                         basal_transcription_rate = first_parameter[0],
+                                                         translation_rate = first_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = first_parameter[2],
+                                                         equilibration_time = 1000)
+
+        first_power_spectrum, first_coherence, first_period = hes5.calculate_power_spectrum_of_trajectories(first_protein_trajectories)
+        first_langevin_power_spectrum, first_langevin_coherence, first_langevin_period = hes5.calculate_power_spectrum_of_trajectories(first_langevin_protein_trajectories)
+        
+        figuresize = (6,6)
+        my_figure = plt.figure(figsize = figuresize)
+        my_figure.add_subplot(321)
+        plt.plot( first_mRNA_trajectories[:,0],
+                  first_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*10', color = 'black',
+                  lw = 0.5 )
+        plt.plot( first_protein_trajectories[:,0],
+                  first_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.plot( first_langevin_mRNA_trajectories[:,0],
+                  first_langevin_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*10', color = 'green',
+                  lw = 0.5 )
+        plt.plot( first_langevin_protein_trajectories[:,0],
+                  first_langevin_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'green', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.text(0.1, 0.3, r'$\alpha_m =$ ' + '{:.2f}'.format(first_parameter[0]) +
+                           r', $\alpha_p =$ ' + '{:.2f}'.format(first_parameter[1]) + 
+                           '\n' + r'$p_0 = $ ' + '{:.2f}'.format(first_parameter[2]) + 
+                           r', $\tau = $ ' + '{:.2f}'.format(first_parameter[3]),
+                           fontsize = 5,
+                           transform=plt.gca().transAxes)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Time [min]')
+        plt.ylabel('Copy number [1e4]')
+        plt.ylim(0,9)
+#         plt.legend()
+       
+        my_figure.add_subplot(322)
+        for trajectory in first_protein_trajectories[:,1:].transpose():
+            compound_trajectory = np.vstack((first_protein_trajectories[:,0],trajectory)).transpose()
+            this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
+        plt.plot(first_power_spectrum[:,0],
+                 first_power_spectrum[:,1], color = 'black')
+        plt.plot(first_langevin_power_spectrum[:,0],
+                 first_langevin_power_spectrum[:,1], color = 'green')
+        plt.xlim(0,0.01)
+#         plt.ylim(0,100)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+#         import pdb; pdb.set_trace()
+        plt.text(0.05, 0.95, 'Coherence:\n' + "{:.2f}".format(first_coherence) + 
+                 '\nPeriod:\n' +  "{:.2f}".format(first_period) ,
+                 verticalalignment='top', horizontalalignment='left',
+                 transform=plt.gca().transAxes)
+
+        ##
+        # Hes5 samples
+        ##
+        second_parameter = my_posterior_samples[1]
+        second_mRNA_trajectories, second_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500,
+                                                         repression_threshold = second_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = second_parameter[3],
+                                                         basal_transcription_rate = second_parameter[0],
+                                                         translation_rate = second_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = second_parameter[2],
+                                                         equilibration_time = 1000,
+                                                         synchronize = False )
+
+        second_langevin_mRNA_trajectories, second_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500,
+                                                         repression_threshold = second_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = second_parameter[3],
+                                                         basal_transcription_rate = second_parameter[0],
+                                                         translation_rate = second_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = second_parameter[2],
+                                                         equilibration_time = 1000)
+
+        second_power_spectrum, second_coherence, second_period = hes5.calculate_power_spectrum_of_trajectories(second_protein_trajectories)
+        second_langevin_power_spectrum, second_langevin_coherence, second_langevin_period = hes5.calculate_power_spectrum_of_trajectories(second_langevin_protein_trajectories)
+        
+        my_figure.add_subplot(323)
+        mrna_example, = plt.plot( second_mRNA_trajectories[:,0],
+                  second_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'black',
+                  lw = 0.5 )
+        protein_example, = plt.plot( second_protein_trajectories[:,0],
+                  second_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+
+        plt.plot( second_langevin_mRNA_trajectories[:,0],
+                  second_langevin_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'green',
+                  lw = 0.5 )
+        plt.plot( second_langevin_protein_trajectories[:,0],
+                  second_langevin_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'green', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.text(0.1, 0.25, r'$\alpha_m =$ ' + '{:.2f}'.format(second_parameter[0]) +
+                           r', $\alpha_p =$ ' + '{:.2f}'.format(second_parameter[1]) + 
+                           '\n' + r'$p_0 = $ ' + '{:.2f}'.format(second_parameter[2]) + 
+                           r', $\tau = $ ' + '{:.2f}'.format(second_parameter[3]),
+                           fontsize = 5,
+                           transform=plt.gca().transAxes)
+        plt.xlabel('Time [min]')
+        plt.ylabel('Copy number [1e4]')
+        plt.ylim(0,9)
+#         plt.legend()
+
+        my_figure.add_subplot(324)
+        for trajectory in second_protein_trajectories[:,1:].transpose():
+            compound_trajectory = np.vstack((second_protein_trajectories[:,0],trajectory)).transpose()
+            this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
+        plt.plot(second_power_spectrum[:,0],
+                 second_power_spectrum[:,1], color = 'black')
+        plt.plot(second_langevin_power_spectrum[:,0],
+                 second_langevin_power_spectrum[:,1], color = 'green')
+        plt.xlim(0,0.01)
+#         plt.ylim(0,100)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         import pdb; pdb.set_trace()
+        plt.text(0.95, 0.95, 'Coherence:\n' + "{:.2f}".format(second_coherence) + 
+                 '\nPeriod:\n' +  "{:.2f}".format(second_period) ,
+                 verticalalignment='top', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+        
+        ##
+        # third example
+        ##
+        # generate the random samples:
+        third_parameter = my_posterior_samples[2]
+        third_mRNA_trajectories, third_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500,
+                                                         repression_threshold = third_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = third_parameter[3],
+                                                         basal_transcription_rate = third_parameter[0],
+                                                         translation_rate = third_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = third_parameter[2],
+                                                         equilibration_time = 1000,
+                                                         synchronize = False )
+
+        third_langevin_mRNA_trajectories, third_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500,
+                                                         repression_threshold = third_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = third_parameter[3],
+                                                         basal_transcription_rate = third_parameter[0],
+                                                         translation_rate = third_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = third_parameter[2],
+                                                         equilibration_time = 1000)
+
+        third_power_spectrum, third_coherence, third_period = hes5.calculate_power_spectrum_of_trajectories(third_protein_trajectories)
+        third_langevin_power_spectrum, third_langevin_coherence, third_langevin_period = hes5.calculate_power_spectrum_of_trajectories(third_langevin_protein_trajectories)
+ 
+        my_figure.add_subplot(325)
+        mrna_example, = plt.plot( third_mRNA_trajectories[:,0],
+                  third_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'black',
+                  lw = 0.5 )
+        protein_example, = plt.plot( third_protein_trajectories[:,0],
+                  third_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+
+        plt.plot( third_langevin_mRNA_trajectories[:,0],
+                  third_langevin_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'green',
+                  lw = 0.5 )
+        plt.plot( third_langevin_protein_trajectories[:,0],
+                  third_langevin_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'green', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Time [min]')
+        plt.ylabel('Copy number [1e4]')
+        plt.ylim(0,9)
+        plt.text(0.1, 0.22, r'$\alpha_m =$ ' + '{:.2f}'.format(third_parameter[0]) +
+                           r', $\alpha_p =$ ' + '{:.2f}'.format(third_parameter[1]) + 
+                           '\n' + r'$p_0 = $ ' + '{:.2f}'.format(third_parameter[2]) + 
+                           r', $\tau = $ ' + '{:.2f}'.format(third_parameter[3]),
+                           fontsize = 5,
+                           transform=plt.gca().transAxes)
+#         plt.legend()
+
+        my_figure.add_subplot(326)
+        for trajectory in third_protein_trajectories[:,1:].transpose():
+            compound_trajectory = np.vstack((third_protein_trajectories[:,0],trajectory)).transpose()
+            this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
+        plt.plot(third_power_spectrum[:,0],
+                 third_power_spectrum[:,1], color = 'black')
+        plt.plot(third_langevin_power_spectrum[:,0],
+                 third_langevin_power_spectrum[:,1], color = 'green')
+        plt.xlim(0,0.01)
+#         plt.ylim(0,100)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         import pdb; pdb.set_trace()
+        plt.text(0.95, 0.95, 'Coherence:\n' + "{:.2f}".format(third_coherence) + 
+                 '\nPeriod:\n' +  "{:.2f}".format(third_period) ,
+                 verticalalignment='top', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+ 
+        plt.tight_layout()
+        my_figure.legend((mrna_example, protein_example), 
+                        ('mRNA*1000', 'Protein'), 
+                        loc = 'upper left', ncol = 2, fontsize = 10 )
+        plt.figtext(0.6, 0.96, 'Langevin', horizontalalignment='left', color = 'green')
+        plt.figtext(0.8, 0.96, 'Gillespie', horizontalalignment='left', color = 'black')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+
+#         plt.subplots_adjust(top = 0.9, hspace = 0.7)
+        plt.subplots_adjust(top = 0.9)
+       
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','low_transcription_rate_langevin_validation.pdf'))
