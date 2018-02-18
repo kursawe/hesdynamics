@@ -2,6 +2,7 @@ import PyDDE
 import numpy as np
 import scipy.signal
 import scipy.optimize
+import scipy.interpolate
 import multiprocessing as mp
 # import collections
 from numba import jit, autojit
@@ -1283,14 +1284,26 @@ def calculate_coherence_and_period_of_power_spectrum(power_spectrum):
     '''
     # Calculate coherence:
     max_index = np.argmax(power_spectrum[:,1])
-    coherence_boundary_left = int(np.round(max_index - max_index*0.1))
-    coherence_boundary_right = int(np.round(max_index + max_index*0.1))
-    coherence_area = np.trapz(power_spectrum[coherence_boundary_left:(coherence_boundary_right+1),1])
-    full_area = np.trapz(power_spectrum[:,1])
+    max_power_frequency = power_spectrum[max_index,0]
+    
+    power_spectrum_interpolation = scipy.interpolate.interp1d(power_spectrum[:,0], power_spectrum[:,1])
+
+    coherence_boundary_left = max_power_frequency - max_power_frequency*0.1
+    coherence_boundary_right = max_power_frequency + max_power_frequency*0.1
+
+    if coherence_boundary_left < power_spectrum[0,0]:
+        coherence_boundary_left = power_spectrum[0,0]
+
+    if coherence_boundary_right > power_spectrum[-1,0]:
+        coherence_boundary_right = power_spectrum[-1,0]
+
+    integration_axis = np.linspace(coherence_boundary_left, coherence_boundary_right, 3)
+    interpolation_values = power_spectrum_interpolation(integration_axis)
+    coherence_area = np.trapz(interpolation_values, integration_axis)
+    full_area = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
     coherence = coherence_area/full_area
     
     # calculate period: 
-    max_power_frequency = power_spectrum[max_index,0]
     period = 1./max_power_frequency
     
     return coherence, period
