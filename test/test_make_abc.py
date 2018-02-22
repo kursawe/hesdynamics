@@ -114,14 +114,16 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','pairplot_bands_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
         
-    def xest_make_langevin_abc(self):
+    def test_make_langevin_abc(self):
         ## generate posterior samples
         total_number_of_samples = 20000
         acceptance_ratio = 0.02
+#         total_number_of_samples = 20
+#         acceptance_ratio = 0.5
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
-                                                                number_of_traces_per_sample = 100,
-                                                                saving_name = 'sampling_results_langevin_100reps' )
+                                                                number_of_traces_per_sample = 200,
+                                                                saving_name = 'sampling_results_langevin_200reps' )
         
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 4))
@@ -711,7 +713,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','abc_mrna_distribution.pdf'))
     
-    def test_make_multiple_parameter_variation(self):
+    def xest_make_multiple_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 100
 
@@ -741,7 +743,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                 my_parameter_sweep_results)
 
 
-    def test_plot_multiple_parameter_variation(self):
+    def xest_plot_multiple_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 100
 
@@ -809,6 +811,94 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','multiple_degradation_sweep.pdf'))
         
+    def xest_approximate_power_spectrum_numerically(self):
+        number_of_traces = 100
+        repetition_number = 1
+        
+        trace_and_repetition_numbers = np.array([[200,1], 
+                                                 [200,2], 
+                                                 [200,3], 
+#                                                  [100,5]]) 
+                                                [200,4], 
+                                                [200,5], 
+                                                [200,6], 
+                                                [200,7], 
+                                                [1000,10], 
+                                                [1000,20]])
+        
+        power_spectra = []
+        coherences = np.zeros(trace_and_repetition_numbers.shape[0])
+        periods = np.zeros(trace_and_repetition_numbers.shape[0])
+        index = 0
+        for number_of_traces, repetition_number in trace_and_repetition_numbers:
+            print number_of_traces
+            print repetition_number
+            these_mrna_traces, these_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_number,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         basal_transcription_rate = 11,
+                                                         translation_rate = 29,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+            this_power_spectrum, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(these_protein_trajectories)
+
+            power_spectra.append(this_power_spectrum)
+            coherences[index] = this_coherence
+            periods[index] = this_period
+            index += 1 
+
+        theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+                                                     basal_transcription_rate = 11,
+                                                     translation_rate = 29,
+                                                     repression_threshold = 31400,
+                                                     transcription_delay = 29,
+                                                     mRNA_degradation_rate = np.log(2)/30,
+                                                     hill_coefficient = 5,
+                                                     protein_degradation_rate = np.log(2)/90)
+        
+        figuresize = (6,2.5)
+        my_figure = plt.figure(figsize = figuresize)
+        my_figure.add_subplot(131)
+        for counter, power_spectrum in enumerate(power_spectra):
+            if counter == 4:
+                plt.plot(power_spectrum[:,0],power_spectrum[:,1]+counter*200, color = 'green', alpha = 0.8)
+            elif counter > 6:
+                plt.plot(power_spectrum[:,0],power_spectrum[:,1]+counter*200, color = 'blue')
+            else:
+                plt.plot(power_spectrum[:,0],power_spectrum[:,1]+counter*200, color = 'black', alpha = 0.8)
+#         plt.plot(theoretical_power_spectrum[:,0],theoretical_power_spectrum[:,1], color = 'blue', alpha = 0.8)
+        plt.xlim(0.000,0.01)
+#         plt.ylim(0,100)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Frequency')
+        plt.ylabel('Probability + offset')
+
+        my_figure.add_subplot(132)
+        plt.plot(trace_and_repetition_numbers[:,1], coherences, color = 'black')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.axvline(5, color = 'green')
+        plt.ylim(0,0.5)
+        plt.xlabel('Trace length [1500min]')
+        plt.ylabel('Coherence estimate')
+
+        my_figure.add_subplot(133)
+        plt.plot(trace_and_repetition_numbers[:,1], periods, color = 'black')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.ylim(200,300)
+        plt.axvline(5, color = 'green')
+        plt.xlabel('Trace length [1500min]')
+        plt.ylabel('Period estimate')
+       
+        plt.tight_layout()
+
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','Coherence_measure_test.pdf'))
+
     def xest_plot_multiple_parameter_variation_differently(self):
         number_of_parameter_points = 20
         number_of_trajectories = 100
@@ -1003,6 +1093,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         number_of_traces = 100
+        repetition_factor = 10
         
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
                                     np.logical_and(model_results[:,0]<65000, #cell_number
@@ -1021,7 +1112,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         ##
         first_parameter = my_posterior_samples[0]
         first_mRNA_trajectories, first_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
-                                                                                        duration = 1500,
+                                                                                        duration = 1500*repetition_factor,
                                                          repression_threshold = first_parameter[2],
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90,
@@ -1034,7 +1125,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                          synchronize = False )
 
         first_langevin_mRNA_trajectories, first_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
-                                                                                        duration = 1500,
+                                                                                        duration = 1500*repetition_factor,
                                                          repression_threshold = first_parameter[2],
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90,
@@ -1045,12 +1136,23 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                          initial_protein = first_parameter[2],
                                                          equilibration_time = 1000)
 
+        first_theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+                                                         repression_threshold = first_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = first_parameter[3],
+                                                         basal_transcription_rate = first_parameter[0],
+                                                         translation_rate = first_parameter[1]
+                                                         )
+
+        first_theoretical_coherence, first_theoretical_period = hes5.calculate_coherence_and_period_of_power_spectrum(first_theoretical_power_spectrum)
+
         first_power_spectrum, first_coherence, first_period = hes5.calculate_power_spectrum_of_trajectories(first_protein_trajectories)
         first_langevin_power_spectrum, first_langevin_coherence, first_langevin_period = hes5.calculate_power_spectrum_of_trajectories(first_langevin_protein_trajectories)
         
-        figuresize = (6,6)
+        figuresize = (6,10)
         my_figure = plt.figure(figsize = figuresize)
-        my_figure.add_subplot(321)
+        my_figure.add_subplot(521)
         plt.plot( first_mRNA_trajectories[:,0],
                   first_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*10', color = 'black',
                   lw = 0.5 )
@@ -1073,34 +1175,42 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.xlabel('Time [min]')
         plt.ylabel('Copy number [1e4]')
         plt.ylim(0,9)
+        plt.xlim(0,1500)
 #         plt.legend()
        
-        my_figure.add_subplot(322)
+        my_figure.add_subplot(522)
         for trajectory in first_protein_trajectories[:,1:].transpose():
             compound_trajectory = np.vstack((first_protein_trajectories[:,0],trajectory)).transpose()
             this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
-            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.01)
         plt.plot(first_power_spectrum[:,0],
                  first_power_spectrum[:,1], color = 'black')
         plt.plot(first_langevin_power_spectrum[:,0],
                  first_langevin_power_spectrum[:,1], color = 'green')
+        plt.plot(first_theoretical_power_spectrum[:,0],
+                 first_theoretical_power_spectrum[:,1], color = 'blue')
         plt.xlim(0,0.01)
 #         plt.ylim(0,100)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.xlabel('Frequency')
         plt.ylabel('Occurence')
 #         import pdb; pdb.set_trace()
-        plt.text(0.05, 0.95, 'Coherence:\n' + "{:.2f}".format(first_coherence) + 
-                 '\nPeriod:\n' +  "{:.2f}".format(first_period) ,
-                 verticalalignment='top', horizontalalignment='left',
-                 transform=plt.gca().transAxes)
+        plt.text(0.95, 0.95, 'Coherence:\n' + "{:.2f}".format(first_coherence) + ' '
+                 "{:.2f}".format(first_langevin_coherence) + ' ' +
+                 "{:.2f}".format(first_theoretical_coherence) +
+                 '\nPeriod:\n' +  "{:.2f}".format(first_period)  + ' '
+                 "{:.2f}".format(first_langevin_period)  + ' ' +
+                 "{:.2f}".format(first_theoretical_period), 
+                 verticalalignment='top', horizontalalignment='right',
+                 transform=plt.gca().transAxes,
+                 fontsize = 5)
 
         ##
         # Hes5 samples
         ##
         second_parameter = my_posterior_samples[1]
         second_mRNA_trajectories, second_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
-                                                                                        duration = 1500,
+                                                                                        duration = 1500*repetition_factor,
                                                          repression_threshold = second_parameter[2],
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90,
@@ -1113,7 +1223,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                          synchronize = False )
 
         second_langevin_mRNA_trajectories, second_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
-                                                                                        duration = 1500,
+                                                                                        duration = 1500*repetition_factor,
                                                          repression_threshold = second_parameter[2],
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90,
@@ -1124,10 +1234,21 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                          initial_protein = second_parameter[2],
                                                          equilibration_time = 1000)
 
+        second_theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+                                                         repression_threshold = second_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = second_parameter[3],
+                                                         basal_transcription_rate = second_parameter[0],
+                                                         translation_rate = second_parameter[1]
+                                                         )
+
+        second_theoretical_coherence, second_theoretical_period = hes5.calculate_coherence_and_period_of_power_spectrum(second_theoretical_power_spectrum)
+
         second_power_spectrum, second_coherence, second_period = hes5.calculate_power_spectrum_of_trajectories(second_protein_trajectories)
         second_langevin_power_spectrum, second_langevin_coherence, second_langevin_period = hes5.calculate_power_spectrum_of_trajectories(second_langevin_protein_trajectories)
         
-        my_figure.add_subplot(323)
+        my_figure.add_subplot(523)
         mrna_example, = plt.plot( second_mRNA_trajectories[:,0],
                   second_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'black',
                   lw = 0.5 )
@@ -1151,26 +1272,35 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.xlabel('Time [min]')
         plt.ylabel('Copy number [1e4]')
         plt.ylim(0,9)
+        plt.xlim(0,1500)
 #         plt.legend()
 
-        my_figure.add_subplot(324)
+        my_figure.add_subplot(524)
         for trajectory in second_protein_trajectories[:,1:].transpose():
             compound_trajectory = np.vstack((second_protein_trajectories[:,0],trajectory)).transpose()
             this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
-            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.01)
         plt.plot(second_power_spectrum[:,0],
                  second_power_spectrum[:,1], color = 'black')
         plt.plot(second_langevin_power_spectrum[:,0],
                  second_langevin_power_spectrum[:,1], color = 'green')
+        plt.plot(second_theoretical_power_spectrum[:,0],
+                 second_theoretical_power_spectrum[:,1], color = 'blue')
         plt.xlim(0,0.01)
 #         plt.ylim(0,100)
         plt.xlabel('Frequency')
         plt.ylabel('Occurence')
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
 #         import pdb; pdb.set_trace()
-        plt.text(0.95, 0.95, 'Coherence:\n' + "{:.2f}".format(second_coherence) + 
-                 '\nPeriod:\n' +  "{:.2f}".format(second_period) ,
-                 verticalalignment='top', horizontalalignment='right',
+        plt.text(0.95, 0.95, 'Coherence:\n' + "{:.2f}".format(second_coherence) + ' '
+                 "{:.2f}".format(second_langevin_coherence) + ' ' +
+                 "{:.2f}".format(second_theoretical_coherence) +
+                 '\nPeriod:\n' +  "{:.2f}".format(second_period)  + ' '
+                 "{:.2f}".format(second_langevin_period)  + ' ' +
+                 "{:.2f}".format(second_theoretical_period), 
+                 verticalalignment='top', 
+                 fontsize = 5, 
+                 horizontalalignment='right',
                  transform=plt.gca().transAxes)
         
         ##
@@ -1179,7 +1309,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         # generate the random samples:
         third_parameter = my_posterior_samples[2]
         third_mRNA_trajectories, third_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
-                                                                                        duration = 1500,
+                                                                                        duration = 1500*repetition_factor,
                                                          repression_threshold = third_parameter[2],
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90,
@@ -1192,7 +1322,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                          synchronize = False )
 
         third_langevin_mRNA_trajectories, third_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
-                                                                                        duration = 1500,
+                                                                                        duration = 1500*repetition_factor,
                                                          repression_threshold = third_parameter[2],
                                                          mRNA_degradation_rate = np.log(2)/30.0,
                                                          protein_degradation_rate = np.log(2)/90,
@@ -1203,10 +1333,20 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                          initial_protein = third_parameter[2],
                                                          equilibration_time = 1000)
 
+        third_theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+                                                         repression_threshold = third_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = third_parameter[3],
+                                                         basal_transcription_rate = third_parameter[0],
+                                                         translation_rate = third_parameter[1]
+                                                         )
+
+        third_theoretical_coherence, third_theoretical_period = hes5.calculate_coherence_and_period_of_power_spectrum(third_theoretical_power_spectrum)
         third_power_spectrum, third_coherence, third_period = hes5.calculate_power_spectrum_of_trajectories(third_protein_trajectories)
         third_langevin_power_spectrum, third_langevin_coherence, third_langevin_period = hes5.calculate_power_spectrum_of_trajectories(third_langevin_protein_trajectories)
  
-        my_figure.add_subplot(325)
+        my_figure.add_subplot(525)
         mrna_example, = plt.plot( third_mRNA_trajectories[:,0],
                   third_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'black',
                   lw = 0.5 )
@@ -1224,6 +1364,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.xlabel('Time [min]')
         plt.ylabel('Copy number [1e4]')
+        plt.xlim(0,1500)
         plt.ylim(0,9)
         plt.text(0.1, 0.22, r'$\alpha_m =$ ' + '{:.2f}'.format(third_parameter[0]) +
                            r', $\alpha_p =$ ' + '{:.2f}'.format(third_parameter[1]) + 
@@ -1233,36 +1374,257 @@ class TestSimpleHes5ABC(unittest.TestCase):
                            transform=plt.gca().transAxes)
 #         plt.legend()
 
-        my_figure.add_subplot(326)
+        my_figure.add_subplot(526)
         for trajectory in third_protein_trajectories[:,1:].transpose():
             compound_trajectory = np.vstack((third_protein_trajectories[:,0],trajectory)).transpose()
             this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
-            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.01)
         plt.plot(third_power_spectrum[:,0],
                  third_power_spectrum[:,1], color = 'black')
         plt.plot(third_langevin_power_spectrum[:,0],
                  third_langevin_power_spectrum[:,1], color = 'green')
+        plt.plot(third_theoretical_power_spectrum[:,0],
+                 third_theoretical_power_spectrum[:,1], color = 'blue')
         plt.xlim(0,0.01)
 #         plt.ylim(0,100)
         plt.xlabel('Frequency')
         plt.ylabel('Occurence')
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
 #         import pdb; pdb.set_trace()
-        plt.text(0.95, 0.95, 'Coherence:\n' + "{:.2f}".format(third_coherence) + 
-                 '\nPeriod:\n' +  "{:.2f}".format(third_period) ,
+        plt.text(0.95, 0.95, 'Coherence:\n' + "{:.2f}".format(third_coherence) + ' '
+                 "{:.2f}".format(third_langevin_coherence) + ' ' +
+                 "{:.2f}".format(third_theoretical_coherence) +
+                 '\nPeriod:\n' +  "{:.2f}".format(third_period)  + ' '
+                 "{:.2f}".format(third_langevin_period)  + ' ' +
+                 "{:.2f}".format(third_theoretical_period), 
+                 fontsize = 5, 
                  verticalalignment='top', horizontalalignment='right',
                  transform=plt.gca().transAxes)
  
+        ##
+        # fourth example
+        ##
+        # generate the random samples:
+#         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+#                                     np.logical_and(model_results[:,0]<65000, #cell_number
+#                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
+#                                                     model_results[:,1]>0.05)))) #standard deviation
+#                                                     model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<0.5))))) #time_delay
+
+#         my_posterior_samples = prior_samples[accepted_indices]
+
+        fourth_parameter = my_posterior_samples[3]
+
+        fourth_mRNA_trajectories, fourth_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_factor,
+                                                         repression_threshold = fourth_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = fourth_parameter[3],
+                                                         basal_transcription_rate = fourth_parameter[0],
+                                                         translation_rate = fourth_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = fourth_parameter[2],
+                                                         equilibration_time = 1000,
+                                                         synchronize = False )
+
+        fourth_langevin_mRNA_trajectories, fourth_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_factor,
+                                                         repression_threshold = fourth_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = fourth_parameter[3],
+                                                         basal_transcription_rate = fourth_parameter[0],
+                                                         translation_rate = fourth_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = fourth_parameter[2],
+                                                         equilibration_time = 1000)
+
+        fourth_theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+                                                         repression_threshold = fourth_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = fourth_parameter[3],
+                                                         basal_transcription_rate = fourth_parameter[0],
+                                                         translation_rate = fourth_parameter[1]
+                                                         )
+
+        fourth_theoretical_coherence, fourth_theoretical_period = hes5.calculate_coherence_and_period_of_power_spectrum(fourth_theoretical_power_spectrum)
+        fourth_power_spectrum, fourth_coherence, fourth_period = hes5.calculate_power_spectrum_of_trajectories(fourth_protein_trajectories)
+        fourth_langevin_power_spectrum, fourth_langevin_coherence, fourth_langevin_period = hes5.calculate_power_spectrum_of_trajectories(fourth_langevin_protein_trajectories)
+ 
+        my_figure.add_subplot(527)
+        mrna_example, = plt.plot( fourth_mRNA_trajectories[:,0],
+                  fourth_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'black',
+                  lw = 0.5 )
+        protein_example, = plt.plot( fourth_protein_trajectories[:,0],
+                  fourth_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+
+        plt.plot( fourth_langevin_mRNA_trajectories[:,0],
+                  fourth_langevin_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'green',
+                  lw = 0.5 )
+        plt.plot( fourth_langevin_protein_trajectories[:,0],
+                  fourth_langevin_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'green', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Time [min]')
+        plt.ylabel('Copy number [1e4]')
+        plt.xlim(0,1500)
+        plt.ylim(0,9)
+        plt.text(0.1, 0.34, r'$\alpha_m =$ ' + '{:.2f}'.format(fourth_parameter[0]) +
+                           r', $\alpha_p =$ ' + '{:.2f}'.format(fourth_parameter[1]) + 
+                           '\n' + r'$p_0 = $ ' + '{:.2f}'.format(fourth_parameter[2]) + 
+                           r', $\tau = $ ' + '{:.2f}'.format(fourth_parameter[3]),
+                           fontsize = 5,
+                           transform=plt.gca().transAxes)
+#         plt.legend()
+
+        my_figure.add_subplot(528)
+        for trajectory in fourth_protein_trajectories[:,1:].transpose():
+            compound_trajectory = np.vstack((fourth_protein_trajectories[:,0],trajectory)).transpose()
+            this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.01)
+        plt.plot(fourth_power_spectrum[:,0],
+                 fourth_power_spectrum[:,1], color = 'black')
+        plt.plot(fourth_langevin_power_spectrum[:,0],
+                 fourth_langevin_power_spectrum[:,1], color = 'green')
+        plt.plot(fourth_theoretical_power_spectrum[:,0],
+                 fourth_theoretical_power_spectrum[:,1], color = 'blue')
+        plt.xlim(0,0.01)
+#         plt.ylim(0,100)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         import pdb; pdb.set_trace()
+        plt.text(0.95, 0.95, 'Coherence:\n' + "{:.2f}".format(fourth_coherence) + ' '
+                 "{:.2f}".format(fourth_langevin_coherence) + ' ' +
+                 "{:.2f}".format(fourth_theoretical_coherence) +
+                 '\nPeriod:\n' +  "{:.2f}".format(fourth_period)  + ' '
+                 "{:.2f}".format(fourth_langevin_period)  + ' ' +
+                 "{:.2f}".format(fourth_theoretical_period), 
+                 fontsize = 5, 
+                 verticalalignment='top', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+
+        ##
+        # fifth example
+        ##
+        # generate the random samples:
+        fifth_parameter = np.array([11.0,29.0,31400.0,29.0])
+#         fifth_parameter = my_posterior_samples[2]
+        fifth_mRNA_trajectories, fifth_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_factor,
+                                                         repression_threshold = fifth_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = fifth_parameter[3],
+                                                         basal_transcription_rate = fifth_parameter[0],
+                                                         translation_rate = fifth_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = fifth_parameter[2],
+                                                         equilibration_time = 1000,
+                                                         synchronize = False )
+
+        fifth_langevin_mRNA_trajectories, fifth_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_factor,
+                                                         repression_threshold = fifth_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = fifth_parameter[3],
+                                                         basal_transcription_rate = fifth_parameter[0],
+                                                         translation_rate = fifth_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = fifth_parameter[2],
+                                                         equilibration_time = 1000)
+
+        fifth_theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+                                                         repression_threshold = fifth_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = fifth_parameter[3],
+                                                         basal_transcription_rate = fifth_parameter[0],
+                                                         translation_rate = fifth_parameter[1]
+                                                         )
+
+        fifth_theoretical_coherence, fifth_theoretical_period = hes5.calculate_coherence_and_period_of_power_spectrum(fifth_theoretical_power_spectrum)
+
+        fifth_power_spectrum, fifth_coherence, fifth_period = hes5.calculate_power_spectrum_of_trajectories(fifth_protein_trajectories)
+        fifth_langevin_power_spectrum, fifth_langevin_coherence, fifth_langevin_period = hes5.calculate_power_spectrum_of_trajectories(fifth_langevin_protein_trajectories)
+ 
+        my_figure.add_subplot(529)
+        mrna_example, = plt.plot( fifth_mRNA_trajectories[:,0],
+                  fifth_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'black',
+                  lw = 0.5 )
+        protein_example, = plt.plot( fifth_protein_trajectories[:,0],
+                  fifth_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+
+        plt.plot( fifth_langevin_mRNA_trajectories[:,0],
+                  fifth_langevin_mRNA_trajectories[:,1]*0.1, label = 'mRNA example*1000', color = 'green',
+                  lw = 0.5 )
+        plt.plot( fifth_langevin_protein_trajectories[:,0],
+                  fifth_langevin_protein_trajectories[:,1]/10000, label = 'Protein example', color = 'green', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Time [min]')
+        plt.ylabel('Copy number [1e4]')
+        plt.xlim(0,1500)
+        plt.ylim(0,15)
+        plt.text(0.1, 0.01, r'$\alpha_m =$ ' + '{:.2f}'.format(fifth_parameter[0]) +
+                           r', $\alpha_p =$ ' + '{:.2f}'.format(fifth_parameter[1]) + 
+                           r', $\mu_p =$ ' + '{:.2f}'.format(0.03) + 
+                           '\n' + r'$p_0 = $ ' + '{:.2f}'.format(fifth_parameter[2]) + 
+                           r', $\tau = $ ' + '{:.2f}'.format(fifth_parameter[3]),
+                           fontsize = 5,
+                           transform=plt.gca().transAxes)
+#         plt.legend()
+
+        my_figure.add_subplot(5,2,10)
+        for trajectory in fifth_protein_trajectories[:,1:].transpose():
+            compound_trajectory = np.vstack((fifth_protein_trajectories[:,0],trajectory)).transpose()
+            this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.01)
+        plt.plot(fifth_power_spectrum[:,0],
+                 fifth_power_spectrum[:,1], color = 'black')
+        plt.plot(fifth_langevin_power_spectrum[:,0],
+                 fifth_langevin_power_spectrum[:,1], color = 'green')
+        plt.plot(fifth_theoretical_power_spectrum[:,0],
+                 fifth_theoretical_power_spectrum[:,1], color = 'blue')
+        plt.xlim(0,0.01)
+#         plt.ylim(0,100)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+#         import pdb; pdb.set_trace()
+        plt.text(0.05, 0.95, 'Coherence:\n' + "{:.2f}".format(fifth_coherence) + ' '
+                 "{:.2f}".format(fifth_langevin_coherence) + ' ' +
+                 "{:.2f}".format(fifth_theoretical_coherence) +
+                 '\nPeriod:\n' +  "{:.2f}".format(fifth_period)  + ' '
+                 "{:.2f}".format(fifth_langevin_period)  + ' ' +
+                 "{:.2f}".format(fifth_theoretical_period), 
+                 fontsize = 5, 
+                 verticalalignment='top', horizontalalignment='left',
+                 transform=plt.gca().transAxes)
+
         plt.tight_layout()
         my_figure.legend((mrna_example, protein_example), 
                         ('mRNA*1000', 'Protein'), 
                         loc = 'upper left', ncol = 2, fontsize = 10 )
-        plt.figtext(0.6, 0.96, 'Langevin', horizontalalignment='left', color = 'green')
-        plt.figtext(0.8, 0.96, 'Gillespie', horizontalalignment='left', color = 'black')
+        plt.figtext(0.5, 0.975, 'Langevin', horizontalalignment='left', color = 'green')
+        plt.figtext(0.65, 0.975, 'Gillespie', horizontalalignment='left', color = 'black')
+        plt.figtext(0.8, 0.975, 'LNA', horizontalalignment='left', color = 'blue')
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
 
 #         plt.subplots_adjust(top = 0.9, hspace = 0.7)
-        plt.subplots_adjust(top = 0.9)
+        plt.subplots_adjust(top = 0.95)
        
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','low_transcription_rate_langevin_validation.pdf'))
