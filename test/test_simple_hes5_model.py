@@ -488,12 +488,137 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','fourier_spectra.pdf'))
 
-    def test_mean_power_spectra(self):
+    def xest_calculate_power_spectrum_of_specific_trace(self):
+        interval_length = 100
+        x_values = np.linspace(1,interval_length,1000)
+        function_values = 3*np.sin(2*np.pi*0.5*x_values) + 2*np.sin(2*np.pi*0.2*x_values) + 10.0
+        number_of_data_points = len(x_values)
+        trajectory = np.vstack((x_values, function_values)).transpose()
+#         fourier_transform = np.fft.fft(function_values)/number_of_data_points
+#         fourier_frequencies = np.arange(0,number_of_data_points/(2.0*interval_length), 1.0/(interval_length) )
+        power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(trajectory)
+
+        my_figure = plt.figure()
+        my_figure.add_subplot(211)
+        plt.plot(x_values, 
+                 function_values, label = r'$3sin(2\pi 0.5x) + 2sin(2\pi 0.2x)$', color = 'black')
+        plt.xlabel('x')
+        plt.ylabel('f(x)')
+        plt.legend()
+
+        my_figure.add_subplot(212)
+        plt.plot(power_spectrum[:,0], 
+                 power_spectrum[:,1], color = 'black')
+        plt.xlim(0,1)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','power_spectrum_test.pdf'))
+
+
+    def xest_linear_noise_approximation(self):
+
         ##
         # Hes1 samples
         ##
-        oscillating_mRNA_trajectories, oscillating_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 100,
-                                                                                        duration = 1500,
+        number_of_traces = 100
+        repetition_number = 10
+        system_size = 500
+        oscillating_mRNA_trajectories, oscillating_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_number,
+                                                         repression_threshold = system_size*10,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         basal_transcription_rate = 1.0*system_size,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.5,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 10*system_size,
+                                                         equilibration_time = 3000,
+                                                         hill_coefficient = 4.1,
+                                                         synchronize = False )
+
+        oscillating_langevin_mRNA_trajectories, oscillating_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces*10,
+                                                                                        duration = 1500*repetition_number,
+                                                         repression_threshold = system_size*10.0,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         basal_transcription_rate = 1.0*system_size,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.5,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 10*system_size,
+                                                         hill_coefficient = 4.1,
+                                                         equilibration_time = 3000)
+
+
+        oscillating_power_spectrum, oscillating_coherence, oscillating_period = hes5.calculate_power_spectrum_of_trajectories(oscillating_protein_trajectories)
+        oscillating_langevin_power_spectrum, oscillating_langevin_coherence, oscillating_langevin_period = hes5.calculate_power_spectrum_of_trajectories(oscillating_langevin_protein_trajectories)
+        
+        theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+                                                         basal_transcription_rate = 1.0*system_size,
+                                                         translation_rate = 1.0,
+                                                         repression_threshold = 10.0*system_size,
+                                                         transcription_delay = 18.5,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         hill_coefficient = 4.1,
+                                                         protein_degradation_rate = 0.03
+                                                         )
+        
+        figuresize = (6,2.5)
+        my_figure = plt.figure(figsize = figuresize)
+        my_figure.add_subplot(121)
+        plt.plot( oscillating_mRNA_trajectories[:,0],
+                  oscillating_mRNA_trajectories[:,1]*10., label = 'mRNA example*10', color = 'black',
+                  lw = 0.5 )
+        plt.plot( oscillating_protein_trajectories[:,0],
+                  oscillating_protein_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.plot( oscillating_langevin_mRNA_trajectories[:,0],
+                  oscillating_langevin_mRNA_trajectories[:,1]*10., label = 'mRNA example*10', color = 'green',
+                  lw = 0.5 )
+        plt.plot( oscillating_langevin_protein_trajectories[:,0],
+                  oscillating_langevin_protein_trajectories[:,1], label = 'Protein example', color = 'green', ls = '--',
+                  lw = 0.5, dashes = [1,1] )
+        plt.xlim(0,1500)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.title('Galla (2009)')
+#         plt.legend()
+       
+        my_figure.add_subplot(122)
+        for trajectory in oscillating_protein_trajectories[:,1:].transpose():
+            compound_trajectory = np.vstack((oscillating_protein_trajectories[:,0],trajectory)).transpose()
+            this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.01)
+        plt.plot(oscillating_power_spectrum[:,0],
+                 oscillating_power_spectrum[:,1], color = 'black')
+        plt.plot(oscillating_langevin_power_spectrum[:,0],
+                 oscillating_langevin_power_spectrum[:,1], color = 'green')
+        plt.plot(theoretical_power_spectrum[:,0],
+                theoretical_power_spectrum[:,1], color = 'blue')
+        plt.xlim(0.005,0.01)
+#         plt.ylim(0,100)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Frequency')
+        plt.ylabel('Occurence')
+#         import pdb; pdb.set_trace()
+        plt.text(0.05, 0.95, 'Coherence:\n' + "{:.2f}".format(oscillating_coherence) + 
+                 '\nPeriod:\n' +  "{:.2f}".format(oscillating_period) ,
+                 verticalalignment='top', horizontalalignment='left',
+                 transform=plt.gca().transAxes)
+        plt.tight_layout()
+
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','LNA_test.pdf'))
+
+    def xest_mean_power_spectra(self):
+        ##
+        # Hes1 samples
+        ##
+        number_of_traces = 100
+        repetition_number = 10
+        oscillating_mRNA_trajectories, oscillating_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_number,
                                                          repression_threshold = 100,
                                                          mRNA_degradation_rate = 0.03,
                                                          protein_degradation_rate = 0.03,
@@ -503,8 +628,8 @@ class TestSimpleHes5Model(unittest.TestCase):
                                                          equilibration_time = 1000,
                                                          synchronize = False )
 
-        oscillating_langevin_mRNA_trajectories, oscillating_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = 100,
-                                                                                        duration = 1500,
+        oscillating_langevin_mRNA_trajectories, oscillating_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_number,
                                                          repression_threshold = 100,
                                                          mRNA_degradation_rate = 0.03,
                                                          protein_degradation_rate = 0.03,
@@ -516,6 +641,15 @@ class TestSimpleHes5Model(unittest.TestCase):
 
         oscillating_power_spectrum, oscillating_coherence, oscillating_period = hes5.calculate_power_spectrum_of_trajectories(oscillating_protein_trajectories)
         oscillating_langevin_power_spectrum, oscillating_langevin_coherence, oscillating_langevin_period = hes5.calculate_power_spectrum_of_trajectories(oscillating_langevin_protein_trajectories)
+        
+        theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+                                                         basal_transcription_rate = 1.0,
+                                                         translation_rate = 1.0,
+                                                         repression_threshold = 100.0,
+                                                         transcription_delay = 18.5,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         protein_degradation_rate = 0.03
+                                                         )
         
         mean_oscillating_protein_trajectory = np.mean(oscillating_protein_trajectories[:,1:], axis = 1)
         mean_oscillating_mRNA_trajectory = np.mean(oscillating_mRNA_trajectories[:,1:], axis = 1)
@@ -543,6 +677,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.plot( oscillating_protein_trajectories[:,0],
                   mean_oscillating_protein_trajectory, label = 'Mean protein', color = 'blue', ls = '--',
                   lw = 0.5, dashes = [1,1] )
+        plt.xlim(0,1500)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.xlabel('Time')
         plt.ylabel('Copy number')
@@ -553,11 +688,13 @@ class TestSimpleHes5Model(unittest.TestCase):
         for trajectory in oscillating_protein_trajectories[:,1:].transpose():
             compound_trajectory = np.vstack((oscillating_protein_trajectories[:,0],trajectory)).transpose()
             this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
-            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.01)
         plt.plot(oscillating_power_spectrum[:,0],
                  oscillating_power_spectrum[:,1], color = 'black')
         plt.plot(oscillating_langevin_power_spectrum[:,0],
                  oscillating_langevin_power_spectrum[:,1], color = 'green')
+        plt.plot(theoretical_power_spectrum[:,0],
+                theoretical_power_spectrum[:,1], color = 'blue')
         plt.xlim(0,0.01)
 #         plt.ylim(0,100)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
@@ -572,8 +709,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         ##
         # Hes5 samples
         ##
-        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 100,
-                                                                                        duration = 1500,
+        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_number,
                                                          repression_threshold = 31400,
                                                          mRNA_degradation_rate = np.log(2)/30,
                                                          protein_degradation_rate = np.log(2)/90,
@@ -585,8 +722,8 @@ class TestSimpleHes5Model(unittest.TestCase):
                                                          equilibration_time = 1000,
                                                          synchronize = False)
 
-        hes5_langevin_mRNA_trajectories, hes5_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = 100,
-                                                                                        duration = 1500,
+        hes5_langevin_mRNA_trajectories, hes5_langevin_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
+                                                                                        duration = 1500*repetition_number,
                                                          repression_threshold = 31400,
                                                          mRNA_degradation_rate = np.log(2)/30,
                                                          protein_degradation_rate = np.log(2)/90,
@@ -601,6 +738,15 @@ class TestSimpleHes5Model(unittest.TestCase):
         hes5_power_spectrum, hes5_coherence, hes5_period = hes5.calculate_power_spectrum_of_trajectories(hes5_protein_trajectories)
         hes5_langevin_power_spectrum, hes5_langevin_coherence, hes5_langevin_period = hes5.calculate_power_spectrum_of_trajectories(hes5_langevin_protein_trajectories)
         
+        theoretical_power_spectrum_hes5 = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+                                                         basal_transcription_rate = 11.0,
+                                                         translation_rate = 29.0,
+                                                         repression_threshold = 31400.0,
+                                                         transcription_delay = 29.0,
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90
+                                                         )
+ 
         mean_hes5_protein_trajectory = np.mean(hes5_protein_trajectories[:,1:], axis = 1)
         mean_hes5_rna_trajectory = np.mean(hes5_mRNA_trajectories[:,1:], axis = 1)
 
@@ -611,6 +757,9 @@ class TestSimpleHes5Model(unittest.TestCase):
         protein_example, = plt.plot( hes5_protein_trajectories[:,0],
                   hes5_protein_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--',
                   lw = 0.5, dashes = [1,1] )
+
+        plt.plot(theoretical_power_spectrum[:,0],
+                 theoretical_power_spectrum[:,1], color = 'blue')
 
         plt.plot( hes5_langevin_mRNA_trajectories[:,0],
                   hes5_langevin_mRNA_trajectories[:,1]*1000., label = 'mRNA example*1000', color = 'green',
@@ -625,6 +774,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         mean_protein, = plt.plot( hes5_protein_trajectories[:,0],
                   mean_hes5_protein_trajectory, label = 'Mean protein', color = 'blue', ls = '--',
                   lw = 0.5, dashes = [1,1] )
+        plt.xlim(0,1500)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.xlabel('Time')
         plt.ylabel('Copy number')
@@ -635,11 +785,13 @@ class TestSimpleHes5Model(unittest.TestCase):
         for trajectory in hes5_protein_trajectories[:,1:].transpose():
             compound_trajectory = np.vstack((hes5_protein_trajectories[:,0],trajectory)).transpose()
             this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
-            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.01)
         plt.plot(hes5_power_spectrum[:,0],
                  hes5_power_spectrum[:,1], color = 'black')
         plt.plot(hes5_langevin_power_spectrum[:,0],
                  hes5_langevin_power_spectrum[:,1], color = 'green')
+        plt.plot(theoretical_power_spectrum_hes5[:,0],
+                theoretical_power_spectrum_hes5[:,1], color = 'blue')
         plt.xlim(0,0.01)
 #         plt.ylim(0,100)
         plt.xlabel('Frequency')
@@ -655,12 +807,15 @@ class TestSimpleHes5Model(unittest.TestCase):
         # Random samples
         ##
         # generate the random samples:
-        random_trajectories = np.zeros((100,101))
-        times_of_trajectories = np.linspace(0,1500,100)
+        random_trajectories = np.zeros((100*repetition_number,number_of_traces+1))
+        times_of_trajectories = np.linspace(0,1500*repetition_number,100*repetition_number)
         random_trajectories[:,0] = times_of_trajectories
-        for trajectory_index in range(100):
-            for time_index in range(1,100):
-                random_trajectories[time_index, trajectory_index+1] = random_trajectories[time_index-1, trajectory_index+1]\
+#         for trajectory_index in range(100):
+#             for time_index in range(1,100):
+
+        for trajectory_index in range(1,number_of_traces+1):
+            for time_index in range(1,len(times_of_trajectories)):
+                random_trajectories[time_index, trajectory_index] = random_trajectories[time_index-1, trajectory_index]\
                                                                     + np.random.randn()*1.0
 
         random_trajectories[:,1:] += 100
@@ -677,6 +832,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.plot( random_trajectories[:,0],
                   mean_random_trajectory, label = 'Mean protein', color = 'blue', ls = '--',
                   lw = 0.5, dashes = [1,1] )
+        plt.xlim(0,1500)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.xlabel('Time')
         plt.ylabel('Copy number')
@@ -687,7 +843,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         for trajectory in random_trajectories[:,1:].transpose():
             compound_trajectory = np.vstack((random_trajectories[:,0],trajectory)).transpose()
             this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(compound_trajectory)
-            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.05)
+            plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1], color = 'black', alpha = 0.01)
         plt.plot(random_power_spectrum[:,0],
                  random_power_spectrum[:,1], color = 'black')
         plt.xlim(0,0.01)
@@ -701,9 +857,8 @@ class TestSimpleHes5Model(unittest.TestCase):
                  transform=plt.gca().transAxes)
 
         plt.tight_layout()
-        my_figure.legend((mrna_example, protein_example, mean_rna, mean_protein), 
-                       ('mRNA example (scaled)', 'Protein example',
-                        'mean mRNA (scaled)', 'Mean protein'), 
+        my_figure.legend((mrna_example, protein_example), 
+                       ('mRNA example (scaled)', 'Protein example'), 
                        loc = 'upper right', ncol = 2 )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
 
@@ -716,8 +871,9 @@ class TestSimpleHes5Model(unittest.TestCase):
         ##
         # Hes1 samples
         ##
-        oscillating_mRNA_trajectories, oscillating_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 100,
-                                                                                        duration = 1500,
+        repetition_number = 1
+        oscillating_mRNA_trajectories, oscillating_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 1,
+                                                                                        duration = 1500*repetition_number,
                                                          repression_threshold = 100,
                                                          mRNA_degradation_rate = 0.03,
                                                          protein_degradation_rate = 0.03,
@@ -771,8 +927,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         ##
         # Hes5 samples
         ##
-        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 100,
-                                                                                        duration = 1500,
+        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 1,
+                                                                                        duration = 1500*repetition_number,
                                                          repression_threshold = 31400,
                                                          mRNA_degradation_rate = np.log(2)/30,
                                                          protein_degradation_rate = np.log(2)/90,
@@ -827,8 +983,8 @@ class TestSimpleHes5Model(unittest.TestCase):
         # Random samples
         ##
         # generate the random samples:
-        random_trajectories = np.zeros((100,101))
-        times_of_trajectories = np.linspace(0,1500,100)
+        random_trajectories = np.zeros((100,2))
+        times_of_trajectories = np.linspace(0,1500*repetition_number,100*repetition_number)
         random_trajectories[:,0] = times_of_trajectories
         for trajectory_index in range(100):
             for time_index in range(1,100):
@@ -1044,7 +1200,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','fourier_spectra_illustration_synchronised.pdf'))
 
-#     def test_plot_100_hes_trajectories(self):
+    def xest_plot_100_hes_trajectories(self):
         hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 50,
                                                                                         duration = 1500,
                                                          repression_threshold = 31400,

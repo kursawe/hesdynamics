@@ -10,6 +10,7 @@ from numpy import ndarray
 import os
 import seaborn.apionly as sns
 import pandas as pd
+from fnmatch import translate
 
 def generate_deterministic_trajectory( duration = 720, 
                                        repression_threshold = 10000,
@@ -242,7 +243,8 @@ def generate_stochastic_trajectory( duration = 720,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
 #                                     explicit typing necessary for autojit
-                                    transcription_schedule = np.array([-1.0])):
+                                    transcription_schedule = np.array([-1.0]),
+                                    sampling_timestep = 1.0):
     '''Generate one trace of the Hes5 model. This function implements a stochastic version of
     the model model in Monk, Current Biology (2003). It applies the Gillespie-rejection method described
     in Cai et al, J. Chem. Phys. (2007) as Algorithm 2. This method is an exact method to calculate
@@ -309,9 +311,101 @@ def generate_stochastic_trajectory( duration = 720,
                                     initial_mRNA,
                                     initial_protein,
                                     equilibration_time,
-                                    transcription_schedule)
+                                    transcription_schedule, 
+                                    sampling_timestep)
 
     return trace
+
+def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_rate = 1.0,
+                                                            translation_rate = 1.0,
+                                                            repression_threshold = 100,
+                                                            transcription_delay = 18.5,
+                                                            mRNA_degradation_rate = 0.03,
+                                                            protein_degradation_rate = 0.03,
+                                                            hill_coefficient = 5
+                                                            ):
+    '''Calculate the theoretical power spectrum of the protein of the Monk (2003) model
+    at a parameter point using equation 32 in Galla (2009), PRE.
+    
+    Parameters
+    ----------
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+ 
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+ 
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+       
+    Returns
+    -------
+    
+    power_spectrum : ndarray
+        two coloumns, first column contains frequencies, second column contains power spectrum values
+    '''
+    actual_frequencies = np.linspace(0,0.01,1000)
+    pi_frequencies = actual_frequencies*2*np.pi
+    steady_state_mrna, steady_state_protein = calculate_steady_state_of_ode( repression_threshold = float(repression_threshold),
+                                    hill_coefficient = hill_coefficient,
+                                    mRNA_degradation_rate = mRNA_degradation_rate,
+                                    protein_degradation_rate = protein_degradation_rate, 
+                                    basal_transcription_rate = basal_transcription_rate,
+                                    translation_rate = translation_rate)
+
+    steady_state_hill_function_value = 1.0/(1.0 + np.power( steady_state_protein/float(repression_threshold),
+                                                            hill_coefficient ))
+    
+    steady_state_hill_derivative = -hill_coefficient*np.power(steady_state_protein/float(repression_threshold), 
+                                                            hill_coefficient - 1)/(repression_threshold*
+                                    np.power(1.0+np.power(steady_state_protein/float(repression_threshold),
+                                                        hill_coefficient),2))
+
+#     steady_state_hill_derivative = -hill_coefficient/float(repression_threshold)*np.power(
+#                                      1.0 + steady_state_protein/float(repression_threshold),
+#                                                     hill_coefficient)
+
+    power_spectrum_values = ( translation_rate*translation_rate*
+                       ( basal_transcription_rate * steady_state_hill_function_value +
+                         mRNA_degradation_rate*steady_state_mrna) 
+                      +
+                       ( np.power(pi_frequencies,2) + mRNA_degradation_rate*mRNA_degradation_rate)*
+                         ( translation_rate*steady_state_mrna + protein_degradation_rate*steady_state_protein)
+                      )/(np.power(- np.power(pi_frequencies,2) +
+                                  protein_degradation_rate*mRNA_degradation_rate
+                                  - basal_transcription_rate*translation_rate*steady_state_hill_derivative*
+                                  np.cos(pi_frequencies*transcription_delay),2) 
+                         +
+                         np.power((protein_degradation_rate+mRNA_degradation_rate)*
+                                  pi_frequencies +
+                                  basal_transcription_rate*translation_rate*steady_state_hill_derivative*
+                                  np.sin(pi_frequencies*transcription_delay), 2)
+                         )
+                         
+    power_spectrum = np.vstack((actual_frequencies, power_spectrum_values)).transpose()
+    integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+    power_spectrum[:,1] /= integral
+
+    return power_spectrum
 
 @autojit(nopython=True)
 def generate_stochastic_trajectory_and_transcription_times( duration = 720, 
@@ -326,7 +420,8 @@ def generate_stochastic_trajectory_and_transcription_times( duration = 720,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
                                     #explicit typing necessary for autojit
-                                    transcription_schedule = np.array([-1.0])):
+                                    transcription_schedule = np.array([-1.0]),
+                                    sampling_timestep = 1.0):
     '''Generate one trace of the Hes5 model. This function implements a stochastic version of
     the model model in Monk, Current Biology (2003). It applies the rejection method described
     in Cai et al, J. Chem. Phys. (2007) as Algorithm 2. This method is an exact method to calculate
@@ -392,7 +487,7 @@ def generate_stochastic_trajectory_and_transcription_times( duration = 720,
         list entries are floats. Each entry corresponds to the time of one transcription event.
     '''
     total_time = duration + equilibration_time
-    sample_times = np.linspace(equilibration_time, total_time, 100)
+    sample_times = np.arange(equilibration_time, total_time, sampling_timestep)
     trace = np.zeros((len(sample_times), 3))
     trace[:,0] = sample_times
     
@@ -496,7 +591,8 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
                                     synchronize = False,
-                                    number_of_cpus = 3):
+                                    number_of_cpus = 3,
+                                    sampling_timestep = 1.0):
     '''Generate multiple stochastic traces the Hes5 model by using
        generate_stochastic_trajectory.
     
@@ -587,7 +683,7 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
                   mRNA_degradation_rate, protein_degradation_rate, 
                   basal_transcription_rate, translation_rate,
                   transcription_delay, initial_mRNA, initial_protein,
-                  equilibration_time, transcription_schedule) ]*number_of_trajectories
+                  equilibration_time, transcription_schedule, sampling_timestep) ]*number_of_trajectories
 #                   equilibration_time, transcription_schedule) ]*number_of_trajectories
     process_results = [ pool_of_processes.apply_async(generate_stochastic_trajectory, args=x)
                         for x in arguments ]
@@ -711,12 +807,15 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
         trajectory_index = 1
         for trajectory in trajectories[:,2:].transpose():
             this_compound_trajectory = np.vstack((times, trajectory)).transpose()
-            this_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(this_compound_trajectory)
+            this_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(this_compound_trajectory,
+                                                                             normalize = False)
             all_power_spectra[:,trajectory_index] = this_power_spectrum[:,1]
             trajectory_index += 1
         mean_power_spectrum_without_frequencies = np.mean(all_power_spectra, axis = 1)
-        mean_power_spectrum_without_frequencies /= np.sum(mean_power_spectrum_without_frequencies)
+#         mean_power_spectrum_without_frequencies /= np.sum(mean_power_spectrum_without_frequencies)
         power_spectrum = np.vstack((frequency_values, mean_power_spectrum_without_frequencies)).transpose()
+        power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+        power_spectrum[:,1]/=power_integral
         coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
     else:
         raise ValueError("This method of period extraction could not be resolved. Only the options 'mean' and 'standard' are accepted.")
@@ -766,14 +865,17 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
                                                      1.0/(interval_length) )[1:]
     power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[1:(number_of_data_points//2)]),2)
-    if normalize:
-        power_spectrum_without_frequencies/= np.sum(power_spectrum_without_frequencies)
     
     # this should really be a decision about the even/oddness of number of datapoints
     try:
         power_spectrum = np.vstack((fourier_frequencies, power_spectrum_without_frequencies)).transpose()
     except ValueError:
         power_spectrum = np.vstack((fourier_frequencies[:-1], power_spectrum_without_frequencies)).transpose()
+
+    if normalize:
+#         power_spectrum_without_frequencies /= np.sum(power_spectrum_without_frequencies)
+        power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+        power_spectrum[:,1]/=power_integral
 
     coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
 
@@ -982,6 +1084,7 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
     generate_prior_samples.
+    If Gillespie samples are used the coherence and period measures may be inaccurate.
     
     Parameters
     ----------
@@ -1145,7 +1248,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     '''
     if parameter_value.shape[0] == 4:
         these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                           1500, #duration 
+                                                                                           1500*5, #duration 
                                                                                            parameter_value[2], #repression_threshold, 
                                                                                            5, #hill_coefficient,
                                                                                            np.log(2)/30.0, #mRNA_degradation_rate, 
@@ -1158,7 +1261,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            1000)
     elif parameter_value.shape[0] == 6:
         these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                           1500, #duration 
+                                                                                           1500*5, #duration 
                                                                                            parameter_value[2], #repression_threshold, 
                                                                                            5, #hill_coefficient,
                                                                                            parameter_value[4], #mRNA_degradation_rate, 
@@ -1296,8 +1399,13 @@ def calculate_coherence_and_period_of_power_spectrum(power_spectrum):
 
     if coherence_boundary_right > power_spectrum[-1,0]:
         coherence_boundary_right = power_spectrum[-1,0]
+        
+    first_left_index = np.min(np.where(power_spectrum[:,0]>coherence_boundary_left))
+    last_right_index = np.min(np.where(power_spectrum[:,0]>coherence_boundary_right))
+    integration_axis = np.hstack(([coherence_boundary_left], 
+                                  power_spectrum[first_left_index:last_right_index,0],
+                                  [coherence_boundary_right]))
 
-    integration_axis = np.linspace(coherence_boundary_left, coherence_boundary_right, 3)
     interpolation_values = power_spectrum_interpolation(integration_axis)
     coherence_area = np.trapz(interpolation_values, integration_axis)
     full_area = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
@@ -1365,7 +1473,7 @@ def calculate_steady_state_of_ode(  repression_threshold = 10000,
     
     steady_protein = relative_protein*repression_threshold
     
-    steady_mRNA = steady_protein*protein_degradation_rate/translation_rate
+    steady_mRNA = steady_protein*protein_degradation_rate/float(translation_rate)
     
     return steady_mRNA, steady_protein
 
