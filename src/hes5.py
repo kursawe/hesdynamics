@@ -244,7 +244,8 @@ def generate_stochastic_trajectory( duration = 720,
                                     equilibration_time = 0.0,
 #                                     explicit typing necessary for autojit
                                     transcription_schedule = np.array([-1.0]),
-                                    sampling_timestep = 1.0):
+                                    sampling_timestep = 1.0,
+                                    vary_repression_threshold = False):
     '''Generate one trace of the Hes5 model. This function implements a stochastic version of
     the model model in Monk, Current Biology (2003). It applies the Gillespie-rejection method described
     in Cai et al, J. Chem. Phys. (2007) as Algorithm 2. This method is an exact method to calculate
@@ -291,6 +292,9 @@ def generate_stochastic_trajectory( duration = 720,
         1D numpy array of floats, corresponding to a list of pre-scheduled transcription events. 
         This can be used to synchronise traces, as is done in generate_multiple_trajectories().
         This schedule will be ignored if its first entry is negative, as in the standard value.
+        
+    vary_repression_threshold : bool
+        if true then the repression threshold will decrease after 1000 min
 
     Returns
     -------
@@ -312,7 +316,8 @@ def generate_stochastic_trajectory( duration = 720,
                                     initial_protein,
                                     equilibration_time,
                                     transcription_schedule, 
-                                    sampling_timestep)
+                                    sampling_timestep,
+                                    vary_repression_threshold)
 
     return trace
 
@@ -421,7 +426,8 @@ def generate_stochastic_trajectory_and_transcription_times( duration = 720,
                                     equilibration_time = 0.0,
                                     #explicit typing necessary for autojit
                                     transcription_schedule = np.array([-1.0]),
-                                    sampling_timestep = 1.0):
+                                    sampling_timestep = 1.0,
+                                    vary_repression_threshold = False):
     '''Generate one trace of the Hes5 model. This function implements a stochastic version of
     the model model in Monk, Current Biology (2003). It applies the rejection method described
     in Cai et al, J. Chem. Phys. (2007) as Algorithm 2. This method is an exact method to calculate
@@ -476,6 +482,8 @@ def generate_stochastic_trajectory_and_transcription_times( duration = 720,
         This can be used to synchronise traces, as is done in generate_multiple_trajectories()
         This schedule will be ignored if its first entry is negative, as for the standard value.
 
+    vary_repression_threshold : bool
+        if true then the repression threshold will decrease after 1000 min
     Returns
     -------
     
@@ -547,14 +555,26 @@ def generate_stochastic_trajectory_and_transcription_times( duration = 720,
                 # propensities don't change
             elif reaction_index == 1: #protein translation
                 current_protein += 1
+                if vary_repression_threshold and time > equilibration_time + 2000.0:
+#                     current_repression_threshold = repression_threshold*(1.0-(time-equilibration_time-2000.0)/2500.0)
+                    current_repression_threshold = repression_threshold*(0.5)
+                    current_repression_threshold = max(current_repression_threshold, 0.01)
+                else:
+                    current_repression_threshold = repression_threshold
                 propensities[0] = basal_transcription_rate/(1.0+
-                                                            np.power(current_protein/repression_threshold, 
+                                                            np.power(current_protein/current_repression_threshold, 
                                                                      hill_coefficient))
                 propensities[2] = current_protein*protein_degradation_rate
             elif reaction_index == 2: #protein degradation
                 current_protein -=1
+                if vary_repression_threshold and time > equilibration_time + 2000.0:
+                    current_repression_threshold = repression_threshold*(0.5)
+#                     current_repression_threshold = repression_threshold*(1.0-(time-equilibration_time-2000.0)/2500.0)
+                    current_repression_threshold = max(current_repression_threshold, 0.01)
+                else:
+                    current_repression_threshold = repression_threshold
                 propensities[0] = basal_transcription_rate/(1.0+
-                                                            np.power(current_protein/repression_threshold, 
+                                                            np.power(current_protein/current_repression_threshold, 
                                                                      hill_coefficient))
                 propensities[2] = current_protein*protein_degradation_rate
             elif reaction_index == 3: #mRNA degradation
@@ -1272,6 +1292,19 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            10, #initial_mRNA, 
                                                                                            parameter_value[2], #initial_protein,
                                                                                            1000)
+    elif parameter_value.shape[0] == 7:
+        these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                           1500*5, #duration 
+                                                                                           parameter_value[2], #repression_threshold, 
+                                                                                           parameter_value[6], #hill_coefficient,
+                                                                                           parameter_value[4], #mRNA_degradation_rate, 
+                                                                                           parameter_value[5], #protein_degradation_rate, 
+                                                                                           parameter_value[0], #basal_transcription_rate, 
+                                                                                           parameter_value[1], #translation_rate,
+                                                                                           parameter_value[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           parameter_value[2], #initial_protein,
+                                                                                           1000)
     else: 
         raise ValueError("This dimension of the prior sample is not recognised.")
  
@@ -1746,14 +1779,18 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
  
     return mRNA_trajectories, protein_trajectories
 
-def conduct_protein_degradation_sweep_at_parameters(parameter_samples,
-                                                    number_of_degradation_values = 20,
-                                                    number_of_traces_per_parameter = 100):
-    '''Conduct a parameter sweep of the protein degradation rates at each of the parameter points in
+def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
+                                               number_of_sweep_values = 20,
+                                               number_of_traces_per_parameter = 200,
+                                               relative = False):
+    '''Conduct a parameter sweep in reasonable ranges of each of the parameter points in
     parameter_samples. The parameter_samples are four-dimensional, as produced, for example, by 
     generate_prior_samples() with the 'reduced' dimension. At each parameter point the function
-    will sweep over number_degradation_values of protein_degradation_rate, and from 
-    number_of_trajectories langevin traces the summary statistics [mean expression
+    will sweep over number_of_sweep_values of the parameters
+    
+    basal_transcription_rate, translation_rate, repression_threshold, time_delay, hill_coefficient
+    
+    , and from number_of_trajectories langevin traces the summary statistics [mean expression
     standard_deviation, period, coherence] will be returned.
     
     Parameters:
@@ -1770,51 +1807,167 @@ def conduct_protein_degradation_sweep_at_parameters(parameter_samples,
     number_of_traces_per_parameter : int
         number of traces that should be used to calculate summary statistics
         
+    relative : bool
+        If true x values will not be parameter values but percentage values in changes from 10% to
+        200%
+        
+    Results:
+    --------
+    
+    sweep_results : dict()
+        Keys are parameter names as in the main function description.
+        Each entry contains a three-dimensional array. Each entry along the first dimension corresponds to one 
+        parameter in parameter_samples and contains a 2d array where the first column is a 
+        protein_degradation_rate and each further column contains the summary statistics in 
+        the order described above.
+    '''
+    parameter_names = ['basal_transcription_rate',
+                       'translation_rate',
+                       'repression_threshold',
+                       'time_delay',
+                       'mRNA_degradation_rate',
+                       'protein_degradation_rate',
+                       'hill_coefficient']
+    
+    sweep_results = dict()
+
+    for parameter_name in parameter_names:
+        these_results = conduct_parameter_sweep_at_parameters(parameter_name,
+                                                              parameter_samples,
+                                                              number_of_sweep_values,
+                                                              number_of_traces_per_parameter,
+                                                              relative)
+
+        sweep_results[parameter_name] = these_results   
+        
+    return sweep_results
+    
+def conduct_parameter_sweep_at_parameters(parameter_name,
+                                          parameter_samples,
+                                          number_of_sweep_values = 20,
+                                          number_of_traces_per_parameter = 200,
+                                          relative = False):
+    '''Conduct a parameter sweep of the parameter_name parameter at each of the parameter points in
+    parameter_samples. The parameter_samples are four-dimensional, as produced, for example, by 
+    generate_prior_samples() with the 'reduced' dimension. At each parameter point the function
+    will sweep over number_sweep_values of parameter_name, and from 
+    number_of_trajectories langevin traces the summary statistics [mean expression
+    standard_deviation, period, coherence] will be returned. Parameter ranges are hardcoded and
+    can be seen at the top of the function implementation.
+    
+    Parameters:
+    -----------
+    
+    parameter_samples : ndarray
+        four columns, each row corresponds to one parameter. The columns are in the order returned by
+        generate_prior_samples().
+        
+    number_of_sweep_values : int
+        number of different parameter values to consider. These number of values will be evenly spaced
+        between reasonable ranges for each parameter.
+        
+    number_of_traces_per_parameter : int
+        number of traces that should be used to calculate summary statistics
+        
+    relative : bool
+        If true x values will not be parameter values but percentage values in changes from 10% to
+        200%
+
     Results:
     --------
     
     sweep_results : ndarray
         three-dimensional array. Each entry along the first dimension corresponds to one parameter
-        in parameter_samples and contains a 2d array where the first column is a protein_degradation_rate
+        in parameter_samples and contains a 2d array where the first column is a value of parameter_name
         and each further column contains the summary statistics in the order described above.
     ''' 
-    # plan: make a table of 6d parameters
-    total_number_of_parameters_required = parameter_samples.shape[0]*number_of_degradation_values
-    all_parameter_values = np.zeros((total_number_of_parameters_required, 6)) 
-    parameter_index = 0
-    for sample in parameter_samples:
-        for protein_degradation_rate in np.linspace(0.0001,np.log(2)/15,number_of_degradation_values):
-            if len(sample) == 4:
-                all_parameter_values[parameter_index,:4] = sample
-                all_parameter_values[parameter_index,4] = np.log(2)/30.0
-                all_parameter_values[parameter_index,5] = protein_degradation_rate
-            else:
-                all_parameter_values[parameter_index] = sample
-#                 all_parameter_values[parameter_index,4] = np.log(2)/30.0
-                all_parameter_values[parameter_index,5] = protein_degradation_rate
+    parameter_indices_and_ranges = dict()
+    parameter_indices_and_ranges['basal_transcription_rate'] = (0,(0.0,100.0))
+    parameter_indices_and_ranges['translation_rate'] =         (1,(0.0,100.0))
+    parameter_indices_and_ranges['repression_threshold'] =     (2,(1.0,100000.0))
+    parameter_indices_and_ranges['time_delay'] =               (3,(5.0,40.0))
+    parameter_indices_and_ranges['mRNA_degradation_rate'] =    (4,(np.log(2)/500,np.log(2)/15))
+    parameter_indices_and_ranges['protein_degradation_rate'] = (5,(np.log(2)/500,np.log(2)/15))
+    parameter_indices_and_ranges['hill_coefficient'] =         (6,(1,10))
 
-            parameter_index += 1
+    # first: make a table of 6d parameters
+    total_number_of_parameters_required = parameter_samples.shape[0]*number_of_sweep_values
+    all_parameter_values = np.zeros((total_number_of_parameters_required, 7)) 
+    parameter_sample_index = 0
+    index_of_parameter_name = parameter_indices_and_ranges[parameter_name][0]
+    if not relative:
+        left_sweep_boundary = parameter_indices_and_ranges[parameter_name][1][0]
+        right_sweep_boundary = parameter_indices_and_ranges[parameter_name][1][1]
+        for sample in parameter_samples:
+            for sweep_value in np.linspace(left_sweep_boundary, right_sweep_boundary, number_of_sweep_values):
+                if len(sample) == 4:
+                    all_parameter_values[parameter_sample_index,:4] = sample
+                    all_parameter_values[parameter_sample_index,4] = np.log(2)/30.0 # tag on mrna degradation rate
+                    all_parameter_values[parameter_sample_index,5] = np.log(2)/90.0 # and protein degradation rate
+                    all_parameter_values[parameter_sample_index,6] = 5 #Hill coefficient
+                else:
+                    all_parameter_values[parameter_sample_index] = sample
+                    all_parameter_values[parameter_sample_index,6] = 5 #Hill coefficient
+                # now replace the parameter of interest with the actual parameter value
+                all_parameter_values[parameter_sample_index, index_of_parameter_name] = sweep_value
+                parameter_sample_index += 1
+    else:
+        for sample in parameter_samples:
+            if parameter_indices_and_ranges[parameter_name][0] < len(sample):
+                this_parameter = sample[ parameter_indices_and_ranges[parameter_name][0] ]
+            elif parameter_name == 'mRNA_degradation_rate':
+                this_parameter = np.log(2)/30.0
+            elif parameter_name == 'protein_degradation_rate':
+                this_parameter = np.log(2)/90.0
+            elif parameter_name == 'hill_coefficient':
+                this_parameter = 5.0
+            for parameter_proportion in np.linspace(0.1,2.0,number_of_sweep_values):
+                if len(sample) == 4:
+                    all_parameter_values[parameter_sample_index,:4] = sample
+                    all_parameter_values[parameter_sample_index,4] = np.log(2)/30.0 # tag on mrna degradation rate
+                    all_parameter_values[parameter_sample_index,5] = np.log(2)/90.0 # and protein degradation rate
+                    all_parameter_values[parameter_sample_index,6] = 5 #Hill coefficient
+                else:
+                    all_parameter_values[parameter_sample_index] = sample
+                    all_parameter_values[parameter_sample_index,6] = 5 #Hill coefficient
+                # now replace the parameter of interest with the actual parameter value
+                all_parameter_values[parameter_sample_index, index_of_parameter_name] = parameter_proportion*this_parameter
+                parameter_sample_index += 1
 
-    # pass it to the calculate_summary_statistics_at_parameter_points
+    # pass these parameters to the calculate_summary_statistics_at_parameter_points
     all_summary_statistics = calculate_summary_statistics_at_parameters(parameter_values = all_parameter_values, 
                                                                         number_of_traces_per_sample = number_of_traces_per_parameter,
                                                                         number_of_cpus = 3, 
                                                                         use_langevin = True)
     
-    sweep_results = np.zeros((parameter_samples.shape[0], number_of_degradation_values, 5))
-    parameter_index = 0
-    for sample_index, sample in enumerate(parameter_samples):
-        protein_degradation_index = 0
-        for protein_degradation_rate in np.linspace(0.0001,np.log(2)/15,number_of_degradation_values):
-            these_summary_statistics = all_summary_statistics[parameter_index]
-            # the first entry gets the degradation rate
-            sweep_results[sample_index,protein_degradation_index,0] = protein_degradation_rate
-            # the remaining entries get the summary statistics. We discard the last summary statistic, 
-            # which is the mean mRNA
-            sweep_results[sample_index,protein_degradation_index,1:] = these_summary_statistics[:-1]
-            protein_degradation_index+=1
-            parameter_index +=1
+    # unpack and wrap the results in the output format
+    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 5))
+    parameter_sample_index = 0
+    if not relative:
+        for sample_index, sample in enumerate(parameter_samples):
+            sweep_value_index = 0
+            for sweep_value in np.linspace(left_sweep_boundary, right_sweep_boundary, number_of_sweep_values):
+                these_summary_statistics = all_summary_statistics[parameter_sample_index]
+                # the first entry gets the degradation rate
+                sweep_results[sample_index,sweep_value_index,0] = sweep_value
+                # the remaining entries get the summary statistics. We discard the last summary statistic, 
+                # which is the mean mRNA
+                sweep_results[sample_index,sweep_value_index,1:] = these_summary_statistics[:-1]
+                sweep_value_index += 1
+                parameter_sample_index += 1
+    else:
+        for sample_index, sample in enumerate(parameter_samples):
+            proportion_index = 0
+            for parameter_proportion in np.linspace(0.1,2.0,number_of_sweep_values):
+                these_summary_statistics = all_summary_statistics[parameter_sample_index]
+                # the first entry gets the degradation rate
+                sweep_results[sample_index,proportion_index,0] = parameter_proportion
+                # the remaining entries get the summary statistics. We discard the last summary statistic, 
+                # which is the mean mRNA
+                sweep_results[sample_index,proportion_index,1:] = these_summary_statistics[:-1]
+                proportion_index += 1
+                parameter_sample_index += 1
     # repack results into output array
-    
+ 
     return sweep_results
     

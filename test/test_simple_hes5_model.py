@@ -1344,7 +1344,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','sample_number_dependance.pdf'))
         
-    def xest_plot_hill_function(self):
+    def test_plot_hill_function(self):
         x_values = np.linspace(0,3,100)
         y_values = 1.0/(1.0 + np.power( x_values,5 ))
 
@@ -1538,3 +1538,49 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','stochastic_langevin_model_validation.pdf'))
+
+    def xest_vary_repression_threshold(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.10, #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05, #standard deviation
+                                                   model_results[:,3]<0.1)))))#coherence
+#                                     np.logical_and(model_results[:,3]<0.2,#coherence
+#                                                    prior_samples[:,3]>25)))))) #delay
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                    prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        my_parameter = my_posterior_samples[0]
+        my_trajectory = hes5.generate_stochastic_trajectory( duration = 3500,
+                                                         repression_threshold = my_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = my_parameter[1],
+                                                         basal_transcription_rate = my_parameter[0],
+                                                         transcription_delay = my_parameter[3],
+                                                         initial_mRNA = 3,
+                                                         initial_protein = my_parameter[2],
+                                                         equilibration_time = 1000,
+                                                         vary_repression_threshold = True)
+        
+        figuresize = (4,2.5)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1]*1000, label = 'mRNA*1000', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--', dashes = [1, 1])
+        plt.axvline(2000)
+#         plt.text(0.95, 0.4, 'Mean protein number: ' + str(np.mean(my_trajectory[:,2])),
+#                  verticalalignment='bottom', horizontalalignment='right',
+#                  transform=plt.gca().transAxes)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_vary_repression_threshold.pdf'))
