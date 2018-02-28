@@ -504,6 +504,25 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_bands.pdf'))
  
+    def xest_plot_heterozygous_abc(self):
+        ## generate posterior samples
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>25000, #cell number
+                                    np.logical_and(model_results[:,0]<35000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05))))
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        sns.set()
+        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_heterozygous_bands.pdf'))
+ 
     def xest_plot_langevin_abc_in_band_oscillating_different_prior(self):
         ## generate posterior samples
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_small_prior')
@@ -543,6 +562,28 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_not_oscillating_bands_different_prior.pdf'))
  
+    def xest_plot_heterozygous_abc_oscillating(self):
+        ## generate posterior samples
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
+        acceptance_ratio = 0.02
+        total_number_of_samples = 20000
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>25000, #cell number
+                                    np.logical_and(model_results[:,0]<35000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05, #standard deviation
+                                                   model_results[:,3]>0.2))))) #coherence
+
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
+        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_heterozygous_oscillating.pdf'))
+ 
     def xest_plot_langevin_abc_in_band_oscillating(self):
         ## generate posterior samples
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
@@ -576,6 +617,28 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #         pairplot.map_offdiag(sns.jointplot )
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_oscillating_bands.pdf'))
+ 
+    def xest_plot_heterozygous_abc_not_oscillating(self):
+        ## generate posterior samples
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_100reps')
+        acceptance_ratio = 0.02
+        total_number_of_samples = 20000
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>25000, #cell number
+                                    np.logical_and(model_results[:,0]<35000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05, #standard deviation
+                                                   model_results[:,3]<0.15))))) #coherence
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_heterozygous_not_oscillating.pdf'))
  
     def xest_plot_langevin_abc_in_band_not_oscillating(self):
         ## generate posterior samples
@@ -675,6 +738,37 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_not_oscillating_bands_long_delay.pdf'))
  
+    def xest_plot_heterozygous_mrna_and_period_distributions(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>25000, #cell number
+                                    np.logical_and(model_results[:,0]<35000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,3]>20))))) #time_delay
+
+        ## need to rerun abc with mrna numbers
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_periods = model_results[accepted_indices][:,2]
+        plt.hist(all_periods, range = (0,400), bins = 20)
+        plt.xlabel('Period [min]')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','heterozygous_period_distribution.pdf'))
+
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_mrna_counts = model_results[accepted_indices][:,4]
+        plt.hist(all_mrna_counts, range = (0,150), bins = 50)
+        plt.xlabel('Average mRNA count')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','heterozygous_mrna_distribution.pdf'))
+ 
     def xest_plot_mrna_and_period_distributions(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
         model_results = np.load(saving_path + '.npy' )
@@ -724,6 +818,35 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','pairplot_langevin_bands_long_delay.pdf'))
  
+    def xest_make_heterozygous_parameter_variation(self):
+        number_of_parameter_points = 20
+        number_of_trajectories = 100
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>25000, #cell number
+                                    np.logical_and(model_results[:,0]<35000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                    model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        my_parameter_sweep_results = hes5.conduct_protein_degradation_sweep_at_parameters(my_posterior_samples,
+                                                                                          number_of_parameter_points,
+                                                                                          number_of_trajectories)
+        
+        np.save(os.path.join(os.path.dirname(__file__), 'output','multiple_degradation_sweep_results_new.npy'),
+                my_parameter_sweep_results)
+
     def xest_make_multiple_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 100
@@ -852,6 +975,39 @@ class TestSimpleHes5ABC(unittest.TestCase):
         for parameter_name in my_parameter_sweep_results:
             np.save(os.path.join(os.path.dirname(__file__), 'output','all_parameter_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
+
+    def xest_make_heterozygous_parameter_variation(self):
+        number_of_parameter_points = 20
+        number_of_trajectories = 200
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>25000, #cell number
+                                    np.logical_and(model_results[:,0]<35000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'number of accepted samples is'
+        print len(my_posterior_samples)
+
+        my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
+                                                                                     number_of_parameter_points,
+                                                                                     number_of_trajectories)
+        
+        for parameter_name in my_parameter_sweep_results:
+            np.save(os.path.join(os.path.dirname(__file__), 'output','all_parameter_sweeps_' + parameter_name + '.npy'),
+                    my_parameter_sweep_results[parameter_name])
+
 
     def xest_make_relative_multiple_parameter_variation(self):
         number_of_parameter_points = 20
@@ -1065,7 +1221,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                      'output','multiple_relative_sweep_low_coherence_' + parameter_name + '.pdf'))
  
-    def test_plot_relative_parameter_variation_coherence_increase(self):
+    def xest_plot_relative_parameter_variation_coherence_increase(self):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
