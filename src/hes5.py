@@ -943,8 +943,9 @@ def generate_posterior_samples( total_number_of_samples,
         python dictionary containing parameter names and the bounds of the respective uniform prior.
         
     prior_dimension : string
-        'reduced' or 'full' are possible options. If 'full', then the mRNA and protein degradation rates
-        will be inferred in addition to other model parameters.
+        'reduced', 'hill' or 'full' are possible options. If 'full', then the mRNA and protein degradation rates
+        will be inferred in addition to other model parameters, excluding the Hill coefficient. If 'hill',
+        then all parameters exclucing the mRNA and protein degradation rates will be inferred.
         
     use_langevin : bool
         if True then the results will be generated using the langevin equation rather than the full gillespie algorithm.
@@ -1009,12 +1010,28 @@ def plot_posterior_distributions( posterior_samples ):
                                              'Translation rate', 
                                              'Repression threshold/1e4', 
                                              'Transcription delay'])
+    elif posterior_samples.shape[1] == 5:
+        data_frame = pd.DataFrame( data = posterior_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient'])
     elif posterior_samples.shape[1] == 6:
         data_frame = pd.DataFrame( data = posterior_samples,
                                    columns= ['Transcription rate', 
                                              'Translation rate', 
                                              'Repression threshold/1e4', 
                                              'Transcription delay',
+                                             'mRNA degradation',
+                                             'Protein degradation'])
+    elif posterior_samples.shape[1] == 7:
+        data_frame = pd.DataFrame( data = posterior_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient'
                                              'mRNA degradation',
                                              'Protein degradation'])
     else:
@@ -1279,13 +1296,13 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            10, #initial_mRNA, 
                                                                                            parameter_value[2], #initial_protein,
                                                                                            1000)
-    elif parameter_value.shape[0] == 6:
+    if parameter_value.shape[0] == 5:
         these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
                                                                                            1500*5, #duration 
                                                                                            parameter_value[2], #repression_threshold, 
-                                                                                           5, #hill_coefficient,
-                                                                                           parameter_value[4], #mRNA_degradation_rate, 
-                                                                                           parameter_value[5], #protein_degradation_rate, 
+                                                                                           parameter_value[4], #hill_coefficient,
+                                                                                           np.log(2)/30.0, #mRNA_degradation_rate, 
+                                                                                           np.log(2)/90.0, #protein_degradation_rate, 
                                                                                            parameter_value[0], #basal_transcription_rate, 
                                                                                            parameter_value[1], #translation_rate,
                                                                                            parameter_value[3], #transcription_delay, 
@@ -1296,9 +1313,9 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
         these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
                                                                                            1500*5, #duration 
                                                                                            parameter_value[2], #repression_threshold, 
-                                                                                           parameter_value[6], #hill_coefficient,
-                                                                                           parameter_value[4], #mRNA_degradation_rate, 
-                                                                                           parameter_value[5], #protein_degradation_rate, 
+                                                                                           parameter_value[4], #hill_coefficient,
+                                                                                           parameter_value[5], #mRNA_degradation_rate, 
+                                                                                           parameter_value[6], #protein_degradation_rate, 
                                                                                            parameter_value[0], #basal_transcription_rate, 
                                                                                            parameter_value[1], #translation_rate,
                                                                                            parameter_value[3], #transcription_delay, 
@@ -1346,7 +1363,7 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
         python dictionary containing parameter names and the bounds of the respective uniform prior.
 
     prior_dimension : string
-        'reduced' or 'full' are possible options. If 'full', then the mRNA and protein degradation rates
+        'reduced' or 'full', or 'hill' are possible options. If 'full', then the mRNA and protein degradation rates
         will be inferred in addition to other model parameters.
 
     Returns
@@ -1360,23 +1377,27 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
                                       1: 'translation_rate',
                                       2: 'repression_threshold',
                                       3: 'time_delay',
-                                      4: 'mRNA_degradation_rate',
-                                      5: 'protein_degradation_rate'}
+                                      4: 'hill_coefficient',
+                                      5: 'mRNA_degradation_rate',
+                                      6: 'protein_degradation_rate'}
     
     standard_prior_bounds = {'basal_transcription_rate' : (0,100),
                              'translation_rate' : (0,200),
                              'repression_threshold' : (0,100000),
                              'time_delay' : (5,40),
+                             'hill_coefficient' : (2,8),
                              'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
                              'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)}
 
     # depending on the function argument prior_dimension we create differently sized prior tables
     if prior_dimension == 'full':
-        number_of_dimensions = 6
+        number_of_dimensions = 7
     elif prior_dimension == 'reduced':
         number_of_dimensions = 4
+    elif prior_dimension == 'hill':
+        number_of_dimensions = 5
     else:
-        raise ValueError("The value for prior_dimension is not recognised, must be 'reduced' or 'full'.")
+        raise ValueError("The value for prior_dimension is not recognised, must be 'reduced', 'hill, or 'full'.")
 
     #initialise as random numbers between (0,1)
     prior_samples = np.random.rand(number_of_samples, number_of_dimensions)
@@ -1544,6 +1565,160 @@ def ode_root_function(x, characteristic_constant, hill_coefficient):
     
     return function_value
 
+@autojit(nopython = True)
+def generate_heterozygous_langevin_trajectory( duration = 720, 
+                                    repression_threshold = 10000,
+                                    hill_coefficient = 5,
+                                    mRNA_degradation_rate = np.log(2)/30,
+                                    protein_degradation_rate = np.log(2)/90, 
+                                    basal_transcription_rate = 1,
+                                    translation_rate = 1,
+                                    transcription_delay = 29,
+                                    initial_mRNA = 0,
+                                    initial_protein = 0,
+                                    equilibration_time = 0.0
+                                    ):
+    '''Generate one trace of the protein-autorepression model using a langevin approximation
+    of the heterozygous model. 
+    This function implements the Ito integral of 
+    
+    dM_1(2)/dt = -mu_m*M_1(2) + alpha_m*G((P_1+P_2)(t-tau) + sqrt(mu_m*M_1(2)+alpha_m*G((P1+P2(t-tau))d(ksi)
+    dP_1(2)/dt = -mu_p*P_1(2) + alpha_p*M_1(2) + sqrt(mu_p*P_1(2) + alpha_p*M_1(2))d(ksi)
+    
+    Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p are
+    rates of mRNA degradation, protein degradation, basal transcription, and translation; in that order.
+    The variable ksi represents Gaussian white noise with delta-function auto-correlation and G 
+    represents the Hill function G(P) = 1/(1+P/p_0)^n, where p_0 is the repression threshold
+    and n is the Hill coefficient.
+    
+    This model is an approximation of the stochastic version of the model in Monk, Current Biology (2003),
+    which is implemented in generate_stochastic_trajectory(). For negative times we assume that there
+    was no transcription.
+    
+    Warning : The time step of integration is chosen as 1 minute, and hence the time-delay is only
+              implemented with this accuracy.   
+
+    Parameters
+    ----------
+    
+    duration : float
+        duration of the trace in minutes
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+        
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time 
+        in order to get rid of any overshoots, for example
+        
+    Returns
+    -------
+    
+    trace : ndarray
+        2 dimensional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number
+    '''
+ 
+    total_time = duration + equilibration_time
+    delta_t = 1
+    sample_times = np.arange(0.0, total_time, delta_t)
+    full_trace = np.zeros((len(sample_times), 5))
+    full_trace[:,0] = sample_times
+    full_trace[0,1] = initial_mRNA
+    full_trace[0,2] = initial_protein
+    repression_threshold = float(repression_threshold)
+
+    mRNA_degradation_rate_per_timestep = mRNA_degradation_rate*delta_t
+    protein_degradation_rate_per_timestep = protein_degradation_rate*delta_t
+    basal_transcription_rate_per_timestep = basal_transcription_rate*delta_t/2.0
+    translation_rate_per_timestep = translation_rate*delta_t
+    delay_index_count = int(round(transcription_delay/delta_t))
+    
+    for time_index, sample_time in enumerate(sample_times[1:]):
+        last_mRNA_1 = full_trace[time_index,1]
+        last_protein_1 = full_trace[time_index,2]
+        last_mRNA_2 = full_trace[time_index,3]
+        last_protein_2 = full_trace[time_index,4]
+        if time_index + 1 < delay_index_count:
+            this_average_mRNA_1_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA_1
+            d_mRNA_1 = (-this_average_mRNA_1_degradation_number
+                      +np.sqrt(this_average_mRNA_1_degradation_number)*np.random.randn())
+            this_average_mRNA_2_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA_2
+            d_mRNA_2 = (-this_average_mRNA_2_degradation_number
+                      +np.sqrt(this_average_mRNA_2_degradation_number)*np.random.randn())
+        else:
+            protein_1_at_delay = full_trace[time_index + 1 - delay_index_count,2]
+            protein_2_at_delay = full_trace[time_index + 1 - delay_index_count,4]
+            protein_at_delay = protein_1_at_delay + protein_2_at_delay
+            hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
+                                                    hill_coefficient))
+            this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
+            this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
+            this_average_mRNA_degradation_number_1 = mRNA_degradation_rate_per_timestep*last_mRNA_1
+            this_average_mRNA_degradation_number_2 = mRNA_degradation_rate_per_timestep*last_mRNA_2
+            d_mRNA_1 = (-this_average_mRNA_degradation_number_1
+                      +this_average_transcription_number
+                      +np.sqrt(this_average_mRNA_degradation_number_1
+                               +this_average_transcription_number)*np.random.randn())
+            
+            d_mRNA_2 = (-this_average_mRNA_degradation_number_2
+                      +this_average_transcription_number
+                      +np.sqrt(this_average_mRNA_degradation_number_2
+                            +this_average_transcription_number)*np.random.randn())
+
+        this_average_protein_degradation_number_1 = protein_degradation_rate_per_timestep*last_protein_1
+        this_average_protein_degradation_number_2 = protein_degradation_rate_per_timestep*last_protein_2
+        this_average_translation_number_1 = translation_rate_per_timestep*last_mRNA_1
+        this_average_translation_number_2 = translation_rate_per_timestep*last_mRNA_2
+        d_protein_1 = (-this_average_protein_degradation_number_1
+                     +this_average_translation_number_1
+                     +np.sqrt(this_average_protein_degradation_number_1+
+                           this_average_translation_number_1)*np.random.randn())
+
+        d_protein_2 = (-this_average_protein_degradation_number_2
+                     +this_average_translation_number_2
+                     +np.sqrt(this_average_protein_degradation_number_2+
+                           this_average_translation_number_2)*np.random.randn())
+
+        current_mRNA_1 = max(last_mRNA_1 + d_mRNA_1, 0.0)
+        current_protein_1  = max(last_protein_1 + d_protein_1, 0.0)
+        current_mRNA_2 = max(last_mRNA_2 + d_mRNA_2, 0.0)
+        current_protein_2  = max(last_protein_2 + d_protein_2, 0.0)
+        full_trace[time_index + 1,1] = current_mRNA_1
+        full_trace[time_index + 1,2] = current_protein_1
+        full_trace[time_index + 1,3] = current_mRNA_2
+        full_trace[time_index + 1,4] = current_protein_2
+    
+    # get rid of the equilibration time now
+    trace = full_trace[ full_trace[:,0]>=equilibration_time ]
+    trace[:,0] -= equilibration_time
+    
+    return trace 
+ 
 @autojit(nopython = True)
 def generate_langevin_trajectory( duration = 720, 
                                     repression_threshold = 10000,
@@ -1886,11 +2061,11 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     parameter_indices_and_ranges['translation_rate'] =         (1,(0.0,100.0))
     parameter_indices_and_ranges['repression_threshold'] =     (2,(1.0,100000.0))
     parameter_indices_and_ranges['time_delay'] =               (3,(5.0,40.0))
-    parameter_indices_and_ranges['mRNA_degradation_rate'] =    (4,(np.log(2)/500,np.log(2)/15))
-    parameter_indices_and_ranges['protein_degradation_rate'] = (5,(np.log(2)/500,np.log(2)/15))
-    parameter_indices_and_ranges['hill_coefficient'] =         (6,(1,10))
+    parameter_indices_and_ranges['hill_coefficient'] =         (4,(1,10))
+    parameter_indices_and_ranges['mRNA_degradation_rate'] =    (5,(np.log(2)/500,np.log(2)/15))
+    parameter_indices_and_ranges['protein_degradation_rate'] = (6,(np.log(2)/500,np.log(2)/15))
 
-    # first: make a table of 6d parameters
+    # first: make a table of 7d parameters
     total_number_of_parameters_required = parameter_samples.shape[0]*number_of_sweep_values
     all_parameter_values = np.zeros((total_number_of_parameters_required, 7)) 
     parameter_sample_index = 0
@@ -1902,12 +2077,19 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
             for sweep_value in np.linspace(left_sweep_boundary, right_sweep_boundary, number_of_sweep_values):
                 if len(sample) == 4:
                     all_parameter_values[parameter_sample_index,:4] = sample
-                    all_parameter_values[parameter_sample_index,4] = np.log(2)/30.0 # tag on mrna degradation rate
-                    all_parameter_values[parameter_sample_index,5] = np.log(2)/90.0 # and protein degradation rate
-                    all_parameter_values[parameter_sample_index,6] = 5 #Hill coefficient
+                    all_parameter_values[parameter_sample_index,4] = 5 #Hill coefficient
+                    all_parameter_values[parameter_sample_index,5] = np.log(2)/30.0 # tag on mrna degradation rate
+                    all_parameter_values[parameter_sample_index,6] = np.log(2)/90.0 # and protein degradation rate
+                elif len(sample) == 5:
+                    all_parameter_values[parameter_sample_index,:5] = sample
+                    all_parameter_values[parameter_sample_index,5] = np.log(2)/30.0 # tag on mrna degradation rate
+                    all_parameter_values[parameter_sample_index,6] = np.log(2)/90.0 # and protein degradation rate
+                elif len(sample) == 6:
+                    all_parameter_values[parameter_sample_index,:4] = sample[:4]
+                    all_parameter_values[parameter_sample_index,4] = 5 #Hill coefficient
+                    all_parameter_values[parameter_sample_index,5:] = sample[4:] # tag on mrna and protein degradation rate
                 else:
                     all_parameter_values[parameter_sample_index] = sample
-                    all_parameter_values[parameter_sample_index,6] = 5 #Hill coefficient
                 # now replace the parameter of interest with the actual parameter value
                 all_parameter_values[parameter_sample_index, index_of_parameter_name] = sweep_value
                 parameter_sample_index += 1
@@ -1924,12 +2106,19 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
             for parameter_proportion in np.linspace(0.1,2.0,number_of_sweep_values):
                 if len(sample) == 4:
                     all_parameter_values[parameter_sample_index,:4] = sample
-                    all_parameter_values[parameter_sample_index,4] = np.log(2)/30.0 # tag on mrna degradation rate
-                    all_parameter_values[parameter_sample_index,5] = np.log(2)/90.0 # and protein degradation rate
-                    all_parameter_values[parameter_sample_index,6] = 5 #Hill coefficient
+                    all_parameter_values[parameter_sample_index,4] = 5 #Hill coefficient
+                    all_parameter_values[parameter_sample_index,5] = np.log(2)/30.0 # tag on mrna degradation rate
+                    all_parameter_values[parameter_sample_index,6] = np.log(2)/90.0 # and protein degradation rate
+                elif len(sample) == 5:
+                    all_parameter_values[parameter_sample_index,:5] = sample
+                    all_parameter_values[parameter_sample_index,5] = np.log(2)/30.0 # tag on mrna degradation rate
+                    all_parameter_values[parameter_sample_index,6] = np.log(2)/90.0 # and protein degradation rate
+                elif len(sample) == 6:
+                    all_parameter_values[parameter_sample_index,:4] = sample[:4]
+                    all_parameter_values[parameter_sample_index,4] = 5 #Hill coefficient
+                    all_parameter_values[parameter_sample_index,5:] = sample[4:] # tag on mrna and protein degradation rate
                 else:
                     all_parameter_values[parameter_sample_index] = sample
-                    all_parameter_values[parameter_sample_index,6] = 5 #Hill coefficient
                 # now replace the parameter of interest with the actual parameter value
                 all_parameter_values[parameter_sample_index, index_of_parameter_name] = parameter_proportion*this_parameter
                 parameter_sample_index += 1
