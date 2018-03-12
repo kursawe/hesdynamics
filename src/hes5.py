@@ -1115,6 +1115,167 @@ def calculate_distances_to_data(summary_statistics):
     
     return np.linalg.norm(summary_statistics - reference_summary_statistic, axis = 1)
     
+def calculate_heterozygous_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
+                                                            number_of_cpus = 3):
+    '''Calculate the mean, relative standard deviation, period, and coherence
+    of protein traces at each parameter point in parameter_values. 
+    Will assume the arguments to be of the order described in
+    generate_prior_samples.
+    If Gillespie samples are used the coherence and period measures may be inaccurate.
+    
+    Parameters
+    ----------
+    
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
+        
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    number_of_cpus : int
+        number of processes that should be used for calculating the samples, parallelisation happens
+        on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
+
+    Returns
+    -------
+    
+    summary_statistics : ndarray
+        each row contains three entries: one for the total sum of the protein,
+        and one for each allele. Entries contain the summary statistics (mean, std, period, coherence, mean mrna) for the corresponding
+        parameter set in parameter_values and the corresponding allele protein/ total protein
+    '''
+    summary_statistics = np.zeros((parameter_values.shape[0], 3, 5))
+
+    pool_of_processes = mp.Pool(processes = number_of_cpus)
+
+    process_results = [ pool_of_processes.apply_async(calculate_heterozygous_summary_statistics_at_parameter_point, 
+                                                      args=(parameter_value, number_of_traces_per_sample))
+                        for parameter_value in parameter_values ]
+
+    # Let the pool know that these are all so that the pool will exit afterwards
+    # this is necessary to prevent memory overflows.
+    pool_of_processes.close()
+
+    for parameter_index, process_result in enumerate(process_results):
+        these_summary_statistics = process_result.get()
+        summary_statistics[ parameter_index ] = these_summary_statistics
+
+    return summary_statistics
+
+def calculate_heterozygous_summary_statistics_at_parameter_point(parameter_value, number_of_traces = 100):
+    '''Calculate the mean, relative standard deviation, period, coherence and mean mRNA
+    of protein traces at one parameter point using the langevin equation. 
+    Will assume the arguments to be of the order described in
+    generate_prior_samples. This function is necessary to ensure garbage collection of
+    unnecessary traces.    
+
+    Parameters
+    ----------
+    
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
+        
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    Returns
+    -------
+    
+    summary_statistics : ndarray
+        One dimension, five entries. Contains the summary statistics (mean, std, period, coherence, mean_mRNA) for the parameters
+        in parameter_values
+    '''
+    if parameter_value.shape[0] == 4:
+        these_mrna_traces_1, these_protein_traces_1, these_mrna_traces_2, these_protein_traces_2 = generate_multiple_heterozygous_langevin_trajectories(
+                                                                                           number_of_traces, # number_of_trajectories 
+                                                                                           1500*5, #duration 
+                                                                                           parameter_value[2], #repression_threshold, 
+                                                                                           5, #hill_coefficient,
+                                                                                           np.log(2)/30.0, #mRNA_degradation_rate, 
+                                                                                           np.log(2)/90.0, #protein_degradation_rate, 
+                                                                                           parameter_value[0], #basal_transcription_rate, 
+                                                                                           parameter_value[1], #translation_rate,
+                                                                                           parameter_value[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           parameter_value[2], #initial_protein,
+                                                                                           1000)
+    if parameter_value.shape[0] == 5:
+        these_mrna_traces_1, these_protein_traces_1, these_mrna_traces_2, these_protein_traces_2 = generate_multiple_heterozygous_langevin_trajectories( 
+                                                                                           number_of_traces, # number_of_trajectories 
+                                                                                           1500*5, #duration 
+                                                                                           parameter_value[2], #repression_threshold, 
+                                                                                           parameter_value[4], #hill_coefficient,
+                                                                                           np.log(2)/30.0, #mRNA_degradation_rate, 
+                                                                                           np.log(2)/90.0, #protein_degradation_rate, 
+                                                                                           parameter_value[0], #basal_transcription_rate, 
+                                                                                           parameter_value[1], #translation_rate,
+                                                                                           parameter_value[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           parameter_value[2], #initial_protein,
+                                                                                           1000)
+    elif parameter_value.shape[0] == 7:
+        these_mrna_traces_1, these_protein_traces_1, these_mrna_traces_2, these_protein_traces_2 = generate_multiple_heterozygous_langevin_trajectories( 
+                                                                                           number_of_traces, # number_of_trajectories 
+                                                                                           1500*5, #duration 
+                                                                                           parameter_value[2], #repression_threshold, 
+                                                                                           parameter_value[4], #hill_coefficient,
+                                                                                           parameter_value[5], #mRNA_degradation_rate, 
+                                                                                           parameter_value[6], #protein_degradation_rate, 
+                                                                                           parameter_value[0], #basal_transcription_rate, 
+                                                                                           parameter_value[1], #translation_rate,
+                                                                                           parameter_value[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           parameter_value[2], #initial_protein,
+                                                                                           1000)
+    else: 
+        raise ValueError("This dimension of the prior sample is not recognised.")
+ 
+    summary_statistics = np.zeros((3,5))
+    these_full_protein_traces = np.zeros_like(these_protein_traces_1)
+    these_full_protein_traces[:,0] = these_protein_traces_1[:,0]
+    these_full_protein_traces[:,1:] = these_protein_traces_1[:,1:] + these_protein_traces_2[:,1:]
+    _,this_full_coherence, this_full_period = calculate_power_spectrum_of_trajectories(these_full_protein_traces)
+
+    these_full_mrna_traces = np.zeros_like(these_mrna_traces_1)
+    these_full_mrna_traces[:,0] = these_mrna_traces_1[:,0]
+    these_full_mrna_traces[:,1:] = these_mrna_traces_1[:,1:] + these_mrna_traces_2[:,1:]
+
+    this_full_mean = np.mean(these_full_protein_traces[:,1:])
+    this_full_std = np.std(these_full_protein_traces[:,1:])/this_full_mean
+    this_full_mean_mRNA = np.mean(these_full_mrna_traces[:,1:])
+
+    _,this_allele_coherence_1, this_allele_period_1 = calculate_power_spectrum_of_trajectories(these_protein_traces_1)
+    this_allele_mean_1 = np.mean(these_protein_traces_1[:,1:])
+    this_allele_std_1 = np.std(these_protein_traces_1[:,1:])/this_allele_mean_1
+    this_allele_mean_mRNA_1 = np.mean(these_mrna_traces_1[:,1:])
+    
+    _,this_allele_coherence_2, this_allele_period_2 = calculate_power_spectrum_of_trajectories(these_protein_traces_2)
+    this_allele_mean_2 = np.mean(these_protein_traces_2[:,1:])
+    this_allele_std_2 = np.std(these_protein_traces_2[:,1:])/this_allele_mean_2
+    this_allele_mean_mRNA_2 = np.mean(these_mrna_traces_2[:,1:])
+
+    summary_statistics[0][0] = this_full_mean
+    summary_statistics[0][1] = this_full_std
+    summary_statistics[0][2] = this_full_period
+    summary_statistics[0][3] = this_full_coherence
+    summary_statistics[0][4] = this_full_mean_mRNA
+    
+    summary_statistics[1][0] = this_allele_mean_1
+    summary_statistics[1][1] = this_allele_std_1
+    summary_statistics[1][2] = this_allele_period_1
+    summary_statistics[1][3] = this_allele_coherence_1
+    summary_statistics[1][4] = this_allele_mean_mRNA_1
+    
+    summary_statistics[2][0] = this_allele_mean_2
+    summary_statistics[2][1] = this_allele_std_2
+    summary_statistics[2][2] = this_allele_period_2
+    summary_statistics[2][3] = this_allele_coherence_2
+    summary_statistics[2][4] = this_allele_mean_mRNA_2
+    
+    return summary_statistics
+
 def calculate_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
                                                number_of_cpus = 3, use_langevin = True):
     '''Calculate the mean, relative standard deviation, period, and coherence
@@ -1639,12 +1800,12 @@ def generate_heterozygous_langevin_trajectory( duration = 720,
     -------
     
     trace : ndarray
-        2 dimensional array, first column is time, second column mRNA number,
-        third column is Hes5 protein copy number
+        2 dimensional array, first column is time, second column mRNA number from one allele,
+        third column is Hes5 protein copy number from one allele, third column is mRNA number
+        from the other allele, fourth column is protein number from the other allele.
     '''
- 
     total_time = duration + equilibration_time
-    delta_t = 1
+    delta_t = 0.5
     sample_times = np.arange(0.0, total_time, delta_t)
     full_trace = np.zeros((len(sample_times), 5))
     full_trace[:,0] = sample_times
@@ -1676,7 +1837,6 @@ def generate_heterozygous_langevin_trajectory( duration = 720,
             protein_at_delay = protein_1_at_delay + protein_2_at_delay
             hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
                                                     hill_coefficient))
-            this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
             this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
             this_average_mRNA_degradation_number_1 = mRNA_degradation_rate_per_timestep*last_mRNA_1
             this_average_mRNA_degradation_number_2 = mRNA_degradation_rate_per_timestep*last_mRNA_2
@@ -1846,6 +2006,128 @@ def generate_langevin_trajectory( duration = 720,
     trace[:,0] -= equilibration_time
     
     return trace 
+
+def generate_multiple_heterozygous_langevin_trajectories( number_of_trajectories = 10,
+                                    duration = 720, 
+                                    repression_threshold = 10000,
+                                    hill_coefficient = 5,
+                                    mRNA_degradation_rate = np.log(2)/30,
+                                    protein_degradation_rate = np.log(2)/90, 
+                                    basal_transcription_rate = 1,
+                                    translation_rate = 1,
+                                    transcription_delay = 29,
+                                    initial_mRNA = 0,
+                                    initial_protein = 0,
+                                    equilibration_time = 0.0):
+    '''Generate multiple langevin stochastic traces from the heterozygous model by using
+       generate_heterozygous_langevin_trajectory.
+    
+    Parameters
+    ----------
+    
+    number_of_trajectories : int
+        number of trajectories that should be calculated
+
+    duration : float
+        duration of the trace in minutes
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time 
+        in order to get rid of any overshoots, for example
+        
+    Returns
+    -------
+    
+    mRNA_trajectories_1 : ndarray
+        2 dimensional array with [number_of_trajectories] columns, first column is time, 
+        each further column is one trace of mRNA copy numbers from one allele 
+
+    protein_trajectories_1 : ndarray
+        2 dimensional array with [number_of_trajectories] columns, first column is time, 
+        each further column is one trace of protein copy numbers from one allele
+
+    mRNA_trajectories_2 : ndarray
+        2 dimensional array with [number_of_trajectories] columns, first column is time, 
+        each further column is one trace of mRNA copy numbers from the other allele 
+
+    protein_trajectories_2 : ndarray
+        2 dimensional array with [number_of_trajectories] columns, first column is time, 
+        each further column is one trace of protein copy numbers from the other allele
+    '''
+    first_trace = generate_heterozygous_langevin_trajectory(duration, 
+                                               repression_threshold, 
+                                               hill_coefficient, 
+                                               mRNA_degradation_rate, 
+                                               protein_degradation_rate, 
+                                               basal_transcription_rate, 
+                                               translation_rate, 
+                                               transcription_delay, 
+                                               initial_mRNA, 
+                                               initial_protein, 
+                                               equilibration_time)
+
+    sample_times = first_trace[:,0]
+    mRNA_trajectories_1 = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+    protein_trajectories_1 = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+    mRNA_trajectories_2 = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+    protein_trajectories_2 = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+    
+    mRNA_trajectories_1[:,0] = sample_times
+    protein_trajectories_1[:,0] = sample_times
+    mRNA_trajectories_1[:,1] = first_trace[:,1]
+    protein_trajectories_1[:,1] = first_trace[:,2]
+    mRNA_trajectories_2[:,0] = sample_times
+    protein_trajectories_2[:,0] = sample_times
+    mRNA_trajectories_2[:,1] = first_trace[:,3]
+    protein_trajectories_2[:,1] = first_trace[:,4]
+
+    for trajectory_index in range(1,number_of_trajectories): 
+        # offset one index for time column
+        this_trace = generate_heterozygous_langevin_trajectory(duration, 
+                                               repression_threshold, 
+                                               hill_coefficient, 
+                                               mRNA_degradation_rate, 
+                                               protein_degradation_rate, 
+                                               basal_transcription_rate, 
+                                               translation_rate, 
+                                               transcription_delay, 
+                                               initial_mRNA, 
+                                               initial_protein, 
+                                               equilibration_time)
+
+        mRNA_trajectories_1[:,trajectory_index + 1] = this_trace[:,1] 
+        protein_trajectories_1[:,trajectory_index + 1] = this_trace[:,2]
+        mRNA_trajectories_2[:,trajectory_index + 1] = this_trace[:,3] 
+        protein_trajectories_2[:,trajectory_index + 1] = this_trace[:,4]
+ 
+    return mRNA_trajectories_1, protein_trajectories_1, mRNA_trajectories_2, protein_trajectories_2
 
 ## autojitting this function does not seem to improve runtimes further
 def generate_multiple_langevin_trajectories( number_of_trajectories = 10,

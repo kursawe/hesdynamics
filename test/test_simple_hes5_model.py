@@ -1344,7 +1344,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','sample_number_dependance.pdf'))
         
-    def test_plot_hill_function(self):
+    def xest_plot_hill_function(self):
         x_values = np.linspace(0,3,100)
         y_values = 1.0/(1.0 + np.power( x_values,5 ))
 
@@ -1488,6 +1488,86 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','average_hes5_langevin_behaviour.pdf'))
 
+
+    def xest_plot_heterozygous_model(self):
+        my_trajectory = hes5.generate_heterozygous_langevin_trajectory( duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+        
+        figuresize = (4,2.5)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 (my_trajectory[:,1] + my_trajectory[:,3])*1000, label = 'mRNA*1000', color = 'blue')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2] + my_trajectory[:,4], label = 'Hes protein', color = 'blue', ls = '--')
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,3]*1000, label = 'GFPmRNA*1000', color = 'green')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,4], label = 'Hes_GFP', color = 'green', ls = '--')
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_heterozygous_trajectory_equilibrated.pdf'))
+
+  
+    def test_validate_heterozygous_model(self):
+        mRNA_trajectories_1, protein_trajectories_1, mRNA_trajectories_2, protein_trajectories_2 = hes5.generate_multiple_heterozygous_langevin_trajectories( 
+                                                                     number_of_trajectories = 10,
+                                                                     duration = 720,
+                                                                     repression_threshold = 1000000,
+                                                                     mRNA_degradation_rate = 0.03,
+                                                                     protein_degradation_rate = 0.03,
+                                                                     transcription_delay = 18.5,
+                                                                     basal_transcription_rate = 10000.0,
+                                                                     translation_rate = 1.0,
+                                                                     initial_mRNA = 30000,
+                                                                     initial_protein = 1000000 )
+        
+        mean_protein_trajectory = np.mean(protein_trajectories_1[:,1:] + protein_trajectories_2[:,1:], axis = 1)
+        mean_mRNA_trajectory = np.mean(mRNA_trajectories_1[:,1:] + mRNA_trajectories_2[:,1:], axis = 1)
+        
+        deterministic_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
+                                                                           repression_threshold = 1000000,
+                                                                           mRNA_degradation_rate = 0.03,
+                                                                           protein_degradation_rate = 0.03,
+                                                                           transcription_delay = 18.5,
+                                                                           basal_transcription_rate = 10000.0,
+                                                                           translation_rate = 1.0,
+                                                                           initial_mRNA = 30000,
+                                                                           initial_protein = 1000000,
+                                                                           for_negative_times = 'no_negative' )
+
+        figuresize = (4,2.75)
+        my_figure = plt.figure()
+        # want to plot: protein and mRNA for stochastic and deterministic system,
+        # example stochastic system
+        plt.plot( mRNA_trajectories_1[:,0],
+                  mRNA_trajectories_1[:,1]/1000.
+                  + mRNA_trajectories_2[:,1]/1000., label = 'mRNA example', color = 'black' )
+        plt.plot( protein_trajectories_1[:,0],
+                  protein_trajectories_1[:,1]/10000. +
+                  protein_trajectories_2[:,1]/10000., label = 'Protein example', color = 'black', ls = '--' )
+        plt.plot( mRNA_trajectories_1[:,0],
+                  mean_mRNA_trajectory/1000., label = 'Mean mRNA', color = 'blue' )
+        plt.plot( protein_trajectories_1[:,0],
+                  mean_protein_trajectory/10000., label = 'Mean protein', color = 'blue', ls = '--' )
+        plt.plot( deterministic_trajectory[:,0],
+                  deterministic_trajectory[:,1]/1000., label = 'Deterministic mRNA', color = 'green' )
+        plt.plot( deterministic_trajectory[:,0],
+                  deterministic_trajectory[:,2]/10000., label = 'Deterministic Protein', color = 'green', ls = '--' )
+        plt.xlabel('Time')
+        plt.ylabel('Scaled expression')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','stochastic_heterozygous_model_validation.pdf'))
 
     def xest_validate_stochastic_langevin_implementation(self):
         mRNA_trajectories, protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = 10,
