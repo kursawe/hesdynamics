@@ -224,6 +224,40 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','pairplot_hill_abc_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
  
+    def xest_upsample_hill_abc(self):
+        ## generate posterior samples
+        total_number_of_samples = 20000
+        acceptance_ratio = 0.02
+
+#         total_number_of_samples = 10
+#         acceptance_ratio = 0.5
+
+        prior_bounds = {'basal_transcription_rate' : (0,4),
+                        'translation_rate' : (0,200),
+                        'repression_threshold' : (0,100000),
+                        'time_delay' : (5,40),
+                        'hill_coefficient': (2,7)}
+#                         'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
+#                         'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)}
+#                         'mRNA_degradation_rate': (0.001, 0.04),
+#                         'protein_degradation_rate': (0.001, 0.04),
+
+        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
+                                                                acceptance_ratio,
+                                                                number_of_traces_per_sample = 200,
+                                                                saving_name = 'sampling_results_hill_low_transcription',
+                                                                prior_bounds = prior_bounds,
+                                                                prior_dimension = 'hill')
+        
+        self.assertEquals(my_posterior_samples.shape, 
+                          (int(round(total_number_of_samples*acceptance_ratio)), 5))
+
+        # plot distribution of accepted parameter samples
+        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_hill_abc_low_transcription_' +  str(total_number_of_samples) + '_'
+                                      + str(acceptance_ratio) + '.pdf'))
+ 
     def xest_make_abc_all_parameters_long_delay(self):
         ## generate posterior samples
         total_number_of_samples = 20000
@@ -498,6 +532,26 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_not_oscillating_bands_long_delay_different_prior.pdf'))
  
+    def xest_plot_upsample_hill_abc_in_band(self):
+        # generate posterior samples
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill_low_transcription')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05))))
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        sns.set()
+        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
+        pairplot.axes[-1,0].set_xlim(0,5)
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_hill_low_transcription.pdf'))
+ 
     def xest_plot_hill_abc_in_band(self):
         # generate posterior samples
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
@@ -516,6 +570,79 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_hill_bands.pdf'))
+ 
+    def xest_plot_heterozygous_homozygous_comparison(self):
+        # generate posterior samples
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
+        number_of_traces_per_sample = 200
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05))))
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+#         model_results = hes5.calculate_heterozygous_summary_statistics_at_parameters( my_posterior_samples, 
+#                                                                                     number_of_traces_per_sample )
+
+#         np.save(os.path.join(os.path.dirname(__file__), 'output','heterozygous_comparison.npy'), model_results)
+        model_results = np.load(os.path.join(os.path.dirname(__file__), 'output','heterozygous_comparison.npy'))
+
+        my_figure = plt.figure( figsize = (6,5) )
+        my_figure.add_subplot(221)
+        plt.scatter(model_results[:,0,0]/10000, model_results[:,1,0]/10000,
+                    color = 'grey', lw = 0, marker = '.')
+        plt.plot(model_results[:,0,0]/10000, model_results[:,0,0]/20000,
+                 color = 'black')
+        plt.xlabel('Homozygous mean')
+        plt.ylabel('Allele mean')
+        plt.text(0.1, 0.8, 'Slope: 1/2',
+                           transform=plt.gca().transAxes)
+ 
+        
+        my_figure.add_subplot(222)
+        plt.scatter(model_results[:,0,1], model_results[:,1,1],
+                    color = 'grey', lw = 0, marker = '.')
+        plt.plot(model_results[:,0,1], model_results[:,0,1]*2,
+                 color = 'black')
+        plt.text(0.1, 0.8, 'Slope: 2',
+                           transform=plt.gca().transAxes)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=5)
+        plt.xlabel('Homozygous std/mean')
+        plt.ylabel('Allele std/mean')
+        
+        my_figure.add_subplot(223)
+        plt.scatter(model_results[:,0,2], model_results[:,1,2],
+                    color = 'grey', lw = 0, marker = '.')
+        plt.plot(model_results[:,0,2], model_results[:,0,2],
+                 color = 'black')
+        plt.text(0.1, 0.8, 'Slope: 1',
+                           transform=plt.gca().transAxes)
+        plt.xlim(0,500)
+        plt.ylim(0,)
+        plt.xlabel('Homozygous period')
+        plt.ylabel('Allele period')
+        
+        my_figure.add_subplot(224)
+        plt.scatter(model_results[:,0,3], model_results[:,1,3],
+                    color = 'grey', lw = 0, marker = '.')
+        plt.plot(model_results[:,0,3], model_results[:,0,3] - 0.2,
+                 color = 'black')
+        plt.text(0.1, 0.8, 'Slope: 1, offset: -0.2',
+                           transform=plt.gca().transAxes)
+        plt.ylim(0,)
+        plt.xlabel('Homozygous coherence')
+        plt.ylabel('Allele coherence')
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        
+        plt.tight_layout()
+
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','heterozygous_homozygous_comparison.pdf'))
  
     def xest_plot_langevin_abc_in_band(self):
         ## generate posterior samples
@@ -616,7 +743,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_not_oscillating_bands_different_prior.pdf'))
  
-    def test_plot_hill_abc_oscillating(self):
+    def xest_plot_hill_abc_oscillating(self):
         ## generate posterior samples
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
         model_results = np.load(saving_path + '.npy' )
@@ -635,7 +762,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_hill_oscillating.pdf'))
  
-    def test_plot_hill_abc_not_oscillating(self):
+    def xest_plot_hill_abc_not_oscillating(self):
         ## generate posterior samples
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
         model_results = np.load(saving_path + '.npy' )
@@ -862,6 +989,58 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','heterozygous_mrna_distribution.pdf'))
  
+    def xest_plot_hill_mrna_and_period_distributions(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,3]>20))))) #time_delay
+
+        ## need to rerun abc with mrna numbers
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_periods = model_results[accepted_indices][:,2]
+        plt.hist(all_periods, range = (0,400), bins = 20)
+        plt.xlabel('Period [min]')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','abc_hill_period_distribution.pdf'))
+        
+        new_accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+#                                                     model_results[:,1]>0.05))))  #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05,  #standard deviation
+                                                    prior_samples[:,4]<6))))) #hill
+        new_periods = model_results[new_accepted_indices][:,2]
+
+
+        ## need to rerun abc with mrna numbers
+        my_figure = plt.figure(figsize = (4,2.5))
+        plt.hist(new_periods, bins = 200)
+#         plt.hist(new_periods, range = (0,400), bins = 20)
+        plt.xlabel('Period [min]')
+        plt.ylabel('Occurrence')
+        plt.xlim(0,500)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','abc_hill_6_period_distribution.pdf'))
+
+
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_mrna_counts = model_results[accepted_indices][:,4]
+        plt.hist(all_mrna_counts, range = (0,150), bins = 50)
+        plt.xlabel('Average mRNA count')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','abc_hill_mrna_distribution.pdf'))
+ 
     def xest_plot_mrna_and_period_distributions(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
         model_results = np.load(saving_path + '.npy' )
@@ -1037,6 +1216,38 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','multiple_degradation_sweep.pdf'))
         
+    def xest_make_all_multiple_parameter_variation_hill_low_transcription(self):
+        number_of_parameter_points = 20
+        number_of_trajectories = 200
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill_low_transcription')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'number of accepted samples is'
+        print len(my_posterior_samples)
+
+        my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
+                                                                                     number_of_parameter_points,
+                                                                                     number_of_trajectories)
+        
+        for parameter_name in my_parameter_sweep_results:
+            np.save(os.path.join(os.path.dirname(__file__), 'output','all_parameter_sweeps_hill_low_transcription' + parameter_name + '.npy'),
+                    my_parameter_sweep_results[parameter_name])
+
     def xest_make_all_multiple_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
@@ -1101,7 +1312,36 @@ class TestSimpleHes5ABC(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','all_heterozygous_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def test_make_hill_relative_parameter_variation(self):
+    def xest_make_hill_relative_parameter_variation_low_transcription_rate(self):
+        number_of_parameter_points = 20
+        number_of_trajectories = 200
+#         number_of_parameter_points = 3
+#         number_of_trajectories = 2
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill_low_transcription')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'number of accepted samples is'
+        print len(my_posterior_samples)
+
+        my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
+                                                                                     number_of_parameter_points,
+                                                                                     number_of_trajectories,
+                                                                                     relative = True)
+        
+        for parameter_name in my_parameter_sweep_results:
+            np.save(os.path.join(os.path.dirname(__file__), 'output','hill_relative_sweeps_low_transcription' + parameter_name + '.npy'),
+                    my_parameter_sweep_results[parameter_name])
+
+    def xest_make_hill_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -1130,7 +1370,97 @@ class TestSimpleHes5ABC(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','hill_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def test_plot_hill_relative_parameter_variation(self):
+    def xest_plot_hill_relative_parameter_variation(self):
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                    model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<10))))) #transcription_rate
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+#         other_accepted_indices = np.where(accepted_model_results[:,3] < 0.2)
+        
+#         model_results = model_results[other_accepted_indices]
+
+
+#         my_parameter_sweep_results = hes5.conduct_protein_degradation_sweep_at_parameters(my_posterior_samples,
+#                                                                                           number_of_parameter_points,
+#                                                                                           number_of_trajectories)
+
+        parameter_names = ['basal_transcription_rate',
+                           'translation_rate',
+                           'repression_threshold',
+                           'time_delay',
+                           'mRNA_degradation_rate',
+                           'protein_degradation_rate',
+                           'hill_coefficient']
+ 
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'rel. Transcription rate'
+        x_labels['translation_rate'] = 'rel. Translation rate'
+        x_labels['repression_threshold'] = 'rel. Repression threshold' 
+        x_labels['time_delay'] = 'rel. Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'rel. mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+        x_labels['hill_coefficient'] = 'rel. Hill coefficient'
+
+        reference_parameters = dict()
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                              'hill_relative_sweeps_' + parameter_name + '.npy'))
+
+#             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
+        
+            my_figure = plt.figure( figsize = (6.5, 1.5) )
+            this_axis = my_figure.add_subplot(131)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,3], color ='black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Period [min]')
+            this_axis.set_ylim(0,700)
+
+            this_axis = my_figure.add_subplot(132)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,4], color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Coherence')
+            this_axis.set_ylim(0,1.0)
+            
+            this_axis = my_figure.add_subplot(133)
+            for results_table in my_parameter_sweep_results:
+                this_axis.errorbar(results_table[:,0],
+                             results_table[:,1]/10000,
+                             yerr = results_table[:,2]/10000*results_table[:,1],
+                             color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_ylim(0,8)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Expression/1e4')
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output','hill_all_relative_sweep_' + parameter_name + '.pdf'))
+ 
+    def xest_plot_hill_relative_parameter_variation(self):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
@@ -1219,6 +1549,137 @@ class TestSimpleHes5ABC(unittest.TestCase):
             my_figure.tight_layout()
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                      'output','hill_relative_sweep_' + parameter_name + '.pdf'))
+ 
+    def test_make_relative_heterozygous_parameter_variation_low_variance(self):
+        number_of_parameter_points = 20
+#         number_of_parameter_points = 3
+        number_of_trajectories = 200
+#         number_of_trajectories = 2
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.075, #standard deviation
+                                                   model_results[:,1]>0.025)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'number of accepted samples is'
+        print len(my_posterior_samples)
+
+        my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
+                                                                                     number_of_parameter_points,
+                                                                                     number_of_trajectories,
+                                                                                     relative = True)
+        
+        for parameter_name in my_parameter_sweep_results:
+            np.save(os.path.join(os.path.dirname(__file__), 'output','all_relative_sweeps_low_variance_' + parameter_name + '.npy'),
+                    my_parameter_sweep_results[parameter_name])
+
+    def xest_plot_hill_sweep_low_variance(self):
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.075, #standard deviation
+                                                    model_results[:,1]>0.025)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<10))))) #transcription_rate
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+        other_accepted_indices = np.where(accepted_model_results[:,3] < 0.2)
+        
+        model_results = model_results[other_accepted_indices]
+
+
+#         my_parameter_sweep_results = hes5.conduct_protein_degradation_sweep_at_parameters(my_posterior_samples,
+#                                                                                           number_of_parameter_points,
+#                                                                                           number_of_trajectories)
+
+        parameter_names = ['basal_transcription_rate',
+                           'translation_rate',
+                           'repression_threshold',
+                           'time_delay',
+                           'mRNA_degradation_rate',
+                           'protein_degradation_rate',
+                           'hill_coefficient']
+ 
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'rel. Transcription rate'
+        x_labels['translation_rate'] = 'rel. Translation rate'
+        x_labels['repression_threshold'] = 'rel. Repression threshold' 
+        x_labels['time_delay'] = 'rel. Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'rel. mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+        x_labels['hill_coefficient'] = 'rel. Hill coefficient'
+
+        parameter_indices = dict()
+        parameter_indices['basal_transcription_rate'] = 0
+        parameter_indices['translation_rate'] = 1
+        parameter_indices['repression_threshold'] = 2
+        parameter_indices['time_delay'] = 3
+        
+        reference_parameters = dict()
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                              'all_relative_sweeps_low_variance_' + parameter_name + '.npy'))
+
+            my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
+        
+            my_figure = plt.figure( figsize = (6.5, 1.5) )
+            this_axis = my_figure.add_subplot(131)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,3], color ='black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Period [min]')
+            this_axis.set_ylim(0,700)
+
+            this_axis = my_figure.add_subplot(132)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,4], color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Coherence')
+            this_axis.set_ylim(0,0.4)
+            
+            this_axis = my_figure.add_subplot(133)
+            for results_table in my_parameter_sweep_results:
+                this_axis.errorbar(results_table[:,0],
+                             results_table[:,1]/10000,
+                             yerr = results_table[:,2]/10000*results_table[:,1],
+                             color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_ylim(0,8)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Expression/1e4')
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output','hill_relative_sweep_low_variance_' + parameter_name + '.pdf'))
  
     def xest_make_heterozygous_relative_parameter_variation(self):
         number_of_parameter_points = 20
@@ -1466,6 +1927,94 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot2 = hes5.plot_posterior_distributions( my_posterior_samples )
         pairplot2.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_heterozygous_coherence_0.2.pdf'))
+ 
+    def xest_plot_low_transcription_parameter_variation(self):
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                    model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<10))))) #transcription_rate
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+#         my_parameter_sweep_results = hes5.conduct_protein_degradation_sweep_at_parameters(my_posterior_samples,
+#                                                                                           number_of_parameter_points,
+#                                                                                           number_of_trajectories)
+
+        parameter_names = ['basal_transcription_rate',
+                           'translation_rate',
+                           'repression_threshold',
+                           'time_delay',
+                           'mRNA_degradation_rate',
+                           'protein_degradation_rate',
+                           'hill_coefficient']
+ 
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'rel. Transcription rate'
+        x_labels['translation_rate'] = 'rel. Translation rate'
+        x_labels['repression_threshold'] = 'rel. Repression threshold' 
+        x_labels['time_delay'] = 'rel. Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'rel. mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+        x_labels['hill_coefficient'] = 'rel. Hill coefficient'
+
+        parameter_indices = dict()
+        parameter_indices['basal_transcription_rate'] = 0
+        parameter_indices['translation_rate'] = 1
+        parameter_indices['repression_threshold'] = 2
+        parameter_indices['time_delay'] = 3
+        
+        reference_parameters = dict()
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                              'all_parameter_sweeps_hill_low_transcription' + parameter_name + '.npy'))
+        
+            my_figure = plt.figure( figsize = (6.5, 1.5) )
+            this_axis = my_figure.add_subplot(131)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,3], color ='black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Period [min]')
+            this_axis.set_ylim(0,700)
+
+            this_axis = my_figure.add_subplot(132)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,4], color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Coherence')
+            this_axis.set_ylim(0,1)
+            
+            this_axis = my_figure.add_subplot(133)
+            for results_table in my_parameter_sweep_results:
+                this_axis.errorbar(results_table[:,0],
+                             results_table[:,1]/10000,
+                             yerr = results_table[:,2]/10000*results_table[:,1],
+                             color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_ylim(0,15)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Expression/1e4')
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output','low_transcription_sweep_' + parameter_name + '.pdf'))
  
     def xest_plot_heterozygous_parameter_variation(self):
 
@@ -2859,13 +3408,6 @@ class TestSimpleHes5ABC(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        figure_coherence_bands = np.array([[[0.0,0.1],
-                                            [0.1,0.2],
-                                            [0.2,0.3]],
-                                           [[0.3,0.4],
-                                            [0.5,0.6],
-                                            [0.6,0.7]]])
-
         number_of_traces = 10
         for figure_index in range(2):
             figuresize = (6,9)
@@ -2983,3 +3525,159 @@ class TestSimpleHes5ABC(unittest.TestCase):
                 
             my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','coherence_visualisation_' + 
                                            str(figure_index) + '.pdf'))
+
+    def xest_visualise_heterozygous_model(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05))))
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_model_results = model_results[accepted_indices]
+        
+        figuresize = (7,9)
+        my_figure = plt.figure(figsize = figuresize)
+        outer_grid = matplotlib.gridspec.GridSpec(2, 3 )
+        
+        for parameter_index in range(6):
+            this_parameter_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(2, 1,
+                            subplot_spec = outer_grid[parameter_index], height_ratios=[3,1],
+                            hspace=0.3)
+
+            this_parameter = my_posterior_samples[parameter_index]
+            this_model_results = my_model_results[parameter_index]
+
+            _, these_traces_1, _, these_traces_2 = hes5.generate_multiple_heterozygous_langevin_trajectories(
+                                                                 number_of_trajectories = 200,
+                                                                 duration = 1500*5,
+                                                                 repression_threshold = this_parameter[2],
+                                                                 mRNA_degradation_rate = np.log(2)/30.0,
+                                                                 protein_degradation_rate = np.log(2)/90,
+                                                                 transcription_delay = this_parameter[3],
+                                                                 basal_transcription_rate = this_parameter[0],
+                                                                 translation_rate = this_parameter[1],
+                                                                 initial_mRNA = 10,
+                                                                 initial_protein = this_parameter[2],
+                                                                 hill_coefficient = this_parameter[4],
+                                                                 equilibration_time = 1000)
+            these_compound_traces = np.zeros_like(these_traces_1)
+            these_compound_traces[:,0] = these_traces_1[:,0]
+            these_compound_traces[:,1:] = these_traces_1[:,1:]+these_traces_2[:,1:]
+            this_compound_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_compound_traces)
+            this_allele_1_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_traces_1)
+            this_allele_2_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_traces_2)
+           
+            this_upper_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(3, 1,
+                            subplot_spec = this_parameter_grid[0])
+            for realisation_index in range(3):
+                this_realisation_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(3, 1,
+                            subplot_spec = this_upper_grid[realisation_index], hspace = 0.0) 
+
+                this_homozygous_axis = plt.Subplot(my_figure, this_realisation_grid[0])
+                my_figure.add_subplot(this_homozygous_axis)
+                this_homozygous_axis.plot(these_compound_traces[:,0], 
+                                         these_compound_traces[:,realisation_index + 1]/10000,
+                                         color = 'black')
+                plt.xlim(0,1500)
+                plt.ylim(4.5,8.5)
+                this_homozygous_axis.locator_params(axis='x', tight = True, nbins=3)
+                this_homozygous_axis.locator_params(axis='y', tight = True, nbins=3)
+                plt.gca().xaxis.set_ticklabels([])
+                if realisation_index == 0:
+                    plt.title('Coherence: ' + '{:.2f}'.format(this_model_results[3]) + 
+                              r', $\alpha_m =$ ' + '{:.2f}'.format(this_parameter[0]) +
+                              r', $n =$ ' + '{:.2f}'.format(this_parameter[4]) +
+                              '\n' + r'$\alpha_p =$ ' + '{:.2f}'.format(this_parameter[1]) + 
+                              r', $p_0 = $ ' + '{:.2f}'.format(this_parameter[2]) + 
+                              r', $\tau = $ ' + '{:.2f}'.format(this_parameter[3]),
+                              fontsize = 7)
+                
+                this_allele_axis_1 = plt.Subplot(my_figure, this_realisation_grid[1])
+                my_figure.add_subplot(this_allele_axis_1)
+                this_allele_axis_1.plot(these_traces_1[:,0], 
+                                       these_traces_1[:,realisation_index + 1]/10000,
+                                       color = 'green')
+                plt.ylim(1.5,5.5)
+                plt.xlim(0,1500)
+                this_allele_axis_1.locator_params(axis='x', tight = True, nbins=3)
+                this_allele_axis_1.locator_params(axis='y', tight = True, nbins=3)
+                plt.gca().xaxis.set_ticklabels([])
+                if parameter_index in [0,3] and realisation_index == 1:
+                    plt.ylabel("Expression/1e4")
+ 
+
+                this_allele_axis_2 = plt.Subplot(my_figure, this_realisation_grid[2])
+                my_figure.add_subplot(this_allele_axis_2)
+                this_allele_axis_2.plot(these_traces_2[:,0], 
+                                       these_traces_2[:,realisation_index + 1]/10000,
+                                       color = 'blue')
+                plt.ylim(1.5,5.5)
+                plt.xlim(0,1500)
+                this_allele_axis_2.locator_params(axis='x', tight = True, nbins=3)
+                this_allele_axis_2.locator_params(axis='y', tight = True, nbins=3)
+              
+                if realisation_index != 2: 
+                    plt.gca().xaxis.set_ticklabels([])
+                else:
+                    plt.xlabel("Time [min]")    
+
+            this_power_spectrum_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(3, 1,
+                            subplot_spec = this_parameter_grid[1], hspace = 0.0)
+            
+            homozygous_power_spectrum_axis = plt.Subplot(my_figure,this_power_spectrum_grid[0])
+            my_figure.add_subplot(homozygous_power_spectrum_axis)
+            homozygous_power_spectrum_axis.plot(this_compound_power_spectrum[:,0],
+                                                this_compound_power_spectrum[:,1],
+                                                color = 'black')
+            plt.xlim(0,0.01)
+            homozygous_power_spectrum_axis.locator_params(axis='x', tight = True, nbins=3)
+            homozygous_power_spectrum_axis.locator_params(axis='y', tight = True, nbins=3)
+            plt.gca().xaxis.set_ticklabels([])
+            plt.gca().yaxis.set_ticklabels([])
+            if parameter_index == 0:
+                plt.text(0.03, 0.6, 'Homozygous',
+                           fontsize = 7,
+                           color = 'black',
+                           transform=plt.gca().transAxes)
+           
+            allele_1_power_spectrum_axis = plt.Subplot(my_figure, this_power_spectrum_grid[1])
+                                                       
+            my_figure.add_subplot(allele_1_power_spectrum_axis)
+            allele_1_power_spectrum_axis.plot(this_allele_1_power_spectrum[:,0],
+                                               this_allele_1_power_spectrum[:,1],
+                                               color = 'green')
+            plt.xlim(0,0.01)
+            allele_1_power_spectrum_axis.locator_params(axis='x', tight = True, nbins=3)
+            allele_1_power_spectrum_axis.locator_params(axis='y', tight = True, nbins=3)
+            plt.gca().xaxis.set_ticklabels([])
+            plt.gca().yaxis.set_ticklabels([])
+            if parameter_index in [0, 3]:
+                plt.ylabel("Power")
+            if parameter_index == 0:
+                plt.text(0.03, 0.6, 'Allele 1',
+                           fontsize = 7,
+                           color = 'green',
+                           transform=plt.gca().transAxes)
+
+            allele_2_power_spectrum_axis = plt.Subplot(my_figure, this_power_spectrum_grid[2])
+            my_figure.add_subplot(allele_2_power_spectrum_axis)
+            allele_2_power_spectrum_axis.plot(this_allele_2_power_spectrum[:,0],
+                                               this_allele_2_power_spectrum[:,1],
+                                               color = 'blue')
+            plt.xlim(0,0.01)
+            allele_2_power_spectrum_axis.locator_params(axis='x', tight = True, nbins=3)
+            allele_2_power_spectrum_axis.locator_params(axis='y', tight = True, nbins=3)
+            plt.gca().yaxis.set_ticklabels([])
+            plt.xlabel("Frequency [1/min]")
+            if parameter_index == 0:
+                plt.text(0.03, 0.6, 'Allele 2',
+                           fontsize = 7,
+                           color = 'blue',
+                           transform=plt.gca().transAxes)
+ 
+        my_figure.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','heterozygous_visualisation.pdf'))
