@@ -1344,14 +1344,20 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','sample_number_dependance.pdf'))
         
-    def xest_plot_hill_function(self):
+    def test_plot_hill_function(self):
         x_values = np.linspace(0,3,100)
-        y_values = 1.0/(1.0 + np.power( x_values,5 ))
+        y_values = 1.0/(1.0 + np.power( x_values,2 ))
 
         figuresize = (6,2.5)
         my_figure = plt.figure(figsize = figuresize)
         my_figure.add_subplot(121)
         plt.plot(x_values,y_values)
+        y_values_2 = 1.0/(1.0 + np.power( x_values,5 ))
+        plt.plot(x_values,y_values_2)
+        y_values_4 = 1.0/(1.0 + np.power( x_values,6 ))
+        plt.plot(x_values,y_values_4)
+        y_values_3 = 1.0/(1.0 + np.power( x_values,7 ))
+        plt.plot(x_values,y_values_3)
         plt.xlabel('p/p_0')
         plt.ylabel('Hillfunction')
 
@@ -1518,7 +1524,7 @@ class TestSimpleHes5Model(unittest.TestCase):
                                        'output','hes5_heterozygous_trajectory_equilibrated.pdf'))
 
   
-    def test_validate_heterozygous_model(self):
+    def xest_validate_heterozygous_model(self):
         mRNA_trajectories_1, protein_trajectories_1, mRNA_trajectories_2, protein_trajectories_2 = hes5.generate_multiple_heterozygous_langevin_trajectories( 
                                                                      number_of_trajectories = 10,
                                                                      duration = 720,
@@ -1619,24 +1625,48 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','stochastic_langevin_model_validation.pdf'))
 
+    def xest_plot_histogram_for_logarithmic_prior(self):
+        
+        uniform_random_numbers = np.random.rand(10000)
+        logarithmically_distributed_numbers = np.power(100,uniform_random_numbers)
+        
+        my_figure = plt.figure(figsize = (4.5,2.5))
+        plt.hist(logarithmically_distributed_numbers, bins=np.logspace(0,2, 20))
+        plt.gca().set_xscale("log")
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','logarithmic_prior.pdf'))
+        
     def xest_vary_repression_threshold(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill_low_transcription')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
                                     np.logical_and(model_results[:,0]<65000, #cell_number
-                                    np.logical_and(model_results[:,1]<0.10, #standard deviation
-                                    np.logical_and(model_results[:,1]>0.05, #standard deviation
-                                                   model_results[:,3]<0.1)))))#coherence
-#                                     np.logical_and(model_results[:,3]<0.2,#coherence
-#                                                    prior_samples[:,3]>25)))))) #delay
-#                                     np.logical_and(model_results[:,3]>0.3, #coherence
-#                                                    prior_samples[:,3]>20)))))) #time_delay
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
 
-        my_parameter = my_posterior_samples[0]
+        my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                          'output',
+                                                          'hill_relative_sweeps_low_transcription' + 
+                                                          'repression_threshold.npy'))
+            
+        increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 
+                                        my_parameter_sweep_results[:,4 ,4],
+#                                         my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2))
+                                    np.logical_and(my_parameter_sweep_results[:,4,4] > 
+                                                   my_parameter_sweep_results[:,9,4]*8,
+                                    np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+                                                   my_parameter_sweep_results[:,4,4] > 0.2))))
+
+        my_posterior_results = accepted_model_results[increase_indices]
+        my_posterior_samples = my_posterior_samples[increase_indices]
+
+        my_parameter = my_posterior_samples[2]
         my_trajectory = hes5.generate_stochastic_trajectory( duration = 3500,
                                                          repression_threshold = my_parameter[2],
                                                          mRNA_degradation_rate = np.log(2)/30,
@@ -1647,6 +1677,7 @@ class TestSimpleHes5Model(unittest.TestCase):
                                                          initial_mRNA = 3,
                                                          initial_protein = my_parameter[2],
                                                          equilibration_time = 1000,
+                                                         hill_coefficient = my_parameter[4],
                                                          vary_repression_threshold = True)
         
         figuresize = (4,2.5)

@@ -8,6 +8,8 @@ import multiprocessing as mp
 from numba import jit, autojit
 from numpy import ndarray
 import os
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import seaborn.apionly as sns
 import pandas as pd
 from fnmatch import translate
@@ -556,9 +558,9 @@ def generate_stochastic_trajectory_and_transcription_times( duration = 720,
             elif reaction_index == 1: #protein translation
                 current_protein += 1
                 if vary_repression_threshold and time > equilibration_time + 2000.0:
-#                     current_repression_threshold = repression_threshold*(1.0-(time-equilibration_time-2000.0)/2500.0)
-                    current_repression_threshold = repression_threshold*(0.5)
-                    current_repression_threshold = max(current_repression_threshold, 0.01)
+                    current_repression_threshold = repression_threshold*(1.0-(time-equilibration_time-2000.0)/1000.0*0.7)
+#                     current_repression_threshold = repression_threshold*(0.5)
+#                     current_repression_threshold = max(current_repression_threshold, 0.01)
                 else:
                     current_repression_threshold = repression_threshold
                 propensities[0] = basal_transcription_rate/(1.0+
@@ -568,7 +570,8 @@ def generate_stochastic_trajectory_and_transcription_times( duration = 720,
             elif reaction_index == 2: #protein degradation
                 current_protein -=1
                 if vary_repression_threshold and time > equilibration_time + 2000.0:
-                    current_repression_threshold = repression_threshold*(0.5)
+                    current_repression_threshold = repression_threshold*(1.0-(time-equilibration_time-2000.0)/1000.0*0.7)
+#                     current_repression_threshold = repression_threshold*(0.5)
 #                     current_repression_threshold = repression_threshold*(1.0-(time-equilibration_time-2000.0)/2500.0)
                     current_repression_threshold = max(current_repression_threshold, 0.01)
                 else:
@@ -913,7 +916,8 @@ def generate_posterior_samples( total_number_of_samples,
                                                 'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
                                                 'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)},
                                 prior_dimension = 'reduced',
-                                use_langevin = True ):
+                                use_langevin = True,
+                                logarithmic = True ):
     '''Draw samples from the posterior using normal ABC. Posterior is calculated
     using ABC and the summary statistics mean and relative standard deviation.
     Also saves all sampled model results.
@@ -950,6 +954,9 @@ def generate_posterior_samples( total_number_of_samples,
     use_langevin : bool
         if True then the results will be generated using the langevin equation rather than the full gillespie algorithm.
         
+    logarithmic : bool
+        if True then logarithmic priors will be used on the translation and transcription rate constants
+        
     Returns
     -------
     
@@ -961,7 +968,7 @@ def generate_posterior_samples( total_number_of_samples,
     # first: keep degradation rates infer translation, transcription, repression threshold,
     # and time delay
     prior_samples = generate_prior_samples( total_number_of_samples, use_langevin,
-                                            prior_bounds, prior_dimension )
+                                            prior_bounds, prior_dimension, logarithmic )
 
     # collect summary_statistics_at_parameters
     model_results = calculate_summary_statistics_at_parameters( prior_samples, 
@@ -983,7 +990,7 @@ def generate_posterior_samples( total_number_of_samples,
     
     return posterior_samples
 
-def plot_posterior_distributions( posterior_samples ):
+def plot_posterior_distributions( posterior_samples, logarithmic = True ):
     '''Plot the posterior samples in a pair plot. Only works if there are
     more than four samples present
     
@@ -993,6 +1000,9 @@ def plot_posterior_distributions( posterior_samples ):
     posterior samples : np.array
         The samples from which the pairplot should be generated.
         Each row contains a parameter
+        
+    logarithmic : bool
+        if bool then the transcription and translation rate axes have logarithmic scales
     
     Returns
     -------
@@ -1041,10 +1051,49 @@ def plot_posterior_distributions( posterior_samples ):
     pairplot.map_diag(sns.distplot, kde = False, rug = True )
     pairplot.map_offdiag(sns.regplot, scatter_kws = {'alpha' : 0.4}, fit_reg=False) 
     pairplot.set(xlim = (0,None), ylim = (0,None))
-    pairplot.axes[-1,0].set_xlim(0,100)
-    pairplot.axes[-1,1].set_xlim(0,200)
-    pairplot.axes[-1,2].set_xlim(0,15)
+    if logarithmic:
+        for artist in pairplot.diag_axes[0].get_children():
+            try: 
+                artist.remove()
+            except:
+                pass
+        for artist in pairplot.diag_axes[1].get_children():
+            try: 
+                artist.remove()
+            except:
+                pass
+        transcription_rate_bins = np.logspace(-0.31,2,20)
+        translation_rate_bins = np.logspace(0,2.3,20)
+        plt.sca(pairplot.diag_axes[0])
+        transcription_histogram,_ = np.histogram(data_frame['Transcription rate'], 
+                                                 bins = transcription_rate_bins)
+        sns.distplot(data_frame['Transcription rate'],
+                     kde = False,
+                     rug = True,
+                     bins = transcription_rate_bins)
+    #                  ax = pairplot.diag_axes[0])
+#         pairplot.diag_axes[0].set_ylim(0,np.max(transcription_histogram)*1.2)
+        plt.gca().set_xlim(0.5,100)
+    
+        plt.sca(pairplot.diag_axes[1])
+        sns.distplot(data_frame['Translation rate'],
+                     kde = False,
+                     rug = True,
+                     bins = translation_rate_bins)
+        plt.gca().set_xlim(1,200)
+    #
+        pairplot.axes[-1,0].set_xscale("log")
+        pairplot.axes[-1,0].set_xlim(0.5,100)
+        pairplot.axes[-1,1].set_xscale("log")
+        pairplot.axes[-1,1].set_xlim(1,200)
+        pairplot.axes[0,0].set_yscale("log")
+        pairplot.axes[0,0].set_ylim(0.5,100)
+        pairplot.axes[1,0].set_yscale("log")
+        pairplot.axes[1,0].set_ylim(1,200)
+
+    pairplot.axes[-1,2].set_xlim(0,10)
     pairplot.axes[-1,3].set_xlim(5,40)
+
     if posterior_samples.shape[1] == 6:
         pairplot.axes[-1,4].locator_params(axis = 'x', nbins = 5)
         pairplot.axes[-1,5].locator_params(axis = 'x', nbins = 5)
@@ -1507,6 +1556,7 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
                                            'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
                                            'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)},
                            prior_dimension = 'reduced',
+                           logarithmic = True
                            ):
     '''Sample from the prior. Provides samples of the form 
     (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
@@ -1526,6 +1576,9 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
     prior_dimension : string
         'reduced' or 'full', or 'hill' are possible options. If 'full', then the mRNA and protein degradation rates
         will be inferred in addition to other model parameters.
+        
+    logarithmic : bool
+        if True then logarithmic priors will be assumed on the translation and transcription rates.
 
     Returns
     -------
@@ -1542,11 +1595,11 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
                                       5: 'mRNA_degradation_rate',
                                       6: 'protein_degradation_rate'}
     
-    standard_prior_bounds = {'basal_transcription_rate' : (0,100),
-                             'translation_rate' : (0,200),
+    standard_prior_bounds = {'basal_transcription_rate' : (0.5,100),
+                             'translation_rate' : (1,200),
                              'repression_threshold' : (0,100000),
                              'time_delay' : (5,40),
-                             'hill_coefficient' : (2,8),
+                             'hill_coefficient' : (2,7),
                              'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
                              'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)}
 
@@ -1570,8 +1623,14 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
            these_parameter_bounds = prior_bounds[this_parameter_name]
         else:
            these_parameter_bounds = standard_prior_bounds[this_parameter_name]
-        prior_samples[:,parameter_index] *= these_parameter_bounds[1] - these_parameter_bounds[0]
-        prior_samples[:,parameter_index] += these_parameter_bounds[0]
+        if logarithmic and this_parameter_name in ['translation_rate',
+                                                   'basal_transcription_rate']:
+            prior_samples[:,parameter_index] = these_parameter_bounds[0]*np.power(
+                                               these_parameter_bounds[1]/float(these_parameter_bounds[0]),
+                                               prior_samples[:,parameter_index])
+        else:
+            prior_samples[:,parameter_index] *= these_parameter_bounds[1] - these_parameter_bounds[0]
+            prior_samples[:,parameter_index] += these_parameter_bounds[0]
         if this_parameter_name == 'time_delay' and use_langevin:
             prior_samples[:,parameter_index] = np.around(prior_samples[:,parameter_index])
 
@@ -2286,14 +2345,18 @@ def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
                        'protein_degradation_rate',
                        'hill_coefficient']
     
+#     parameter_names = ['repression_threshold']
+ 
     sweep_results = dict()
 
     for parameter_name in parameter_names:
+        print 'sweeping ' + parameter_name
         these_results = conduct_parameter_sweep_at_parameters(parameter_name,
                                                               parameter_samples,
                                                               number_of_sweep_values,
                                                               number_of_traces_per_parameter,
                                                               relative)
+        print 'done sweeping ' + parameter_name
 
         sweep_results[parameter_name] = these_results   
         
