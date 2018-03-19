@@ -224,9 +224,180 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','pairplot_hill_abc_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
  
-    def xest_upsample_hill_abc(self):
+    def xest_pairplot_prior(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+#         acceptance_ratio = 0.02
+        total_number_of_samples = 2000
+        
+        prior_bounds = {'basal_transcription_rate' : (0.5,100),
+                        'translation_rate' : (1,200),
+                        'repression_threshold' : (0,100000),
+                        'time_delay' : (5,40),
+                        'hill_coefficient': (2,6)}
+#                         'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
+#                         'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)}
+#                         'mRNA_degradation_rate': (0.001, 0.04),
+#                         'protein_degradation_rate': (0.001, 0.04),
+        prior_samples = hes5.generate_prior_samples( total_number_of_samples, True,
+                                                prior_bounds, 'hill', True)
+
+
+        pairplot = hes5.plot_posterior_distributions(prior_samples)
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_log_prior.pdf'))
+
+    def xest_make_abc_logarithmic_prior(self):
         ## generate posterior samples
         total_number_of_samples = 20000
+        acceptance_ratio = 0.02
+
+#         total_number_of_samples = 10
+#         acceptance_ratio = 0.5
+
+        prior_bounds = {'basal_transcription_rate' : (0.5,100),
+                        'translation_rate' : (1,200),
+                        'repression_threshold' : (0,100000),
+                        'time_delay' : (5,40),
+                        'hill_coefficient': (2,6)}
+#                         'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
+#                         'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)}
+#                         'mRNA_degradation_rate': (0.001, 0.04),
+#                         'protein_degradation_rate': (0.001, 0.04),
+
+        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
+                                                                acceptance_ratio,
+                                                                number_of_traces_per_sample = 200,
+                                                                saving_name = 'sampling_results_logarithmic',
+                                                                prior_bounds = prior_bounds,
+                                                                prior_dimension = 'hill',
+                                                                logarithmic = True)
+        
+        self.assertEquals(my_posterior_samples.shape, 
+                          (int(round(total_number_of_samples*acceptance_ratio)), 5))
+
+        # plot distribution of accepted parameter samples
+        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_hill_abc_logarithmic_prior_' +  str(total_number_of_samples) + '_'
+                                      + str(acceptance_ratio) + '.pdf'))
+ 
+    def xest_plot_logarithmic_prior_bands(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,3]>20))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
+        pairplot.diag_axes[0].set_ylim(0,100)
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','pairplot_logarithmic_bands.pdf'))
+ 
+    def xest_plot_logarithmic_prior_oscillating(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+#                                                     model_results[:,1]>0.05))))  #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,3]>0.3))))) #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
+        pairplot.diag_axes[0].set_ylim(0,30)
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','pairplot_logarithmic_oscillating.pdf'))
+ 
+    def xest_plot_logarithmic_prior_not_oscillating(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+#                                                     model_results[:,1]>0.05))))  #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,3]<0.1))))) #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
+        pairplot.diag_axes[0].set_ylim(0,30)
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','pairplot_logarithmic_not_oscillating.pdf'))
+ 
+    def xest_plot_period_distribution_logarithmic_prior(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_periods = model_results[:,2]
+        plt.hist(all_periods, range = (0,600), bins = 20)
+        plt.xlabel('Period [min]')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','logarithmic_full_period_distribution.pdf'))
+
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_mrna_counts = model_results[:,4]
+        plt.hist(all_mrna_counts, range = (0,150), bins = 50)
+        plt.xlabel('Average mRNA count')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','logarithmic_full_mrna_distribution.pdf'))
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,3]>20))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_model_results = model_results[accepted_indices]
+
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_periods = my_model_results[:,2]
+        plt.hist(all_periods, range = (0,600), bins = 20)
+        plt.xlabel('Period [min]')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','logarithmic_abc_period_distribution.pdf'))
+
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_mrna_counts = my_model_results[:,4]
+        plt.hist(all_mrna_counts, range = (0,150), bins = 50)
+        plt.xlabel('Average mRNA count')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','logarithmic_abc_mrna_distribution.pdf'))
+ 
+    def xest_upsample_hill_abc(self):
+        ## generate posterior samples
+        total_number_of_samples = 200000
         acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
@@ -662,26 +833,6 @@ class TestSimpleHes5ABC(unittest.TestCase):
         sns.set()
         print 'number of accepted samples is ' + str(len(my_posterior_samples))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
-        # plot distribution of accepted parameter samples
-#         data_frame = pd.DataFrame( data = my_posterior_samples,
-#                                columns= ['Transcription rate', 
-#                                          'Translation rate', 
-#                                          'Repression threshold', 
-#                                          'Transcription delay'])
-# #         pairplot = sns.pairplot(data_frame)
-#         pairplot = sns.PairGrid(data_frame)
-#         pairplot.map_diag(sns.distplot, kde = False, rug = True )
-# #         cmap = sns.cubehelix_palette(as_cmap=True, dark=0, light=1, reverse=True)
-# #         sns.kdeplot(df.x, df.y, cmap=cmap, n_levels=60, shade=True);
-# #         pairplot.map_offdiag(sns.kdeplot, cmap = 'Blues', n_levels = 60, shade = True) 
-# #         pairplot.map_offdiag(sns.regplot, marker = '+', color = 'black',
-# #                              scatter_kws = {'alpha' : 0.4}, fit_reg=False) 
-#         pairplot.map_offdiag(sns.regplot, scatter_kws = {'alpha' : 0.4}, fit_reg=False) 
-#         pairplot.set(xlim = (0,None), ylim = (0,None))
-# #         pairplot.xlim(0, None)
-#         pairplot.map_diag(sns.distplot, kde = False, rug = True)
-#         pairplot.map_offdiag(sns.kdeplot, cmap="Blues_d", n_levels=10)
-#         pairplot.map_offdiag(sns.jointplot )
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_bands.pdf'))
  
@@ -988,6 +1139,59 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','heterozygous_mrna_distribution.pdf'))
+ 
+    def xest_plot_low_transcription_mrna_and_period_distributions(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill_low_transcription')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,3]>20))))) #time_delay
+
+        ## need to rerun abc with mrna numbers
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_periods = model_results[accepted_indices][:,2]
+        plt.hist(all_periods, range = (0,400), bins = 20)
+        plt.xlabel('Period [min]')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','abc_hill_low_transcription_period_distribution.pdf'))
+        
+#         new_accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+#                                     np.logical_and(model_results[:,0]<65000, #cell_number
+#                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
+# #                                                     model_results[:,1]>0.05))))  #standard deviation
+#                                                    model_results[:,1]>0.05))))  #standard deviation
+# #                                                     prior_samples[:,4]<6))))) #hill
+# 
+#         new_periods = model_results[new_accepted_indices][:,2]
+# 
+# 
+#         ## need to rerun abc with mrna numbers
+#         my_figure = plt.figure(figsize = (4,2.5))
+#         plt.hist(new_periods, bins = 200)
+# #         plt.hist(new_periods, range = (0,400), bins = 20)
+#         plt.xlabel('Period [min]')
+#         plt.ylabel('Occurrence')
+#         plt.xlim(0,500)
+#         plt.tight_layout()
+#         plt.savefig(os.path.join(os.path.dirname(__file__),
+#                                       'output','abc_hill_low_transcription_period_distribution.pdf'))
+
+
+        my_figure = plt.figure(figsize = (4,2.5))
+        all_mrna_counts = model_results[accepted_indices][:,4]
+        plt.hist(all_mrna_counts, range = (0,150), bins = 50)
+        plt.xlabel('Average mRNA count')
+        plt.ylabel('Occurrence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','abc_hill_low_transcription_mrna_distribution.pdf'))
  
     def xest_plot_hill_mrna_and_period_distributions(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
@@ -1312,6 +1516,35 @@ class TestSimpleHes5ABC(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','all_heterozygous_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
+    def xest_make_logarithmic_relative_parameter_variation(self):
+        number_of_parameter_points = 20
+        number_of_trajectories = 200
+#         number_of_parameter_points = 3
+#         number_of_trajectories = 2
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'number of accepted samples is'
+        print len(my_posterior_samples)
+
+        my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
+                                                                                     number_of_parameter_points,
+                                                                                     number_of_trajectories,
+                                                                                     relative = True)
+        
+        for parameter_name in my_parameter_sweep_results:
+            np.save(os.path.join(os.path.dirname(__file__), 'output','logarithmic_relative_sweeps_' + parameter_name + '.npy'),
+                    my_parameter_sweep_results[parameter_name])
+
     def xest_make_hill_relative_parameter_variation_low_transcription_rate(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
@@ -1418,6 +1651,16 @@ class TestSimpleHes5ABC(unittest.TestCase):
         x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
         x_labels['hill_coefficient'] = 'rel. Hill coefficient'
 
+        reference_indices = dict()
+        reference_indices['basal_transcription_rate'] = 5
+        reference_indices['translation_rate'] = 5
+        reference_indices['repression_threshold'] = 5 
+        reference_indices['time_delay'] = 15
+#         reference_indices['mRNA_degradation_rate'] = 15
+        reference_indices['mRNA_degradation_rate'] = 5
+        reference_indices['protein_degradation_rate'] = 15
+        reference_indices['hill_coefficient'] = 15
+
         reference_parameters = dict()
 
         for parameter_name in parameter_names:
@@ -1427,6 +1670,11 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
 #             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
         
+            increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+                                                       my_parameter_sweep_results[:,
+                                                                reference_indices[parameter_name] -1 ,3] < 400))
+
+            my_parameter_sweep_results = my_parameter_sweep_results[increase_indices]
             my_figure = plt.figure( figsize = (6.5, 1.5) )
             this_axis = my_figure.add_subplot(131)
             for results_table in my_parameter_sweep_results:
@@ -1457,10 +1705,11 @@ class TestSimpleHes5ABC(unittest.TestCase):
             this_axis.set_xlabel(x_labels[parameter_name])
             this_axis.set_ylabel('Expression/1e4')
             my_figure.tight_layout()
+            print 'hello?'
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                      'output','hill_all_relative_sweep_' + parameter_name + '.pdf'))
  
-    def xest_plot_hill_relative_parameter_variation(self):
+    def xest_plot_hill_relative_parameter_variation_transitions(self):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
@@ -1515,7 +1764,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                               'output',
                                                               'hill_relative_sweeps_' + parameter_name + '.npy'))
 
-            my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
+          
+#             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
         
             my_figure = plt.figure( figsize = (6.5, 1.5) )
             this_axis = my_figure.add_subplot(131)
@@ -1550,7 +1800,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                      'output','hill_relative_sweep_' + parameter_name + '.pdf'))
  
-    def test_make_relative_heterozygous_parameter_variation_low_variance(self):
+    def xest_make_relative_heterozygous_parameter_variation_low_variance(self):
         number_of_parameter_points = 20
 #         number_of_parameter_points = 3
         number_of_trajectories = 200
@@ -1607,9 +1857,9 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
         
         accepted_model_results = model_results[accepted_indices]
-        other_accepted_indices = np.where(accepted_model_results[:,3] < 0.2)
+#         other_accepted_indices = np.where(accepted_model_results[:,3] < 0.2)
         
-        model_results = model_results[other_accepted_indices]
+#         model_results = model_results[other_accepted_indices]
 
 
 #         my_parameter_sweep_results = hes5.conduct_protein_degradation_sweep_at_parameters(my_posterior_samples,
@@ -1646,7 +1896,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                               'output',
                                                               'all_relative_sweeps_low_variance_' + parameter_name + '.npy'))
 
-            my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
+#             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
         
             my_figure = plt.figure( figsize = (6.5, 1.5) )
             this_axis = my_figure.add_subplot(131)
@@ -1928,10 +2178,618 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot2.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_heterozygous_coherence_0.2.pdf'))
  
+    def xest_plot_low_transcription_relative_parameter_variation(self):
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_hill_low_transcription')
+        model_results = np.load(saving_path + '.npy')
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<10))))) #transcription_rate
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+        other_accepted_indices = np.where(accepted_model_results[:,3] < 0.2)
+        
+        model_results = model_results[other_accepted_indices]
+
+#         parameter_names = ['basal_transcription_rate',
+#                            'translation_rate',
+#                            'repression_threshold',
+#                            'time_delay',
+#                            'mRNA_degradation_rate',
+#                            'protein_degradation_rate',
+#                            'hill_coefficient']
+ 
+        parameter_names = ['repression_threshold']
+
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'rel. Transcription rate'
+        x_labels['translation_rate'] = 'rel. Translation rate'
+        x_labels['repression_threshold'] = 'rel. Repression threshold' 
+        x_labels['time_delay'] = 'rel. Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'rel. mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+        x_labels['hill_coefficient'] = 'rel. Hill coefficient'
+
+        parameter_indices = dict()
+        parameter_indices['basal_transcription_rate'] = 0
+        parameter_indices['translation_rate'] = 1
+        parameter_indices['repression_threshold'] = 2
+        parameter_indices['time_delay'] = 3
+        
+        reference_parameters = dict()
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                              'hill_relative_sweeps_low_transcription' + parameter_name + '.npy'))
+        
+            my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
+
+            my_figure = plt.figure( figsize = (6.5, 1.5) )
+            this_axis = my_figure.add_subplot(131)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                               results_table[:,3], color ='black', alpha = 0.01)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Period [min]')
+            this_axis.set_ylim(0,700)
+
+            this_axis = my_figure.add_subplot(132)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                               results_table[:,4], color = 'black', alpha = 0.01)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Coherence')
+#             this_axis.set_ylim(0,1)
+            this_axis.set_ylim(0,0.4)
+            
+            this_axis = my_figure.add_subplot(133)
+            for results_table in my_parameter_sweep_results:
+                this_axis.errorbar(results_table[:,0],
+                             results_table[:,1]/10000,
+                             yerr = results_table[:,2]/10000*results_table[:,1],
+                             color = 'black', alpha = 0.01)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_ylim(0,15)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Expression/1e4')
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output','relative_low_transcription_sweep_' + parameter_name + '.pdf'))
+ 
+    def xest_plot_relative_parameter_variation_coherence_increase_low_transcription(self):
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<10))))) #transcription_rate
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+#         other_accepted_indices = np.where(accepted_model_results[:,3] < 0.2)
+#         my_posterior_samples = prior_samples[other_accepted_indices]
+        
+#         model_results = model_results[other_accepted_indices]
+
+        parameter_names = ['basal_transcription_rate',
+                            'translation_rate',
+                            'repression_threshold',
+                            'time_delay',
+                            'mRNA_degradation_rate',
+                            'protein_degradation_rate',
+                            'hill_coefficient']
+
+#         parameter_names = ['repression_threshold']
+
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'rel. Transcription rate'
+        x_labels['translation_rate'] = 'rel. Translation rate'
+        x_labels['repression_threshold'] = 'rel. Repression threshold' 
+        x_labels['time_delay'] = 'rel. Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'rel. mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+        x_labels['hill_coefficient'] = 'rel. Hill coefficient'
+
+        reference_indices = dict()
+        reference_indices['basal_transcription_rate'] = 5
+        reference_indices['translation_rate'] = 5
+        reference_indices['repression_threshold'] = 5 
+        reference_indices['time_delay'] = 15
+#         reference_indices['mRNA_degradation_rate'] = 15
+        reference_indices['mRNA_degradation_rate'] = 5
+        reference_indices['protein_degradation_rate'] = 15
+        reference_indices['hill_coefficient'] = 15
+
+        parameter_indices = dict()
+        parameter_indices['basal_transcription_rate'] = 0
+        parameter_indices['translation_rate'] = 1
+        parameter_indices['repression_threshold'] = 2
+        parameter_indices['time_delay'] = 3
+        
+        reference_parameters = dict()
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                              'logarithmic_relative_sweeps_' + parameter_name + '.npy'))
+            
+#             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
+            
+#             increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 
+#                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4],
+# #                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2))
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 
+#                                                        my_parameter_sweep_results[:,9,4]*8,
+#                                         np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                        my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4] > 0.2))))
+# #                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,3] < 400,
+# #                                                        my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05))))
+# #                                         np.logical_and(my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05,
+# #                                                        my_parameter_sweep_results[:,9,3] < 400)))))
+        
+            increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+                                        np.logical_or(my_parameter_sweep_results[:,4,4]>0.1,
+                                                      my_parameter_sweep_results[:,14,4]>0.1))) 
+#                                                       my_parameter_sweep_results[:,
+#                                         np.logical_or(my_parameter_sweep_results[:,
+#                                                                                  4,
+#                                                                                  4] > 0.2,
+#                                                       my_parameter_sweep_results[:,
+#                                                                                  14,
+#                                                                                  4] > 0.2)))
+#                                         np.logical_or(my_parameter_sweep_results[:,
+#                                                                                  4,
+#                                                                                  3] < 400,
+#                                                       my_parameter_sweep_results[:,
+#                                                                                  14,
+#                                                                                  3] < 400)))
+#                                                                                   4] > 0.15))
+#                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2))
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 
+#                                                        my_parameter_sweep_results[:,9,4]*8,
+#                                         np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                        my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4] > 0.2))))
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,3] < 400,
+#                                                        my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05))))
+#                                         np.logical_and(my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05,
+#                                                        my_parameter_sweep_results[:,9,3] < 400)))))
+ 
+            my_parameter_sweep_results = my_parameter_sweep_results[increase_indices]
+            
+            my_sweep_parameters = my_posterior_samples[increase_indices]
+            
+            my_figure = plt.figure( figsize = (6.5, 1.5) )
+            this_axis = my_figure.add_subplot(131)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,3], color ='black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Period [min]')
+            this_axis.set_ylim(0,700)
+
+            this_axis = my_figure.add_subplot(132)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,4], color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Coherence')
+#             this_axis.set_ylim(0,1)
+#             this_axis.set_ylim(0,0.5)
+            this_axis.set_ylim(0,0.25)
+            
+            this_axis = my_figure.add_subplot(133)
+            for results_table in my_parameter_sweep_results:
+                this_axis.errorbar(results_table[:,0],
+                             results_table[:,1]/10000,
+                             yerr = results_table[:,2]/10000*results_table[:,1],
+                             color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_ylim(0,15)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Expression/1e4')
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output','logarithmic_relative_sweep_coherence_increases_' + parameter_name + '.pdf'))
+ 
+    def xest_plot_relative_parameter_variation_coherence_increase_low_transcription(self):
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill_low_transcription')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<10))))) #transcription_rate
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+#         other_accepted_indices = np.where(accepted_model_results[:,3] < 0.2)
+#         my_posterior_samples = prior_samples[other_accepted_indices]
+        
+#         model_results = model_results[other_accepted_indices]
+
+        parameter_names = ['basal_transcription_rate',
+                            'translation_rate',
+                            'repression_threshold',
+                            'time_delay',
+                            'mRNA_degradation_rate',
+                            'protein_degradation_rate',
+                            'hill_coefficient']
+
+#         parameter_names = ['repression_threshold']
+
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'rel. Transcription rate'
+        x_labels['translation_rate'] = 'rel. Translation rate'
+        x_labels['repression_threshold'] = 'rel. Repression threshold' 
+        x_labels['time_delay'] = 'rel. Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'rel. mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+        x_labels['hill_coefficient'] = 'rel. Hill coefficient'
+
+        reference_indices = dict()
+        reference_indices['basal_transcription_rate'] = 5
+        reference_indices['translation_rate'] = 5
+        reference_indices['repression_threshold'] = 5 
+        reference_indices['time_delay'] = 15
+#         reference_indices['mRNA_degradation_rate'] = 15
+        reference_indices['mRNA_degradation_rate'] = 5
+        reference_indices['protein_degradation_rate'] = 15
+        reference_indices['hill_coefficient'] = 15
+
+        parameter_indices = dict()
+        parameter_indices['basal_transcription_rate'] = 0
+        parameter_indices['translation_rate'] = 1
+        parameter_indices['repression_threshold'] = 2
+        parameter_indices['time_delay'] = 3
+        
+        reference_parameters = dict()
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                              'hill_relative_sweeps_low_transcription' + parameter_name + '.npy'))
+            
+#             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
+            
+#             increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 
+#                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4],
+# #                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2))
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 
+#                                                        my_parameter_sweep_results[:,9,4]*8,
+#                                         np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                        my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4] > 0.2))))
+# #                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,3] < 400,
+# #                                                        my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05))))
+# #                                         np.logical_and(my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05,
+# #                                                        my_parameter_sweep_results[:,9,3] < 400)))))
+        
+            increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+                                                       my_parameter_sweep_results[:,
+                                                                                  reference_indices[parameter_name],
+                                                                                3] < 400))
+#                                                                                   4] > 0.15))
+#                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2))
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 
+#                                                        my_parameter_sweep_results[:,9,4]*8,
+#                                         np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                        my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4] > 0.2))))
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,3] < 400,
+#                                                        my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05))))
+#                                         np.logical_and(my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05,
+#                                                        my_parameter_sweep_results[:,9,3] < 400)))))
+ 
+            my_parameter_sweep_results = my_parameter_sweep_results[increase_indices]
+            
+            my_sweep_parameters = my_posterior_samples[increase_indices]
+            
+            my_figure = plt.figure( figsize = (6.5, 1.5) )
+            this_axis = my_figure.add_subplot(131)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,3], color ='black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Period [min]')
+            this_axis.set_ylim(0,700)
+
+            this_axis = my_figure.add_subplot(132)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,4], color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Coherence')
+#             this_axis.set_ylim(0,1)
+#             this_axis.set_ylim(0,0.5)
+            this_axis.set_ylim(0,0.25)
+            
+            this_axis = my_figure.add_subplot(133)
+            for results_table in my_parameter_sweep_results:
+                this_axis.errorbar(results_table[:,0],
+                             results_table[:,1]/10000,
+                             yerr = results_table[:,2]/10000*results_table[:,1],
+                             color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_ylim(0,15)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Expression/1e4')
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output','multiple_relative_sweep_low_transcription_coherence_increases_' + parameter_name + '.pdf'))
+ 
+    def xest_plot_pairplot_for_coherence_increase(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill_low_transcription')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                    model_results[:,1]>0.05)))) #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+#         other_accepted_indices = np.where(accepted_model_results[:,3] < 0.2)
+#         my_posterior_samples = my_posterior_samples[other_accepted_indices]
+#         
+#         model_results = accepted_model_results[other_accepted_indices]
+
+        parameter_names = ['basal_transcription_rate',
+                           'translation_rate',
+                           'repression_threshold',
+                           'time_delay',
+                           'mRNA_degradation_rate',
+                           'protein_degradation_rate',
+                           'hill_coefficient']
+ 
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'rel. Transcription rate'
+        x_labels['translation_rate'] = 'rel. Translation rate'
+        x_labels['repression_threshold'] = 'rel. Repression threshold' 
+        x_labels['time_delay'] = 'rel. Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'rel. mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+        x_labels['hill_coefficient'] = 'rel. Hill coefficient'
+
+        reference_indices = dict()
+        reference_indices['basal_transcription_rate'] = 5
+        reference_indices['translation_rate'] = 5
+        reference_indices['repression_threshold'] = 5 
+        reference_indices['time_delay'] = 15
+#         reference_indices['mRNA_degradation_rate'] = 15
+        reference_indices['mRNA_degradation_rate'] = 5
+        reference_indices['protein_degradation_rate'] = 15
+        reference_indices['hill_coefficient'] = 15
+
+        parameter_indices = dict()
+        parameter_indices['basal_transcription_rate'] = 0
+        parameter_indices['translation_rate'] = 1
+        parameter_indices['repression_threshold'] = 2
+        parameter_indices['time_delay'] = 3
+        
+        reference_parameters = dict()
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                              'hill_relative_sweeps_low_transcription' + parameter_name + '.npy'))
+            
+#             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
+            increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 
+                                            my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4],
+#                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2))
+                                        np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 
+                                                       my_parameter_sweep_results[:,9,4]*1.2,
+                                        np.logical_and(my_parameter_sweep_results[:,9,4] < 0.2,
+                                                       my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4] > 0.2))))
+#   
+#             increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,10,4] < 
+#                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4],
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2,
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,3] < 400,
+# #                                                        my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.15))))
+#                                         np.logical_and(my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05,
+#                                                        my_parameter_sweep_results[:,9,3] < 400)))))
+#         
+            my_parameter_sweep_results = my_parameter_sweep_results[increase_indices]
+            
+            my_sweep_parameters = my_posterior_samples[increase_indices]
+ 
+            try:
+                my_pairplot = hes5.plot_posterior_distributions(my_sweep_parameters)
+                my_pairplot.axes[-1,0].set_xlim(0,4)
+#                 plt.style.use('classic')
+                my_pairplot.savefig(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                              'pairplot_low_transcription_coherence_increase_' + parameter_name + '.pdf'))
+            except:
+                print 'could not pairplot ' + parameter_name
+
+    def xest_plot_traces_for_repression_threshold_decrease(self):
+        
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill_low_transcription')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                    model_results[:,1]>0.05)))) #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+
+        my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                          'output',
+                                                          'hill_relative_sweeps_low_transcription' + 
+                                                          'repression_threshold.npy'))
+            
+        increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 
+                                        my_parameter_sweep_results[:,4 ,4],
+#                                         my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2))
+                                    np.logical_and(my_parameter_sweep_results[:,4,4] > 
+                                                   my_parameter_sweep_results[:,9,4]*8,
+                                    np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+                                                   my_parameter_sweep_results[:,4,4] > 0.2))))
+#       
+        my_posterior_results = model_results[increase_indices]
+        my_posterior_samples = my_posterior_samples[increase_indices]
+
+        number_of_traces = 10
+        figuresize = (6,9)
+        my_figure = plt.figure(figsize = figuresize)
+        outer_grid = matplotlib.gridspec.GridSpec(3, 3 )
+        
+        repression_threshold_percentages = [1.0, 0.5, 0.25] #corresponds to 1.0 and 0.5
+        
+        y_limits = [[4,8],
+                    [2,6],
+                    [0,4]]
+
+        for figure_row_index, repression_threshold_percentage in enumerate(repression_threshold_percentages):
+            for parameter_index in range(3):
+                this_double_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(2, 1,
+                        subplot_spec = outer_grid[figure_row_index*3 + parameter_index],
+                        height_ratios= [number_of_traces, 1])
+                this_inner_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(number_of_traces, 1,
+                        subplot_spec=this_double_grid[0], hspace=0.0)
+                this_parameter = my_posterior_samples[parameter_index]
+                this_results = my_posterior_results[parameter_index]
+
+                _, these_traces = hes5.generate_multiple_langevin_trajectories(number_of_trajectories = 200,
+                                                             duration = 1500*5,
+                                                             repression_threshold = this_parameter[2]*
+                                                                                    repression_threshold_percentage,
+                                                             mRNA_degradation_rate = np.log(2)/30.0,
+                                                             protein_degradation_rate = np.log(2)/90,
+                                                             transcription_delay = this_parameter[3],
+                                                             basal_transcription_rate = this_parameter[0],
+                                                             translation_rate = this_parameter[1],
+                                                             initial_mRNA = 10,
+                                                             initial_protein = this_parameter[2]*
+                                                                                    repression_threshold_percentage,
+                                                             equilibration_time = 1000)
+                this_power_spectrum, this_coherence, _ = hes5.calculate_power_spectrum_of_trajectories(these_traces)
+
+                for subplot_index in range(number_of_traces):
+                    this_axis = plt.Subplot(my_figure, this_inner_grid[subplot_index])
+                    my_figure.add_subplot(this_axis)
+                    this_trace = hes5.generate_langevin_trajectory(
+                                                             duration = 1500,
+                                                             repression_threshold = this_parameter[2]*
+                                                                                    repression_threshold_percentage,
+                                                             mRNA_degradation_rate = np.log(2)/30.0,
+                                                             protein_degradation_rate = np.log(2)/90,
+                                                             transcription_delay = this_parameter[3],
+                                                             basal_transcription_rate = this_parameter[0],
+                                                             translation_rate = this_parameter[1],
+                                                             initial_mRNA = 10,
+                                                             initial_protein = this_parameter[2]*
+                                                                                    repression_threshold_percentage,
+                                                             hill_coefficient = this_parameter[4],
+                                                             equilibration_time = 1000)
+
+                    plt.plot(this_trace[:,0], this_trace[:,2]/1e4)
+                    plt.ylim(y_limits[figure_row_index])
+#                     this_axis.locator_params(axis='y', tight = True, nbins=1)
+#                     this_axis.locator_params(axis='y', nbins=2)
+                    this_axis.locator_params(axis='x', tight = True, nbins=3)
+                    plt.yticks([])
+                    this_axis.tick_params(axis='both', length = 1)
+                    if subplot_index == 0:
+                        plt.title('Coherence: ' + '{:.2f}'.format(this_coherence) + 
+                                  r', $\alpha_m =$ ' + '{:.2f}'.format(this_parameter[0]) +
+                                  '\n' + r'$\alpha_p =$ ' + '{:.2f}'.format(this_parameter[1]) + 
+                                  r', $p_0 = $ ' + '{:.2f}'.format(this_parameter[2]) + 
+                                  r', $\tau = $ ' + '{:.2f}'.format(this_parameter[3]),
+                                  fontsize = 5)
+                    if subplot_index < number_of_traces - 1:
+                        this_axis.xaxis.set_ticklabels([])
+                    if parameter_index !=0: 
+                        this_axis.yaxis.set_ticklabels([])
+                    if parameter_index == 0 and subplot_index == 5:
+                        plt.ylabel('Expression/1e4', labelpad = 15)
+                plt.xlabel('Time [min]', labelpad = 2)
+                plt.yticks(y_limits[figure_row_index])
+                this_axis = plt.Subplot(my_figure, this_double_grid[1])
+                my_figure.add_subplot(this_axis)
+                plt.xlabel('Frequency [1/min]', labelpad = 2)
+                plt.plot(this_power_spectrum[:,0], this_power_spectrum[:,1])
+                this_axis.locator_params(axis='x', tight = True, nbins=3)
+                this_axis.tick_params(axis='both', length = 1)
+                if parameter_index == 0:
+                    plt.ylabel('Power', labelpad = 15)
+                max_index = np.argmax(this_power_spectrum[:,1])
+                max_power_frequency = this_power_spectrum[max_index,0]
+                left_frequency = max_power_frequency*0.9
+                right_frequency = max_power_frequency*1.1
+                plt.axvline(left_frequency, color = 'black')
+                plt.axvline(right_frequency, color = 'black')
+                plt.xlim(0.0,0.01)
+                plt.yticks([])
+                plt.axhline(3)
+
+        plt.figtext(0.5,0.98,r'Repression threshold ratio at 1.0', fontsize = 10, 
+                rotation = 'horizontal', verticalalignment = 'bottom', multialignment = 'center',
+                horizontalalignment = 'center')
+        plt.figtext(0.5,0.65,r'Repression threshold ratio at 0.5', fontsize = 10, 
+                rotation = 'horizontal', verticalalignment = 'bottom', multialignment = 'center',
+                horizontalalignment = 'center')
+        plt.figtext(0.5,0.32,r'Repression threshold ratio at 0.25', fontsize = 10, 
+                rotation = 'horizontal', verticalalignment = 'bottom', multialignment = 'center',
+                horizontalalignment = 'center')
+        plt.tight_layout()
+        my_figure.subplots_adjust(hspace = 0.5)
+            
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','repression_threshold_decrease.pdf'))
+
     def xest_plot_low_transcription_parameter_variation(self):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_hill_low_transcription')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -3402,6 +4260,116 @@ class TestSimpleHes5ABC(unittest.TestCase):
        
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','low_transcription_rate_langevin_validation.pdf'))
+
+    def test_visualise_model_regimes(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        number_of_traces = 10
+        figuresize = (6,2.5)
+        my_figure = plt.figure(figsize = figuresize)
+        outer_grid = matplotlib.gridspec.GridSpec(1, 3 )
+
+        coherence_bands = [[0,0.1],
+                           [0.175,0.2],
+                           [0.25,0.3]]
+
+        for coherence_index, coherence_band in enumerate(coherence_bands):
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                        np.logical_and(model_results[:,0]<65000, #cell_number
+                                        np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                        np.logical_and(model_results[:,1]>0.05,
+                                        np.logical_and(model_results[:,3]>coherence_band[0],
+                                                       model_results[:,3]<coherence_band[1]))))))
+
+            my_posterior_results = model_results[accepted_indices]
+            my_posterior_samples = prior_samples[accepted_indices]
+       
+            this_double_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(2, 1,
+                    subplot_spec = outer_grid[coherence_index],
+                    height_ratios= [number_of_traces, 1])
+#                     wspace = 5.0)
+            this_inner_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(number_of_traces, 1,
+                    subplot_spec=this_double_grid[0], hspace=0.0)
+            this_parameter = my_posterior_samples[0]
+            this_results = my_posterior_results[0]
+
+            for subplot_index in range(number_of_traces):
+                this_axis = plt.Subplot(my_figure, this_inner_grid[subplot_index])
+                my_figure.add_subplot(this_axis)
+                this_trace = hes5.generate_langevin_trajectory(
+                                                         duration = 1500,
+                                                         repression_threshold = this_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = this_parameter[3],
+                                                         basal_transcription_rate = this_parameter[0],
+                                                         translation_rate = this_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         hill_coefficient = this_parameter[4],
+                                                         initial_protein = this_parameter[2],
+                                                         equilibration_time = 1000)
+                plt.plot(this_trace[:,0], this_trace[:,2]/1e4)
+                plt.ylim(3,9)
+#                 this_axis.locator_params(axis='y', tight = True, nbins=1)
+#                 this_axis.locator_params(axis='y', nbins=2)
+                this_axis.locator_params(axis='x', tight = True, nbins=3)
+                plt.yticks([])
+                this_axis.tick_params(axis='both', length = 1)
+                if subplot_index == 0:
+                    plt.title('Coherence: ' + '{:.2f}'.format(this_results[3]) + 
+                              r', $\alpha_m =$ ' + '{:.2f}'.format(this_parameter[0]) +
+                              r', $n =$ ' + '{:.2f}'.format(this_parameter[4]) +
+                              '\n' + r'$\alpha_p =$ ' + '{:.2f}'.format(this_parameter[1]) + 
+                              r', $p_0 = $ ' + '{:.2f}'.format(this_parameter[2]) + 
+                              r', $\tau = $ ' + '{:.2f}'.format(this_parameter[3]),
+                              fontsize = 5)
+                if subplot_index < number_of_traces - 1:
+                    this_axis.xaxis.set_ticklabels([])
+                if subplot_index !=9 or coherence_index != 0: 
+                    this_axis.yaxis.set_ticklabels([])
+                else:
+                    plt.yticks([3,9])
+                if coherence_index == 0 and subplot_index == 4:
+                    plt.ylabel('Expression/1e4 ', labelpad = 15)
+            plt.xlabel('Time [min]', labelpad = 2)
+            plt.yticks([3,9])
+            this_axis = plt.Subplot(my_figure, this_double_grid[1])
+            my_figure.add_subplot(this_axis)
+            plt.xlabel('Frequency [1/min]', labelpad = 2)
+            _, these_traces = hes5.generate_multiple_langevin_trajectories(number_of_trajectories = 200,
+                                                         duration = 1500*5,
+                                                         repression_threshold = this_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30.0,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = this_parameter[3],
+                                                         basal_transcription_rate = this_parameter[0],
+                                                         translation_rate = this_parameter[1],
+                                                         initial_mRNA = 10,
+                                                         initial_protein = this_parameter[2],
+                                                         hill_coefficient = this_parameter[4],
+                                                         equilibration_time = 1000)
+            this_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_traces)
+            plt.plot(this_power_spectrum[:,0], this_power_spectrum[:,1])
+            this_axis.locator_params(axis='x', tight = True, nbins=3)
+            this_axis.tick_params(axis='both', length = 1)
+            if coherence_index == 0:
+                plt.ylabel('Power', labelpad = 15)
+            max_index = np.argmax(this_power_spectrum[:,1])
+            max_power_frequency = this_power_spectrum[max_index,0]
+            left_frequency = max_power_frequency*0.9
+            right_frequency = max_power_frequency*1.1
+            plt.axvline(left_frequency, color = 'black')
+            plt.axvline(right_frequency, color = 'black')
+            plt.xlim(0.0,0.01)
+            plt.yticks([])
+            plt.axhline(3)
+
+        plt.tight_layout()
+        my_figure.subplots_adjust(hspace = 0.7)
+            
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','model_visualisation.pdf'))
 
     def xest_visualise_different_coherences(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
