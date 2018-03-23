@@ -1062,7 +1062,7 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
                 artist.remove()
             except:
                 pass
-        transcription_rate_bins = np.logspace(-0.31,2,20)
+        transcription_rate_bins = np.logspace(-1,2,20)
         translation_rate_bins = np.logspace(0,2.3,20)
         plt.sca(pairplot.diag_axes[0])
         transcription_histogram,_ = np.histogram(data_frame['Transcription rate'], 
@@ -1083,11 +1083,11 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
         plt.gca().set_xlim(1,200)
     #
         pairplot.axes[-1,0].set_xscale("log")
-        pairplot.axes[-1,0].set_xlim(0.5,100)
+        pairplot.axes[-1,0].set_xlim(0.1,100)
         pairplot.axes[-1,1].set_xscale("log")
         pairplot.axes[-1,1].set_xlim(1,200)
         pairplot.axes[0,0].set_yscale("log")
-        pairplot.axes[0,0].set_ylim(0.5,100)
+        pairplot.axes[0,0].set_ylim(0.1,100)
         pairplot.axes[1,0].set_yscale("log")
         pairplot.axes[1,0].set_ylim(1,200)
 

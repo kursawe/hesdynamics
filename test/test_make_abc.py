@@ -225,7 +225,6 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       + str(acceptance_ratio) + '.pdf'))
  
     def xest_pairplot_prior(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
 #         acceptance_ratio = 0.02
         total_number_of_samples = 2000
         
@@ -246,7 +245,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_log_prior.pdf'))
 
-    def xest_make_abc_logarithmic_prior(self):
+    def xest_make_abc_logarithmic_prior_vary_bounds(self):
         ## generate posterior samples
         total_number_of_samples = 20000
         acceptance_ratio = 0.02
@@ -254,11 +253,46 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #         total_number_of_samples = 10
 #         acceptance_ratio = 0.5
 
-        prior_bounds = {'basal_transcription_rate' : (0.5,100),
+        prior_bounds = {'basal_transcription_rate' : (0.1,100),
                         'translation_rate' : (1,200),
                         'repression_threshold' : (0,100000),
                         'time_delay' : (5,40),
                         'hill_coefficient': (2,6)}
+#                         'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
+#                         'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)}
+#                         'mRNA_degradation_rate': (0.001, 0.04),
+#                         'protein_degradation_rate': (0.001, 0.04),
+
+        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
+                                                                acceptance_ratio,
+                                                                number_of_traces_per_sample = 200,
+                                                                saving_name = 'sampling_results_logarithmic',
+                                                                prior_bounds = prior_bounds,
+                                                                prior_dimension = 'hill',
+                                                                logarithmic = True)
+        
+        self.assertEquals(my_posterior_samples.shape, 
+                          (int(round(total_number_of_samples*acceptance_ratio)), 5))
+
+        # plot distribution of accepted parameter samples
+        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_hill_abc_logarithmic_prior_' +  str(total_number_of_samples) + '_'
+                                      + str(acceptance_ratio) + '.pdf'))
+ 
+    def xest_make_abc_logarithmic_prior(self):
+        ## generate posterior samples
+        total_number_of_samples = 200000
+        acceptance_ratio = 0.02
+
+#         total_number_of_samples = 10
+#         acceptance_ratio = 0.5
+
+        prior_bounds = {'basal_transcription_rate' : (0.1,100),
+                        'translation_rate' : (1,200),
+                        'repression_threshold' : (0,100000),
+                        'time_delay' : (5,40),
+                        'hill_coefficient' : (2,6)}
 #                         'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
 #                         'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)}
 #                         'mRNA_degradation_rate': (0.001, 0.04),
@@ -297,9 +331,9 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
         print 'number of accepted samples is ' + str(len(my_posterior_samples))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
-        pairplot.diag_axes[0].set_ylim(0,100)
+        pairplot.diag_axes[0].set_ylim(0,1000)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                    'output','pairplot_logarithmic_bands.pdf'))
+                                    'output','pairplot_logarithmic_bands2.pdf'))
  
     def xest_plot_logarithmic_prior_oscillating(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -2272,7 +2306,156 @@ class TestSimpleHes5ABC(unittest.TestCase):
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                      'output','relative_low_transcription_sweep_' + parameter_name + '.pdf'))
  
-    def xest_plot_relative_parameter_variation_coherence_increase_low_transcription(self):
+    def xest_plot_relative_parameter_variation_for_nancy(self):
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<10))))) #transcription_rate
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+#         other_accepted_indices = np.where(accepted_model_results[:,3] < 0.2)
+#         my_posterior_samples = prior_samples[other_accepted_indices]
+        
+#         model_results = model_results[other_accepted_indices]
+
+        parameter_names = ['basal_transcription_rate',
+                            'translation_rate',
+                            'repression_threshold',
+                            'time_delay',
+                            'mRNA_degradation_rate',
+                            'protein_degradation_rate',
+                            'hill_coefficient']
+
+#         parameter_names = ['repression_threshold']
+
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'rel. Transcription rate'
+        x_labels['translation_rate'] = 'rel. Translation rate'
+        x_labels['repression_threshold'] = 'rel. Repression threshold' 
+        x_labels['time_delay'] = 'rel. Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'rel. mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+        x_labels['hill_coefficient'] = 'rel. Hill coefficient'
+
+        reference_indices = dict()
+        reference_indices['basal_transcription_rate'] = 5
+        reference_indices['translation_rate'] = 5
+        reference_indices['repression_threshold'] = 5 
+        reference_indices['time_delay'] = 15
+#         reference_indices['mRNA_degradation_rate'] = 15
+        reference_indices['mRNA_degradation_rate'] = 5
+        reference_indices['protein_degradation_rate'] = 15
+        reference_indices['hill_coefficient'] = 15
+
+        parameter_indices = dict()
+        parameter_indices['basal_transcription_rate'] = 0
+        parameter_indices['translation_rate'] = 1
+        parameter_indices['repression_threshold'] = 2
+        parameter_indices['time_delay'] = 3
+        
+        reference_parameters = dict()
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                              'logarithmic_relative_sweeps_' + parameter_name + '.npy'))
+            
+#             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
+            
+#             increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 
+#                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4],
+# #                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2))
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 
+#                                                        my_parameter_sweep_results[:,9,4]*8,
+#                                         np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                        my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4] > 0.2))))
+# #                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,3] < 400,
+# #                                                        my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05))))
+# #                                         np.logical_and(my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05,
+# #                                                        my_parameter_sweep_results[:,9,3] < 400)))))
+        
+            increase_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 0.25,
+                                        np.logical_or(my_parameter_sweep_results[:,4,4]>0.25,
+                                                      my_parameter_sweep_results[:,14,4]>0.25))) 
+#                                                       my_parameter_sweep_results[:,
+#                                         np.logical_or(my_parameter_sweep_results[:,
+#                                                                                  4,
+#                                                                                  4] > 0.2,
+#                                                       my_parameter_sweep_results[:,
+#                                                                                  14,
+#                                                                                  4] > 0.2)))
+#                                         np.logical_or(my_parameter_sweep_results[:,
+#                                                                                  4,
+#                                                                                  3] < 400,
+#                                                       my_parameter_sweep_results[:,
+#                                                                                  14,
+#                                                                                  3] < 400)))
+#                                                                                   4] > 0.15))
+#                                             my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 0.2))
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,4] > 
+#                                                        my_parameter_sweep_results[:,9,4]*8,
+#                                         np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                        my_parameter_sweep_results[:,reference_indices[parameter_name] -1 ,4] > 0.2))))
+#                                         np.logical_and(my_parameter_sweep_results[:,reference_indices[parameter_name] -1,3] < 400,
+#                                                        my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05))))
+#                                         np.logical_and(my_parameter_sweep_results[:,20 - reference_indices[parameter_name] -1,4] < 0.05,
+#                                                        my_parameter_sweep_results[:,9,3] < 400)))))
+ 
+#             my_parameter_sweep_results = my_parameter_sweep_results[increase_indices]
+            
+#             my_sweep_parameters = my_posterior_samples[increase_indices]
+            
+            my_figure = plt.figure( figsize = (6.5, 1.5) )
+            this_axis = my_figure.add_subplot(131)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,3], color ='black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Period [min]')
+            this_axis.set_ylim(0,700)
+
+            this_axis = my_figure.add_subplot(132)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,4], color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Coherence')
+            this_axis.set_ylim(0,1)
+#             this_axis.set_ylim(0,0.5)
+#             this_axis.set_ylim(0,0.25)
+            
+            this_axis = my_figure.add_subplot(133)
+            for results_table in my_parameter_sweep_results:
+                this_axis.errorbar(results_table[:,0],
+                             results_table[:,1]/10000,
+                             yerr = results_table[:,2]/10000*results_table[:,1],
+                             color = 'black', alpha = 0.05)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_ylim(0,15)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Expression/1e4')
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output','logarithmic_relative_sweep_for_nancy_' + parameter_name + '.pdf'))
+ 
+    def test_plot_relative_parameter_variation_coherence_increase_logarithmic(self):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
@@ -2384,7 +2567,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
  
             my_parameter_sweep_results = my_parameter_sweep_results[increase_indices]
             
-            my_sweep_parameters = my_posterior_samples[increase_indices]
+#             my_sweep_parameters = my_posterior_samples[increase_indices]
             
             my_figure = plt.figure( figsize = (6.5, 1.5) )
             this_axis = my_figure.add_subplot(131)
@@ -2405,7 +2588,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
             this_axis.set_ylabel('Coherence')
 #             this_axis.set_ylim(0,1)
 #             this_axis.set_ylim(0,0.5)
-            this_axis.set_ylim(0,0.25)
+            this_axis.set_ylim(0,0.4)
             
             this_axis = my_figure.add_subplot(133)
             for results_table in my_parameter_sweep_results:
@@ -2419,7 +2602,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
             this_axis.set_ylabel('Expression/1e4')
             my_figure.tight_layout()
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                     'output','logarithmic_relative_sweep_coherence_increases_' + parameter_name + '.pdf'))
+                                     'output','logarithmic_relative_sweep_coherence_increases_large_' + parameter_name + '.pdf'))
  
     def xest_plot_relative_parameter_variation_coherence_increase_low_transcription(self):
 
@@ -4261,7 +4444,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','low_transcription_rate_langevin_validation.pdf'))
 
-    def test_visualise_model_regimes(self):
+    def xest_visualise_model_regimes(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
