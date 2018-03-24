@@ -2447,7 +2447,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     parameter_indices_and_ranges['time_delay'] =               (3,(5.0,40.0))
     parameter_indices_and_ranges['hill_coefficient'] =         (4,(1,10))
     parameter_indices_and_ranges['mRNA_degradation_rate'] =    (5,(np.log(2)/500,np.log(2)/15))
-    parameter_indices_and_ranges['protein_degradation_rate'] = (6,(np.log(2)/500,np.log(2)/15))
+    parameter_indices_and_ranges['protein_degradation_rate'] = (6,(np.log(2)/5000,np.log(2)/15))
 
     # first: make a table of 7d parameters
     total_number_of_parameters_required = parameter_samples.shape[0]*number_of_sweep_values

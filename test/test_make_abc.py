@@ -280,7 +280,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','pairplot_hill_abc_logarithmic_prior_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
  
-    def xest_make_abc_logarithmic_prior(self):
+    def test_make_abc_logarithmic_prior(self):
         ## generate posterior samples
         total_number_of_samples = 200000
         acceptance_ratio = 0.02
@@ -1550,7 +1550,102 @@ class TestSimpleHes5ABC(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','all_heterozygous_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def xest_make_logarithmic_relative_parameter_variation(self):
+    def test_make_logarithmic_degradation_rate_sweep(self):
+        number_of_parameter_points = 20
+        number_of_trajectories = 200
+#         number_of_parameter_points = 3
+#         number_of_trajectories = 2
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
+
+        my_sweep_results = hes5.conduct_parameter_sweep_at_parameters('protein_degradation_rate',
+                                          my_posterior_samples,
+                                          number_of_sweep_values = number_of_parameter_points,
+                                          number_of_traces_per_parameter = number_of_trajectories,
+                                          relative = False)
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','logarithmic_degradation_sweep.npy'),
+                    my_sweep_results)
+
+    def xest_plot_logarithmic_degradation_sweep(self):
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                    model_results[:,1]>0.05)))) #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,1]>0.05, #standard deviation
+#                                                    model_results[:,3]>0.3))))) #coherence
+#                                     np.logical_and(model_results[:,3]>0.3, #coherence
+#                                                     prior_samples[:,3]>20))))) #time_delay
+#                                                     prior_samples[:,0]<10))))) #transcription_rate
+#                                                     prior_samples[:,3]>20)))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+#         my_parameter_sweep_results = hes5.conduct_protein_degradation_sweep_at_parameters(my_posterior_samples,
+#                                                                                           number_of_parameter_points,
+#                                                                                           number_of_trajectories)
+        my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                                          'logarithmic_degradation_sweep.npy'))
+        
+#         new_accepted_indices = np.where( my_posterior_samples[:,0] < 10 )
+#         my_parameter_sweep_results = my_parameter_sweep_results[new_accepted_indices]
+
+        my_figure = plt.figure( figsize = (6.5, 1.5) )
+        my_figure.add_subplot(131)
+        for results_table in my_parameter_sweep_results:
+            plt.plot(results_table[:,0],
+                     results_table[:,3], color ='black', alpha = 0.1)
+        plt.axvline( np.log(2)/90 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Hes5 degradation [1/min]')
+        plt.ylabel('Period [min]')
+        plt.ylim(0,700)
+
+        my_figure.add_subplot(132)
+        for results_table in my_parameter_sweep_results:
+            plt.plot(results_table[:,0],
+                     results_table[:,4], color = 'black', alpha = 0.1)
+        plt.axvline( np.log(2)/90 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.xlabel('Hes5 degradation [1/min]')
+        plt.ylabel('Coherence')
+        plt.ylim(0,1)
+        
+        my_figure.add_subplot(133)
+        for results_table in my_parameter_sweep_results:
+            plt.errorbar(results_table[:,0],
+                         results_table[:,1]/10000,
+                         yerr = results_table[:,2]/10000*results_table[:,1],
+                         color = 'black', alpha = 0.1)
+        plt.axvline( np.log(2)/90 )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.ylim(0,15)
+        plt.xlabel('Hes5 degradation [1/min]')
+        plt.ylabel('Expression/1e4')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','logarithmic_degradation_sweep.pdf'))
+ 
+    def test_make_logarithmic_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -4562,7 +4657,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
             
         my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','model_visualisation.pdf'))
 
-    def test_visualise_different_coherences(self):
+    def xest_visualise_different_coherences(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
