@@ -329,7 +329,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                     prior_samples[:,3]>20))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.diag_axes[0].set_ylim(0,1000)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
@@ -350,7 +350,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                     prior_samples[:,3]>20))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.diag_axes[0].set_ylim(0,30)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
@@ -371,7 +371,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                     prior_samples[:,3]>20))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.diag_axes[0].set_ylim(0,30)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
@@ -540,7 +540,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         sns.set()
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_all_parameters.pdf'))
@@ -578,7 +578,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_all_parameters_oscillating.pdf'))
  
@@ -596,7 +596,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_all_parameters_not_oscillating.pdf'))
@@ -615,7 +615,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                     prior_samples[:,3]>20))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','pairplot_full_bands_long_delay.pdf'))
@@ -654,7 +654,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_full_long_delay_not_oscillating.pdf'))
@@ -674,7 +674,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_full_long_delay_oscillating.pdf'))
@@ -693,7 +693,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_not_oscillating_bands_different_prior.pdf'))
@@ -712,7 +712,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         sns.set()
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_bands_different_prior.pdf'))
@@ -732,7 +732,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_not_oscillating_bands_long_delay_different_prior.pdf'))
@@ -751,7 +751,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         sns.set()
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.axes[-1,0].set_xlim(0,5)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
@@ -771,7 +771,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         sns.set()
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_hill_bands.pdf'))
@@ -865,7 +865,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         sns.set()
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_bands.pdf'))
@@ -884,7 +884,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         sns.set()
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_heterozygous_bands.pdf'))
@@ -905,7 +905,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_oscillating_bands_different_prior.pdf'))
  
@@ -923,7 +923,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_langevin_not_oscillating_bands_different_prior.pdf'))
@@ -943,7 +943,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_hill_oscillating.pdf'))
  
@@ -963,7 +963,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_hill_not_oscillating.pdf'))
  
@@ -985,7 +985,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_heterozygous_oscillating.pdf'))
  
@@ -1007,7 +1007,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
 
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
 #         sns.set()
 #         # plot distribution of accepted parameter samples
 #         data_frame = pd.DataFrame( data = my_posterior_samples,
@@ -1040,7 +1040,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_heterozygous_not_oscillating.pdf'))
@@ -1062,7 +1062,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
 #         sns.set()
 #         # plot distribution of accepted parameter samples
@@ -1094,7 +1094,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
 #         sns.set()
 #         # plot distribution of accepted parameter samples
@@ -1126,7 +1126,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        print 'number of accepted samples is ' + str(len(my_posterior_samples))
+        print('number of accepted samples is ' + str(len(my_posterior_samples)))
         pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
 #         sns.set()
 #         # plot distribution of accepted parameter samples
@@ -1475,8 +1475,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                     prior_samples[:,3]>20)))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is'
-        print len(my_posterior_samples)
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
@@ -1507,8 +1507,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                     prior_samples[:,3]>20)))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is'
-        print len(my_posterior_samples)
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
@@ -1539,8 +1539,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                     prior_samples[:,3]>20)))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is'
-        print len(my_posterior_samples)
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
@@ -1567,8 +1567,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                    model_results[:,1]>0.05)))) #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is'
-        print len(my_posterior_samples)
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
@@ -1596,8 +1596,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                    model_results[:,1]>0.05)))) #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is'
-        print len(my_posterior_samples)
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
@@ -1625,8 +1625,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                    model_results[:,1]>0.05)))) #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is'
-        print len(my_posterior_samples)
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
@@ -1739,7 +1739,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
             this_axis.set_xlabel(x_labels[parameter_name])
             this_axis.set_ylabel('Expression/1e4')
             my_figure.tight_layout()
-            print 'hello?'
+            print('hello?')
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                      'output','hill_all_relative_sweep_' + parameter_name + '.pdf'))
  
@@ -1857,8 +1857,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                     prior_samples[:,3]>20)))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is'
-        print len(my_posterior_samples)
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
@@ -1986,8 +1986,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                     prior_samples[:,3]>20)))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is'
-        print len(my_posterior_samples)
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
@@ -2165,7 +2165,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
             these_samples = my_posterior_samples[rising_coherence_indices]
             these_model_results = model_results[rising_coherence_indices]
             np.set_printoptions(precision=3, suppress = True)
-            print these_model_results
+            print(these_model_results)
 
             my_figure = plt.figure( figsize = (6.5, 1.5) )
             this_axis = my_figure.add_subplot(131)
@@ -2455,7 +2455,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                      'output','logarithmic_relative_sweep_for_nancy_' + parameter_name + '.pdf'))
  
-    def test_plot_relative_parameter_variation_coherence_increase_logarithmic(self):
+    def xest_plot_relative_parameter_variation_coherence_increase_logarithmic(self):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
@@ -2828,7 +2828,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                               'output',
                                                               'pairplot_low_transcription_coherence_increase_' + parameter_name + '.pdf'))
             except:
-                print 'could not pairplot ' + parameter_name
+                print('could not pairplot ' + parameter_name)
 
     def xest_plot_traces_for_repression_threshold_decrease(self):
         
@@ -3166,8 +3166,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                                                     prior_samples[:,3]>20)))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'number of accepted samples is'
-        print len(my_posterior_samples)
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
@@ -3636,16 +3636,19 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                 [200,5], 
                                                 [200,6], 
                                                 [200,7], 
+                                                [200,8], 
+                                                [200,9], 
                                                 [1000,10], 
                                                 [1000,20]])
         
         power_spectra = []
+        smoothened_power_spectra = []
         coherences = np.zeros(trace_and_repetition_numbers.shape[0])
         periods = np.zeros(trace_and_repetition_numbers.shape[0])
         index = 0
         for number_of_traces, repetition_number in trace_and_repetition_numbers:
-            print number_of_traces
-            print repetition_number
+            print(number_of_traces)
+            print(repetition_number)
             these_mrna_traces, these_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_traces,
                                                                                         duration = 1500*repetition_number,
                                                          repression_threshold = 31400,
@@ -3659,21 +3662,24 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                          equilibration_time = 1000)
 
             this_power_spectrum, this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(these_protein_trajectories)
+            
+            this_smoothened_power_spectrum = hes5.smoothen_power_spectrum(this_power_spectrum)
 
             power_spectra.append(this_power_spectrum)
+            smoothened_power_spectra.append(this_smoothened_power_spectrum)
             coherences[index] = this_coherence
             periods[index] = this_period
             index += 1 
 
-        theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
-                                                     basal_transcription_rate = 11,
-                                                     translation_rate = 29,
-                                                     repression_threshold = 31400,
-                                                     transcription_delay = 29,
-                                                     mRNA_degradation_rate = np.log(2)/30,
-                                                     hill_coefficient = 5,
-                                                     protein_degradation_rate = np.log(2)/90)
-        
+#         theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( 
+#                                                      basal_transcription_rate = 11,
+#                                                      translation_rate = 29,
+#                                                      repression_threshold = 31400,
+#                                                      transcription_delay = 29,
+#                                                      mRNA_degradation_rate = np.log(2)/30,
+#                                                      hill_coefficient = 5,
+#                                                      protein_degradation_rate = np.log(2)/90)
+#         
         figuresize = (6,2.5)
         my_figure = plt.figure(figsize = figuresize)
         my_figure.add_subplot(131)
@@ -3685,6 +3691,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
             else:
                 plt.plot(power_spectrum[:,0],power_spectrum[:,1]+counter*200, color = 'black', alpha = 0.8)
 #         plt.plot(theoretical_power_spectrum[:,0],theoretical_power_spectrum[:,1], color = 'blue', alpha = 0.8)
+            plt.plot(smoothened_power_spectra[counter][:,0],
+                     smoothened_power_spectra[counter][:,1]+counter*200, color = 'grey', alpha = 0.8)
         plt.xlim(0.000,0.01)
 #         plt.ylim(0,100)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
@@ -4554,11 +4562,17 @@ class TestSimpleHes5ABC(unittest.TestCase):
             
         my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','model_visualisation.pdf'))
 
-    def xest_visualise_different_coherences(self):
+    def test_visualise_different_coherences(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
+
+        figure_coherence_bands = np.array([[[0.0,0.1],        
+                                            [0.1,0.2],        
+                                            [0.2,0.3]],        
+                                           [[0.3,0.4],        
+                                            [0.5,0.6],        
+                                            [0.6,0.7]]])
         number_of_traces = 10
         for figure_index in range(2):
             figuresize = (6,9)
@@ -4644,13 +4658,16 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                                  initial_protein = this_parameter[2],
                                                                  equilibration_time = 1000)
                     this_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_traces)
+                    smoothened_power_spectrum = hes5.smoothen_power_spectrum(this_power_spectrum)
                     plt.plot(this_power_spectrum[:,0], this_power_spectrum[:,1])
+                    plt.plot(smoothened_power_spectrum[:,0], smoothened_power_spectrum[:,1], 
+                             color = 'grey' )
                     this_axis.locator_params(axis='x', tight = True, nbins=3)
                     this_axis.tick_params(axis='both', length = 1)
                     if parameter_index == 0:
                         plt.ylabel('Power', labelpad = 15)
-                    max_index = np.argmax(this_power_spectrum[:,1])
-                    max_power_frequency = this_power_spectrum[max_index,0]
+                    max_index = np.argmax(smoothened_power_spectrum[:,1])
+                    max_power_frequency = smoothened_power_spectrum[max_index,0]
                     left_frequency = max_power_frequency*0.9
                     right_frequency = max_power_frequency*1.1
                     plt.axvline(left_frequency, color = 'black')

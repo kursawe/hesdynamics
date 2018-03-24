@@ -839,7 +839,8 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
         power_spectrum = np.vstack((frequency_values, mean_power_spectrum_without_frequencies)).transpose()
         power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
         power_spectrum[:,1]/=power_integral
-        coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
+        smoothened_power_spectrum = smoothen_power_spectrum(power_spectrum)
+        coherence, period = calculate_coherence_and_period_of_power_spectrum(smoothened_power_spectrum)
     else:
         raise ValueError("This method of period extraction could not be resolved. Only the options 'mean' and 'standard' are accepted.")
     
@@ -1690,6 +1691,44 @@ def calculate_coherence_and_period_of_power_spectrum(power_spectrum):
     
     return coherence, period
     
+def smoothen_power_spectrum(power_spectrum):
+    """Smoothes a power spectrum using a sliding mean.
+    
+    Parameters:
+    -----------
+    
+    power_spectrum : ndarray
+        first column contains frequencies, second column contains the power spectrum
+       
+    Returns:
+    --------
+    
+    smoothened_power_spectrum : ndarray
+        first column contains frequencies, second column contains the smoothened power spectrum values
+    """
+    # reserve memory
+    smoothened_spectrum = np.zeros_like(power_spectrum)
+    smoothened_spectrum[:,0] = power_spectrum[:,0]
+    # figure out how many datapoints we want to consider
+    # do this by figuring out how many datapoints fit in a frequency band of width 0.001
+    frequency_window = 0.001
+    frequency_step = power_spectrum[1,0] - power_spectrum[0,0]
+    if frequency_step < frequency_window:
+        window_length = int(round(frequency_window/frequency_step))
+        if window_length%2 == 0:
+            window_length -= 1
+        if window_length < 4: 
+            poly_order = window_length - 1
+        else:
+            poly_order = 3
+        smoothened_spectrum[:,1] = scipy.signal.savgol_filter(power_spectrum[:,1], 
+                                                              window_length, 
+                                                              poly_order)
+    else:
+        smoothened_spectrum = power_spectrum
+        
+    return smoothened_spectrum
+    
 def calculate_steady_state_of_ode(  repression_threshold = 10000,
                                     hill_coefficient = 5,
                                     mRNA_degradation_rate = np.log(2)/30,
@@ -2350,13 +2389,13 @@ def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
     sweep_results = dict()
 
     for parameter_name in parameter_names:
-        print 'sweeping ' + parameter_name
+        print('sweeping ' + parameter_name)
         these_results = conduct_parameter_sweep_at_parameters(parameter_name,
                                                               parameter_samples,
                                                               number_of_sweep_values,
                                                               number_of_traces_per_parameter,
                                                               relative)
-        print 'done sweeping ' + parameter_name
+        print('done sweeping ' + parameter_name)
 
         sweep_results[parameter_name] = these_results   
         
