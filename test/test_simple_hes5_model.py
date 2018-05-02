@@ -1201,7 +1201,7 @@ class TestSimpleHes5Model(unittest.TestCase):
                                        'output','fourier_spectra_illustration_synchronised.pdf'))
 
     def xest_plot_100_hes_trajectories(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
