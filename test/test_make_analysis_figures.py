@@ -12,6 +12,8 @@ import numpy as np
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
 import hes5
 
+import seaborn as sns
+
 class TestSimpleHes5Model(unittest.TestCase):
                                  
     def xest_make_simple_parameter_sweep(self):
@@ -369,7 +371,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 
                     'output','hill_coefficient_sweep.pdf'))
 
-    def test_make_full_parameter_sweep_stochastic(self):
+    def xest_make_full_parameter_sweep_stochastic(self):
         ########
         #
         # REPRESSION THRESHOLD
@@ -1517,3 +1519,334 @@ class TestSimpleHes5Model(unittest.TestCase):
 
         plt.savefig(os.path.join(os.path.dirname(__file__), 
                     'output','degradation_investigation.pdf'))    
+        
+    def xest_make_ngn_plot_for_poster(self):
+        times = np.linspace(0,40,100)
+        hes5_trace = 2.0 + np.sin(2.0*np.pi*times/4.5)
+        ngn_trace = hes5_trace
+
+        sns.set()
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+
+        plt.figure(figsize = (8, 3))
+        downslope_hes5_trace = (1 - 1.0/20.0*times)*10 + np.sin(2.0*np.pi*times/4.5)
+        plt.subplot(121)
+        upslope_steady_ngn_trace = 10.0/20*times
+        plt.plot(times, downslope_hes5_trace) 
+#                  color = 'red')
+        plt.plot(times, upslope_steady_ngn_trace, label = 'Ngn2', ls = '--', dashes = [2,1]) 
+#                  color = 'green')
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.gca().yaxis.set_ticklabels([])
+        plt.xlim(0,25)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(122)
+        upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*times/4.5))
+        plt.plot(times, downslope_hes5_trace,  label = 'Hes5')
+#                  color = 'red')
+        plt.plot(times, upslope_ngn_trace, label = 'Ngn2', ls = '--', dashes = [2,1]) 
+#                 color = 'green',)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.legend(loc='upper center', bbox_to_anchor=(0.7, 1.25), ncol = 2) 
+#                    fontsize = 28)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.xlim(0,25)
+        plt.gca().yaxis.set_ticklabels([])
+#         plt.ylabel('Expr. (a. u.)')
+
+        plt.figtext(0.49,0.55,'or', rotation = 'horizontal', verticalalignment = 'center', multialignment = 'center',
+                horizontalalignment = 'left')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 
+                    'output','ngn2_plot_for_poster.pdf'))    
+
+    def xest_make_phase_space_plot(self):
+        
+        times = np.linspace(0,40,100)
+        hes5_trace = 2.0 + np.sin(2.0*np.pi*times/4.5)
+        ngn_trace = hes5_trace
+
+        plt.figure(figsize = (4.5, 10))
+
+        plt.subplot(721)
+        plt.plot(times, hes5_trace, color = 'red', label = 'Hes5')
+        plt.plot(times, hes5_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.legend(loc='upper center', bbox_to_anchor=(0.7, 1.25), ncol = 2, fontsize = 10)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.5,5)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(722)
+        plt.plot(ngn_trace, hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.5,5)
+        plt.ylim(0.5,5)
+        
+        plt.subplot(723)
+        antiphase_ngn_trace = 2.0 + np.sin(2.0*np.pi*(times/4.5 - 0.5 ))
+        plt.plot(times, hes5_trace, color = 'red')
+        plt.plot(times, antiphase_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.5,5)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(724)
+        plt.plot(antiphase_ngn_trace, hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.5,5)
+        plt.ylim(0.5,5)
+ 
+        plt.subplot(725)
+        out_of_phase_ngn_trace = 2.0 + np.sin(2.0*np.pi*(times/4.5 - 0.25 ))
+        plt.plot(times, hes5_trace, color = 'red')
+        plt.plot(times, out_of_phase_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.5,5)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(726)
+        plt.plot(out_of_phase_ngn_trace, hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.5,5)
+        plt.ylim(0.5,5)
+ 
+        downslope_hes5_trace = (1 - 1.0/20.0*times)*10 + np.sin(2.0*np.pi*times/4.5)
+        plt.subplot(727)
+        upslope_steady_ngn_trace = 10.0/20*times
+        plt.plot(times, downslope_hes5_trace, color = 'red')
+        plt.plot(times, upslope_steady_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.xlim(0,25)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(728)
+        plt.plot(upslope_steady_ngn_trace, downslope_hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.0,15)
+        plt.ylim(0.0,15)
+ 
+        plt.subplot(729)
+        upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*times/4.5))
+        plt.plot(times, downslope_hes5_trace, color = 'red')
+        plt.plot(times, upslope_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.xlim(0,25)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(7,2,10)
+        plt.plot(upslope_ngn_trace, downslope_hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.0,15)
+        plt.ylim(0.0,15)
+ 
+        plt.subplot(7,2,11)
+        upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*(times/4.5-0.25)))
+        plt.plot(times, downslope_hes5_trace, color = 'red')
+        plt.plot(times, upslope_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.xlim(0,25)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(7,2,12)
+        plt.plot(upslope_ngn_trace, downslope_hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.0,15)
+        plt.ylim(0.0,15)
+ 
+        plt.subplot(7,2,13)
+        upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*(times/4.5-0.5)))
+        plt.plot(times, downslope_hes5_trace, color = 'red')
+        plt.plot(times, upslope_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.xlim(0,25)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(7,2,14)
+        plt.plot(upslope_ngn_trace, downslope_hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.0,15)
+        plt.ylim(0.0,15)
+ 
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 
+                    'output','simplest_phase_plot.pdf'))    
+        
+        #### SECOND FIGURE
+        plt.figure(figsize = (4.5, 10))
+
+        downslope_hes5_trace = (1 - 1.0/20.0*times)*10 + np.sin(2.0*np.pi*times/4.5) + np.random.rand(len(times))
+        plt.subplot(721)
+        upslope_steady_ngn_trace = 10.0/20*times+ np.random.rand(len(times))
+        plt.plot(times, downslope_hes5_trace, color = 'red')
+        plt.plot(times, upslope_steady_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.xlim(0,25)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(722)
+        plt.plot(upslope_steady_ngn_trace, downslope_hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.0,15)
+        plt.ylim(0.0,15)
+ 
+        plt.subplot(723)
+        upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*times/4.5)) + np.random.rand(len(times))
+
+        plt.plot(times, downslope_hes5_trace, color = 'red')
+        plt.plot(times, upslope_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.xlim(0,25)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(7,2,4)
+        plt.plot(upslope_ngn_trace, downslope_hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.0,15)
+        plt.ylim(0.0,15)
+ 
+        plt.subplot(7,2,5)
+        upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*(times/4.5-0.25))) + np.random.rand(len(times))
+        plt.plot(times, downslope_hes5_trace, color = 'red')
+        plt.plot(times, upslope_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.xlim(0,25)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(7,2,6)
+        plt.plot(upslope_ngn_trace, downslope_hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.0,15)
+        plt.ylim(0.0,15)
+ 
+        plt.subplot(7,2,7)
+        upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*(times/4.5-0.5))) + np.random.rand(len(times))
+        plt.plot(times, downslope_hes5_trace, color = 'red')
+        plt.plot(times, upslope_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlabel('Time [h]')
+        plt.ylim(0.0,15)
+        plt.xlim(0,25)
+        plt.ylabel('Expr. (a. u.)')
+        
+        plt.subplot(7,2,8)
+        plt.plot(upslope_ngn_trace, downslope_hes5_trace, color = 'black')
+        plt.xlabel('Ngn2')
+        plt.ylabel('Hes5')
+        plt.gca().locator_params(axis='x', tight = True, nbins=6)
+        plt.gca().locator_params(axis='y', tight = True, nbins=6)
+        plt.xlim(0.0,15)
+        plt.ylim(0.0,15)
+#  
+#         plt.subplot(729)
+#         upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*times/4.5))
+#         plt.plot(times, downslope_hes5_trace, color = 'red')
+#         plt.plot(times, upslope_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+#         plt.gca().locator_params(axis='y', tight = True, nbins=6)
+#         plt.xlabel('Time [h]')
+#         plt.ylim(0.0,15)
+#         plt.xlim(0,25)
+#         plt.ylabel('Expr. (a. u.)')
+#         
+#         plt.subplot(7,2,10)
+#         plt.plot(upslope_ngn_trace, downslope_hes5_trace, color = 'black')
+#         plt.xlabel('Ngn2')
+#         plt.ylabel('Hes5')
+#         plt.gca().locator_params(axis='x', tight = True, nbins=6)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=6)
+#         plt.xlim(0.0,15)
+#         plt.ylim(0.0,15)
+#  
+#         plt.subplot(7,2,11)
+#         upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*(times/4.5-0.25)))
+#         plt.plot(times, downslope_hes5_trace, color = 'red')
+#         plt.plot(times, upslope_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+#         plt.gca().locator_params(axis='y', tight = True, nbins=6)
+#         plt.xlabel('Time [h]')
+#         plt.ylim(0.0,15)
+#         plt.xlim(0,25)
+#         plt.ylabel('Expr. (a. u.)')
+#         
+#         plt.subplot(7,2,12)
+#         plt.plot(upslope_ngn_trace, downslope_hes5_trace, color = 'black')
+#         plt.xlabel('Ngn2')
+#         plt.ylabel('Hes5')
+#         plt.gca().locator_params(axis='x', tight = True, nbins=6)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=6)
+#         plt.xlim(0.0,15)
+#         plt.ylim(0.0,15)
+#  
+#         plt.subplot(7,2,13)
+#         upslope_ngn_trace = (10/20.0*times + np.sin(2.0*np.pi*(times/4.5-0.5)))
+#         plt.plot(times, downslope_hes5_trace, color = 'red')
+#         plt.plot(times, upslope_ngn_trace, color = 'green', label = 'Ngn2', ls = '--', dashes = [2,1])
+#         plt.gca().locator_params(axis='y', tight = True, nbins=6)
+#         plt.xlabel('Time [h]')
+#         plt.ylim(0.0,15)
+#         plt.xlim(0,25)
+#         plt.ylabel('Expr. (a. u.)')
+#         
+#         plt.subplot(7,2,14)
+#         plt.plot(upslope_ngn_trace, downslope_hes5_trace, color = 'black')
+#         plt.xlabel('Ngn2')
+#         plt.ylabel('Hes5')
+#         plt.gca().locator_params(axis='x', tight = True, nbins=6)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=6)
+#         plt.xlim(0.0,15)
+#         plt.ylim(0.0,15)
+#  
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 
+                    'output','simplest_phase_plot_2.pdf'))    
+ 

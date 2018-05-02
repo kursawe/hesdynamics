@@ -706,7 +706,7 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
                   mRNA_degradation_rate, protein_degradation_rate, 
                   basal_transcription_rate, translation_rate,
                   transcription_delay, initial_mRNA, initial_protein,
-                  equilibration_time, transcription_schedule, sampling_timestep) ]*number_of_trajectories
+                  equilibration_time, transcription_schedule, sampling_timestep, False) ]*number_of_trajectories
 #                   equilibration_time, transcription_schedule) ]*number_of_trajectories
     process_results = [ pool_of_processes.apply_async(generate_stochastic_trajectory, args=x)
                         for x in arguments ]
@@ -1049,8 +1049,8 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
         raise ValueError("Cannot plot posterior samples of this dimension.")
         
     pairplot = sns.PairGrid(data_frame)
-    pairplot.map_diag(sns.distplot, kde = False, rug = True )
-    pairplot.map_offdiag(sns.regplot, scatter_kws = {'alpha' : 0.4}, fit_reg=False) 
+    pairplot.map_diag(sns.distplot, kde = False, rug = False )
+    pairplot.map_offdiag(sns.regplot, scatter_kws = {'alpha' : 0.4, 'rasterized' : True}, fit_reg=False) 
     pairplot.set(xlim = (0,None), ylim = (0,None))
     if logarithmic:
         for artist in pairplot.diag_axes[0].get_children():
@@ -1066,11 +1066,11 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
         transcription_rate_bins = np.logspace(-1,2,20)
         translation_rate_bins = np.logspace(0,2.3,20)
         plt.sca(pairplot.diag_axes[0])
-        transcription_histogram,_ = np.histogram(data_frame['Transcription rate'], 
-                                                 bins = transcription_rate_bins)
+        transcription_histogram,_ = np.histogram( data_frame['Transcription rate'], 
+                                                  bins = transcription_rate_bins )
         sns.distplot(data_frame['Transcription rate'],
                      kde = False,
-                     rug = True,
+                     rug = False,
                      bins = transcription_rate_bins)
     #                  ax = pairplot.diag_axes[0])
 #         pairplot.diag_axes[0].set_ylim(0,np.max(transcription_histogram)*1.2)
@@ -1079,7 +1079,7 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
         plt.sca(pairplot.diag_axes[1])
         sns.distplot(data_frame['Translation rate'],
                      kde = False,
-                     rug = True,
+                     rug = False,
                      bins = translation_rate_bins)
         plt.gca().set_xlim(1,200)
     #
@@ -1092,6 +1092,23 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
         pairplot.axes[1,0].set_yscale("log")
         pairplot.axes[1,0].set_ylim(1,200)
 
+    for artist in pairplot.diag_axes[3].get_children():
+            try: 
+                artist.remove()
+            except:
+                pass
+    plt.sca(pairplot.diag_axes[3])
+    time_delay_bins = np.linspace(5,40,10)
+    time_delay_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+                                                  bins = time_delay_bins )
+    sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                     bins = time_delay_bins)
+    #                  ax = pairplot.diag_axes[0])
+#         pairplot.diag_axes[0].set_ylim(0,np.max(transcription_histogram)*1.2)
+    plt.gca().set_xlim(5,40)
+    
     pairplot.axes[-1,2].set_xlim(0,10)
     pairplot.axes[-1,3].set_xlim(5,40)
 
