@@ -1201,6 +1201,101 @@ class TestSimpleHes5Model(unittest.TestCase):
                                        'output','fourier_spectra_illustration_synchronised.pdf'))
 
     def xest_plot_100_hes_trajectories(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+#         sns.set()
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                   model_results[:,1]>0.05))))
+
+        
+        my_posterior_samples = prior_samples[accepted_indices]
+        accepted_model_results = model_results[accepted_indices]
+        
+        further_indices = np.where(accepted_model_results[:,3]>0.8)
+        my_posterior_samples = my_posterior_samples[further_indices]
+
+        this_parameter = my_posterior_samples[0]
+        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = 10,
+                                                                                        duration = 2000,
+                                                         repression_threshold = this_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = this_parameter[3],
+                                                         basal_transcription_rate = this_parameter[0],
+                                                         transcription_delay = this_parameter[1],
+                                                         initial_mRNA = 3,
+                                                         initial_protein = this_parameter[2],
+                                                         hill_coefficient = this_parameter[4])
+#                                                          equilibration_time = 1000,
+#                                                          synchronize = True)
+#         
+#         hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( 
+#                                                          number_of_trajectories = 10,
+#                                                          duration = 2000,
+#                                                          repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11,
+#                                                          transcription_delay = 29,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 31400)
+#
+        deterministic_trajectory = hes5.generate_deterministic_trajectory(duration = 2000, 
+                                                         repression_threshold = this_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = this_parameter[3],
+                                                         basal_transcription_rate = this_parameter[0],
+                                                         transcription_delay = this_parameter[1],
+                                                         initial_mRNA = 3,
+                                                         initial_protein = this_parameter[2],
+#                                                                           repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11,
+#                                                          transcription_delay = 29,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 31400,
+                                                         hill_coefficient = this_parameter[4],
+                                                         for_negative_times = 'no_negative')
+        
+#         deterministic_trajectory = deterministic_trajectory[deterministic_trajectory[:,0]>1000]
+#         deterministic_trajectory[:,0] -= 1000
+
+        mean_hes5_protein_trajectory = np.mean(hes5_protein_trajectories[:,1:], axis = 1)
+        mean_hes5_rna_trajectory = np.mean(hes5_mRNA_trajectories[:,1:], axis = 1)
+        figuresize = (4,2.5)
+        my_figure = plt.figure(figsize = figuresize)
+        for trajectory_index in range(1,11):
+#             plt.plot( hes5_mRNA_trajectories[:,0],
+#                       hes5_mRNA_trajectories[:,trajectory_index]*1000., color = 'black',
+#                       lw = 0.5, alpha = 0.1 )
+            plt.plot( hes5_protein_trajectories[:,0],
+                      hes5_protein_trajectories[:,trajectory_index]/10000, color = 'black',
+                      lw = 0.5, alpha = 0.2 )
+#         plt.plot( hes5_mRNA_trajectories[:,0],
+#                   mean_hes5_rna_trajectory*1000., label = 'mRNA*1000', color = 'blue',
+#                   lw = 0.5 )
+        plt.plot( deterministic_trajectory[:,0], deterministic_trajectory[:,2]/10000,
+                  lw = 0.5 )
+#         plt.plot( hes5_protein_trajectories[:,0],
+#                   mean_hes5_protein_trajectory, label = 'Protein', color = 'blue', ls = '--',
+#                   lw = 0.5, dashes = [1,1] )
+        plt.xlabel('Time [min]')
+        plt.ylabel('Hes5 expression/1e4')
+        plt.legend(bbox_to_anchor=(1.05, 1.1), loc = 'upper right')
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','100_trajectories.pdf'))
+ 
+    def xest_plot_100_hes_trajectories(self):
         hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = 50,
                                                                                         duration = 1500,
                                                          repression_threshold = 31400,
@@ -1344,7 +1439,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','sample_number_dependance.pdf'))
         
-    def test_plot_hill_function(self):
+    def xest_plot_hill_function(self):
         x_values = np.linspace(0,3,100)
         y_values = 1.0/(1.0 + np.power( x_values,2 ))
 
@@ -1389,6 +1484,37 @@ class TestSimpleHes5Model(unittest.TestCase):
         self.assertGreater(this_mean_mRNA, 0)
         self.assertLess(this_mean_mRNA, 100)
         
+    def test_stochastic_hes_trajectory_example(self):
+        # same plot as before for different transcription ("more_mrna") - not yet
+        # our preferred hes5 values
+        my_trajectory = hes5.generate_langevin_trajectory( duration = 2500,
+                                                         repression_threshold = 23000,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 26,
+                                                         basal_transcription_rate = 9,
+                                                         transcription_delay = 29,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 23000)
+        
+        self.assertGreaterEqual(np.min(my_trajectory),0.0)
+        figuresize = (4,2.5)
+        my_figure = plt.figure(figsize = figuresize)
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1]/10, label = 'mRNA*1000', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2]/10000, label = 'Hes5', color = 'green', ls = '--',
+                 dashes = [1,1])
+#         plt.text(0.95, 0.4, 'Mean protein number: ' + str(np.mean(my_trajectory[:,2])),
+#                  verticalalignment='bottom', horizontalalignment='right',
+#                  transform=plt.gca().transAxes)
+        plt.xlabel('Time [min]')
+        plt.ylabel('Copy number/1e4')
+        plt.legend()
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_langevin_trajectory.pdf'))
+
     def xest_stochastic_hes_trajectory_with_langevin(self):
         # same plot as before for different transcription ("more_mrna") - not yet
         # our preferred hes5 values
@@ -1678,7 +1804,7 @@ class TestSimpleHes5Model(unittest.TestCase):
                                                          initial_protein = my_parameter[2],
                                                          equilibration_time = 1000,
                                                          hill_coefficient = my_parameter[4],
-                                                         vary_repression_threshold = True)
+                                                         vary_repression_threshold = False)
         
         figuresize = (4,2.5)
         my_figure = plt.figure()
