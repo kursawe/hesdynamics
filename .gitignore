@@ -9,6 +9,17 @@ __pycache__/
 # documents
 *.pdf
 
+# numpy arrays
+*.npy
+
+# vim backups
+*~
+
+# eclipse crap
+.project
+.pydevproject
+.cproject
+
 # Distribution / packaging
 .Python
 env/
