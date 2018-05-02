@@ -317,7 +317,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       + str(acceptance_ratio) + '.pdf'))
  
     def xest_plot_larger_variation(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -340,7 +340,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                     'output','pairplot_larger_amplitude.pdf'))
  
     def xest_plot_smaller_mean(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -365,7 +365,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
  
     def xest_plot_large_amplitude_trace(self):
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -397,7 +397,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                  'output','large_amplitude_example.pdf'))
 
     def xest_plot_logarithmic_prior_bands(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -417,7 +417,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                     'output','pairplot_logarithmic_bands.pdf'))
  
     def xest_plot_logarithmic_prior_oscillating(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -438,7 +438,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                     'output','pairplot_logarithmic_oscillating.pdf'))
  
     def xest_plot_logarithmic_prior_not_oscillating(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -461,7 +461,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                     'output','pairplot_logarithmic_not_oscillating.pdf'))
  
     def xest_plot_period_distribution_logarithmic_prior(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -520,7 +520,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','logarithmic_abc_mrna_distribution.pdf'))
  
     def xest_plot_period_distribution_for_poster(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -570,7 +570,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','abc_period_distribution_for_poster.pdf'))
  
     def xest_plot_period_distribution_for_coherences(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -1739,7 +1739,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #         number_of_trajectories = 2
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -1762,7 +1762,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                     my_sweep_results)
 
     def xest_plot_bifurcation_implementation(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -1786,7 +1786,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_figure = plt.figure( figsize = (6.5, 1.5) )
 
         my_figure.add_subplot(131)
-        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'data',
                                                           'logarithmic_degradation_sweep.npy'))
         
         new_accepted_indices = np.where(my_posterior_samples[:,1]<10)
@@ -1810,7 +1810,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_figure.add_subplot(132)
         hill_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                              'output',
+                                                              'data',
                                                               'logarithmic_relative_sweeps_hill_coefficient.npy'))
 #         my_indices = np.where(np.logical_and(hill_sweep_results[:,9,4]>0.1,
 #                                              hill_sweep_results[:,9,4]<0.2))
@@ -1829,7 +1829,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         my_figure.add_subplot(133)
         delay_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                              'output',
+                                                              'data',
                                                               'logarithmic_relative_sweeps_time_delay.npy'))
 #         delay_sweep_results = delay_sweep_results[my_indices]
         for results_table in delay_sweep_results:
@@ -1850,7 +1850,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
  
     def xest_plot_logarithmic_degradation_sweep(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -1871,7 +1871,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #         my_parameter_sweep_results = hes5.conduct_protein_degradation_sweep_at_parameters(my_posterior_samples,
 #                                                                                           number_of_parameter_points,
 #                                                                                           number_of_trajectories)
-        my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+        my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'data',
                                                           'logarithmic_degradation_sweep.npy'))
         
 #         new_accepted_indices = np.where( my_posterior_samples[:,0] < 10 )
@@ -1921,7 +1921,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #         number_of_trajectories = 2
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2671,7 +2671,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                      'output','relative_low_transcription_sweep_' + parameter_name + '.pdf'))
  
     def xest_investigate_weird_parameter_behaviour(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data', 'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy')
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2686,7 +2686,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         print('number of existing samples is')
         print(len(my_posterior_samples))
         my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                          'output',
+                                                          'data',
                                                           'logarithmic_relative_sweeps_basal_transcription_rate.npy'))
         
         decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
@@ -2703,7 +2703,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                      'output','pairplot_weird_transcription_rate_behaviour.pdf'))
  
     def xest_investigate_where_repression_threshold_changes_period(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data', 'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy')
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2718,7 +2718,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         print('number of existing samples is')
         print(len(my_posterior_samples))
         my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                          'output',
+                                                          'data',
                                                           'logarithmic_relative_sweeps_repression_threshold.npy'))
         
         my_other_indices = np.where(my_parameter_sweep_results[:,9,4]>0.1)
@@ -2759,7 +2759,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                      'output','pairplot_repression_threshold_decreases_period.pdf'))
  
     def xest_investigate_where_protein_degradation_changes_period(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data', 'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy')
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2774,7 +2774,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         print('number of existing samples is')
         print(len(my_posterior_samples))
         my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                          'output',
+                                                          'data',
                                                           'logarithmic_relative_sweeps_protein_degradation_rate.npy'))
         
 #         my_other_indices = np.where(my_parameter_sweep_results[:,9,4]>0.1)
@@ -2820,7 +2820,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                      'output','pairplot_protein_degradation_decreases_period.pdf'))
  
     def xest_investigate_where_protein_degradation_decreases_coherence(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data', 'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy')
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2833,7 +2833,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_posterior_results = model_results[accepted_indices]
 #
         my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                          'output',
+                                                          'data',
                                                           'logarithmic_relative_sweeps_protein_degradation_rate.npy'))
         
         my_indices = np.where( my_parameter_sweep_results[:,9,3]<300)
@@ -2926,7 +2926,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         for parameter_name in parameter_names:
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                              'output',
+                                                              'data',
                                                               'logarithmic_relative_sweeps_' + parameter_name + '.npy'))
             
 #             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
@@ -3009,7 +3009,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
     def xest_plot_relative_parameter_variation_for_nancy(self):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -3072,7 +3072,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         for parameter_name in parameter_names:
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                              'output',
+                                                              'data',
                                                               'logarithmic_relative_sweeps_' + parameter_name + '.npy'))
             
             other_accepted_indices = np.where(my_parameter_sweep_results[:,9,3]<300)
@@ -3172,7 +3172,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                      'output','logarithmic_relative_sweep_for_nancy_' + parameter_name + '.pdf'))
  
     def xest_plot_bayes_factor_differences(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -3217,7 +3217,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
             increase_ratios = dict()
             for parameter_name in parameter_names:
                 my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                              'output',
+                                                              'data',
                                                               'logarithmic_relative_sweeps_' + 
                                                               parameter_name + '.npy'))
  
@@ -3283,7 +3283,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                 statistic_values = dict()
                 for parameter_name in parameter_names:
                     my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                                  'output',
+                                                                  'data',
                                                                   'logarithmic_relative_sweeps_' + 
                                                                   parameter_name + '.npy'))
  
@@ -3359,7 +3359,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                     statistic_values = dict()
                     for parameter_name in parameter_names:
                         my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                                      'output',
+                                                                      'data',
                                                                       'logarithmic_relative_sweeps_' + 
                                                                       parameter_name + '.npy'))
  
@@ -3430,7 +3430,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                  'likelihood_plot_extension_' + plotting_option + '_' + reference_point + '.pdf'), dpi = 400)
 
     def xest_plot_bayes_factors_for_models(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -3475,7 +3475,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         for parameter_name in parameter_names:
             print 'investigating ' + parameter_name
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                          'output',
+                                                          'data',
                                                           'logarithmic_relative_sweeps_' + 
                                                           parameter_name + '.npy'))
  
@@ -3545,7 +3545,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         for parameter_name in parameter_names:
             print 'investigating ' + parameter_name
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                          'output',
+                                                          'data',
                                                           'logarithmic_relative_sweeps_' + 
                                                           parameter_name + '.npy'))
  
@@ -3641,7 +3641,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
     def xest_plot_relative_parameter_variation_coherence_increase_logarithmic(self):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -3704,7 +3704,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         for parameter_name in parameter_names:
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                              'output',
+                                                              'data',
                                                               'logarithmic_relative_sweeps_' + parameter_name + '.npy'))
             
 #             my_parameter_sweep_results = my_parameter_sweep_results[other_accepted_indices]
@@ -5094,7 +5094,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         
     def xest_validation_at_low_transcription_rates(self):
         # pick three parameter values with low mrna and plot example mrna, example protein, and power spectrum
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -5644,7 +5644,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                        'output','logarithmic_low_transcription_rate_langevin_validation.pdf'))
 
     def xest_visualise_model_regimes(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -5758,7 +5758,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','model_visualisation.pdf'))
 
     def xest_visualise_different_coherences(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -6075,7 +6075,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         
     def test_plot_distributions_for_poster(self):
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -6183,7 +6183,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
  
     def xest_plot_prior_for_poster(self):
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
