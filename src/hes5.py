@@ -922,7 +922,7 @@ def generate_posterior_samples( total_number_of_samples,
                                                 'time_delay' : (5,40),
                                                 'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
                                                 'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)},
-                                prior_dimension = 'reduced',
+                                prior_dimension = 'hill',
                                 use_langevin = True,
                                 logarithmic = True ):
     '''Draw samples from the posterior using normal ABC. Posterior is calculated
@@ -2537,7 +2537,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                                                                         use_langevin = True)
     
     # unpack and wrap the results in the output format
-    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 5))
+    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 6))
     parameter_sample_index = 0
     if not relative:
         for sample_index, sample in enumerate(parameter_samples):
@@ -2548,7 +2548,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                 sweep_results[sample_index,sweep_value_index,0] = sweep_value
                 # the remaining entries get the summary statistics. We discard the last summary statistic, 
                 # which is the mean mRNA
-                sweep_results[sample_index,sweep_value_index,1:] = these_summary_statistics[:-1]
+                sweep_results[sample_index,sweep_value_index,1:] = these_summary_statistics
                 sweep_value_index += 1
                 parameter_sample_index += 1
     else:
@@ -2560,7 +2560,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                 sweep_results[sample_index,proportion_index,0] = parameter_proportion
                 # the remaining entries get the summary statistics. We discard the last summary statistic, 
                 # which is the mean mRNA
-                sweep_results[sample_index,proportion_index,1:] = these_summary_statistics[:-1]
+                sweep_results[sample_index,proportion_index,1:] = these_summary_statistics
                 proportion_index += 1
                 parameter_sample_index += 1
     # repack results into output array
