@@ -12,7 +12,13 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn.apionly as sns
 import pandas as pd
-from fnmatch import translate
+import socket
+
+domain_name = socket.getfqdn()
+if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
+    number_of_available_cores = 2
+else:
+    number_of_available_cores = mp.cpu_count()
 
 def generate_deterministic_trajectory( duration = 720, 
                                        repression_threshold = 10000,
@@ -614,7 +620,7 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
                                     synchronize = False,
-                                    number_of_cpus = 3,
+                                    number_of_cpus = number_of_available_cores,
                                     sampling_timestep = 1.0):
     '''Generate multiple stochastic traces the Hes5 model by using
        generate_stochastic_trajectory.
@@ -908,7 +914,7 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
 def generate_posterior_samples( total_number_of_samples, 
                                 acceptance_ratio,
                                 number_of_traces_per_sample = 10,
-                                number_of_cpus = 3,
+                                number_of_cpus = number_of_available_cores,
                                 saving_name = 'sampling_results',
                                 prior_bounds = {'basal_transcription_rate' : (0,100),
                                                 'translation_rate' : (0,200),
@@ -1183,7 +1189,7 @@ def calculate_distances_to_data(summary_statistics):
     return np.linalg.norm(summary_statistics - reference_summary_statistic, axis = 1)
     
 def calculate_heterozygous_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
-                                                            number_of_cpus = 3):
+                                                            number_of_cpus = number_of_available_cores):
     '''Calculate the mean, relative standard deviation, period, and coherence
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
@@ -1344,7 +1350,7 @@ def calculate_heterozygous_summary_statistics_at_parameter_point(parameter_value
     return summary_statistics
 
 def calculate_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
-                                               number_of_cpus = 3, use_langevin = True):
+                                               number_of_cpus = number_of_available_cores, use_langevin = True):
     '''Calculate the mean, relative standard deviation, period, and coherence
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
@@ -1387,7 +1393,7 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
     return summary_statistics
     
 def calculate_gillespie_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
-                                                         number_of_cpus = 3):
+                                                         number_of_cpus = number_of_available_cores):
     '''Calculate the mean, relative standard deviation, period, and coherence
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
@@ -1441,7 +1447,7 @@ def calculate_gillespie_summary_statistics_at_parameters(parameter_values, numbe
     return summary_statistics
  
 def calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 100,
-                                                         number_of_cpus = 3):
+                                                         number_of_cpus = number_of_available_cores):
     '''Calculate the mean, relative standard deviation, period, coherence, and mean mrna
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
@@ -2527,7 +2533,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     # pass these parameters to the calculate_summary_statistics_at_parameter_points
     all_summary_statistics = calculate_summary_statistics_at_parameters(parameter_values = all_parameter_values, 
                                                                         number_of_traces_per_sample = number_of_traces_per_parameter,
-                                                                        number_of_cpus = 3, 
+                                                                        number_of_cpus = number_of_available_cores, 
                                                                         use_langevin = True)
     
     # unpack and wrap the results in the output format
@@ -2560,4 +2566,3 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     # repack results into output array
  
     return sweep_results
-    
