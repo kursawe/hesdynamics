@@ -26,3 +26,8 @@ sudo python setup.py install
 In order to get git cloning to work with HTTP on the manchester cluster I need to follow these instructions:
 
 https://www.a2hosting.co.uk/kb/developer-corner/version-control-systems1/403-forbidden-error-message-when-you-try-to-push-to-a-github-repository
+
+Further, on the manchester research cluster tests need to be invoked like this:
+
+CONDA_PREFIX=/opt/gridware/apps/binapps/anaconda/3/4.2.0
+LD_PRELOAD=$CONDA_PREFIX/lib/libmkl_core.so:$CONDA_PREFIX/lib/libmkl_sequential.so nosetests -s test_my_test.py
