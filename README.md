@@ -22,3 +22,7 @@ EXTRA_COMPILE_ARGS = ['-Wno-error=-Wformat,-Wunused_but_set_variable']
 I was then able to install PyDDE by entering the directory PyDDE-master and typing
 
 sudo python setup.py install
+
+In order to get git cloning to work with HTTP on the manchester cluster I need to follow these instructions:
+
+https://www.a2hosting.co.uk/kb/developer-corner/version-control-systems1/403-forbidden-error-message-when-you-try-to-push-to-a-github-repository
