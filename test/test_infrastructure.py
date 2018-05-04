@@ -2,6 +2,7 @@ import unittest
 import os.path
 import sys
 import matplotlib as mpl
+mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
 font = {'size'   : 10}
@@ -165,7 +166,7 @@ class TestInfrastructure(unittest.TestCase):
                                                          equilibration_time = 1000)
         end = time.clock()
         
-        print 'needed ' + str(end-start) + ' seconds'
+        print('needed ' + str(end-start) + ' seconds')
 
         
         figuresize = (4,2.5)
