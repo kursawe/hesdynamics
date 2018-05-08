@@ -401,7 +401,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','prior_for_paper.pdf'))
 
-    def xest_plot_period_distribution_for_paper(self):
+    def test_plot_period_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
@@ -409,32 +409,32 @@ class TestMakePaperAnalysis(unittest.TestCase):
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
                                     np.logical_and(model_results[:,0]<65000, #cell_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                   model_results[:,1]>0.05))))  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
-#                                                    model_results[:,3]>0.3))))) #time_delay
+#                                                     model_results[:,3]>0.3))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
         my_model_results = model_results[accepted_indices]
 
-#         real_data = [ 6.4135025721, 6.9483225932, 2.6887457703, 3.8620874625, 3.2559540745,
-#                       4.4568030424, 5.2120783369, 4.3169191105, 4.2472576997, 2.7684001434,
-#                       3.6331949226, 5.365000329,  1.1181243755, 4.2130976958, 6.3381760719,
-#                       2.466899605,  4.7849990718, 5.2029517316, 4.2038143391, 3.9909362984,
-#                       3.2734490618, 4.3116631965, 5.3199423883] 
+        real_data = [ 6.4135025721, 6.9483225932, 2.6887457703, 3.8620874625, 3.2559540745,
+                      4.4568030424, 5.2120783369, 4.3169191105, 4.2472576997, 2.7684001434,
+                      3.6331949226, 5.365000329,  1.1181243755, 4.2130976958, 6.3381760719,
+                      2.466899605,  4.7849990718, 5.2029517316, 4.2038143391, 3.9909362984,
+                      3.2734490618, 4.3116631965, 5.3199423883] 
         
         ## the values that verionica sent initially
 #          
-        real_data = [2.0075009033, 5.1156200644, 7.7786868129, 6.4328452748, 7.441794935,
-                     7.0127707313, 2.6890681359, 3.4454911902, 3.8689181126, 3.2493764293,
-                     6.3817264371, 5.8903734106, 4.5034984657, 3.4247641996, 4.4767623623, 
-                     4.1803337503, 5.2752672662, 6.9038758003, 4.3200156205, 4.2588402084, 
-                     6.1428930891, 5.4124817274, 5.0135377758, 2.8156245427, 5.5008033408, 
-                     3.6331974295, 5.295813407,  1.1181243876, 5.5984263674, 4.2800118281, 
-                     6.7713656265, 3.4585300534, 6.3727670575, 2.4668994841, 6.3725171059,
-                     4.8021898758, 4.8108333392, 5.9935335349, 6.2570622822, 5.2284704987,
-                     4.2143881493, 4.0659270434, 3.9990674449, 4.4410420437, 6.7406002947,
-                     5.0648853886, 1.8765732885, 3.307425174,  5.6208186717, 4.3185605778,
-                     5.186842823,  5.6310823986, 7.4402931009]
+#         real_data = [2.0075009033, 5.1156200644, 7.7786868129, 6.4328452748, 7.441794935,
+#                      7.0127707313, 2.6890681359, 3.4454911902, 3.8689181126, 3.2493764293,
+#                      6.3817264371, 5.8903734106, 4.5034984657, 3.4247641996, 4.4767623623, 
+#                      4.1803337503, 5.2752672662, 6.9038758003, 4.3200156205, 4.2588402084, 
+#                      6.1428930891, 5.4124817274, 5.0135377758, 2.8156245427, 5.5008033408, 
+#                      3.6331974295, 5.295813407,  1.1181243876, 5.5984263674, 4.2800118281, 
+#                      6.7713656265, 3.4585300534, 6.3727670575, 2.4668994841, 6.3725171059,
+#                      4.8021898758, 4.8108333392, 5.9935335349, 6.2570622822, 5.2284704987,
+#                      4.2143881493, 4.0659270434, 3.9990674449, 4.4410420437, 6.7406002947,
+#                      5.0648853886, 1.8765732885, 3.307425174,  5.6208186717, 4.3185605778,
+#                      5.186842823,  5.6310823986, 7.4402931009]
 
         sns.set(font_scale = 1.5)
         font = {'size'   : 28}
@@ -443,6 +443,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
         all_periods = my_model_results[:,2]
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
 #                                   'Data' : np.array(real_data)*60})
+        
+        print('mean period is')
+        print(np.mode(all_periods[all_periods<600]))
+#         import pdb; pdb.set_trace()
         my_figure = plt.figure(figsize= (5,3))
         sns.boxplot(data = [all_periods[all_periods<600], np.array(real_data)*60])
         plt.xticks([0,1], ['Model', 'Experiment']) 
@@ -487,7 +491,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_mrna_distribution_for_paper.pdf'))
  
-    def test_make_degradation_rate_sweep(self):
+    def xest_make_degradation_rate_sweep(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -517,7 +521,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                     my_sweep_results)
 
 
-    def test_make_relative_parameter_variation(self):
+    def xest_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -545,3 +549,111 @@ class TestMakePaperAnalysis(unittest.TestCase):
         for parameter_name in my_parameter_sweep_results:
             np.save(os.path.join(os.path.dirname(__file__), 'output','narrowed_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
+
+    def xest_plot_model_prediction(self):
+        sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
+
+        parameter_names = ['protein_degradation_rate']
+
+        x_labels = dict()
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'data',
+                                                              'narrowed_relative_sweeps_' + parameter_name + '.npy'))
+            
+            increase_indices = np.where(my_parameter_sweep_results[:,9,3] < 300)
+ 
+            my_parameter_sweep_results = my_parameter_sweep_results[increase_indices]
+            
+#             my_sweep_parameters = my_posterior_samples[increase_indices]
+            
+            x_coord = -0.4
+            y_coord = 1.1
+            my_figure = plt.figure( figsize = (4.5, 1.5) )
+            this_axis = my_figure.add_subplot(121)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,3], color ='teal', alpha = 0.02, zorder = 0)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Period [min]')
+            plt.gca().set_rasterization_zorder(1)
+            plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+            this_axis.set_ylim(0,700)
+
+            this_axis = my_figure.add_subplot(122)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,4], color = 'teal', alpha = 0.02, zorder = 0)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('Coherence')
+            plt.gca().set_rasterization_zorder(1)
+            plt.gca().text(x_coord, y_coord, 'B', transform=plt.gca().transAxes)
+            this_axis.set_ylim(0,1)
+#             this_axis.set_ylim(0,0.5)
+#             this_axis.set_ylim(0,0.25)
+            
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output','model_prediction_' + parameter_name + '.pdf'), dpi = 400)
+ 
+    def xest_plot_bifurcation_implementation(self):
+        sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
+
+        my_figure = plt.figure( figsize = (6.5, 1.5) )
+
+        my_figure.add_subplot(131)
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'data',
+                                                          'narrowed_degradation_sweep.npy'))
+        
+        x_coord = -0.3
+        y_coord = 1.05
+        for results_table in my_degradation_sweep_results:
+            plt.plot(results_table[:,0],
+                     results_table[:,4], color = 'teal', alpha = 0.02, zorder = 0)
+        plt.axvline( np.log(2)/90, color = 'darkblue' )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel('Hes5 degradation [1/min]')
+        plt.ylabel('Coherence')
+        plt.ylim(0,1)
+        plt.xlim(0,np.log(2)/15.)
+        plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+        my_figure.add_subplot(132)
+        hill_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'data',
+                                                              'narrowed_relative_sweeps_hill_coefficient.npy'))
+        for results_table in hill_sweep_results:
+            plt.plot(results_table[:,0],
+                     results_table[:,4], color = 'teal', alpha = 0.02, zorder = 0)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel('rel. Hill coefficient')
+        plt.axvline( 1.0, color = 'darkblue' )
+        plt.gca().text(x_coord, y_coord, 'B', transform=plt.gca().transAxes)
+        plt.ylim(0,1)               
+        plt.xlim(0.1,2)
+
+        my_figure.add_subplot(133)
+        delay_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'data',
+                                                              'narrowed_relative_sweeps_time_delay.npy'))
+        for results_table in delay_sweep_results:
+            plt.plot(results_table[:,0],
+                     results_table[:,4], color = 'teal', alpha = 0.02, zorder = 0)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().set_rasterization_zorder(1)
+        plt.axvline( 1.0, color = 'darkblue')
+        plt.xlabel('rel. Transcription delay')
+        plt.gca().text(x_coord, y_coord, 'C', transform=plt.gca().transAxes)
+        plt.ylim(0,1)
+        plt.xlim(0.1,2)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','bifurcation_illustration.pdf'), dpi = 400)
+ 
