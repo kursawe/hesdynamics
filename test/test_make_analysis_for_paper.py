@@ -292,7 +292,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
             
         my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','model_visualisation_for_paper.pdf'))
         
-    def xest_plot_prior_for_paper(self):
+    def test_plot_prior_for_paper(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_narrowed')
@@ -324,38 +324,40 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         my_figure.add_subplot(151)
 #         transcription_rate_bins = np.logspace(-1,2,20)
-        transcription_rate_bins = np.linspace(-1,2,20)
+        transcription_rate_bins = np.linspace(-1,np.log10(60.0),20)
 #         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
 #                                                        bins = time_delay_bins )
         sns.distplot(np.log10(data_frame['Transcription rate']),
                     kde = False,
                     rug = False,
                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
                     bins = transcription_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(0.1,100)
-        plt.gca().set_xlim(-1,2)
+        plt.gca().set_xlim(-1,np.log10(60.0))
         plt.ylabel("Probability", labelpad = 20)
         plt.xlabel("Transcription rate \n [1/min]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
         plt.gca().set_ylim(0,0.8)
-        plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
 #         plt.yticks([])
  
         my_figure.add_subplot(152)
 #         translation_rate_bins = np.logspace(0,2.3,20)
-        translation_rate_bins = np.linspace(0,2.3,20)
+        translation_rate_bins = np.linspace(0,np.log10(40),20)
         sns.distplot(np.log10(data_frame['Translation rate']),
                      kde = False,
                      rug = False,
                      norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
                      bins = translation_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(1,200)
-        plt.gca().set_xlim(0,2.3)
+        plt.gca().set_xlim(0,np.log10(40))
         plt.gca().set_ylim(0,1.3)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-        plt.xticks([0,1,2], [r'$10^0$',r'$10^1$',r'$10^2$'])
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
         plt.xlabel("Translation rate \n [1/min]")
 #         plt.yticks([])
  
@@ -363,10 +365,14 @@ class TestMakePaperAnalysis(unittest.TestCase):
         sns.distplot(data_frame['Repression threshold/1e4'],
                      kde = False,
                      norm_hist = True,
-                     rug = False)
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
 #         plt.gca().set_xlim(1,200)
         plt.xlabel("Repression threshold \n [1e4]")
         plt.gca().set_ylim(0,0.22)
+        plt.gca().set_xlim(0,12)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
 #         plt.yticks([])
 
@@ -377,26 +383,30 @@ class TestMakePaperAnalysis(unittest.TestCase):
                      kde = False,
                      rug = False,
                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
                      bins = time_delay_bins)
-        plt.gca().set_xlim(0,45)
+        plt.gca().set_xlim(5,40)
         plt.gca().set_ylim(0,0.035)
         plt.gca().locator_params(axis='x', tight = True, nbins=5)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-        plt.xlabel("Transcription delay \n [min]")
+        plt.xlabel(" Transcription delay \n [min]")
 #         plt.yticks([])
  
         plots_to_shift.append(my_figure.add_subplot(155))
         sns.distplot(data_frame['Hill coefficient'],
                      kde = False,
                      norm_hist = True,
-                     rug = False)
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
 #         plt.gca().set_xlim(1,200)
         plt.gca().set_ylim(0,0.35)
-        plt.gca().set_xlim(1,7)
+        plt.gca().set_xlim(2,6)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
 #         plt.yticks([])
 
         plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
         
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','prior_for_paper.pdf'))
@@ -455,7 +465,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_period_distribution_for_paper.pdf'))
  
-    def test_plot_period_distribution_differently(self):
+    def xest_plot_period_distribution_differently(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
         model_results = np.load(saving_path + '.npy' )
