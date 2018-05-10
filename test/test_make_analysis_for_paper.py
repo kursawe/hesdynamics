@@ -401,7 +401,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','prior_for_paper.pdf'))
 
-    def test_plot_period_distribution_for_paper(self):
+    def xest_plot_period_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
@@ -454,6 +454,91 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_period_distribution_for_paper.pdf'))
+ 
+    def test_plot_period_distribution_differently(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_logarithmic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                   model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     model_results[:,3]>0.3))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_model_results = model_results[accepted_indices]
+
+        real_data = [ 6.4135025721, 6.9483225932, 2.6887457703, 3.8620874625, 3.2559540745,
+                      4.4568030424, 5.2120783369, 4.3169191105, 4.2472576997, 2.7684001434,
+                      3.6331949226, 5.365000329,  1.1181243755, 4.2130976958, 6.3381760719,
+                      2.466899605,  4.7849990718, 5.2029517316, 4.2038143391, 3.9909362984,
+                      3.2734490618, 4.3116631965, 5.3199423883] 
+        
+        ## the values that verionica sent initially
+#          
+#         real_data = [2.0075009033, 5.1156200644, 7.7786868129, 6.4328452748, 7.441794935,
+#                      7.0127707313, 2.6890681359, 3.4454911902, 3.8689181126, 3.2493764293,
+#                      6.3817264371, 5.8903734106, 4.5034984657, 3.4247641996, 4.4767623623, 
+#                      4.1803337503, 5.2752672662, 6.9038758003, 4.3200156205, 4.2588402084, 
+#                      6.1428930891, 5.4124817274, 5.0135377758, 2.8156245427, 5.5008033408, 
+#                      3.6331974295, 5.295813407,  1.1181243876, 5.5984263674, 4.2800118281, 
+#                      6.7713656265, 3.4585300534, 6.3727670575, 2.4668994841, 6.3725171059,
+#                      4.8021898758, 4.8108333392, 5.9935335349, 6.2570622822, 5.2284704987,
+#                      4.2143881493, 4.0659270434, 3.9990674449, 4.4410420437, 6.7406002947,
+#                      5.0648853886, 1.8765732885, 3.307425174,  5.6208186717, 4.3185605778,
+#                      5.186842823,  5.6310823986, 7.4402931009]
+
+        my_posterior_samples[:,2]/=10000
+
+        real_data = np.array(real_data)*60
+        sns.set(font_scale = 1.5)
+#         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (6,4))
+
+# #         dataframe = pd.DataFrame({'Model': all_periods, 
+#                                   'Data' : np.array(real_data)*60})
+        all_periods = my_model_results[:,2]
+        my_figure.add_subplot(211)
+        sns.distplot(all_periods[all_periods<600],
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    bins = 10)
+#         plt.gca().set_xlim(-1,2)
+        plt.axvline(np.mean(real_data))
+        plt.ylabel("Likelihood", labelpad = 20)
+        plt.xlabel("Modelled period [min]")
+        plt.xlim(50,600)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(212)
+        sns.distplot(real_data,
+                     kde = False,
+                     rug = False,
+                     norm_hist = True)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+#         plt.gca().set_xlim(0,2.3)
+#         plt.gca().set_ylim(0,2.0)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.xticks([0,1,2], [r'$10^0$',r'$10^1$',r'$10^2$'])
+        plt.xlabel("Measured period [min]")
+        plt.ylabel("Occurrence", labelpad = 20)
+        plt.xlim(50,600)
+#         plt.yticks([])
+ 
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','abc_period_distribution_differently.pdf'))
+        
  
     def xest_plot_mrna_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
