@@ -1572,6 +1572,79 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     
     return summary_statistics
 
+def calculate_power_spectra_at_parameter_points(parameter_points):
+    '''Calculate power spectra at parameter points from a distribution with prior dimension 'hill',
+    i.e. where protein and degradation rates are fixed at the experimental values.
+    
+    Parameters
+    ----------
+    
+    parameter_points : ndarray
+        must have 5 columns, as specified by prior dimension 'hill'
+        
+    Returns
+    -------
+    
+    power_spectra: ndarray
+        first column corresponds to frequency values, each further column is a power spectrum from
+        one parameter point
+    '''
+    first_power_spectrum = calculate_power_spectrum_at_parameter_point(parameter_points[0])
+    power_spectra = np.zeros((first_power_spectrum.shape[0],parameter_points.shape[0] + 1))
+    power_spectra[:,0] = first_power_spectrum[:,0]
+    power_spectra[:,1] = first_power_spectrum[:,1]
+
+    pool_of_processes = mp.Pool(processes = number_of_available_cores)
+
+    process_results = [ pool_of_processes.apply_async(calculate_power_spectrum_at_parameter_point, 
+                                                      args=(parameter_point,))
+                        for parameter_point in parameter_points[1:] ]
+
+    ## Let the pool know that these are all so that the pool will exit afterwards
+    # this is necessary to prevent memory overflows.
+    pool_of_processes.close()
+
+    for parameter_index, process_result in enumerate(process_results):
+        this_power_spectrum = process_result.get()
+        power_spectra[:, parameter_index + 2 ] = this_power_spectrum[:,1]
+
+    return power_spectra
+
+def calculate_power_spectrum_at_parameter_point(parameter_point):
+    '''Calculate power spectrum at a parameter point from a distribution with prior dimension 'hill',
+    i.e. where protein and degradation rates are fixed at the experimental values.
+    
+    Parameters
+    ----------
+    
+    parameter_point : ndarray
+        must have 5 entries, as specified by prior dimension 'hill'
+        
+    Returns
+    -------
+    
+    power_spectra: ndarray
+        first column corresponds to frequency values, second column is the power spectrum from
+        the parameter point
+    '''
+    number_of_traces = 200
+    mrna_traces, protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                           1500*5, #duration 
+                                                                           parameter_point[2], #repression_threshold, 
+                                                                           parameter_point[4], #hill_coefficient,
+                                                                           np.log(2)/30.0, #mRNA_degradation_rate, 
+                                                                           np.log(2)/90.0, #protein_degradation_rate, 
+                                                                           parameter_point[0], #basal_transcription_rate, 
+                                                                           parameter_point[1], #translation_rate,
+                                                                           parameter_point[3], #transcription_delay, 
+                                                                           10, #initial_mRNA, 
+                                                                           parameter_point[2], #initial_protein,
+                                                                           1000)
+ 
+    power_spectrum, _, _ = calculate_power_spectrum_of_trajectories(protein_traces)
+
+    return power_spectrum
+    
 def generate_prior_samples(number_of_samples, use_langevin = True,
                            prior_bounds = {'basal_transcription_rate' : (0,100),
                                            'translation_rate' : (0,200),
