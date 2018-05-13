@@ -1475,7 +1475,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         each row contains the summary statistics (mean, std, period, coherence, mean_mrna) for the corresponding
         parameter set in parameter_values
     '''
-    summary_statistics = np.zeros((parameter_values.shape[0], 5))
+    summary_statistics = np.zeros((parameter_values.shape[0], 7))
 
     pool_of_processes = mp.Pool(processes = number_of_cpus)
 
@@ -1628,19 +1628,35 @@ def calculate_power_spectrum_at_parameter_point(parameter_point):
         the parameter point
     '''
     number_of_traces = 200
-    mrna_traces, protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
-                                                                           1500*5, #duration 
-                                                                           parameter_point[2], #repression_threshold, 
-                                                                           parameter_point[4], #hill_coefficient,
-                                                                           np.log(2)/30.0, #mRNA_degradation_rate, 
-                                                                           np.log(2)/90.0, #protein_degradation_rate, 
-                                                                           parameter_point[0], #basal_transcription_rate, 
-                                                                           parameter_point[1], #translation_rate,
-                                                                           parameter_point[3], #transcription_delay, 
-                                                                           10, #initial_mRNA, 
-                                                                           parameter_point[2], #initial_protein,
-                                                                           1000)
- 
+    if parameter_point.shape[0] == 5:
+        mrna_traces, protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                               1500*5, #duration 
+                                                                               parameter_point[2], #repression_threshold, 
+                                                                               parameter_point[4], #hill_coefficient,
+                                                                               np.log(2)/30.0, #mRNA_degradation_rate, 
+                                                                               np.log(2)/90.0, #protein_degradation_rate, 
+                                                                               parameter_point[0], #basal_transcription_rate, 
+                                                                               parameter_point[1], #translation_rate,
+                                                                               parameter_point[3], #transcription_delay, 
+                                                                               10, #initial_mRNA, 
+                                                                               parameter_point[2], #initial_protein,
+                                                                               1000)
+    elif parameter_point.shape[0] == 7:
+        mrna_traces, protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                           1500*5, #duration 
+                                                                                           parameter_point[2], #repression_threshold, 
+                                                                                           parameter_point[4], #hill_coefficient,
+                                                                                           parameter_point[5], #mRNA_degradation_rate, 
+                                                                                           parameter_point[6], #protein_degradation_rate, 
+                                                                                           parameter_point[0], #basal_transcription_rate, 
+                                                                                           parameter_point[1], #translation_rate,
+                                                                                           parameter_point[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           parameter_point[2], #initial_protein,
+                                                                                           1000)
+    else:
+        ValueError("Shape of parameter_points not identified, must correspond to prior dimension 'hill' or 'full' ")
+
     power_spectrum, _, _ = calculate_power_spectrum_of_trajectories(protein_traces)
 
     return power_spectrum

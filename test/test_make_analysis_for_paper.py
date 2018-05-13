@@ -552,8 +552,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
 #                                   'Data' : np.array(real_data)*60})
         
-        print('mean period is')
-        print(np.mode(all_periods[all_periods<600]))
+#         print('mean period is')
+#         print(np.mode(all_periods[all_periods<600]))
 #         import pdb; pdb.set_trace()
         my_figure = plt.figure(figsize= (5,3))
         sns.boxplot(data = [all_periods[all_periods<600], np.array(real_data)*60])
@@ -565,7 +565,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
  
     def xest_plot_period_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_logarithmic')
+                                   'sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
@@ -633,7 +633,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
  
     def xest_plot_mrna_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_logarithmic')
+                                   'sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
@@ -681,15 +681,15 @@ class TestMakePaperAnalysis(unittest.TestCase):
  
     def xest_plot_period_distribution_differently(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_logarithmic')
+                                   'sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
                                     np.logical_and(model_results[:,0]<65000, #cell_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                   model_results[:,1]>0.05))))  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
-#                                                     model_results[:,3]>0.3))))) #time_delay
+#                                                     model_results[:,3]>0.1)))))
 
         my_posterior_samples = prior_samples[accepted_indices]
         my_model_results = model_results[accepted_indices]
@@ -762,7 +762,6 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_period_distribution_differently.pdf'))
-        
  
     def xest_plot_mrna_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
@@ -966,7 +965,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','bifurcation_illustration.pdf'), dpi = 400)
  
-    def xest_plot_bayes_factors_for_models(self):
+    def test_plot_bayes_factors_for_models(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -1014,17 +1013,17 @@ class TestMakePaperAnalysis(unittest.TestCase):
  
             print 'these accepted base samples are'
             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
-                                                                    my_parameter_sweep_results[:,9,4] < 0.1))[0])
+                                                                    my_parameter_sweep_results[:,9,4] < 0.05))[0])
             print number_of_absolute_samples
             
-            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
                                                         my_parameter_sweep_results[:,4,4] > 0.1)))
 
             decrease_ratios[parameter_name] = len(decrease_indices[0])/float(number_of_absolute_samples)
 
-            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
                                                         my_parameter_sweep_results[:,14,4] > 0.1)))
@@ -1119,98 +1118,191 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                        'output',
                                        'power_spectra_before.pdf'), dpi = 400)
 
-    def test_plot_power_spectra_before_and_after(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
+    def xest_plot_power_spectra_before_and_after(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
+        index_to_parameter_name_lookup = {0: 'basal_transcription_rate',
+                                          1: 'translation_rate',
+                                          2: 'repression_threshold',
+                                          3: 'time_delay',
+                                          4: 'hill_coefficient',
+                                          5: 'mRNA_degradation_rate',
+                                          6: 'protein_degradation_rate'}
+
+        parameter_name_to_index_lookup = {'basal_transcription_rate':0,
+                                          'translation_rate'        :1, 
+                                          'repression_threshold'    :2,
+                                          'time_delay'              :3,
+                                          'hill_coefficient'        :4,
+                                          'mRNA_degradation_rate'   :5,
+                                          'protein_degradation_rate':6 }
+
+
         sns.set()
 
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                   model_results[:,1]>0.05))))
+
+        my_posterior_samples = prior_samples[accepted_indices]
         
-        power_spectra = hes5.calculate_power_spectra_at_parameter_points(fewer_samples)
+        accepted_model_results = model_results[accepted_indices]
+
+        parameter_names = ['basal_transcription_rate',
+                            'translation_rate',
+                            'repression_threshold',
+                            'time_delay',
+                            'mRNA_degradation_rate',
+                            'protein_degradation_rate',
+                            'hill_coefficient']
         
         for parameter_name in parameter_names:
             print 'investigating ' + parameter_name
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                           'data',
-                                                          'logarithmic_relative_sweeps_' + 
+                                                          'narrowed_relative_sweeps_' + 
                                                           parameter_name + '.npy'))
  
             print 'these accepted base samples are'
             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
-                                                                    my_parameter_sweep_results[:,9,4] < 0.1))[0])
+                                                                    my_parameter_sweep_results[:,9,4] < 0.05))[0])
             print number_of_absolute_samples
             
-            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
                                                         my_parameter_sweep_results[:,4,4] > 0.1)))
 
-            decrease_ratios[parameter_name] = len(decrease_indices[0])/float(number_of_absolute_samples)
-
-            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
                                                         my_parameter_sweep_results[:,14,4] > 0.1)))
 
-            increase_ratios[parameter_name] = len(increase_indices[0])/float(number_of_absolute_samples)
-                
-        increase_bars = [increase_ratios[parameter_name] for parameter_name
-                         in parameter_names]
+            decrease_parameters_before = my_posterior_samples[decrease_indices]
+            increase_parameters_before = my_posterior_samples[increase_indices]
+            print('number of accepted samples is ' + str(len(decrease_indices[0])))
+            print('number of accepted samples is ' + str(len(increase_indices[0])))
+            print('these are the before parameters')
+            print decrease_parameters_before
+            print increase_parameters_before
+            
+#             if len(decrease_parameters_before) > 10:
+#                 decrease_parameters_before = decrease_parameters_before[:10]
+#             if len(increase_parameters_before) > 10:
+#                 increase_parameters_before = increase_parameters_before[:10]
 
-        decrease_bars = [decrease_ratios[parameter_name] for parameter_name
-                         in parameter_names]
+            dummy_zeros = np.zeros((decrease_parameters_before.shape[0],2))
+            decrease_parameters_after = np.hstack((decrease_parameters_before,dummy_zeros))
+            dummy_zeros = np.zeros((increase_parameters_before.shape[0],2))
+            increase_parameters_after = np.hstack((increase_parameters_before,dummy_zeros))
+            decrease_parameters_after[:,-2] = np.log(2.)/30.
+            increase_parameters_after[:,-2] = np.log(2.)/30.
+            decrease_parameters_after[:,-1] = np.log(2.)/90.
+            increase_parameters_after[:,-1] = np.log(2.)/90.
+            
+            print 'these are the increase parameters after'
+            print increase_parameters_after
+            parameter_index = parameter_name_to_index_lookup[parameter_name]
+            
+            try:
+                print'hello1'
+                reference_decrease_parameters = decrease_parameters_after[:,parameter_index]
+                print reference_decrease_parameters
+                decreased_parameters = reference_decrease_parameters*0.5
+                print'hello2'
+                decrease_parameters_after[:,parameter_index] = decreased_parameters
+                print'hello3'
+                decrease_spectra_before = hes5.calculate_power_spectra_at_parameter_points(decrease_parameters_before)
+                print'hello4'
+                decrease_spectra_after = hes5.calculate_power_spectra_at_parameter_points(decrease_parameters_after)
+                print'hello5'
+            except Exception, e: 
+                print repr(e)
+                decrease_spectra_before = np.array([[0,0],[0,0]])
+                decrease_spectra_after = np.array([[0,0],[0,0]])
 
-        increase_positions = np.arange(len(increase_bars))
-        decrease_positions = np.arange(len(decrease_bars)) + len(increase_bars)
-        all_positions = np.hstack((increase_positions, decrease_positions))
-        
-        all_bars = np.array( increase_bars + decrease_bars)
+            try:   
+                print'hello1'
+                reference_increase_parameters = increase_parameters_after[:,parameter_index]
+                print reference_increase_parameters
+                increased_parameters = reference_increase_parameters*1.5
+                print'hello2'
+                increase_parameters_after[:,parameter_index] = increased_parameters
+                print'hello3'
+                increase_spectra_before = hes5.calculate_power_spectra_at_parameter_points(increase_parameters_before)
+                print'hello4'
+                increase_spectra_after = hes5.calculate_power_spectra_at_parameter_points(increase_parameters_after)
+                print'hello5'
+            except Exception, e: 
+                print repr(e)
+                increase_spectra_before = np.array([[0,0],[0,0]])
+                increase_spectra_after = np.array([[0,0],[0,0]])
 
-        labels_up = [x_labels[parameter_name] + ' up' for parameter_name in parameter_names]
-        labels_down = [x_labels[parameter_name] + ' down' for parameter_name in parameter_names]
-        
-        all_labels = labels_up + labels_down
-        sorting_indices = np.argsort(all_bars)
-        sorted_labels = [all_labels[sorting_index] for
-                         sorting_index in sorting_indices]
-        sorted_bars = np.sort(all_bars)
-        sorted_bars/= np.sum(sorted_bars)
-
-        my_figure = plt.figure( figsize = (4.5, 1.5) )
-        plt.bar(all_positions, sorted_bars[::-1])
-        sorted_labels.reverse()
-#         plt.xticks( all_positions + 0.4 , 
-        plt.xticks( all_positions, 
-                    sorted_labels,
-                    rotation = 30,
-                    fontsize = 5,
-                    horizontalalignment = 'right')
-        plt.xlim(all_positions[0] - 0.5,)
-        plt.gca().locator_params(axis='y', tight = True, nbins=5)
-        plt.ylim(0,sorted_bars[-1]*1.2)
-        plt.ylabel('Likelihood')
-
-        my_figure.tight_layout()
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                     'output',
-                                     'likelihood_plot_for_paper.pdf'))
-
-
-        my_figure = plt.figure( figsize = (4.5, 1.5) )
-        for power_spectrum in power_spectra[:,1:].transpose():
-            plt.plot(power_spectra[:,0], power_spectrum, ls = 'solid',
-                     color ='teal', alpha = 0.02, zorder = 0)
-        plt.plot(power_spectra[:,0], np.mean(power_spectra[:,1:],axis = 1), ls = 'solid',
+            my_figure = plt.figure( figsize = (6, 4.5) )
+            my_figure.add_subplot(221)
+            for power_spectrum in decrease_spectra_before[:,1:].transpose():
+                plt.plot(decrease_spectra_before[:,0], power_spectrum, ls = 'solid',
+                         color ='teal', alpha = 0.2, zorder = 0)
+            plt.plot(decrease_spectra_before[:,0], 
+                     np.mean(decrease_spectra_before[:,1:],axis = 1), ls = 'solid',
                      color ='blue')
-#         plt.gca().locator_params(axis='y', tight = True, nbins=5)
-#         plt.ylim(0,sorted_bars[-1]*1.2)
-        plt.xlim(0.0,0.01)
-        plt.gca().set_rasterization_zorder(1)
-        plt.ylabel('Power')
-        plt.xlabel('Frequency [1/min]')
+            plt.xlim(0.0,0.01)
+            plt.axvline(1/300.0)
+            plt.axvline(1/600.0)
+#             plt.gca().set_rasterization_zorder(1)
+            plt.ylabel('Power')
+            plt.title(parameter_name + ' decrease before')
+            plt.xlabel('Frequency [1/min]')
 
-        my_figure.tight_layout()
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output',
-                                       'power_spectra_before.pdf'), dpi = 400)
+            my_figure.add_subplot(222)
+            for power_spectrum in decrease_spectra_after[:,1:].transpose():
+                plt.plot(decrease_spectra_after[:,0], power_spectrum, ls = 'solid',
+                         color ='teal', alpha = 0.2, zorder = 0)
+            plt.plot(decrease_spectra_after[:,0], 
+                     np.mean(decrease_spectra_after[:,1:],axis = 1), ls = 'solid',
+                     color ='blue')
+            plt.xlim(0.0,0.01)
+            plt.axvline(1/300.0)
+            plt.axvline(1/600.0)
+#             plt.gca().set_rasterization_zorder(1)
+            plt.ylabel('Power')
+            plt.title(parameter_name + ' decrease after')
+            plt.xlabel('Frequency [1/min]')
+
+            my_figure.add_subplot(223)
+            for power_spectrum in increase_spectra_before[:,1:].transpose():
+                plt.plot(increase_spectra_before[:,0], power_spectrum, ls = 'solid',
+                         color ='teal', alpha = 0.2, zorder = 0)
+            plt.plot(increase_spectra_before[:,0], 
+                     np.mean(increase_spectra_before[:,1:],axis = 1), ls = 'solid',
+                     color ='blue')
+            plt.xlim(0.0,0.01)
+            plt.axvline(1/300.0)
+            plt.axvline(1/600.0)
+#             plt.gca().set_rasterization_zorder(1)
+            plt.ylabel('Power')
+            plt.title(parameter_name + ' increase before')
+            plt.xlabel('Frequency [1/min]')
+
+            my_figure.add_subplot(224)
+            for power_spectrum in increase_spectra_after[:,1:].transpose():
+                plt.plot(increase_spectra_after[:,0], power_spectrum, ls = 'solid',
+                         color ='teal', alpha = 0.2, zorder = 0)
+            plt.plot(increase_spectra_after[:,0], 
+                     np.mean(increase_spectra_after[:,1:],axis = 1), ls = 'solid',
+                     color ='blue')
+            plt.xlim(0.0,0.01)
+            plt.axvline(1/300.0)
+            plt.axvline(1/600.0)
+            plt.gca().set_rasterization_zorder(1)
+            plt.ylabel('Power')
+            plt.title(parameter_name + ' increase after')
+            plt.xlabel('Frequency [1/min]')
+
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output',
+                                     parameter_name + 'likelihood_plot_spectra_investigation.pdf'))
