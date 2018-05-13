@@ -225,13 +225,13 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','pairplot_hill_abc_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
  
-    def xest_pairplot_prior(self):
+    def test_pairplot_prior(self):
 #         acceptance_ratio = 0.02
-        total_number_of_samples = 2000
+        total_number_of_samples = 200000
         
-        prior_bounds = {'basal_transcription_rate' : (0.5,100),
-                        'translation_rate' : (1,200),
-                        'repression_threshold' : (0,100000),
+        prior_bounds = {'basal_transcription_rate' : (0.1,60),
+                        'translation_rate' : (1,40),
+                        'repression_threshold' : (0,120000),
                         'time_delay' : (5,40),
                         'hill_coefficient': (2,6)}
 #                         'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
@@ -242,9 +242,115 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                 prior_bounds, 'hill', True)
 
 
-        pairplot = hes5.plot_posterior_distributions(prior_samples)
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_log_prior.pdf'))
+#         pairplot = hes5.plot_posterior_distributions(prior_samples)
+#         pairplot.savefig(os.path.join(os.path.dirname(__file__),
+#                                       'output','pairplot_log_prior.pdf'))
+
+        prior_samples[:,2]/=10000
+
+        data_frame = pd.DataFrame( data = prior_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient'])
+
+        sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (11,3))
+
+        my_figure.add_subplot(151)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(-1,np.log10(60.0),20)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Transcription rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+        plt.gca().set_xlim(-1,np.log10(60.0))
+        plt.ylabel("Probability", labelpad = 20)
+        plt.xlabel("Transcription rate \n [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        plt.gca().set_ylim(0,1.0)
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(152)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        translation_rate_bins = np.linspace(0,np.log10(40),20)
+        sns.distplot(np.log10(data_frame['Translation rate']),
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = translation_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_xlim(0,np.log10(40))
+        plt.gca().set_ylim(0,1.3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xlabel("Translation rate \n [1/min]")
+        plt.gca().set_ylim(0,2.0)
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(153)
+        sns.distplot(data_frame['Repression threshold/1e4'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.xlabel("Repression threshold \n [1e4]")
+        plt.gca().set_ylim(0,0.22)
+        plt.gca().set_xlim(0,12)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift = []
+        plots_to_shift.append(my_figure.add_subplot(154))
+        time_delay_bins = np.linspace(5,40,10)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = time_delay_bins)
+        plt.gca().set_xlim(5,40)
+#         plt.gca().set_ylim(0,0.035)
+        plt.gca().set_ylim(0,0.04)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel(" Transcription delay \n [min]")
+#         plt.yticks([])
+ 
+        plots_to_shift.append(my_figure.add_subplot(155))
+        sns.distplot(data_frame['Hill coefficient'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_ylim(0,0.35)
+        plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','fixed_prior.pdf'))
 
     def xest_make_abc_logarithmic_prior_vary_bounds(self):
         ## generate posterior samples

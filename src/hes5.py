@@ -105,9 +105,9 @@ def generate_deterministic_trajectory( duration = 720,
                            transcription_delay,
                            negative_times_indicator]) 
 
-    hes5_dde.dde(y=initial_condition, times=np.arange(0.0, duration, 0.1), 
+    hes5_dde.dde(y=initial_condition, times=np.arange(0.0, duration, 1.0), 
                  func=hes5_ddegrad, parms=parameters, 
-                 tol=0.000005, dt=0.01, hbsize=10000, nlag=1, ssc=[0.0, 0.0]) 
+                 tol=0.000005, dt=1.0, hbsize=10000, nlag=1, ssc=[0.0, 0.0]) 
                  #hbsize is buffer size, I believe this is how many values in the past are stored
                  #nlag is the number of delay variables (tau_1, tau2, ... taun_lag)
                  #ssc means "statescale" and would somehow only matter for values close to 0
@@ -1475,7 +1475,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         each row contains the summary statistics (mean, std, period, coherence, mean_mrna) for the corresponding
         parameter set in parameter_values
     '''
-    summary_statistics = np.zeros((parameter_values.shape[0], 7))
+    summary_statistics = np.zeros((parameter_values.shape[0], 9))
 
     pool_of_processes = mp.Pool(processes = number_of_cpus)
 
@@ -1492,6 +1492,43 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         summary_statistics[ parameter_index ] = these_summary_statistics
 
     return summary_statistics
+
+def get_full_parameter_for_reduced_parameter(reduced_parameter):
+    '''Transforms a parameter value of varying prior dimensions to 
+    a full parameter, i.e. fills in missing entries for hill coefficient or degradation rates
+    
+    Parameters
+    ----------
+    
+    reduced_parameter : ndarray
+        either 4, 5, or 7 entries, corresponding to prior dimension 'reduced', 'hill', or 'full'
+        
+    Returns
+    -------
+    
+    full_parameter : ndarray
+        7 entries, corresponding to the full model dimension
+    '''
+    hill_coefficient = 5
+    mrna_degradation_rate = np.log(2)/30.0
+    protein_degradation_rate = np.log(2)/90.0
+    if reduced_parameter.shape[0] == 4:
+        full_parameter = np.zeros(7)
+        full_parameter[:4] = reduced_parameter
+        full_parameter[4] = hill_coefficient
+        full_parameter[5] = mrna_degradation_rate
+        full_parameter[6] = protein_degradation_rate
+    elif reduced_parameter.shape[0] == 5:
+        full_parameter = np.zeros(7)
+        full_parameter[:5] = reduced_parameter
+        full_parameter[5] = mrna_degradation_rate
+        full_parameter[6] = protein_degradation_rate
+    elif reduced_parameter.shape[0] == 7:
+        full_parameter = reduced_parameter
+    else: 
+        raise ValueError("This dimension of the prior sample is not recognised.")
+
+    return full_parameter
 
 def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, number_of_traces = 100):
     '''Calculate the mean, relative standard deviation, period, coherence and mean mRNA
@@ -1517,58 +1554,52 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
         One dimension, five entries. Contains the summary statistics (mean, std, period, coherence, mean_mRNA) for the parameters
         in parameter_values
     '''
-    if parameter_value.shape[0] == 4:
-        these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                           1500*5, #duration 
-                                                                                           parameter_value[2], #repression_threshold, 
-                                                                                           5, #hill_coefficient,
-                                                                                           np.log(2)/30.0, #mRNA_degradation_rate, 
-                                                                                           np.log(2)/90.0, #protein_degradation_rate, 
-                                                                                           parameter_value[0], #basal_transcription_rate, 
-                                                                                           parameter_value[1], #translation_rate,
-                                                                                           parameter_value[3], #transcription_delay, 
-                                                                                           10, #initial_mRNA, 
-                                                                                           parameter_value[2], #initial_protein,
-                                                                                           1000)
-    if parameter_value.shape[0] == 5:
-        these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                           1500*5, #duration 
-                                                                                           parameter_value[2], #repression_threshold, 
-                                                                                           parameter_value[4], #hill_coefficient,
-                                                                                           np.log(2)/30.0, #mRNA_degradation_rate, 
-                                                                                           np.log(2)/90.0, #protein_degradation_rate, 
-                                                                                           parameter_value[0], #basal_transcription_rate, 
-                                                                                           parameter_value[1], #translation_rate,
-                                                                                           parameter_value[3], #transcription_delay, 
-                                                                                           10, #initial_mRNA, 
-                                                                                           parameter_value[2], #initial_protein,
-                                                                                           1000)
-    elif parameter_value.shape[0] == 7:
-        these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                           1500*5, #duration 
-                                                                                           parameter_value[2], #repression_threshold, 
-                                                                                           parameter_value[4], #hill_coefficient,
-                                                                                           parameter_value[5], #mRNA_degradation_rate, 
-                                                                                           parameter_value[6], #protein_degradation_rate, 
-                                                                                           parameter_value[0], #basal_transcription_rate, 
-                                                                                           parameter_value[1], #translation_rate,
-                                                                                           parameter_value[3], #transcription_delay, 
-                                                                                           10, #initial_mRNA, 
-                                                                                           parameter_value[2], #initial_protein,
-                                                                                           1000)
-    else: 
-        raise ValueError("This dimension of the prior sample is not recognised.")
+    full_parameter = get_full_parameter_for_reduced_parameter(parameter_value)
+    these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                       1500*5, #duration 
+                                                                                       full_parameter[2], #repression_threshold, 
+                                                                                       full_parameter[4], #hill_coefficient,
+                                                                                       full_parameter[5], #mRNA_degradation_rate, 
+                                                                                       full_parameter[6], #protein_degradation_rate, 
+                                                                                       full_parameter[0], #basal_transcription_rate, 
+                                                                                       full_parameter[1], #translation_rate,
+                                                                                       full_parameter[3], #transcription_delay, 
+                                                                                       10, #initial_mRNA, 
+                                                                                       full_parameter[2], #initial_protein,
+                                                                                       1000)
  
-    summary_statistics = np.zeros(5)
+    this_deterministic_trace = generate_deterministic_trajectory(1500*5+1000, 
+                                                                 full_parameter[2], 
+                                                                 full_parameter[4], 
+                                                                 full_parameter[5], 
+                                                                 full_parameter[6], 
+                                                                 full_parameter[0], 
+                                                                 full_parameter[1],
+                                                                 full_parameter[3], 
+                                                                 10, 
+                                                                 full_parameter[2], 
+                                                                 for_negative_times = 'no_negative')
+    
+    this_deterministic_trace = this_deterministic_trace[this_deterministic_trace[:,0]>1000] # remove equilibration time
+    summary_statistics = np.zeros(9)
     _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
     this_mean = np.mean(these_protein_traces[:,1:])
     this_std = np.std(these_protein_traces[:,1:])/this_mean
     this_mean_mRNA = np.mean(these_mrna_traces[:,1:])
+    this_deterministic_mean = np.mean(this_deterministic_trace[:,2])
+    this_deterministic_std = np.std(this_deterministic_trace[:,2])/this_deterministic_mean
+    deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 1000, 
+                                             this_deterministic_trace[:,2])).transpose()
+    _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
     summary_statistics[0] = this_mean
     summary_statistics[1] = this_std
     summary_statistics[2] = this_period
     summary_statistics[3] = this_coherence
     summary_statistics[4] = this_mean_mRNA
+    summary_statistics[5] = this_deterministic_mean
+    summary_statistics[6] = this_deterministic_std
+    summary_statistics[7] = this_deterministic_period
+    summary_statistics[8] = this_deterministic_coherence
     
     return summary_statistics
 
@@ -1745,7 +1776,10 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
             prior_samples[:,parameter_index] *= these_parameter_bounds[1] - these_parameter_bounds[0]
             prior_samples[:,parameter_index] += these_parameter_bounds[0]
         if this_parameter_name == 'time_delay' and use_langevin:
-            prior_samples[:,parameter_index] = np.around(prior_samples[:,parameter_index])
+            these_parameter_bounds = np.around(these_parameter_bounds)
+            prior_samples[:,parameter_index] = np.random.randint(these_parameter_bounds[0],
+                                                                 these_parameter_bounds[1] + 1,
+                                                                 number_of_samples)
 
     return prior_samples
     
@@ -2626,7 +2660,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                                                                         use_langevin = True)
     
     # unpack and wrap the results in the output format
-    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 6))
+    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 10))
     parameter_sample_index = 0
     if not relative:
         for sample_index, sample in enumerate(parameter_samples):
