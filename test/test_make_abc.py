@@ -3172,7 +3172,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                      'output','logarithmic_relative_sweep_for_nancy_' + parameter_name + '.pdf'))
  
     def xest_plot_bayes_factor_differences(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_logarithmic')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -3218,20 +3218,20 @@ class TestSimpleHes5ABC(unittest.TestCase):
             for parameter_name in parameter_names:
                 my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                               'data',
-                                                              'logarithmic_relative_sweeps_' + 
+                                                              'narrowed_relative_sweeps_' + 
                                                               parameter_name + '.npy'))
  
                 number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
-                                                                        my_parameter_sweep_results[:,9,4] < 0.1))[0])
+                                                                        my_parameter_sweep_results[:,9,4] < 0.05))[0])
 
-                decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+                decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                         my_parameter_sweep_results[:,9,3] > 600),
                                             np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
                                                             my_parameter_sweep_results[:,4,4] > 0.1)))
 
                 decrease_ratios[parameter_name] = len(decrease_indices[0])/float(number_of_absolute_samples)
 
-                increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+                increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                          my_parameter_sweep_results[:,9,3] > 600),
                                             np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
                                                             my_parameter_sweep_results[:,14,4] > 0.1)))
@@ -3284,13 +3284,13 @@ class TestSimpleHes5ABC(unittest.TestCase):
                 for parameter_name in parameter_names:
                     my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                                   'data',
-                                                                  'logarithmic_relative_sweeps_' + 
+                                                                  'narrowed_relative_sweeps_' + 
                                                                   parameter_name + '.npy'))
  
                     number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
-                                                                            my_parameter_sweep_results[:,9,4] < 0.1))[0])
+                                                                            my_parameter_sweep_results[:,9,4] < 0.05))[0])
                     
-                    decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+                    decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                             my_parameter_sweep_results[:,9,3] > 600),
                                                 np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
                                                                 my_parameter_sweep_results[:,4,4] > 0.1)))
@@ -3298,7 +3298,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                     decrease_statistic_values = my_posterior_samples[decrease_indices, statistic_index]
                     statistic_values[x_labels[parameter_name] + ' down'] = decrease_statistic_values
 
-                    increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+                    increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                             my_parameter_sweep_results[:,9,3] > 600),
                                                 np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
                                                                my_parameter_sweep_results[:,14,4] > 0.1)))
@@ -3360,13 +3360,13 @@ class TestSimpleHes5ABC(unittest.TestCase):
                     for parameter_name in parameter_names:
                         my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                                       'data',
-                                                                      'logarithmic_relative_sweeps_' + 
+                                                                      'narrowed_relative_sweeps_' + 
                                                                       parameter_name + '.npy'))
  
                         number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
-                                                                                my_parameter_sweep_results[:,9,4] < 0.1))[0])
+                                                                                my_parameter_sweep_results[:,9,4] < 0.05))[0])
                         
-                        decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+                        decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                                 my_parameter_sweep_results[:,9,3] > 600),
                                                     np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
                                                                     my_parameter_sweep_results[:,4,4] > 0.1)))
@@ -3377,7 +3377,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                             decrease_statistic_values = my_parameter_sweep_results[decrease_indices, 4, statistic_index+1]
                         statistic_values[x_labels[parameter_name] + ' down'] = decrease_statistic_values
 
-                        increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+                        increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
                                                                                 my_parameter_sweep_results[:,9,3] > 600),
                                                     np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
                                                                    my_parameter_sweep_results[:,14,4] > 0.1)))
@@ -6073,7 +6073,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','ngn_visualisation.pdf'))
         
-    def test_plot_distributions_for_poster(self):
+    def xest_plot_distributions_for_poster(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
