@@ -149,6 +149,35 @@ class TestInfrastructure(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','hes5_langevin_trajectory.pdf'))
 
+    def test_stochastic_hes_trajectory_with_other_noise(self):
+        # same plot as before for different transcription ("more_mrna") - not yet
+        # our preferred hes5 values
+        my_trajectory = hes5.generate_agnostic_noise_trajectory( duration = 1500,
+                                                                 repression_threshold = 23000,
+                                                                 mRNA_degradation_rate = np.log(2)/30,
+                                                                 protein_degradation_rate = np.log(2)/90,
+                                                                 translation_rate = 26,
+                                                                 basal_transcription_rate = 9,
+                                                                 transcription_delay = 29,
+                                                                 initial_mRNA = 3,
+                                                                 initial_protein = 23000)
+        
+        self.assertGreaterEqual(np.min(my_trajectory),0.0)
+        figuresize = (4,2.5)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1]*10000, label = 'mRNA*1000', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
+        plt.text(0.95, 0.4, 'Mean protein number: ' + str(np.mean(my_trajectory[:,2])),
+                 verticalalignment='bottom', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_agnostic_trajectory.pdf'))
+
     def test_equlibrate_langevin_trajectory(self):
         import time
         np.random.seed(0)
@@ -223,6 +252,47 @@ class TestInfrastructure(unittest.TestCase):
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','average_hes5_langevin_behaviour.pdf'))
+
+    def test_multiple_equlibrated_agnostic_trajectories(self):
+        mRNA_trajectories, protein_trajectories = hes5.generate_multiple_agnostic_trajectories( number_of_trajectories = 100,
+                                                                                        duration = 1500,
+                                                         repression_threshold = 31400,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = 29,
+                                                         basal_transcription_rate = 11,
+                                                         transcription_delay = 29,
+                                                         noise_strength = 10,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 31400,
+                                                         equilibration_time = 1000)
+
+        np.save(os.path.join(os.path.dirname(__file__),
+                                       'output','agnostic_protein_traces.npy'), protein_trajectories)
+        np.save(os.path.join(os.path.dirname(__file__),
+                                       'output','agnostic_rna_traces.npy'), mRNA_trajectories)
+
+        mean_protein_trajectory = np.mean(protein_trajectories[:,1:], axis = 1)
+        protein_deviation = np.std(mRNA_trajectories[:,1:])
+        mean_mRNA_trajectory = np.mean(mRNA_trajectories[:,1:], axis = 1)
+        mRNA_deviation = np.std(mRNA_trajectories[:,1:])
+        
+        figuresize = (4,2.75)
+        my_figure = plt.figure()
+        # want to plot: protein and mRNA for stochastic and deterministic system,
+        # example stochastic system
+        plt.plot( mRNA_trajectories[:,0],
+                  mRNA_trajectories[:,1]*1000., label = 'mRNA example', color = 'black' )
+        plt.plot( protein_trajectories[:,0],
+                  protein_trajectories[:,1], label = 'Protein example', color = 'black', ls = '--' )
+        plt.plot( mRNA_trajectories[:,0],
+                  mean_mRNA_trajectory*1000, label = 'Mean mRNA*1000', color = 'blue' )
+        plt.plot( protein_trajectories[:,0],
+                  mean_protein_trajectory, label = 'Mean protein*1000', color = 'blue', ls = '--' )
+        plt.ylabel('Copy number')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','average_hes5_agnostic_behaviour.pdf'))
 
     def test_make_abc_example(self):
         ## generate posterior samples
