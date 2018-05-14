@@ -954,9 +954,10 @@ def generate_posterior_samples( total_number_of_samples,
         python dictionary containing parameter names and the bounds of the respective uniform prior.
         
     prior_dimension : string
-        'reduced', 'hill' or 'full' are possible options. If 'full', then the mRNA and protein degradation rates
+        'reduced', 'hill' or 'full', or 'agnostic' are possible options. If 'full', then the mRNA and protein degradation rates
         will be inferred in addition to other model parameters, excluding the Hill coefficient. If 'hill',
-        then all parameters exclucing the mRNA and protein degradation rates will be inferred.
+        then all parameters exclucing the mRNA and protein degradation rates will be inferred. 
+        If the model is 'agnostic', then this option will be ignored.
         
     model : string
         options are 'langevin', 'gillespie', 'agnostic'
@@ -974,6 +975,9 @@ def generate_posterior_samples( total_number_of_samples,
     '''
     if model == 'langevin' or model == 'agnostic':
         use_langevin = True
+        
+    if model == 'agnostic':
+        prior_dimension = 'agnostic'
 
     # first: keep degradation rates infer translation, transcription, repression threshold,
     # and time delay
@@ -1043,8 +1047,8 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
                                              'Translation rate', 
                                              'Repression threshold/1e4', 
                                              'Transcription delay',
-                                             'mRNA degradation',
-                                             'Protein degradation'])
+                                             'Hill coefficient',
+                                             'Noise_strength'])
     elif posterior_samples.shape[1] == 7:
         data_frame = pd.DataFrame( data = posterior_samples,
                                    columns= ['Transcription rate', 
@@ -1121,11 +1125,11 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
     pairplot.axes[-1,2].set_xlim(0,10)
     pairplot.axes[-1,3].set_xlim(5,40)
 
-    if posterior_samples.shape[1] == 6:
-        pairplot.axes[-1,4].locator_params(axis = 'x', nbins = 5)
-        pairplot.axes[-1,5].locator_params(axis = 'x', nbins = 5)
-        pairplot.axes[-1,4].set_xlim(0,0.04)
-        pairplot.axes[-1,5].set_xlim(0,0.04)
+#     if posterior_samples.shape[1] == 6:
+#         pairplot.axes[-1,4].locator_params(axis = 'x', nbins = 5)
+#         pairplot.axes[-1,5].locator_params(axis = 'x', nbins = 5)
+#         pairplot.axes[-1,4].set_xlim(0,0.04)
+#         pairplot.axes[-1,5].set_xlim(0,0.04)
 
 #     pairplot = sns.PairGrid(data_frame)
 #     pairplot.map_diag(sns.kdeplot)
@@ -1534,9 +1538,10 @@ def get_full_parameter_for_reduced_parameter(reduced_parameter):
         full_parameter[6] = protein_degradation_rate
     elif reduced_parameter.shape[0] == 6:
         full_parameter = np.zeros(8)
-        full_parameter[:6] = reduced_parameter
-        full_parameter[7] = mrna_degradation_rate
-        full_parameter[8] = protein_degradation_rate
+        full_parameter[:5] = reduced_parameter[:5]
+        full_parameter[5] = mrna_degradation_rate
+        full_parameter[6] = protein_degradation_rate
+        full_parameter[7] = reduced_parameter[-1]
     elif reduced_parameter.shape[0] == 7:
         full_parameter = reduced_parameter
     else: 
@@ -1587,19 +1592,21 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            full_parameter[2], #initial_protein,
                                                                                            1000)
     elif model == 'agnostic':
+        print 'hello1'
         these_mrna_traces, these_protein_traces = generate_multiple_agnostic_trajectories( number_of_traces, # number_of_trajectories 
                                                                                            1500*5, #duration 
                                                                                            full_parameter[2], #repression_threshold, 
                                                                                            full_parameter[4], #hill_coefficient,
-                                                                                           full_parameter[6], #mRNA_degradation_rate, 
-                                                                                           full_parameter[7], #protein_degradation_rate, 
+                                                                                           full_parameter[5], #mRNA_degradation_rate, 
+                                                                                           full_parameter[6], #protein_degradation_rate, 
                                                                                            full_parameter[0], #basal_transcription_rate, 
                                                                                            full_parameter[1], #translation_rate,
                                                                                            full_parameter[3], #transcription_delay, 
-                                                                                           full_parameter[5], #noise_strength
+                                                                                           full_parameter[7], #noise_strength
                                                                                            10, #initial_mRNA, 
                                                                                            full_parameter[2], #initial_protein,
                                                                                            1000)
+    print 'hello2'
  
     this_deterministic_trace = generate_deterministic_trajectory(1500*5+1000, 
                                                                  full_parameter[2], 
@@ -1613,6 +1620,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                  full_parameter[2], 
                                                                  for_negative_times = 'no_negative')
     
+    print 'hello3'
     this_deterministic_trace = this_deterministic_trace[this_deterministic_trace[:,0]>1000] # remove equilibration time
     summary_statistics = np.zeros(9)
     _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
@@ -1634,6 +1642,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     summary_statistics[7] = this_deterministic_period
     summary_statistics[8] = this_deterministic_coherence
     
+    print summary_statistics
     return summary_statistics
 
 def calculate_power_spectra_at_parameter_points(parameter_points):
@@ -1751,7 +1760,7 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
         python dictionary containing parameter names and the bounds of the respective uniform prior.
 
     prior_dimension : string
-        'reduced' or 'full', or 'hill' are possible options. If 'full', then the mRNA and protein degradation rates
+        'reduced' or 'full', or 'hill', or 'agnostic' are possible options. If 'full', then the mRNA and protein degradation rates
         will be inferred in addition to other model parameters.
         
     logarithmic : bool

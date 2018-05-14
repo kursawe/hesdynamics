@@ -48,6 +48,38 @@ class TestMakePaperAnalysis(unittest.TestCase):
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                       'output','pairplot_narrow_abc_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
+
+    def test_make_agnostic_abc_samples(self):
+        ## generate posterior samples
+        total_number_of_samples = 200
+        acceptance_ratio = 0.2
+
+#         total_number_of_samples = 10
+#         acceptance_ratio = 0.5
+
+        prior_bounds = {'basal_transcription_rate' : (0.1,60),
+                        'translation_rate' : (1,40),
+                        'repression_threshold' : (0,120000),
+                        'time_delay' : (5,40),
+                        'hill_coefficient' : (2,6),
+                        'noise_strength' : (0,100)}
+
+        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
+                                                                acceptance_ratio,
+                                                                number_of_traces_per_sample = 200,
+                                                                saving_name = 'sampling_results_narrowed',
+                                                                prior_bounds = prior_bounds,
+                                                                model = 'agnostic',
+                                                                logarithmic = True)
+        
+        self.assertEquals(my_posterior_samples.shape, 
+                          (int(round(total_number_of_samples*acceptance_ratio)), 6))
+
+        # plot distribution of accepted parameter samples
+        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_agnostic_abc_' +  str(total_number_of_samples) + '_'
+                                      + str(acceptance_ratio) + '.pdf'))
         
     def xest_plot_posterior_distributions(self):
         
@@ -965,7 +997,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','bifurcation_illustration.pdf'), dpi = 400)
  
-    def test_plot_bayes_factors_for_models(self):
+    def xest_plot_bayes_factors_for_models(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
