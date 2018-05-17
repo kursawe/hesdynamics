@@ -35,10 +35,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_narrowed',
+                                                                saving_name = 'sampling_results_extended',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'hill',
-                                                                logarithmic = True)
+                                                                logarithmic = True )
         
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 5))
@@ -46,15 +46,17 @@ class TestMakePaperAnalysis(unittest.TestCase):
         # plot distribution of accepted parameter samples
         pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
         pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_narrow_abc_' +  str(total_number_of_samples) + '_'
+                                      'output','pairplot_extended_abc_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
         
     def xest_plot_posterior_distributions(self):
         
         option = 'full'
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_narrowed')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data',
+#                                    'sampling_results_narrowed')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -77,11 +79,20 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]<0.1)))))  #standard deviation
+        elif option == 'deterministic': 
+             accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #cell number
+                                         np.logical_and(model_results[:,5]<65000, #cell_number
+                                         np.logical_and(model_results[:,6]<0.15,  #standard deviation
+                                                        model_results[:,6]>0.05))))
         else:
             ValueError('could not identify posterior option')
 #       
         my_posterior_samples = prior_samples[accepted_indices]
         
+#         pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
+#         pairplot.savefig(os.path.join(os.path.dirname(__file__),
+#                                       'output','pairplot_extended_abc_' + option + '.pdf'))
+
         print('Number of accepted samples is ')
         print(len(my_posterior_samples))
 
@@ -189,93 +200,57 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         plt.tight_layout()
         
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                    'output','inference_for_paper.pdf'))
+                                    'output','inference_for_paper_' + option + '.pdf'))
 
-# 
-#         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
-#         font = {'size'   : 28}
-#         plt.rc('font', **font)
-#         my_figure = plt.figure(figsize= (11,3))
-# 
-#         my_figure.add_subplot(151)
-# #         transcription_rate_bins = np.logspace(-1,2,20)
-#         transcription_rate_bins = np.linspace(-1,2,20)
-# #         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
-# #                                                        bins = time_delay_bins )
-#         sns.distplot(np.log10(data_frame['Transcription rate']),
-#                     kde = False,
-#                     rug = False,
-#                     norm_hist = True,
-#                     bins = transcription_rate_bins)
-# #         plt.gca().set_xscale("log")
-# #         plt.gca().set_xlim(0.1,100)
-#         plt.gca().set_xlim(-1,2)
-#         plt.ylabel("Probability", labelpad = 20)
-#         plt.xlabel("Transcription rate \n [1/min]")
-#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
-#         plt.gca().set_ylim(0,1.0)
-#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
-# #         plt.yticks([])
-#  
-#         my_figure.add_subplot(152)
-# #         translation_rate_bins = np.logspace(0,2.3,20)
-#         translation_rate_bins = np.linspace(0,2.3,20)
-#         sns.distplot(np.log10(data_frame['Translation rate']),
-#                      kde = False,
-#                      rug = False,
-#                      norm_hist = True,
-#                      bins = translation_rate_bins)
-# #         plt.gca().set_xscale("log")
-# #         plt.gca().set_xlim(1,200)
-#         plt.gca().set_xlim(0,2.3)
-#         plt.gca().set_ylim(0,2.0)
-#         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-#         plt.xticks([0,1,2], [r'$10^0$',r'$10^1$',r'$10^2$'])
-#         plt.xlabel("Translation rate \n [1/min]")
-# #         plt.yticks([])
-#  
-#         my_figure.add_subplot(153)
-#         sns.distplot(data_frame['Repression threshold/1e4'],
-#                      kde = False,
-#                      norm_hist = True,
-#                      rug = False)
-# #         plt.gca().set_xlim(1,200)
-#         plt.xlabel("Repression threshold \n [1e4]")
-#         plt.gca().set_ylim(0,0.22)
-#         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-# #         plt.yticks([])
-# 
-#         plots_to_shift = []
-#         plots_to_shift.append(my_figure.add_subplot(154))
-#         time_delay_bins = np.linspace(5,40,10)
-#         sns.distplot(data_frame['Transcription delay'],
-#                      kde = False,
-#                      rug = False,
-#                     norm_hist = True,
-#                      bins = time_delay_bins)
-#         plt.gca().set_xlim(0,45)
-#         plt.gca().set_ylim(0,0.04)
-#         plt.gca().locator_params(axis='x', tight = True, nbins=5)
-#         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-#         plt.xlabel("Transcription delay \n [min]")
-# #         plt.yticks([])
-#  
-#         plots_to_shift.append(my_figure.add_subplot(155))
-#         sns.distplot(data_frame['Hill coefficient'],
-#                      kde = False,
-#                      norm_hist = True,
-#                      rug = False)
-# #         plt.gca().set_xlim(1,200)
-#         plt.gca().set_ylim(0,0.35)
-#         plt.gca().set_xlim(1,7)
-#         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-# #         plt.yticks([])
-# 
-#         plt.tight_layout(w_pad = 0.0001)
-#         
-#         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-#                                     'output','inference_for_paper.pdf'))
+    def xest_plot_example_deterministic_trace(self):
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        # same plot as before for different transcription ("more_mrna") - not yet
+        # our preferred hes5 values
+
+        accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #cell number
+                                    np.logical_and(model_results[:,5]<65000, #cell_number
+                                    np.logical_and(model_results[:,6]<0.15,  #standard deviation
+                                                   model_results[:,6]>0.05))))
+
+        my_posterior_samples = prior_samples[accepted_indices]
  
+        this_parameter = my_posterior_samples[0]
+        my_trajectory = hes5.generate_deterministic_trajectory( duration = 1000 + 5*1500,
+                                                                repression_threshold = this_parameter[2],
+                                                                mRNA_degradation_rate = np.log(2)/30,
+                                                                protein_degradation_rate = np.log(2)/90,
+                                                                translation_rate = this_parameter[1],
+                                                                basal_transcription_rate = this_parameter[0],
+                                                                hill_coefficient = this_parameter[4],
+                                                                transcription_delay =  this_parameter[3],
+                                                                initial_mRNA = 3,
+                                                                initial_protein = this_parameter[2])
+
+        my_trajectory = my_trajectory[my_trajectory[:,0]>1000]
+        my_trajectory[:,0] -= 1000
+        
+        self.assertGreaterEqual(np.min(my_trajectory),0.0)
+        figuresize = (4,2.5)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1]*1000, label = 'mRNA*1000', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
+        plt.text(0.95, 0.4, 'Mean protein number: ' + str(np.mean(my_trajectory[:,2])),
+                 verticalalignment='bottom', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_deterministic_oscillating_trajectory.pdf'))
+
     def xest_visualise_model_regimes(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
@@ -806,7 +781,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         number_of_trajectories = 2
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -825,18 +801,18 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                           number_of_traces_per_parameter = number_of_trajectories,
                                           relative = False)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','narrowed_degradation_sweep.npy'),
+        np.save(os.path.join(os.path.dirname(__file__), 'output','extended_degradation_sweep.npy'),
                     my_sweep_results)
 
 
-    def xest_make_relative_parameter_variation(self):
+    def test_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
 #         number_of_trajectories = 2
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -855,7 +831,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                                                      relative = True)
         
         for parameter_name in my_parameter_sweep_results:
-            np.save(os.path.join(os.path.dirname(__file__), 'output','narrowed_relative_sweeps_' + parameter_name + '.npy'),
+            np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
     def xest_plot_model_prediction(self):
@@ -965,7 +941,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','bifurcation_illustration.pdf'), dpi = 400)
  
-    def test_plot_bayes_factors_for_models(self):
+    def xest_plot_bayes_factors_for_models(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
