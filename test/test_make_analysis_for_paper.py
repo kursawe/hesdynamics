@@ -49,10 +49,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                       'output','pairplot_narrow_abc_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
 
-    def test_make_agnostic_abc_samples(self):
+    def xest_make_agnostic_abc_samples(self):
         ## generate posterior samples
-        total_number_of_samples = 200
-        acceptance_ratio = 0.2
+        total_number_of_samples = 200000
+        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
 #         acceptance_ratio = 0.5
@@ -67,7 +67,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_narrowed',
+                                                                saving_name = 'sampling_results_agnostic',
                                                                 prior_bounds = prior_bounds,
                                                                 model = 'agnostic',
                                                                 logarithmic = True)
@@ -83,10 +83,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
     def xest_plot_posterior_distributions(self):
         
-        option = 'full'
+        option = 'deterministic'
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_narrowed')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -103,12 +103,20 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]>0.3)))))  #standard deviation
-        elif option == 'not oscillating': 
+        elif option == 'not_oscillating': 
              accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
                                          np.logical_and(model_results[:,0]<65000, #cell_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]<0.1)))))  #standard deviation
+        elif option == 'deterministic': 
+            print 'hello'
+            accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #cell number
+                                        np.logical_and(model_results[:,5]<65000, #cell_number
+                                        np.logical_and(model_results[:,6]<0.15,  #standard deviation
+                                                    model_results[:,6]>0.05))))  #standard deviation
+#                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#
         else:
             ValueError('could not identify posterior option')
 #       
@@ -221,7 +229,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         plt.tight_layout()
         
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                    'output','inference_for_paper.pdf'))
+                                    'output','inference_for_paper_' + option + '.pdf'))
 
 # 
 #         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
@@ -307,6 +315,370 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         
 #         my_figure.savefig(os.path.join(os.path.dirname(__file__),
 #                                     'output','inference_for_paper.pdf'))
+ 
+    def xest_plot_agnostic_oscillating_variation(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_agnostic')
+
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000,
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,3]>0.3)))))  #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        this_parameter = my_posterior_samples[0,:]
+        # same plot as before for different transcription ("more_mrna") - not yet
+        # our preferred hes5 values
+        my_trajectory = hes5.generate_agnostic_noise_trajectory( duration = 1500,
+                                                                 repression_threshold = this_parameter[2],
+                                                                 mRNA_degradation_rate = np.log(2)/30,
+                                                                 protein_degradation_rate = np.log(2)/90,
+                                                                 translation_rate = this_parameter[1],
+                                                                 basal_transcription_rate = this_parameter[0],
+                                                                 transcription_delay = this_parameter[3],
+                                                                 hill_coefficient = this_parameter[4],
+                                                                 noise_strength = this_parameter[5],
+                                                                 initial_mRNA = 3,
+                                                                 initial_protein = this_parameter[2],
+                                                                 equilibration_time = 1000.0)
+        
+        self.assertGreaterEqual(np.min(my_trajectory),0.0)
+        figuresize = (4,2.5)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1]*100, label = 'mRNA*100', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_agnostic_oscillating_trajectory.pdf'))
+
+    def xest_plot_agnostic_not_oscillating_variation(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_agnostic')
+
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000,
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,3]<0.05)))))  #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        this_parameter = my_posterior_samples[0,:]
+        # same plot as before for different transcription ("more_mrna") - not yet
+        # our preferred hes5 values
+        my_trajectory = hes5.generate_agnostic_noise_trajectory( duration = 1500,
+                                                                 repression_threshold = this_parameter[2],
+                                                                 mRNA_degradation_rate = np.log(2)/30,
+                                                                 protein_degradation_rate = np.log(2)/90,
+                                                                 translation_rate = this_parameter[1],
+                                                                 basal_transcription_rate = this_parameter[0],
+                                                                 transcription_delay = this_parameter[3],
+                                                                 hill_coefficient = this_parameter[4],
+                                                                 noise_strength = this_parameter[5],
+                                                                 initial_mRNA = 3,
+                                                                 initial_protein = this_parameter[2],
+                                                                 equilibration_time = 1000.0)
+        
+        self.assertGreaterEqual(np.min(my_trajectory),0.0)
+        figuresize = (4,2.5)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1]*100, label = 'mRNA*100', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_agnostic_not_oscillating_trajectory.pdf'))
+
+    def xest_plot_agnostic_posterior_distributions(self):
+        
+        option = 'full'
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_agnostic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        if option == 'full':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                        np.logical_and(model_results[:,0]<65000, #cell_number
+                                        np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,-1]<20))))) #noise strength
+        elif option == 'oscillating': 
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                         np.logical_and(model_results[:,0]<65000, #cell_number
+                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                         np.logical_and(model_results[:,1]>0.05,
+                                                        model_results[:,3]>0.3)))))  #standard deviation
+        elif option == 'not_oscillating': 
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                         np.logical_and(model_results[:,0]<65000, #cell_number
+                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                         np.logical_and(model_results[:,1]>0.05,
+                                                        model_results[:,3]<0.1)))))  #standard deviation
+        else:
+            ValueError('could not identify posterior option')
+#       
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        print('Number of accepted samples is ')
+        print(len(my_posterior_samples))
+
+        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
+        pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output','pairplot_agnostic_abc_' +  option + '.pdf'))
+
+#         my_posterior_samples[:,2]/=10000
+
+        data_frame = pd.DataFrame( data = my_posterior_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient',
+                                             'Noise strength'])
+
+        sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (11,3))
+
+        my_figure.add_subplot(161)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(-1,np.log10(60.0),20)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Transcription rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+        plt.gca().set_xlim(-1,np.log10(60.0))
+        plt.ylabel("Probability", labelpad = 20)
+        plt.xlabel("Transcription rate \n [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        plt.gca().set_ylim(0,1.0)
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(162)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        translation_rate_bins = np.linspace(0,np.log10(40),20)
+        sns.distplot(np.log10(data_frame['Translation rate']),
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = translation_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_xlim(0,np.log10(40))
+        plt.gca().set_ylim(0,1.3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xlabel("Translation rate \n [1/min]")
+        plt.gca().set_ylim(0,2.0)
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(163)
+        sns.distplot(data_frame['Repression threshold/1e4'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.xlabel("Repression threshold \n [1e4]")
+        plt.gca().set_ylim(0,0.22)
+        plt.gca().set_xlim(0,12)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift = []
+        plots_to_shift.append(my_figure.add_subplot(164))
+        time_delay_bins = np.linspace(5,40,10)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = time_delay_bins)
+        plt.gca().set_xlim(5,40)
+#         plt.gca().set_ylim(0,0.035)
+        plt.gca().set_ylim(0,0.04)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel(" Transcription delay \n [min]")
+#         plt.yticks([])
+ 
+        plots_to_shift.append(my_figure.add_subplot(165))
+        sns.distplot(data_frame['Hill coefficient'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_ylim(0,0.35)
+        plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift.append(my_figure.add_subplot(166))
+        sns.distplot(data_frame['Noise strength'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+#         plt.gca().set_ylim(0,0.35)
+#         plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','agnostic_inference' + option + '.pdf'))
+ 
+    def xest_plot_amplitude_distribution(self):
+        option = 'agnostic_mean_and_coherence'
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_narrowed')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+ 
+        if option == 'prior':
+            accepted_indices = (range(len(prior_samples)),)
+        elif option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                                       model_results[:,0]<65000)) #cell_number
+        elif option == 'full':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                        np.logical_and(model_results[:,0]<65000, #cell_number
+                                        np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,-1]<20))))) #noise strength
+        elif option == 'oscillating': 
+            accepted_indices = np.where(model_results[:,3]>0.3)  #standard deviation
+        elif option == 'mean_and_oscillating': 
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                        np.logical_and(model_results[:,0]<65000,
+                                                       model_results[:,3]>0.3)))  #standard deviation
+        elif option == 'mean_and_period': 
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                        np.logical_and(model_results[:,0]<65000,
+                                        np.logical_and(model_results[:,2]>240,
+                                                       model_results[:,2]<300))))  #standard deviation
+        elif option == 'mean_and_period_and_coherence': 
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                        np.logical_and(model_results[:,0]<65000,
+                                        np.logical_and(model_results[:,2]>240,
+                                        np.logical_and(model_results[:,2]<300,
+                                                       model_results[:,3]>0.3)))))  #standard deviation
+        elif option == 'agnostic_prior':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                       'sampling_results_agnostic')
+            model_results = np.load(saving_path + '.npy' )
+            prior_samples = np.load(saving_path + '_parameters.npy')
+
+            accepted_indices = (range(len(prior_samples)),)
+        elif option == 'agnostic_mean':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                       'sampling_results_agnostic')
+            model_results = np.load(saving_path + '.npy' )
+            prior_samples = np.load(saving_path + '_parameters.npy')
+
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                                       model_results[:,0]<65000)) #cell_number
+        elif option == 'agnostic_mean_and_coherence':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                       'sampling_results_agnostic')
+
+            model_results = np.load(saving_path + '.npy' )
+            prior_samples = np.load(saving_path + '_parameters.npy')
+
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                        np.logical_and(model_results[:,0]<65000,
+                                                       model_results[:,3]>0.3)))  #standard deviation
+        elif option == 'not_oscillating': 
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                         np.logical_and(model_results[:,0]<65000, #cell_number
+                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                         np.logical_and(model_results[:,1]>0.05,
+                                                        model_results[:,3]<0.1)))))  #standard deviation
+            my_posterior_samples = prior_samples[accepted_indices]
+        else:
+            ValueError('could not identify posterior option')
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'so many posterior samples'
+        print len(my_posterior_samples)
+        my_model_results = model_results[accepted_indices]
+
+        my_posterior_samples[:,2]/=10000
+
+        sns.set()
+#         sns.set(font_scale = 1.5)
+#         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+#         font = {'size'   : 28}
+#         plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (4.5,2.5))
+
+# #         dataframe = pd.DataFrame({'Model': all_periods, 
+#                                     'Data' : np.array(real_data)*60})
+        all_standard_deviations = my_model_results[:,1]
+        sns.distplot(all_standard_deviations,
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black'},
+                     )
+#                      bins = 20)
+#         plt.gca().set_xlim(-1,2)
+        plt.ylabel("Likelihood", labelpad = 20)
+        plt.xlabel("Standard deviation/mean HES5")
+        plt.xlim(0,0.4)
+        plt.axvline(0.05)
+        plt.axvline(0.15)
+#         plt.ylim(0,0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+ 
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','abc_standard_deviation_' + option + '.pdf'))
  
     def xest_visualise_model_regimes(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
@@ -424,8 +796,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
     def xest_plot_prior_for_paper(self):
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_narrowed')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -595,6 +967,75 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_period_distribution_for_paper.pdf'))
  
+    def xest_plot_agnostic_period_distribution(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_agnostic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                   model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                    prior_samples[:,-1]<20))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_model_results = model_results[accepted_indices]
+
+        real_data = [ 6.4135025721, 6.9483225932, 2.6887457703, 3.8620874625, 3.2559540745,
+                      4.4568030424, 5.2120783369, 4.3169191105, 4.2472576997, 2.7684001434,
+                      3.6331949226, 5.365000329,  1.1181243755, 4.2130976958, 6.3381760719,
+                      2.466899605,  4.7849990718, 5.2029517316, 4.2038143391, 3.9909362984,
+                      3.2734490618, 4.3116631965, 5.3199423883] 
+        
+        ## the values that verionica sent initially
+#          
+#         real_data = [2.0075009033, 5.1156200644, 7.7786868129, 6.4328452748, 7.441794935,
+#                      7.0127707313, 2.6890681359, 3.4454911902, 3.8689181126, 3.2493764293,
+#                      6.3817264371, 5.8903734106, 4.5034984657, 3.4247641996, 4.4767623623, 
+#                      4.1803337503, 5.2752672662, 6.9038758003, 4.3200156205, 4.2588402084, 
+#                      6.1428930891, 5.4124817274, 5.0135377758, 2.8156245427, 5.5008033408, 
+#                      3.6331974295, 5.295813407,  1.1181243876, 5.5984263674, 4.2800118281, 
+#                      6.7713656265, 3.4585300534, 6.3727670575, 2.4668994841, 6.3725171059,
+#                      4.8021898758, 4.8108333392, 5.9935335349, 6.2570622822, 5.2284704987,
+#                      4.2143881493, 4.0659270434, 3.9990674449, 4.4410420437, 6.7406002947,
+#                      5.0648853886, 1.8765732885, 3.307425174,  5.6208186717, 4.3185605778,
+#                      5.186842823,  5.6310823986, 7.4402931009]
+
+        my_posterior_samples[:,2]/=10000
+
+        real_data = np.array(real_data)*60
+        sns.set(font_scale = 1.5)
+#         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (4.5,2.5))
+
+# #         dataframe = pd.DataFrame({'Model': all_periods, 
+#                                     'Data' : np.array(real_data)*60})
+        all_periods = my_model_results[:,2]/60
+        sns.distplot(all_periods[all_periods<10],
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black'},
+                     bins = 10)
+#         plt.gca().set_xlim(-1,2)
+        plt.axvline(np.mean(real_data)/60)
+        plt.ylabel("Likelihood", labelpad = 20)
+        plt.xlabel("Modelled period [h]")
+        plt.xlim(1,10)
+        plt.ylim(0,0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+ 
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','abc_period_distribution_agnostic.pdf'))
+ 
     def xest_plot_period_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_narrowed')
@@ -663,9 +1104,83 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_period_distribution_for_paper.pdf'))
  
+    def xest_plot_agnostic_mrna_distribution(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_agnostic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,-1]<20))))) #time_delay
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     model_results[:,3]>0.3))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_model_results = model_results[accepted_indices]
+
+        my_posterior_samples[:,2] /= 10000
+
+        sns.set(font_scale = 1.5)
+#         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (4.5,2.5))
+
+# #         dataframe = pd.DataFrame({'Model': all_periods, 
+#                                     'Data' : np.array(real_data)*60})
+        all_mrna = my_model_results[:,4]
+        sns.distplot(all_mrna,
+                     kde = False,
+                     rug = False,
+                     hist_kws = {'edgecolor' : 'black'},
+                     norm_hist = True)
+#                      norm_hist = True,
+#                      bins = 10)
+#         plt.gca().set_xlim(-1,2)
+        plt.ylabel("Likelihood" )
+        plt.xlabel("mean mRNA number")
+#         plt.xlim(1,80)
+#         plt.ylim(0,0.06)
+#         plt.ylim(0,0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+ 
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','abc_mrna_distribution_agnostic.pdf'))
+ 
+    def xest_plot_agnostic_noise_amplitude_correlation(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_agnostic')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+#                                                    model_results[:,1]>0.05))))  #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05,  #standard deviation
+                                                   model_results[:,3]>0.3))))) #time_delay
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_model_results = model_results[accepted_indices]
+        my_figure = plt.figure(figsize= (4.5,2.5))
+        plt.scatter(prior_samples[:,-1],model_results[:,1], lw = 0, s = 1, zorder = 0)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel('Noise strength [1/min]')
+        plt.ylabel('std/mean')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','agnostic_noise_vs_amplitude.pdf'),dpi = 400)
+
     def xest_plot_mrna_distribution_for_paper(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_narrowed')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
@@ -861,6 +1376,35 @@ class TestMakePaperAnalysis(unittest.TestCase):
                     my_sweep_results)
 
 
+    def test_make_relative_delay_parameter_variation(self):
+        number_of_parameter_points = 2
+        number_of_trajectories = 1
+#         number_of_parameter_points = 3
+#         number_of_trajectories = 2
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05)))) #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
+
+        my_parameter_sweep_results = hes5.conduct_parameter_sweep_at_parameters('time_delay',
+                                                                                my_posterior_samples,
+                                                                                number_of_parameter_points,
+                                                                                number_of_trajectories,
+                                                                                relative = True)
+        
+        np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + 'time_delay' + '.npy'),
+                    my_parameter_sweep_results)
+
     def xest_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
@@ -1045,17 +1589,17 @@ class TestMakePaperAnalysis(unittest.TestCase):
  
             print 'these accepted base samples are'
             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
-                                                                    my_parameter_sweep_results[:,9,4] < 0.05))[0])
+                                                                    my_parameter_sweep_results[:,9,4] < 0.1))[0])
             print number_of_absolute_samples
             
-            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
+            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
                                                         my_parameter_sweep_results[:,4,4] > 0.1)))
 
             decrease_ratios[parameter_name] = len(decrease_indices[0])/float(number_of_absolute_samples)
 
-            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
+            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
                                                         my_parameter_sweep_results[:,14,4] > 0.1)))
@@ -1200,15 +1744,15 @@ class TestMakePaperAnalysis(unittest.TestCase):
  
             print 'these accepted base samples are'
             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
-                                                                    my_parameter_sweep_results[:,9,4] < 0.05))[0])
+                                                                    my_parameter_sweep_results[:,9,4] < 0.1))[0])
             print number_of_absolute_samples
             
-            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
+            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
                                                         my_parameter_sweep_results[:,4,4] > 0.1)))
 
-            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.05,
+            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
                                                         my_parameter_sweep_results[:,14,4] > 0.1)))
