@@ -1339,8 +1339,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                     my_sweep_results)
 
     def test_make_relative_delay_parameter_variation(self):
-        number_of_parameter_points = 2
-        number_of_trajectories = 1
+        number_of_parameter_points = 20
+        number_of_trajectories = 200
 #         number_of_parameter_points = 3
 #         number_of_trajectories = 2
 
@@ -1358,6 +1358,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         print('number of accepted samples is')
         print(len(my_posterior_samples))
 
+        my_posterior_samples = my_posterior_samples[:10]
         my_parameter_sweep_results = hes5.conduct_parameter_sweep_at_parameters('time_delay',
                                                                                 my_posterior_samples,
                                                                                 number_of_parameter_points,
