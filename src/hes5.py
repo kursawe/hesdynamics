@@ -105,7 +105,8 @@ def generate_deterministic_trajectory( duration = 720,
                                            initial_mRNA = initial_mRNA, 
                                            initial_protein = initial_protein, 
                                            equilibration_time = 0,
-                                           time_step = 0.01)
+                                           time_step = 0.01,
+                                           sampling_frequency = 1)
         
         return trace
 
@@ -1647,6 +1648,9 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                 for_negative_times = 'no_negative')
     
     this_deterministic_trace = this_deterministic_trace[this_deterministic_trace[:,0]>1000] # remove equilibration time
+#     this_deterministic_trace = np.vstack((these_protein_traces[:,0],
+#                                           these_mrna_traces[:,1],
+#                                           these_protein_traces[:,1])).transpose()
     summary_statistics = np.zeros(9)
     _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
     this_mean = np.mean(these_protein_traces[:,1:])
@@ -1655,7 +1659,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     this_deterministic_mean = np.mean(this_deterministic_trace[:,2])
     this_deterministic_std = np.std(this_deterministic_trace[:,2])/this_deterministic_mean
     deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 1000, 
-                                             this_deterministic_trace[:,2])).transpose()
+                                            this_deterministic_trace[:,2])).transpose()
     _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
     summary_statistics[0] = this_mean
     summary_statistics[1] = this_std
@@ -1901,7 +1905,7 @@ def calculate_coherence_and_period_of_power_spectrum(power_spectrum):
         coherence_boundary_right = power_spectrum[-1,0]
         
     first_left_index = np.min(np.where(power_spectrum[:,0]>coherence_boundary_left))
-    last_right_index = np.min(np.where(power_spectrum[:,0]>coherence_boundary_right))
+    last_right_index = np.min(np.where(power_spectrum[:,0]>=coherence_boundary_right))
     integration_axis = np.hstack(([coherence_boundary_left], 
                                   power_spectrum[first_left_index:last_right_index,0],
                                   [coherence_boundary_right]))
@@ -2343,7 +2347,8 @@ def generate_agnostic_noise_trajectory( duration = 720,
                                         initial_mRNA = 0,
                                         initial_protein = 0,
                                         equilibration_time = 0.0,
-                                        time_step = 1.0
+                                        time_step = 1.0,
+                                        sampling_frequency = 1.0
                                         ):
     '''Generate one trace of the protein-autorepression model using a langevin approximation. 
     This function implements the Ito integral of 
@@ -2418,7 +2423,10 @@ def generate_agnostic_noise_trajectory( duration = 720,
     total_time = duration + equilibration_time
     delta_t = time_step
     sample_times = np.arange(0.0, total_time, delta_t)
-    full_trace = np.zeros((len(sample_times), 3))
+    sampling_times = np.linspace(equilibration_time, total_time, int(round((total_time-equilibration_time)/sampling_frequency)))
+    sampled_trace = np.zeros(( len(sampling_times), 3))
+    sampled_trace[:,0] = sampling_times
+    full_trace = np.zeros(( len(sample_times), 3))
     full_trace[:,0] = sample_times
     full_trace[0,1] = initial_mRNA
     full_trace[0,2] = initial_protein
@@ -2431,6 +2439,7 @@ def generate_agnostic_noise_trajectory( duration = 720,
     noise_rate_per_timestep = noise_strength*delta_t
     delay_index_count = int(round(transcription_delay/delta_t))
     
+    sampling_index = 0
     for time_index, sample_time in enumerate(sample_times[1:]):
         last_mRNA = full_trace[time_index,1]
         last_protein = full_trace[time_index,2]
@@ -2457,9 +2466,14 @@ def generate_agnostic_noise_trajectory( duration = 720,
         current_protein = max(last_protein + d_protein, 0.0)
         full_trace[time_index + 1,1] = current_mRNA
         full_trace[time_index + 1,2] = current_protein
+        if sample_time >= sampling_times[sampling_index]:
+            sampled_trace[sampling_index,1] = current_mRNA
+            sampled_trace[sampling_index,2] = current_protein
+            sampling_index += 1
     
     # get rid of the equilibration time now
-    trace = full_trace[ full_trace[:,0]>=equilibration_time ]
+#     trace = sampled_trace[ sampled_trace[:,0]>=equilibration_time ]
+    trace = sampled_trace
     trace[:,0] -= equilibration_time
     
     return trace 
