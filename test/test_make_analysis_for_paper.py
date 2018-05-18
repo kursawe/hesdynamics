@@ -1338,7 +1338,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','extended_degradation_sweep.npy'),
                     my_sweep_results)
 
-    def test_make_relative_delay_parameter_variation(self):
+    def xest_make_relative_delay_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -1397,6 +1397,65 @@ class TestMakePaperAnalysis(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
+    def test_make_amplitude_plot(self):
+        sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
+
+        parameter_names = ['protein_degradation_rate']
+
+        x_labels = dict()
+        x_labels['protein_degradation_rate'] = 'rel. Protein degradation'
+
+        for parameter_name in parameter_names:
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                              'output',
+                                                            'extended_degradation_sweep.npy'))
+#                                                               'extended_relative_sweeps_' + parameter_name + '.npy'))
+            
+            increase_indices = np.where(my_parameter_sweep_results[:,9,3] < 300)
+ 
+            my_parameter_sweep_results = my_parameter_sweep_results[increase_indices]
+            
+#             my_sweep_parameters = my_posterior_samples[increase_indices]
+            
+            x_coord = -0.4
+            y_coord = 1.1
+            my_figure = plt.figure( figsize = (4.5, 1.5) )
+            this_axis = my_figure.add_subplot(121)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,2], color ='teal', alpha = 0.02, zorder = 0)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+            this_axis.set_ylabel('COV')
+            plt.gca().set_rasterization_zorder(1)
+            plt.axvline( np.log(2)/90, color = 'darkblue' )
+            plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+            plt.xlim(0,np.log(2)/15.)
+#             this_axis.set_ylim(0,1)
+#             this_axis.set_ylim(0,0.2)
+            plt.title('stochastic')
+#             this_axis.set_ylim(0,700)
+
+            this_axis = my_figure.add_subplot(122)
+            for results_table in my_parameter_sweep_results:
+                this_axis.plot(results_table[:,0],
+                         results_table[:,7], color = 'teal', alpha = 0.02, zorder = 0)
+            this_axis.locator_params(axis='x', tight = True, nbins=4)
+            this_axis.set_xlabel(x_labels[parameter_name])
+#             this_axis.set_ylabel('Coherence')
+            plt.title('deterministic')
+            plt.gca().set_rasterization_zorder(1)
+            plt.axvline( np.log(2)/90, color = 'darkblue' )
+            plt.gca().text(x_coord, y_coord, 'B', transform=plt.gca().transAxes)
+            plt.xlim(0,np.log(2)/15.)
+#             this_axis.set_ylim(0,0.2)
+#             this_axis.set_ylim(0,0.5)
+#             this_axis.set_ylim(0,0.25)
+            
+            my_figure.tight_layout()
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output','amplitude_model_prediction_' + parameter_name + '.pdf'), dpi = 400)
+ 
     def xest_plot_model_prediction(self):
         sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
 
@@ -1453,9 +1512,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure = plt.figure( figsize = (6.5, 1.5) )
 
         my_figure.add_subplot(131)
-        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'data',
-                                                          'narrowed_degradation_sweep.npy'))
+#         my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'data',
+#                                                           'narrowed_degradation_sweep.npy'))
         
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                                          'extended_degradation_sweep.npy'))
         x_coord = -0.3
         y_coord = 1.05
         for results_table in my_degradation_sweep_results:
@@ -1473,7 +1534,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.add_subplot(132)
         hill_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                               'data',
-                                                              'narrowed_relative_sweeps_hill_coefficient.npy'))
+                                                              'extended_relative_sweeps_hill_coefficient.npy'))
         for results_table in hill_sweep_results:
             plt.plot(results_table[:,0],
                      results_table[:,4], color = 'teal', alpha = 0.02, zorder = 0)
@@ -1488,7 +1549,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.add_subplot(133)
         delay_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                               'data',
-                                                              'narrowed_relative_sweeps_time_delay.npy'))
+                                                              'extended_relative_sweeps_time_delay.npy'))
         for results_table in delay_sweep_results:
             plt.plot(results_table[:,0],
                      results_table[:,4], color = 'teal', alpha = 0.02, zorder = 0)
@@ -1502,7 +1563,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','bifurcation_illustration.pdf'), dpi = 400)
+                                 'output','extended_bifurcation_illustration.pdf'), dpi = 400)
  
     def xest_plot_bayes_factors_for_models(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
