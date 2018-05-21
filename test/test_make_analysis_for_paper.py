@@ -232,6 +232,158 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','inference_for_paper_' + option + '.pdf'))
 
+    def test_plot_deterministic_posterior_distributions(self):
+        
+        option = 'deterministic'
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        if option == 'full':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                        np.logical_and(model_results[:,0]<65000, #cell_number
+                                        np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,3]>20))))) #time_delay
+        elif option == 'oscillating': 
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                         np.logical_and(model_results[:,0]<65000, #cell_number
+                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                         np.logical_and(model_results[:,1]>0.05,
+                                                        model_results[:,3]>0.3)))))  #standard deviation
+        elif option == 'not_oscillating': 
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                         np.logical_and(model_results[:,0]<65000, #cell_number
+                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                         np.logical_and(model_results[:,1]>0.05,
+                                                        model_results[:,3]<0.1)))))  #standard deviation
+        elif option == 'deterministic': 
+             accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #cell number
+                                         np.logical_and(model_results[:,5]<65000, #cell_number
+                                         np.logical_and(model_results[:,6]<0.15,  #standard deviation
+                                                        model_results[:,6]>0.05))))
+        else:
+            ValueError('could not identify posterior option')
+#       
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+#         pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
+#         pairplot.savefig(os.path.join(os.path.dirname(__file__),
+#                                       'output','pairplot_extended_abc_' + option + '.pdf'))
+
+        print('Number of accepted samples is ')
+        print(len(my_posterior_samples))
+
+        my_posterior_samples[:,2]/=10000
+
+        data_frame = pd.DataFrame( data = my_posterior_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient'])
+
+        sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (11,3))
+
+        my_figure.add_subplot(151)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(-1,np.log10(60.0),10)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Transcription rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+        plt.gca().set_xlim(-1,np.log10(60.0))
+        plt.ylabel("Probability", labelpad = 20)
+        plt.xlabel("Transcription rate \n [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        # plt.gca().set_ylim(0,2.0)
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(152)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        translation_rate_bins = np.linspace(0,np.log10(40),10)
+        sns.distplot(np.log10(data_frame['Translation rate']),
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = translation_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_xlim(0,np.log10(40))
+#         plt.gca().set_ylim(0,1.3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xlabel("Translation rate \n [1/min]")
+#         plt.gca().set_ylim(0,4.0)
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(153)
+        sns.distplot(data_frame['Repression threshold/1e4'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 5)
+#         plt.gca().set_xlim(1,200)
+        plt.xlabel("Repression threshold \n [1e4]")
+#         plt.gca().set_ylim(0,0.22)
+        plt.gca().set_xlim(0,12)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift = []
+        plots_to_shift.append(my_figure.add_subplot(154))
+#         time_delay_bins = np.linspace(5,40,10)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = 3)
+                     # bins = time_delay_bins)
+        plt.gca().set_xlim(5,40)
+#         plt.gca().set_ylim(0,0.035)
+#         plt.gca().set_ylim(0,0.08)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel(" Transcription delay \n [min]")
+#         plt.yticks([])
+ 
+        plots_to_shift.append(my_figure.add_subplot(155))
+        sns.distplot(data_frame['Hill coefficient'],
+                     kde = False,
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 5)
+#         plt.gca().set_xlim(1,200)
+#         plt.gca().set_ylim(0,0.7)
+        plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','inference_for_paper_' + option + '.pdf'))
+
     def xest_plot_example_deterministic_trace(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -643,7 +795,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                  'output','abc_standard_deviation_' + option + '.pdf'))
  
     def xest_visualise_model_regimes(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+        # sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -693,7 +846,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                          hill_coefficient = this_parameter[4],
                                                          initial_protein = this_parameter[2],
                                                          equilibration_time = 1000)
-                plt.plot(this_trace[:,0], this_trace[:,2]/1e4)
+                plt.plot(this_trace[:,0], this_trace[:,2]/1e4, lw = 1)
                 plt.ylim(3,9)
 #                 this_axis.locator_params(axis='y', tight = True, nbins=1)
 #                 this_axis.locator_params(axis='y', nbins=2)
@@ -717,8 +870,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
                     plt.yticks([3,9])
                 if coherence_index == 0 and subplot_index == 4:
                     plt.ylabel('Expression/1e4 ', labelpad = 15)
+                plt.xlim(0,1500)
             plt.xlabel('Time [min]', labelpad = 2)
             plt.yticks([3,9])
+
             this_axis = plt.Subplot(my_figure, this_double_grid[1])
             my_figure.add_subplot(this_axis)
             plt.xlabel('Frequency [1/min]', labelpad = 2)
@@ -736,7 +891,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                          equilibration_time = 1000)
             this_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_traces)
             smoothened_power_spectrum = hes5.smoothen_power_spectrum(this_power_spectrum)
-            plt.plot(this_power_spectrum[:,0], this_power_spectrum[:,1])
+            plt.plot(this_power_spectrum[:,0], this_power_spectrum[:,1], lw = 1)
             this_axis.locator_params(axis='x', tight = True, nbins=3)
             this_axis.tick_params(axis='both', length = 1)
             if coherence_index == 0:
@@ -745,11 +900,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
             max_power_frequency = smoothened_power_spectrum[max_index,0]
             left_frequency = max_power_frequency*0.9
             right_frequency = max_power_frequency*1.1
-            plt.axvline(left_frequency, color = 'black')
-            plt.axvline(right_frequency, color = 'black')
+            plt.axvline(left_frequency, color = 'black', lw = 1 )
+            plt.axvline(right_frequency, color = 'black', lw = 1 )
             plt.xlim(0.0,0.01)
             plt.yticks([])
-            plt.axhline(3)
+            # plt.axhline(3)
 
         plt.tight_layout()
         my_figure.subplots_adjust(hspace = 0.7)
@@ -1036,10 +1191,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_posterior_samples[:,2]/=10000
 
         real_data = np.array(real_data)*60
-        sns.set(font_scale = 1.5)
+        sns.set()
+        # sns.set(font_scale = 1.5)
 #         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
-        font = {'size'   : 28}
-        plt.rc('font', **font)
+        # font = {'size'   : 28}
+        # plt.rc('font', **font)
         my_figure = plt.figure(figsize= (4.5,2.5))
 
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
@@ -1049,6 +1205,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                      kde = False,
                      rug = False,
                      norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black'},
                      bins = 10)
 #         plt.gca().set_xlim(-1,2)
         plt.axvline(np.mean(real_data)/60)
@@ -1397,7 +1554,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def test_make_amplitude_plot(self):
+    def xest_make_amplitude_plot(self):
         sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
 
         parameter_names = ['protein_degradation_rate']
