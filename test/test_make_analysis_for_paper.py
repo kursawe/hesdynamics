@@ -54,15 +54,12 @@ class TestMakePaperAnalysis(unittest.TestCase):
         total_number_of_samples = 200000
         acceptance_ratio = 0.02
 
-#         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
-
         prior_bounds = {'basal_transcription_rate' : (0.1,60),
                         'translation_rate' : (1,40),
                         'repression_threshold' : (0,120000),
                         'time_delay' : (5,40),
                         'hill_coefficient' : (2,6),
-                        'noise_strength' : (0,100)}
+                        'noise_strength' : (0,20)}
 
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
@@ -81,37 +78,114 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                       'output','pairplot_agnostic_abc_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
         
+    def xest_plot_phase_space(self):
+        # phase space: we have two options: mrna vs protein or 
+        # protein vs dprotein (or mrna vs dmrna)
+        # let's start w protein vs mrna
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        # same plot as before for different transcription ("more_mrna") - not yet
+        # our preferred hes5 values
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,3]>0.8)))))
+
+        my_posterior_samples = prior_samples[accepted_indices]
+ 
+        this_parameter = my_posterior_samples[0]
+        my_trajectory = hes5.generate_deterministic_trajectory( duration = 1000 + 5*1500,
+                                                                repression_threshold = this_parameter[2],
+                                                                mRNA_degradation_rate = np.log(2)/30,
+                                                                protein_degradation_rate = np.log(2)/90,
+                                                                translation_rate = this_parameter[1],
+                                                                basal_transcription_rate = this_parameter[0],
+                                                                hill_coefficient = this_parameter[4],
+                                                                transcription_delay =  this_parameter[3],
+                                                                initial_mRNA = 3,
+                                                                initial_protein = this_parameter[2])
+
+#         my_stochastic_trajectory =  hes5.generate_langevin_trajectory( duration = 1000 + 5*1500,
+        my_stochastic_trajectory =  hes5.generate_langevin_trajectory( duration = 1000+ 5*1500,
+                                                                repression_threshold = this_parameter[2],
+                                                                mRNA_degradation_rate = np.log(2)/30,
+                                                                protein_degradation_rate = np.log(2)/90,
+                                                                translation_rate = this_parameter[1],
+                                                                basal_transcription_rate = this_parameter[0],
+                                                                hill_coefficient = this_parameter[4],
+                                                                transcription_delay =  this_parameter[3],
+                                                                initial_mRNA = 3,
+                                                                initial_protein = this_parameter[2],
+                                                                equilibration_time = 0)
+#                                                                 equilibration_time = 1000.0)
+
+
+#         my_trajectory = my_trajectory[my_trajectory[:,0]>1000]
+#         my_trajectory[:,0] -= 1000
+        
+        figuresize = (4,5)
+        my_figure = plt.figure(figsize = figuresize)
+        my_figure.add_subplot(311)
+        plt.plot(my_trajectory[:,0],my_trajectory[:,2], color = 'black', alpha = 0.3)
+        plt.xlabel('Time')
+        plt.ylabel('det. Protein')
+        my_figure.add_subplot(312)
+        plt.plot(my_stochastic_trajectory[:,0],my_stochastic_trajectory[:,2], color = 'black', alpha = 0.3)
+        plt.xlabel('Time')
+        plt.ylabel('stoch. Protein')
+        my_figure.add_subplot(313)
+        plt.plot(my_trajectory[:-1,1],my_trajectory[:-1,2], color = 'black', alpha = 0.3)
+        plt.plot(my_stochastic_trajectory[:,1],my_stochastic_trajectory[:,2], color = 'blue', alpha = 0.3)
+        plt.xlabel('mRNA')
+        plt.ylabel('Protein')
+        plt.legend()
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','hes5_phase_space_analysis.pdf'))
+
     def xest_plot_posterior_distributions(self):
         
-        option = 'deterministic'
+        option = 'mean'
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         if option == 'full':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                        np.logical_and(model_results[:,0]<65000, #cell_number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                    model_results[:,1]>0.05))))  #standard deviation
+                                                       model_results[:,1]>0.05))))  #standard deviation
 #                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     prior_samples[:,3]>20))))) #time_delay
+        elif option == 'amplitude':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
+                                                       model_results[:,1]>0.05)))  #standard deviation
+        elif option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                                       model_results[:,0]<65000)) #protein_number
         elif option == 'oscillating': 
-             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                         np.logical_and(model_results[:,0]<65000, #cell_number
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]>0.3)))))  #standard deviation
         elif option == 'not_oscillating': 
-             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                         np.logical_and(model_results[:,0]<65000, #cell_number
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]<0.1)))))  #standard deviation
         elif option == 'deterministic': 
-             accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #cell number
-                                         np.logical_and(model_results[:,5]<65000, #cell_number
+             accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #protein number
+                                         np.logical_and(model_results[:,5]<65000, #protein_number
                                          np.logical_and(model_results[:,6]<0.15,  #standard deviation
                                                         model_results[:,6]>0.05))))
         else:
@@ -232,7 +306,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','inference_for_paper_' + option + '.pdf'))
 
-    def test_plot_deterministic_posterior_distributions(self):
+    def xest_plot_deterministic_posterior_distributions(self):
         
         option = 'deterministic'
 
@@ -242,27 +316,27 @@ class TestMakePaperAnalysis(unittest.TestCase):
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         if option == 'full':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                        np.logical_and(model_results[:,0]<65000, #cell_number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                     model_results[:,1]>0.05))))  #standard deviation
 #                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     prior_samples[:,3]>20))))) #time_delay
         elif option == 'oscillating': 
-             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                         np.logical_and(model_results[:,0]<65000, #cell_number
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]>0.3)))))  #standard deviation
         elif option == 'not_oscillating': 
-             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                         np.logical_and(model_results[:,0]<65000, #cell_number
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]<0.1)))))  #standard deviation
         elif option == 'deterministic': 
-             accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #cell number
-                                         np.logical_and(model_results[:,5]<65000, #cell_number
+             accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #protein number
+                                         np.logical_and(model_results[:,5]<65000, #protein_number
                                          np.logical_and(model_results[:,6]<0.15,  #standard deviation
                                                         model_results[:,6]>0.05))))
         else:
@@ -394,8 +468,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         # same plot as before for different transcription ("more_mrna") - not yet
         # our preferred hes5 values
 
-        accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #cell number
-                                    np.logical_and(model_results[:,5]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #protein number
+                                    np.logical_and(model_results[:,5]<65000, #protein_number
                                     np.logical_and(model_results[:,6]<0.15,  #standard deviation
                                                    model_results[:,6]>0.05))))
 
@@ -437,7 +511,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000,
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                     np.logical_and(model_results[:,1]>0.05,
@@ -482,7 +556,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000,
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                     np.logical_and(model_results[:,1]>0.05,
@@ -524,27 +598,27 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
         option = 'full'
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_agnostic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         if option == 'full':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                        np.logical_and(model_results[:,0]<65000, #cell_number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                     model_results[:,1]>0.05))))  #standard deviation
 #                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     prior_samples[:,-1]<20))))) #noise strength
         elif option == 'oscillating': 
-             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                         np.logical_and(model_results[:,0]<65000, #cell_number
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]>0.3)))))  #standard deviation
         elif option == 'not_oscillating': 
-             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                         np.logical_and(model_results[:,0]<65000, #cell_number
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]<0.1)))))  #standard deviation
@@ -681,8 +755,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','agnostic_inference' + option + '.pdf'))
  
-    def xest_plot_amplitude_distribution(self):
-        option = 'agnostic_mean_and_coherence'
+    def test_plot_amplitude_distribution(self):
+        option = 'lower_amplitude'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_narrowed')
@@ -692,11 +766,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
         if option == 'prior':
             accepted_indices = (range(len(prior_samples)),)
         elif option == 'mean':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                                       model_results[:,0]<65000)) #cell_number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                                       model_results[:,0]<65000)) #protein_number
         elif option == 'full':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                        np.logical_and(model_results[:,0]<65000, #cell_number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                     model_results[:,1]>0.05))))  #standard deviation
 #                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -704,20 +778,24 @@ class TestMakePaperAnalysis(unittest.TestCase):
         elif option == 'oscillating': 
             accepted_indices = np.where(model_results[:,3]>0.3)  #standard deviation
         elif option == 'mean_and_oscillating': 
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000,
                                                        model_results[:,3]>0.3)))  #standard deviation
         elif option == 'mean_and_period': 
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000,
                                         np.logical_and(model_results[:,2]>240,
                                                        model_results[:,2]<300))))  #standard deviation
         elif option == 'mean_and_period_and_coherence': 
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000,
                                         np.logical_and(model_results[:,2]>240,
                                         np.logical_and(model_results[:,2]<300,
                                                        model_results[:,3]>0.3)))))  #standard deviation
+        elif option == 'lower_amplitude':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
+                                                       model_results[:,1]>0.05)))  #standard deviation
         elif option == 'agnostic_prior':
             saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                        'sampling_results_agnostic')
@@ -731,8 +809,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
             model_results = np.load(saving_path + '.npy' )
             prior_samples = np.load(saving_path + '_parameters.npy')
 
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                                       model_results[:,0]<65000)) #cell_number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                                       model_results[:,0]<65000)) #protein_number
         elif option == 'agnostic_mean_and_coherence':
             saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                        'sampling_results_agnostic')
@@ -740,12 +818,12 @@ class TestMakePaperAnalysis(unittest.TestCase):
             model_results = np.load(saving_path + '.npy' )
             prior_samples = np.load(saving_path + '_parameters.npy')
 
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000,
                                                        model_results[:,3]>0.3)))  #standard deviation
         elif option == 'not_oscillating': 
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                         np.logical_and(model_results[:,0]<65000, #cell_number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]<0.1)))))  #standard deviation
@@ -812,8 +890,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         panel_labels = {0: 'A', 1: 'B', 2: 'C'}
 
         for coherence_index, coherence_band in enumerate(coherence_bands):
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                        np.logical_and(model_results[:,0]<65000, #cell_number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                         np.logical_and(model_results[:,1]>0.05,
                                         np.logical_and(model_results[:,3]>coherence_band[0],
@@ -918,8 +996,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                    model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -1030,13 +1108,13 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','prior_for_paper.pdf'))
 
-    def xest_plot_period_distribution_for_paper(self):
+    def xest_plot_period_distribution_boxplot(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                     model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -1089,8 +1167,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'sampling_results_agnostic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                    model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -1155,14 +1233,20 @@ class TestMakePaperAnalysis(unittest.TestCase):
  
     def xest_plot_period_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_narrowed')
+                                   'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
-                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                   model_results[:,1]>0.05))))  #standard deviation
-#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                                   model_results[:,0]<65000))  #standard deviation
+#         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+#                                     np.logical_and(model_results[:,0]<65000, #protein_number
+#                                                    model_results[:,1]>0.05)))  #standard deviation
+
+#         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+#                                     np.logical_and(model_results[:,0]<65000, #protein_number
+#                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
+#                                                    model_results[:,1]>0.05))))  #standard deviation
+# #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     model_results[:,3]>0.3))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
@@ -1228,8 +1312,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'sampling_results_agnostic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                     model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -1279,8 +1363,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'sampling_results_agnostic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
 #                                                    model_results[:,1]>0.05))))  #standard deviation
                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -1302,8 +1386,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                    model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -1350,8 +1434,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                     model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -1434,8 +1518,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                    model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -1477,8 +1561,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
                                                    model_results[:,1]>0.05)))) #standard deviation
 
@@ -1506,8 +1590,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
                                                    model_results[:,1]>0.05)))) #standard deviation
 
@@ -1536,8 +1620,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
                                                    model_results[:,1]>0.05)))) #standard deviation
 
@@ -1729,8 +1813,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
         sns.set()
 
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                    model_results[:,1]>0.05))))
 
@@ -1835,8 +1919,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
         sns.set()
 
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                    model_results[:,1]>0.05))))
 
@@ -1899,8 +1983,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         sns.set()
 
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
-                                    np.logical_and(model_results[:,0]<65000, #cell_number
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                                    model_results[:,1]>0.05))))
 
