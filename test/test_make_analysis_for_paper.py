@@ -756,7 +756,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                     'output','agnostic_inference' + option + '.pdf'))
  
     def test_plot_amplitude_distribution(self):
-        option = 'mean_and_oscillating'
+        option = 'agnostic_mean_and_coherence'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -812,7 +812,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         elif option == 'mean_and_oscillating': 
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000,
-                                                       model_results[:,3]>0.4)))  #standard deviation
+                                                       model_results[:,3]>0.3)))  #standard deviation
         elif option == 'mean_and_period': 
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000,
@@ -829,7 +829,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                                        model_results[:,1]>0.05)))  #standard deviation
         elif option == 'agnostic_prior':
-            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+            saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                        'sampling_results_agnostic')
             model_results = np.load(saving_path + '.npy' )
             prior_samples = np.load(saving_path + '_parameters.npy')
@@ -892,7 +892,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Standard deviation/mean HES5")
-        plt.xlim(0,0.25)
+#         plt.xlim(0,0.25)
 #         plt.ylim(0,0.5)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
@@ -1221,7 +1221,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                  'output','abc_period_distribution_for_paper.pdf'))
  
     def xest_plot_agnostic_period_distribution(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_agnostic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -1366,7 +1366,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                  'output','abc_period_distribution_for_paper.pdf'))
  
     def xest_plot_agnostic_mrna_distribution(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_agnostic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -1417,21 +1417,21 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                  'output','abc_mrna_distribution_agnostic.pdf'))
  
     def xest_plot_agnostic_noise_amplitude_correlation(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_agnostic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
-#                                                    model_results[:,1]>0.05))))  #standard deviation
-                                    np.logical_and(model_results[:,1]>0.05,  #standard deviation
-                                                   model_results[:,3]>0.3))))) #time_delay
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                    model_results[:,3]>0.3))))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
         my_model_results = model_results[accepted_indices]
         my_figure = plt.figure(figsize= (4.5,2.5))
-        plt.scatter(prior_samples[:,-1],model_results[:,1], lw = 0, s = 1, zorder = 0)
+        plt.scatter(my_posterior_samples[:,-1],my_model_results[:,1], lw = 0, s = 1, zorder = 0, alpha = 0.2)
         plt.gca().set_rasterization_zorder(1)
         plt.xlabel('Noise strength [1/min]')
         plt.ylabel('std/mean')
@@ -1440,14 +1440,14 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                  'output','agnostic_noise_vs_amplitude.pdf'),dpi = 400)
 
     def xest_plot_mrna_distribution_for_paper(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                   model_results[:,1]>0.05))))  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     model_results[:,3]>0.3))))) #time_delay
 
@@ -1468,6 +1468,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         sns.distplot(all_mrna[all_mrna<80],
                      kde = False,
                      rug = False,
+                     hist_kws = {'edgecolor' : 'black'},
                      norm_hist = True)
 #                      norm_hist = True,
 #                      bins = 10)
