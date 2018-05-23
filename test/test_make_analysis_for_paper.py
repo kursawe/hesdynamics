@@ -756,13 +756,45 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                     'output','agnostic_inference' + option + '.pdf'))
  
     def test_plot_amplitude_distribution(self):
-        option = 'lower_amplitude'
+        option = 'mean_and_oscillating'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_narrowed')
+                                   'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
  
+        measured_data = [0.115751936, 0.09571043,  0.070593436, 0.074172953, 0.079566358, 0.04600834, 
+                         0.079873319, 0.097029606, 0.084070369, 0.105528875, 0.12579082,  0.042329269, 
+                         0.064591498, 0.059602288, 0.057944518, 0.051163091, 0.058111095, 0.102434224, 
+                         0.080997961, 0.070390139, 0.047127818, 0.095665455, 0.048707284, 0.083330235, 
+                         0.072446835, 0.059289326, 0.175901785, 0.08870091,  0.060774517, 0.119311781, 
+                         0.071923541, 0.106271586, 0.063191815, 0.068603169, 0.051063533, 0.074326763, 
+                         0.030455154, 0.09777155,  0.07789995,  0.052264432, 0.107642115, 0.078060039, 
+                         0.053932836, 0.04064868,  0.080203462, 0.102682858, 0.085553023, 0.050921194, 
+                         0.107150422, 0.075111352, 0.085250494, 0.06022623,  0.055863624, 0.070855159, 
+                         0.072975538, 0.038283748, 0.05842959,  0.069960347, 0.075625282, 0.033601918, 
+                         0.10112012,  0.069907351, 0.047498028, 0.054963426, 0.015357264, 0.091893038, 
+                         0.030862283, 0.012518025, 0.038223482, 0.05825977,  0.072195839, 0.020020349, 
+                         0.05988876,  0.054678433, 0.08156298,  0.075856751, 0.080105646, 0.084244903, 
+                         0.060850253, 0.079889701, 0.114204526, 0.048641408, 0.087017989, 0.072664986, 
+                         0.135295363, 0.044380981, 0.024025198, 0.068262356, 0.019802578, 0.064603775, 
+                         0.076865303, 0.083760066, 0.059606547, 0.05627585,  0.050701138, 0.064442271, 
+                         0.073845055, 0.086630591, 0.034115231, 0.036910128, 0.05845354,  0.055185653, 
+                         0.081778966, 0.041642038, 0.032706612, 0.034264942, 0.076971854, 0.046987517, 
+                         0.060216471, 0.091438729, 0.0341048,   0.072119114, 0.050266261, 0.076173687, 
+                         0.059316138, 0.07362588,  0.043229577, 0.056437502, 0.042911643, 0.072583345, 
+                         0.069809296, 0.063362361, 0.051916029, 0.042110911, 0.071238566, 0.069599676, 
+                         0.056064602, 0.055051899, 0.063226639, 0.076379692, 0.158771206, 0.037536219, 
+                         0.055238055, 0.074217076, 0.094215882, 0.057284261, 0.066521902, 0.075479027, 
+                         0.0921231,   0.078040383, 0.07767914,  0.053502299, 0.083650072, 0.084202846, 
+                         0.065188768, 0.057116998, 0.079006745, 0.058366725, 0.062152612, 0.062281059, 
+                         0.036391176, 0.079608123, 0.05814215,  0.084222668, 0.071304801, 0.09422804, 
+                         0.106918005, 0.110727013, 0.10753385,  0.078788611, 0.07298067,  0.078655859, 
+                         0.045046025, 0.061084624, 0.085156637, 0.109648343, 0.06425073,  0.096245619,
+                         0.056215123, 0.085664518, 0.066525248, 0.088294766, 0.055145696, 0.075250338, 
+                         0.04822837,  0.019409385, 0.047170987, 0.030422279, 0.0818539, 0.07351729, 
+                         0.083877723] 
+
         if option == 'prior':
             accepted_indices = (range(len(prior_samples)),)
         elif option == 'mean':
@@ -780,7 +812,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         elif option == 'mean_and_oscillating': 
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000,
-                                                       model_results[:,3]>0.3)))  #standard deviation
+                                                       model_results[:,3]>0.4)))  #standard deviation
         elif option == 'mean_and_period': 
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000,
@@ -843,11 +875,13 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
 #         font = {'size'   : 28}
 #         plt.rc('font', **font)
-        my_figure = plt.figure(figsize= (4.5,2.5))
+        my_figure = plt.figure(figsize= (4.5,3))
+        my_figure.add_subplot(211)
 
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
 #                                     'Data' : np.array(real_data)*60})
         all_standard_deviations = my_model_results[:,1]
+        plt.axvline(np.mean(all_standard_deviations))
         sns.distplot(all_standard_deviations,
                      kde = False,
                      rug = False,
@@ -858,19 +892,43 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Standard deviation/mean HES5")
-        plt.xlim(0,0.4)
-        plt.axvline(0.05)
-        plt.axvline(0.15)
+        plt.xlim(0,0.25)
 #         plt.ylim(0,0.5)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
 #         plt.gca().set_ylim(0,1.0)
 #         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
 #         plt.yticks([])
- 
+
+        my_figure.add_subplot(212)
+        sns.distplot(measured_data,
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black'},
+                     )
+        plt.ylabel("Likelihood", labelpad = 20)
+        plt.xlabel("Standard deviation/mean HES5")
+        plt.axvline(np.mean(measured_data))
+        plt.xlim(0,0.25)
+#         plt.ylim(0,0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_standard_deviation_' + option + '.pdf'))
+ 
+        my_boxplot_figure = plt.figure(figsize = [4,2.5])
+        sns.boxplot(data = [all_standard_deviations, measured_data])
+        plt.xticks([0,1], ['Model', 'Experiment']) 
+        plt.ylabel('Period [min]')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','abc_standard_deviation_boxplot_' + option + '.pdf'))
  
     def xest_visualise_model_regimes(self):
         # sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
