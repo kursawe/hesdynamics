@@ -150,7 +150,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
     def xest_plot_posterior_distributions(self):
         
-        option = 'mean'
+        option = 'amplitude'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -755,8 +755,127 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','agnostic_inference' + option + '.pdf'))
  
-    def test_plot_amplitude_distribution(self):
-        option = 'agnostic_mean_and_coherence'
+    def xest_plot_amplitude_distribution_for_paper(self):
+        option = 'lower_amplitude'
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+ 
+        if option == 'prior':
+            accepted_indices = (range(len(prior_samples)),)
+        elif option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                                       model_results[:,0]<65000)) #protein_number
+        elif option == 'full':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
+                                        np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,-1]<20))))) #noise strength
+        elif option == 'oscillating': 
+            accepted_indices = np.where(model_results[:,3]>0.3)  #standard deviation
+        elif option == 'mean_and_oscillating': 
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000,
+                                                       model_results[:,3]>0.3)))  #standard deviation
+        elif option == 'mean_and_period': 
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000,
+                                        np.logical_and(model_results[:,2]>240,
+                                                       model_results[:,2]<300))))  #standard deviation
+        elif option == 'mean_and_period_and_coherence': 
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000,
+                                        np.logical_and(model_results[:,2]>240,
+                                        np.logical_and(model_results[:,2]<300,
+                                                       model_results[:,3]>0.3)))))  #standard deviation
+        elif option == 'lower_amplitude':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
+                                                       model_results[:,1]>0.05)))  #standard deviation
+        elif option == 'agnostic_prior':
+            saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                       'sampling_results_agnostic')
+            model_results = np.load(saving_path + '.npy' )
+            prior_samples = np.load(saving_path + '_parameters.npy')
+
+            accepted_indices = (range(len(prior_samples)),)
+        elif option == 'agnostic_mean':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                       'sampling_results_agnostic')
+            model_results = np.load(saving_path + '.npy' )
+            prior_samples = np.load(saving_path + '_parameters.npy')
+
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                                       model_results[:,0]<65000)) #protein_number
+        elif option == 'agnostic_mean_and_coherence':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                       'sampling_results_agnostic')
+
+            model_results = np.load(saving_path + '.npy' )
+            prior_samples = np.load(saving_path + '_parameters.npy')
+
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000,
+                                                       model_results[:,3]>0.3)))  #standard deviation
+        elif option == 'not_oscillating': 
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
+                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                         np.logical_and(model_results[:,1]>0.05,
+                                                        model_results[:,3]<0.1)))))  #standard deviation
+            my_posterior_samples = prior_samples[accepted_indices]
+        else:
+            ValueError('could not identify posterior option')
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print 'so many posterior samples'
+        print len(my_posterior_samples)
+        my_model_results = model_results[accepted_indices]
+
+        my_posterior_samples[:,2]/=10000
+
+        sns.set()
+#         sns.set(font_scale = 1.5)
+#         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+#         font = {'size'   : 28}
+#         plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (4.5,2.5))
+
+# #         dataframe = pd.DataFrame({'Model': all_periods, 
+#                                     'Data' : np.array(real_data)*60})
+        all_standard_deviations = my_model_results[:,1]
+        print 'maximal standard_deviation is'
+        print(np.max(all_standard_deviations))
+        print 'number of samples above 0.15'
+        print(np.sum(all_standard_deviations>0.15))
+        sns.distplot(all_standard_deviations,
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black'},
+                     )
+#                      bins = 20)
+#         plt.gca().set_xlim(-1,2)
+        plt.ylabel("Likelihood", labelpad = 20)
+        plt.xlabel("Standard deviation/mean HES5")
+        plt.xlim(0,0.25)
+#         plt.ylim(0,0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','abc_single_standard_deviation_' + option + '.pdf'))
+ 
+    def xest_plot_amplitude_distribution(self):
+        option = 'lower_amplitude'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -892,7 +1011,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Standard deviation/mean HES5")
-#         plt.xlim(0,0.25)
+        plt.xlim(0,0.25)
 #         plt.ylim(0,0.5)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
@@ -910,6 +1029,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Standard deviation/mean HES5")
         plt.axvline(np.mean(measured_data))
+        print 'maximal measured value'
+        print np.max(measured_data)
         plt.xlim(0,0.25)
 #         plt.ylim(0,0.5)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
@@ -932,7 +1053,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
  
     def xest_visualise_model_regimes(self):
         # sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -941,9 +1062,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure = plt.figure(figsize = figuresize)
         outer_grid = matplotlib.gridspec.GridSpec(1, 3 )
 
-        coherence_bands = [[0,0.1],
-                           [0.3,0.4],
-                           [0.8,0.9]]
+        coherence_bands = [[0,0.05],
+                           [0.45,0.47],
+                           [0.85,0.9]]
         
         panel_labels = {0: 'A', 1: 'B', 2: 'C'}
 
@@ -1049,7 +1170,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
     def xest_plot_prior_for_paper(self):
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -1294,18 +1415,18 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                                   model_results[:,0]<65000))  #standard deviation
 #         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-#                                     np.logical_and(model_results[:,0]<65000, #protein_number
-#                                                    model_results[:,1]>0.05)))  #standard deviation
+#                                                    model_results[:,0]<65000))  #standard deviation
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
 
 #         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
 #                                     np.logical_and(model_results[:,0]<65000, #protein_number
 #                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
-#                                                    model_results[:,1]>0.05))))  #standard deviation
-# #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
-#                                                     model_results[:,3]>0.3))))) #time_delay
+#                                                     model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     model_results[:,3]>0.3)))) #time_delay
 
         my_posterior_samples = prior_samples[accepted_indices]
         my_model_results = model_results[accepted_indices]
@@ -1343,6 +1464,19 @@ class TestMakePaperAnalysis(unittest.TestCase):
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
 #                                     'Data' : np.array(real_data)*60})
         all_periods = my_model_results[:,2]/60
+        print('mean is')
+        print(np.mean(all_periods[all_periods<10]))
+        print('median is')
+        print(np.median(all_periods[all_periods<10]))
+        print('data mean is')
+        print(np.mean(real_data)/60)
+        period_histogram, bins = np.histogram(all_periods[all_periods<10], bins = 400) 
+        maximum_index = np.argmax(period_histogram)
+        print('max bin is')
+        print bins[maximum_index]
+        print bins[maximum_index+1]
+        print bins[maximum_index+2]
+        print bins[maximum_index-1]
         sns.distplot(all_periods[all_periods<10],
                      kde = False,
                      rug = False,
@@ -1354,7 +1488,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Modelled period [h]")
         plt.xlim(1,10)
-        plt.ylim(0,0.5)
+#         plt.ylim(0,0.8)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
 #         plt.gca().set_ylim(0,1.0)
@@ -1439,15 +1573,16 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','agnostic_noise_vs_amplitude.pdf'),dpi = 400)
 
-    def xest_plot_mrna_distribution_for_paper(self):
+    def test_plot_mrna_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
-                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                    model_results[:,1]>0.05))))  #standard deviation
+                                                    model_results[:,1]>0.05)))  #standard deviation
+#                                                     model_results[:,1]>0.05))))  #standard deviation
+#                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     model_results[:,3]>0.3))))) #time_delay
 
@@ -1456,10 +1591,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         my_posterior_samples[:,2] /= 10000
 
-        sns.set(font_scale = 1.5)
+        sns.set()
+#         sns.set(font_scale = 1.5)
 #         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
-        font = {'size'   : 28}
-        plt.rc('font', **font)
+#         font = {'size'   : 28}
+#         plt.rc('font', **font)
         my_figure = plt.figure(figsize= (4.5,2.5))
 
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
