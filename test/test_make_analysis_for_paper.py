@@ -1591,6 +1591,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         my_posterior_samples[:,2] /= 10000
 
+        weird_index = np.where(my_model_results[:,4]>200)
+        weird_results = my_model_results[weird_index]
+        weird_posterior = my_posterior_samples[weird_index]
+        print weird_results
+        print weird_posterior
         sns.set()
 #         sns.set(font_scale = 1.5)
 #         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
@@ -1601,17 +1606,31 @@ class TestMakePaperAnalysis(unittest.TestCase):
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
 #                                     'Data' : np.array(real_data)*60})
         all_mrna = my_model_results[:,4]
-        sns.distplot(all_mrna[all_mrna<80],
+        print('minimum and maximum are')
+        print(np.min(all_mrna))
+        print(np.max(all_mrna))
+        print('so many samples above 100')
+        print(np.sum(all_mrna>100))
+        mrna_histogram, bins = np.histogram(all_mrna, bins = 400) 
+        maximum_index = np.argmax(mrna_histogram)
+        print('max bin is')
+        print bins[maximum_index]
+        print bins[maximum_index+1]
+        print bins[maximum_index+2]
+        print bins[maximum_index-1]
+
+#         sns.distplot(all_mrna[all_mrna<80],
+        sns.distplot(all_mrna,
                      kde = False,
                      rug = False,
                      hist_kws = {'edgecolor' : 'black'},
-                     norm_hist = True)
+                     norm_hist = True,
 #                      norm_hist = True,
-#                      bins = 10)
+                     bins = 100)
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood" )
         plt.xlabel("mean mRNA number")
-        plt.xlim(1,80)
+        plt.xlim(0,100)
         plt.ylim(0,0.06)
 #         plt.ylim(0,0.5)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
