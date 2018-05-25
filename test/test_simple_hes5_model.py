@@ -1484,7 +1484,7 @@ class TestSimpleHes5Model(unittest.TestCase):
         self.assertGreater(this_mean_mRNA, 0)
         self.assertLess(this_mean_mRNA, 100)
         
-    def test_stochastic_hes_trajectory_example(self):
+    def xest_stochastic_hes_trajectory_example(self):
         # same plot as before for different transcription ("more_mrna") - not yet
         # our preferred hes5 values
         my_trajectory = hes5.generate_langevin_trajectory( duration = 2500,

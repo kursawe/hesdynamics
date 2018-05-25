@@ -310,7 +310,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
         option = 'deterministic'
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -337,8 +337,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
         elif option == 'deterministic': 
              accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #protein number
                                          np.logical_and(model_results[:,5]<65000, #protein_number
-                                         np.logical_and(model_results[:,6]<0.15,  #standard deviation
-                                                        model_results[:,6]>0.05))))
+#                                          np.logical_and(model_results[:,6]<0.15,  #standard deviation
+#                                                         model_results[:,6]>0.05))))
+                                                        model_results[:,6]>0.05)))
         else:
             ValueError('could not identify posterior option')
 #       
@@ -359,6 +360,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                              'Repression threshold/1e4', 
                                              'Transcription delay',
                                              'Hill coefficient'])
+
+        print('minimum time delay is')
+        print(np.min(data_frame['Transcription delay']))
+        print('minimum hill coefficient is')
+        print(np.min(data_frame['Hill coefficient']))
 
         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
         font = {'size'   : 28}
@@ -1499,15 +1505,18 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_period_distribution_for_paper.pdf'))
  
-    def xest_plot_agnostic_mrna_distribution(self):
+    def test_plot_agnostic_mrna_distribution(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_agnostic')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
-                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                    model_results[:,1]>0.05))))  #standard deviation
+#                                                     model_results[:,1]>0.05)))  #standard deviation
+                                    np.logical_and(model_results[:,1]>0.05,  #standard deviation
+                                                    model_results[:,3]>0.3))))#time_delay
+#                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
+#                                                     model_results[:,1]>0.05))))  #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     prior_samples[:,-1]<20))))) #time_delay
 #                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
@@ -1518,10 +1527,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         my_posterior_samples[:,2] /= 10000
 
-        sns.set(font_scale = 1.5)
+        sns.set()
+#         sns.set(font_scale = 1.5)
 #         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
-        font = {'size'   : 28}
-        plt.rc('font', **font)
+#         font = {'size'   : 28}
+#         plt.rc('font', **font)
         my_figure = plt.figure(figsize= (4.5,2.5))
 
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
@@ -1573,7 +1583,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','agnostic_noise_vs_amplitude.pdf'),dpi = 400)
 
-    def test_plot_mrna_distribution_for_paper(self):
+    def xest_plot_mrna_distribution_for_paper(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
@@ -2116,8 +2126,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                     rotation = 30,
                     fontsize = 5,
                     horizontalalignment = 'right')
-        plt.xlim(all_positions[0] - 0.5,)
-        plt.gca().locator_params(axis='y', tight = True, nbins=5)
+        plt.xlim(all_positions[0] - 0.5, all_positions[-1] + 0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=4)
         plt.ylim(0,sorted_bars[-1]*1.2)
         plt.ylabel('Likelihood')
 
@@ -2361,3 +2371,91 @@ class TestMakePaperAnalysis(unittest.TestCase):
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                      'output',
                                      parameter_name + 'likelihood_plot_spectra_investigation.pdf'))
+
+    def xest_plot_stochastic_amplification(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
+                                    np.logical_and(model_results[:,0]<65000, #cell_number
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                    model_results[:,3]>0.3))))
+#                                                     model_results[:,1]>0.05)))
+#                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
+#                                                    model_results[:,1]>0.05))))
+
+        
+        my_posterior_samples = prior_samples[accepted_indices]
+        accepted_model_results = model_results[accepted_indices]
+        
+        this_parameter = my_posterior_samples[0]
+        print('parameter is')
+        print(this_parameter)
+        number_of_trajectories = 3
+        hes5_mRNA_trajectories, hes5_protein_trajectories = hes5.generate_multiple_langevin_trajectories( number_of_trajectories = number_of_trajectories,
+                                                                                        duration = 2000,
+                                                         repression_threshold = this_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = this_parameter[1],
+                                                         basal_transcription_rate = this_parameter[0],
+                                                         transcription_delay = this_parameter[3],
+                                                         initial_mRNA = 3,
+                                                         initial_protein = this_parameter[2],
+                                                         hill_coefficient = this_parameter[4],
+                                                         equilibration_time = 0)
+#
+        deterministic_trajectory = hes5.generate_deterministic_trajectory(duration = 2000, 
+                                                         repression_threshold = this_parameter[2],
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         translation_rate = this_parameter[1],
+                                                         basal_transcription_rate = this_parameter[0],
+                                                         transcription_delay = this_parameter[3],
+                                                         initial_mRNA = 3,
+                                                         initial_protein = this_parameter[2],
+#                                                                           repression_threshold = 31400,
+#                                                          mRNA_degradation_rate = np.log(2)/30,
+#                                                          protein_degradation_rate = np.log(2)/90,
+#                                                          translation_rate = 29,
+#                                                          basal_transcription_rate = 11,
+#                                                          transcription_delay = 29,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 31400,
+                                                         hill_coefficient = this_parameter[4],
+                                                         for_negative_times = 'no_negative')[:-1]
+        
+
+        mean_hes5_protein_trajectory = np.mean(hes5_protein_trajectories[:,1:], axis = 1)
+        mean_hes5_rna_trajectory = np.mean(hes5_mRNA_trajectories[:,1:], axis = 1)
+        figuresize = (4,2.5)
+        my_figure = plt.figure(figsize = figuresize)
+        plt.plot( hes5_protein_trajectories[:,0],
+                  hes5_protein_trajectories[:,1]/10000, color = 'black',
+                  lw = 0.5, alpha = 0.2, label = 'stochastic' )
+        for trajectory_index in range(2,number_of_trajectories+1):
+#             plt.plot( hes5_mRNA_trajectories[:,0],
+#                       hes5_mRNA_trajectories[:,trajectory_index]*1000., color = 'black',
+#                       lw = 0.5, alpha = 0.1 )
+            plt.plot( hes5_protein_trajectories[:,0],
+                      hes5_protein_trajectories[:,trajectory_index]/10000, color = 'black',
+                      lw = 0.5, alpha = 0.2 )
+#         plt.plot( hes5_mRNA_trajectories[:,0],
+#                   mean_hes5_rna_trajectory*1000., label = 'mRNA*1000', color = 'blue',
+#                   lw = 0.5 )
+        plt.plot( deterministic_trajectory[:,0], deterministic_trajectory[:,2]/10000,
+                  lw = 0.5, label = 'deterministic' )
+#         plt.plot( hes5_protein_trajectories[:,0],
+#                   mean_hes5_protein_trajectory, label = 'Protein', color = 'blue', ls = '--',
+#                   lw = 0.5, dashes = [1,1] )
+        plt.xlabel('Time [min]')
+        plt.ylabel('Hes5 expression/1e4')
+        plt.xlim(0,2000)
+#         plt.ylim(0,10)
+#         plt.legend(bbox_to_anchor=(1.05, 1.1), loc = 'upper right')
+        plt.legend(loc = 'upper right')
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','stochastic_amplficiation.pdf'))
+ 
