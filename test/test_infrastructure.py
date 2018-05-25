@@ -153,8 +153,6 @@ class TestInfrastructure(unittest.TestCase):
                                        'output','hes5_langevin_trajectory.pdf'))
 
     def test_stochastic_hes_trajectory_with_other_noise(self):
-        # same plot as before for different transcription ("more_mrna") - not yet
-        # our preferred hes5 values
         my_trajectory = hes5.generate_agnostic_noise_trajectory( duration = 1500,
                                                                  repression_threshold = 23000,
                                                                  mRNA_degradation_rate = np.log(2)/30,
