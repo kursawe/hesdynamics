@@ -1505,7 +1505,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_period_distribution_for_paper.pdf'))
  
-    def test_plot_agnostic_mrna_distribution(self):
+    def xest_plot_agnostic_mrna_distribution(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_agnostic')
         model_results = np.load(saving_path + '.npy' )
@@ -1773,7 +1773,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_mrna_distribution_for_paper.pdf'))
  
-    def xest_make_degradation_rate_sweep(self):
+    def test_make_degradation_rate_sweep(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -1781,14 +1781,14 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
-                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
-                                                   model_results[:,1]>0.05)))) #standard deviation
+                                    # np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05))) #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
         print('number of accepted samples is')
@@ -1810,14 +1810,14 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         number_of_trajectories = 2
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
-                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
-                                                   model_results[:,1]>0.05)))) #standard deviation
+                                    # np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05))) #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
         print('number of accepted samples is')
@@ -1833,21 +1833,21 @@ class TestMakePaperAnalysis(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + 'time_delay' + '.npy'),
                     my_parameter_sweep_results)
 
-    def xest_make_relative_parameter_variation(self):
+    def test_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
 #         number_of_trajectories = 2
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
-                                    np.logical_and(model_results[:,1]<0.15, #standard deviation
-                                                   model_results[:,1]>0.05)))) #standard deviation
+#                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                   model_results[:,1]>0.05))) #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
         print('number of accepted samples is')
