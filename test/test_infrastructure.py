@@ -435,6 +435,44 @@ class TestInfrastructure(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','failing_parameter.pdf'))
 
+    def test_deterministic_bifurcation(self):
+        ##at this parameter point the system should oscillate
+        protein_degradation = 0.03
+        mrna_degradation = 0.03
+        transcription_delay = 18.5
+        basal_transcription_rate = 1.0
+        translation_rate = 1.0
+        repression_threshold = 100.0
+        hill_coefficient = 5
+        
+        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
+                                                              hill_coefficient = hill_coefficient, 
+                                                              mRNA_degradation_rate = mrna_degradation, 
+                                                              protein_degradation_rate = protein_degradation, 
+                                                              basal_transcription_rate = basal_transcription_rate,
+                                                              translation_rate = translation_rate,
+                                                              transcription_delay = transcription_delay)
+
+        self.assert_(is_oscillatory)
+
+        ## at this parameter point the system should not oscillate
+        protein_degradation = np.log(2)/90.0
+        mrna_degradation = np.log(2)/30.0
+        transcription_delay = 29
+        basal_transcription_rate = 1.0
+        translation_rate = 320.0
+        repression_threshold = 60000
+        hill_coefficient = 5
+        
+        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
+                                                              hill_coefficient = hill_coefficient, 
+                                                              mRNA_degradation_rate = mrna_degradation, 
+                                                              protein_degradation_rate = protein_degradation, 
+                                                              basal_transcription_rate = basal_transcription_rate,
+                                                              translation_rate = translation_rate,
+                                                              transcription_delay = transcription_delay)
+
+        self.assert_(not is_oscillatory)
 
     def xest_generate_alternative_deterministic_trajectory(self):
         basal_transcription_rate = 5.0
