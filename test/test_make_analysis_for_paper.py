@@ -1773,7 +1773,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_mrna_distribution_for_paper.pdf'))
  
-    def test_make_degradation_rate_sweep(self):
+    def xest_make_degradation_rate_sweep(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -1833,7 +1833,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + 'time_delay' + '.npy'),
                     my_parameter_sweep_results)
 
-    def test_make_relative_parameter_variation(self):
+    def xest_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -2087,6 +2087,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                         my_parameter_sweep_results[:,4,4] > 0.1)))
 
             decrease_ratios[parameter_name] = len(decrease_indices[0])/float(number_of_absolute_samples)
+            print 'these decrease samples are'
+            number_of_decrease_samples = len(decrease_indices[0])
+            print number_of_decrease_samples
 
             increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
@@ -2094,6 +2097,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                         my_parameter_sweep_results[:,14,4] > 0.1)))
 
             increase_ratios[parameter_name] = len(increase_indices[0])/float(number_of_absolute_samples)
+            print 'these increase samples are'
+            number_of_increase_samples = len(increase_indices[0])
+            print number_of_increase_samples
                 
         increase_bars = [increase_ratios[parameter_name] for parameter_name
                          in parameter_names]
@@ -2459,3 +2465,41 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','stochastic_amplficiation.pdf'))
  
+    def test_deterministic_bifurcation(self):
+        ##at this parameter point the system should oscillate
+        protein_degradation = 0.03
+        mrna_degradation = 0.03
+        transcription_delay = 18.5
+        basal_transcription_rate = 1.0
+        translation_rate = 1.0
+        repression_threshold = 100.0
+        hill_coefficient = 5
+        
+        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
+                                                              hill_coefficient = hill_coefficient, 
+                                                              mRNA_degradation_rate = mrna_degradation, 
+                                                              protein_degradation_rate = protein_degradation, 
+                                                              basal_transcription_rate = basal_transcription_rate,
+                                                              translation_rate = translation_rate,
+                                                              transcription_delay = transcription_delay)
+
+        self.assert_(is_oscillatory)
+
+        ## at this parameter point the system should not oscillate
+        protein_degradation = np.log(2)/90.0
+        mrna_degradation = np.log(2)/30.0
+        transcription_delay = 29
+        basal_transcription_rate = 1.0
+        translation_rate = 320.0
+        repression_threshold = 60000
+        hill_coefficient = 5
+        
+        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
+                                                              hill_coefficient = hill_coefficient, 
+                                                              mRNA_degradation_rate = mrna_degradation, 
+                                                              protein_degradation_rate = protein_degradation, 
+                                                              basal_transcription_rate = basal_transcription_rate,
+                                                              translation_rate = translation_rate,
+                                                              transcription_delay = transcription_delay)
+
+        self.assert_(not is_oscillatory)

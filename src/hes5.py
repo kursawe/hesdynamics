@@ -219,6 +219,106 @@ def hes5_ddegrad(y, parameters, time):
     return np.array( [dmRNA,dprotein] )
 
 
+def is_parameter_point_oscillatory( repression_threshold = 10000,
+                                    hill_coefficient = 5,
+                                    mRNA_degradation_rate = np.log(2)/30,
+                                    protein_degradation_rate = np.log(2)/90, 
+                                    basal_transcription_rate = 1,
+                                    translation_rate = 1,
+                                    transcription_delay = 29):
+    '''Perform bifurcation analysis of the deterministic DDE to test whether the given parameter combination falls
+    within the regime where the DDE solutions oscillate. Conditions are for example derived in
+    
+    X.P. Wu, M. Eshete. Commun Nonlinear Sci Numer Simulat 16 (2011)
+    
+    and can be expressed as 
+    
+    (1) mu_m*mu_p < alpha_m*alpha_p*abs(G'(p*))
+    (2) define w = sqrt(1/2[sqrt( (mu_p^2-mu_m^2)^2+4(alph_m*alpha_p*G')^2 ) - mu_m^2 - mu_p^2])
+        if w*tau > pi:
+           then w*tau < 2pi - arccos((mu_m*mu_p -omega^2)/(alpha_m*alpha*p*G'(p*)) needs to be fulfilled,
+           if it is not fulfilled then we cannot currently say whether the trace will oscillate or not
+        else:
+           then w*tau > arccos((mu_m*mu_p -omega^2)/(alpha_m*alpha*p*G'(p*)) needs to be fulfilled
+        
+    Here, the same notation as in Monk, Curr. Biol. (2003) was chosen.
+    
+    Parameters
+    ----------
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+        
+    Returns
+    -------
+    
+    is_oscillatory : bool
+        True if in oscillatory regime, false if otherwise
+    '''
+    repression_threshold = float(repression_threshold)
+    mean_mRNA, mean_protein = calculate_steady_state_of_ode( repression_threshold, 
+                                                             hill_coefficient, 
+                                                             mRNA_degradation_rate, 
+                                                             protein_degradation_rate, 
+                                                             basal_transcription_rate, 
+                                                             translation_rate )
+    
+    hill_denominator = 1+np.power(mean_protein/repression_threshold, hill_coefficient)
+    abs_of_hill_derivative = ( hill_coefficient/(repression_threshold*hill_denominator*hill_denominator)*
+                            np.power(mean_protein/repression_threshold, hill_coefficient - 1) )
+    
+    condition_one_fulfilled = ( protein_degradation_rate*mRNA_degradation_rate < 
+                                basal_transcription_rate*translation_rate*abs_of_hill_derivative)
+    
+    if not condition_one_fulfilled:
+        is_oscillatory = False
+    else:
+        squared_degradation_difference = protein_degradation_rate*protein_degradation_rate - mRNA_degradation_rate*mRNA_degradation_rate
+        squared_degradation_sum = protein_degradation_rate*protein_degradation_rate + mRNA_degradation_rate*mRNA_degradation_rate
+        derivative_term = basal_transcription_rate*translation_rate*abs_of_hill_derivative
+
+        omega = np.sqrt(0.5*(np.sqrt(squared_degradation_difference*squared_degradation_difference
+                               + 4*derivative_term*derivative_term) - 
+                               squared_degradation_sum))
+        arccos_value = np.arccos( ( omega*omega - protein_degradation_rate*mRNA_degradation_rate)/
+                                    derivative_term )
+        if omega*transcription_delay>np.pi:
+            if omega*transcription_delay < ( 2*np.pi - arccos_value ):
+                is_oscillatory = True
+            else:
+                raise ValueError("cannot determine if parameter point oscillates")
+        else:
+            if omega*transcription_delay > arccos_value:
+                is_oscillatory = True
+            else:
+                is_oscillatory = False
+    
+    return is_oscillatory
+    
 def measure_period_and_amplitude_of_signal(x_values, signal_values):
     '''Measure the period of a signal generated with an ODE or DDE. 
     This function will identify all peaks in the signal that are not at the boundary
