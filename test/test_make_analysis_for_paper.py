@@ -2465,7 +2465,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','stochastic_amplficiation.pdf'))
  
-    def test_deterministic_bifurcation(self):
+    def xest_deterministic_bifurcation(self):
         ##at this parameter point the system should oscillate
         protein_degradation = 0.03
         mrna_degradation = 0.03
@@ -2475,7 +2475,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         repression_threshold = 100.0
         hill_coefficient = 5
         
-        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
+        is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold, 
                                                               hill_coefficient = hill_coefficient, 
                                                               mRNA_degradation_rate = mrna_degradation, 
                                                               protein_degradation_rate = protein_degradation, 
@@ -2494,7 +2494,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         repression_threshold = 60000
         hill_coefficient = 5
         
-        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
+        is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold, 
                                                               hill_coefficient = hill_coefficient, 
                                                               mRNA_degradation_rate = mrna_degradation, 
                                                               protein_degradation_rate = protein_degradation, 
@@ -2503,3 +2503,211 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                               transcription_delay = transcription_delay)
 
         self.assert_(not is_oscillatory)
+
+    def xest_stochastic_bifurcation(self):
+        ##at this parameter point the system should oscillate
+        protein_degradation = 0.03
+        mrna_degradation = 0.03
+        transcription_delay = 18.5
+        basal_transcription_rate = 1.0
+        translation_rate = 1.0
+        repression_threshold = 100.0
+        hill_coefficient = 5
+        
+        is_oscillatory = hes5.is_parameter_point_stochastically_oscillatory( repression_threshold = repression_threshold, 
+                                                              hill_coefficient = hill_coefficient, 
+                                                              mRNA_degradation_rate = mrna_degradation, 
+                                                              protein_degradation_rate = protein_degradation, 
+                                                              basal_transcription_rate = basal_transcription_rate,
+                                                              translation_rate = translation_rate,
+                                                              transcription_delay = transcription_delay )
+
+        self.assert_(is_oscillatory)
+
+        ## at this parameter point the system should not oscillate stochastically
+        protein_degradation = np.log(2)/90.0
+        mrna_degradation = np.log(2)/30.0
+        transcription_delay = 34
+        basal_transcription_rate = 0.64
+        translation_rate = 17.32
+        repression_threshold = 88288.6
+        hill_coefficient = 5.59
+        
+        is_oscillatory = hes5.is_parameter_point_stochastically_oscillatory( repression_threshold = repression_threshold, 
+                                                              hill_coefficient = hill_coefficient, 
+                                                              mRNA_degradation_rate = mrna_degradation, 
+                                                              protein_degradation_rate = protein_degradation, 
+                                                              basal_transcription_rate = basal_transcription_rate,
+                                                              translation_rate = translation_rate,
+                                                              transcription_delay = transcription_delay)
+
+        self.assert_(not is_oscillatory)
+
+    def xest_investigate_lna_prediction_at_low_degradation(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,3]<0.03))))  #standard deviation
+        
+        posterior_samples = prior_samples[accepted_indices]
+
+        sample = posterior_samples[0]
+
+        #First: run the model for 100 minutes
+#         my_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
+#                                                          repression_threshold = 100,
+#                                                          mRNA_degradation_rate = 0.03,
+#                                                          protein_degradation_rate = 0.03,
+#                                                          transcription_delay = 19,
+#                                                          initial_mRNA = 3,
+#                                                          initial_protein = 100)
+# #                                                          integrator = 'PyDDE',
+# #                                                          for_negative_times = 'no_negative' )
+        print 'experimental values for mrna and protein degradation are'
+        print np.log(2)/30
+        print np.log(2)/90
+        theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( repression_threshold = sample[2], 
+                                                                 hill_coefficient = sample[4], 
+#                                                                  mRNA_degradation_rate = np.log(2)/30, 
+#                                                                  protein_degradation_rate = np.log(2)/90, 
+                                                                 mRNA_degradation_rate = 0.001, 
+                                                                 protein_degradation_rate = 0.001, 
+                                                                 basal_transcription_rate = sample[0],
+                                                                 translation_rate = sample[1],
+                                                                 transcription_delay = sample[3] )
+        
+        coherence, period = hes5.calculate_coherence_and_period_of_power_spectrum( theoretical_power_spectrum )
+        print 'theoretical coherence and period are'
+        print coherence
+        print period
+
+        full_parameter_point = np.array([sample[0],
+                                sample[1],
+                                sample[2],
+                                sample[3],
+                                sample[4],
+                                0.001,
+                                0.001])
+#                                 np.log(2)/30,
+#                                 np.log(2)/90])
+
+        real_power_spectrum = hes5.calculate_power_spectrum_at_parameter_point( full_parameter_point )
+
+        #Second, plot the model
+
+        figuresize = (4,2.75)
+        my_figure = plt.figure()
+        plt.plot(theoretical_power_spectrum[:,0], 
+                 theoretical_power_spectrum[:,1])
+        plt.plot(real_power_spectrum[:,0], 
+                 real_power_spectrum[:,1])
+        plt.xlabel('Frequency [1/min]')
+        plt.ylabel('Power')
+        plt.xlim(0,0.01)
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','weird_power_spectrum.pdf'))
+
+    def test_make_oscillation_probability_plot(self):
+        option = 'deterministic'
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                   model_results[:,1]>0.05)))  #standard deviation
+        
+        posterior_samples = prior_samples[accepted_indices]
+
+        resolution_per_direction = 100
+        mRNA_degradation_values = np.linspace(0.001,np.log(2)/20, resolution_per_direction)
+        protein_degradation_values = np.linspace(0.001,np.log(2)/20, resolution_per_direction)
+        oscillation_probability = np.zeros((len(mRNA_degradation_values),len(protein_degradation_values)))
+        expected_coherence = np.zeros((len(mRNA_degradation_values),len(protein_degradation_values)))
+        for protein_degradation_index, protein_degradation in enumerate(protein_degradation_values):
+            for mRNA_degradation_index, mRNA_degradation in enumerate(mRNA_degradation_values):
+                total_number_of_samples = 0.0
+                oscillating_samples = 0.0
+                coherence_sum = 0.0
+                for sample in posterior_samples:
+                    if option == 'deterministic':
+                        this_sample_oscillates = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = sample[2], 
+                                                                                 hill_coefficient = sample[4], 
+                                                                                 mRNA_degradation_rate = mRNA_degradation, 
+                                                                                 protein_degradation_rate = protein_degradation, 
+                                                                                 basal_transcription_rate = sample[0],
+                                                                                 translation_rate = sample[1],
+                                                                                 transcription_delay = sample[3])
+                        
+                        coherence = this_sample_oscillates
+
+                    elif option == 'stochastic':
+                        power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( repression_threshold = sample[2], 
+                                                                                 hill_coefficient = sample[4], 
+                                                                                 mRNA_degradation_rate = mRNA_degradation, 
+                                                                                 protein_degradation_rate = protein_degradation, 
+                                                                                 basal_transcription_rate = sample[0],
+                                                                                 translation_rate = sample[1],
+                                                                                 transcription_delay = sample[3])
+                    
+                        coherence, period = hes5.calculate_coherence_and_period_of_power_spectrum( power_spectrum )
+
+                        max_index = np.argmax(power_spectrum[:,1])
+                        
+                        if max_index > 0:
+                            this_sample_oscillates = True
+                        else:
+                            this_sample_oscillates = False
+                            
+
+                    else: 
+                        raise ValueError('option not recognised')
+
+                    if this_sample_oscillates: 
+                        oscillating_samples +=1
+                    coherence_sum += coherence
+                    total_number_of_samples += 1
+                probability_to_oscillate = oscillating_samples/total_number_of_samples
+                oscillation_probability[protein_degradation_index, mRNA_degradation_index] = probability_to_oscillate
+                expected_coherence[protein_degradation_index, mRNA_degradation_index] = coherence_sum/total_number_of_samples
+        
+        X, Y = np.meshgrid(protein_degradation_values, mRNA_degradation_values)
+
+        np.save(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_coherence_protein_degradation_values_' + option + '.npy'), X)
+        np.save(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_coherence_mrna_degradation_values_' + option + '.npy'), Y)
+        np.save(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_coherence_values_' + option + '.npy'), expected_coherence)
+        
+        plt.figure(figsize = (4.5,2.5))
+        plt.contourf(X,Y,oscillation_probability, 100, lw=0, rasterized = True)
+#         plt.pcolormesh(X,Y,oscillation_probability, lw = 0, rasterized = True, shading = 'gouraud')
+        plt.xlabel("Protein degradation [1/min]")
+        plt.ylabel("mRNA degradation [1/min]")
+        this_colorbar = plt.colorbar()
+        this_colorbar.ax.set_ylabel('Oscillation probability')
+        plt.scatter(np.log(2)/90, np.log(2)/30)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_probability_' + option + '.pdf'))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.contourf(X,Y,expected_coherence, 100, lw=0, rasterized = True)
+#         plt.pcolormesh(X,Y,expected_coherence, lw = 0, rasterized = True, shading = 'gouraud')
+        plt.xlabel("Protein degradation [1/min]")
+        plt.ylabel("mRNA degradation [1/min]")
+        this_colorbar = plt.colorbar()
+        this_colorbar.ax.set_ylabel('Oscillation coherence')
+        plt.scatter(np.log(2)/90, np.log(2)/30)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_coherence_' + option + '.pdf'))
+        
