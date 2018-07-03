@@ -219,7 +219,75 @@ def hes5_ddegrad(y, parameters, time):
     return np.array( [dmRNA,dprotein] )
 
 
-def is_parameter_point_oscillatory( repression_threshold = 10000,
+def is_parameter_point_stochastically_oscillatory( repression_threshold = 10000,
+                                    hill_coefficient = 5,
+                                    mRNA_degradation_rate = np.log(2)/30,
+                                    protein_degradation_rate = np.log(2)/90, 
+                                    basal_transcription_rate = 1,
+                                    translation_rate = 1,
+                                    transcription_delay = 29):
+    '''Perform bifurcation analysis on the Linear Noise Approximation to test whether the given parameter combination falls
+    within the regime where the stochastic solutions oscillate. A parameterpoint is considered oscillatory
+    if there is a non-zero maximum in the power spectrum. The power spectrum has been derived by Tobias Galla in equation
+    32 of the paper
+    
+    Galla, Phys. Rev. E 80 (2009)
+    
+    Parameters
+    ----------
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+        
+    Returns
+    -------
+    
+    is_oscillatory : bool
+        True if in oscillatory regime, false if otherwise
+    '''
+    
+    power_spectrum = calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_rate = basal_transcription_rate, 
+                                                                             translation_rate = translation_rate, 
+                                                                             repression_threshold = repression_threshold, 
+                                                                             transcription_delay = transcription_delay, 
+                                                                             mRNA_degradation_rate = mRNA_degradation_rate, 
+                                                                             protein_degradation_rate = protein_degradation_rate, 
+                                                                             hill_coefficient = hill_coefficient)
+
+    max_index = np.argmax(power_spectrum[:,1])
+    
+    if max_index > 0:
+        is_oscillatory = True
+    else:
+        is_oscillatory = False
+        
+    return is_oscillatory
+
+def is_parameter_point_deterministically_oscillatory( repression_threshold = 10000,
                                     hill_coefficient = 5,
                                     mRNA_degradation_rate = np.log(2)/30,
                                     protein_degradation_rate = np.log(2)/90, 
@@ -310,7 +378,11 @@ def is_parameter_point_oscillatory( repression_threshold = 10000,
             if omega*transcription_delay < ( 2*np.pi - arccos_value ):
                 is_oscillatory = True
             else:
-                raise ValueError("cannot determine if parameter point oscillates")
+                print 'Cannot determine if parameter point oscillates'
+                print [basal_transcription_rate, translation_rate, repression_threshold,
+                       transcription_delay, hill_coefficient, mRNA_degradation_rate, protein_degradation_rate]
+                is_oscillatory = False
+#                 raise ValueError("cannot determine if parameter point oscillates")
         else:
             if omega*transcription_delay > arccos_value:
                 is_oscillatory = True
