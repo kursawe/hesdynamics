@@ -2613,7 +2613,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','weird_power_spectrum.pdf'))
 
-    def test_make_oscillation_probability_plot(self):
+    def xest_make_oscillation_probability_plot(self):
         option = 'deterministic'
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -2711,3 +2711,368 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','oscillation_coherence_' + option + '.pdf'))
         
+    def test_plot_lna_std_vs_model_results(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                   model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+
+        theoretical_standard_deviation = np.zeros(len(posterior_samples))
+        for sample_index, sample in enumerate(posterior_samples):
+            this_standard_deviation = hes5.calculate_approximate_standard_deviation_at_parameter_point(basal_transcription_rate = sample[0],
+                                                                translation_rate = sample[1],
+                                                                repression_threshold = sample[2],
+                                                                transcription_delay = sample[3],
+                                                                mRNA_degradation_rate = np.log(2)/30,
+                                                                protein_degradation_rate = np.log(2)/90,
+                                                                hill_coefficient = sample[4]
+                                                                )
+
+            steady_state_mrna, steady_state_protein = hes5.calculate_steady_state_of_ode(basal_transcription_rate = sample[0],
+                                                                translation_rate = sample[1],
+                                                                repression_threshold = sample[2],
+                                                                mRNA_degradation_rate = np.log(2)/30,
+                                                                protein_degradation_rate = np.log(2)/90,
+                                                                hill_coefficient = sample[4]
+                                                                )
+
+            relative_standard_deviation = this_standard_deviation/steady_state_protein
+
+            theoretical_standard_deviation[ sample_index ] = relative_standard_deviation 
+
+        error_ratios = theoretical_standard_deviation / posterior_results[:,1]
+        relative_errors = np.abs(error_ratios - 1)
+        number_of_poor_samples = np.sum(relative_errors>0.1)
+        print 'ratio of poor approximations is'
+        print number_of_poor_samples/float(len(posterior_samples))
+        print 'total  number is'
+        print number_of_poor_samples
+        plt.figure(figsize = (4.5,2.5))
+        plt.scatter(theoretical_standard_deviation, posterior_results[:,1], s = 1)
+        plt.plot([0.0,0.25],1.1*np.array([0.0,0.25]))
+        plt.plot([0.0,0.25],0.9*np.array([0.0,0.25]))
+        plt.xlabel("LNA")
+        plt.ylabel("CLE")
+        plt.title("Relative standard deviation")
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','LNA_validation.pdf'))
+
+        # now, we need to plot where the outliers are:
+        outlier_mask = relative_errors > 0.1
+        outlier_samples = posterior_samples[outlier_mask]
+        outlier_results = posterior_results[outlier_mask]
+
+        print 'outlier coherences are'
+        print outlier_results[:,3]
+        outlier_samples[:,2]/=10000
+        print 'minimal outlier coherence is'
+        print np.min(outlier_results[:,3])
+        print 'posterior samples with coherence above 0.44'
+        print np.sum(posterior_results[:,3]>0.5)
+
+        data_frame = pd.DataFrame( data = outlier_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient'])
+
+        sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (11,3))
+
+        my_figure.add_subplot(151)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(-1,np.log10(60.0),20)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Transcription rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+        plt.gca().set_xlim(-1,np.log10(60.0))
+        plt.ylabel("Probability", labelpad = 20)
+        plt.xlabel("Transcription rate \n [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        plt.gca().set_ylim(0,1.0)
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(152)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        translation_rate_bins = np.linspace(0,np.log10(40),20)
+        sns.distplot(np.log10(data_frame['Translation rate']),
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = translation_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_xlim(0,np.log10(40))
+        plt.gca().set_ylim(0,1.3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xlabel("Translation rate \n [1/min]")
+        plt.gca().set_ylim(0,2.0)
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(153)
+        sns.distplot(data_frame['Repression threshold/1e4'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.xlabel("Repression threshold \n [1e4]")
+        plt.gca().set_ylim(0,0.22)
+        plt.gca().set_xlim(0,12)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift = []
+        plots_to_shift.append(my_figure.add_subplot(154))
+        time_delay_bins = np.linspace(5,40,10)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = time_delay_bins)
+        plt.gca().set_xlim(5,40)
+#         plt.gca().set_ylim(0,0.035)
+        plt.gca().set_ylim(0,0.04)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel(" Transcription delay \n [min]")
+#         plt.yticks([])
+ 
+        plots_to_shift.append(my_figure.add_subplot(155))
+        sns.distplot(data_frame['Hill coefficient'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_ylim(0,0.35)
+        plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','LNA_outliers.pdf'))
+
+        #what happens in the cases when the CLE has higher std than the LNA?
+        outlier_mask = error_ratios<0.9
+        outlier_samples = posterior_samples[outlier_mask]
+        outlier_results = posterior_results[outlier_mask]
+
+        print 'outlier coherences are'
+        print outlier_results[:,3]
+        outlier_samples[:,2]/=10000
+        print 'minimal outlier coherence is'
+        print np.min(outlier_results[:,3])
+        print 'posterior samples with coherence above 0.44'
+        print np.sum(posterior_results[:,3]>0.5)
+
+        data_frame = pd.DataFrame( data = outlier_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient'])
+
+        sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (11,3))
+
+        my_figure.add_subplot(151)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(-1,np.log10(60.0),20)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Transcription rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+        plt.gca().set_xlim(-1,np.log10(60.0))
+        plt.ylabel("Probability", labelpad = 20)
+        plt.xlabel("Transcription rate \n [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        plt.gca().set_ylim(0,1.0)
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(152)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        translation_rate_bins = np.linspace(0,np.log10(40),20)
+        sns.distplot(np.log10(data_frame['Translation rate']),
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = translation_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_xlim(0,np.log10(40))
+        plt.gca().set_ylim(0,1.3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xlabel("Translation rate \n [1/min]")
+        plt.gca().set_ylim(0,2.0)
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(153)
+        sns.distplot(data_frame['Repression threshold/1e4'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.xlabel("Repression threshold \n [1e4]")
+        plt.gca().set_ylim(0,0.22)
+        plt.gca().set_xlim(0,12)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift = []
+        plots_to_shift.append(my_figure.add_subplot(154))
+        time_delay_bins = np.linspace(5,40,10)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = time_delay_bins)
+        plt.gca().set_xlim(5,40)
+#         plt.gca().set_ylim(0,0.035)
+        plt.gca().set_ylim(0,0.04)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel(" Transcription delay \n [min]")
+#         plt.yticks([])
+ 
+        plots_to_shift.append(my_figure.add_subplot(155))
+        sns.distplot(data_frame['Hill coefficient'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_ylim(0,0.35)
+        plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','LNA_other_outliers.pdf'))
+
+    def xest_calculate_variance(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                   model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+
+        # first: calculate theoretical standard deviation
+        # then: compare to model result
+        sample = posterior_samples[5]
+        sample_result = posterior_results[5]
+        
+        mRNA_degradation_rate = np.log(2)/30
+        protein_degradation_rate = np.log(2)/90
+        basal_transcription_rate = sample[0]
+        translation_rate = sample[1]
+        repression_threshold = sample[2]
+        transcription_delay = sample[3]
+        hill_coefficient = sample[4]
+
+        actual_frequencies = np.linspace(0,0.01,1000)
+        pi_frequencies = actual_frequencies*2*np.pi
+        steady_state_mrna, steady_state_protein = hes5.calculate_steady_state_of_ode( repression_threshold = float(repression_threshold),
+                                        hill_coefficient = hill_coefficient,
+                                        mRNA_degradation_rate = mRNA_degradation_rate,
+                                        protein_degradation_rate = protein_degradation_rate, 
+                                        basal_transcription_rate = basal_transcription_rate,
+                                        translation_rate = translation_rate)
+    
+        steady_state_hill_function_value = 1.0/(1.0 + np.power( steady_state_protein/float(repression_threshold),
+                                                                hill_coefficient ))
+        
+        steady_state_hill_derivative = -hill_coefficient*np.power(steady_state_protein/float(repression_threshold), 
+                                                                hill_coefficient - 1)/(repression_threshold*
+                                        np.power(1.0+np.power(steady_state_protein/float(repression_threshold),
+                                                            hill_coefficient),2))
+    
+    #     steady_state_hill_derivative = -hill_coefficient/float(repression_threshold)*np.power(
+    #                                      1.0 + steady_state_protein/float(repression_threshold),
+    #                                                     hill_coefficient)
+    
+        power_spectrum_values = ( translation_rate*translation_rate*
+                           ( basal_transcription_rate * steady_state_hill_function_value +
+                             mRNA_degradation_rate*steady_state_mrna) 
+                          +
+                           ( np.power(pi_frequencies,2) + mRNA_degradation_rate*mRNA_degradation_rate)*
+                             ( translation_rate*steady_state_mrna + protein_degradation_rate*steady_state_protein)
+                          )/(np.power(- np.power(pi_frequencies,2) +
+                                      protein_degradation_rate*mRNA_degradation_rate
+                                      - basal_transcription_rate*translation_rate*steady_state_hill_derivative*
+                                      np.cos(pi_frequencies*transcription_delay),2) 
+                             +
+                             np.power((protein_degradation_rate+mRNA_degradation_rate)*
+                                      pi_frequencies +
+                                      basal_transcription_rate*translation_rate*steady_state_hill_derivative*
+                                      np.sin(pi_frequencies*transcription_delay), 2)
+                             )
+                             
+        power_spectrum = np.vstack((pi_frequencies, power_spectrum_values)).transpose()
+        integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+
+        power_spectrum_intercept = integral
+        variance = 0.5/np.pi*power_spectrum_intercept
+
+        relative_standard_deviation = np.sqrt(variance)/steady_state_protein
+        
+        print 'variance over mean over real value'
+        print (power_spectrum_intercept/steady_state_protein)/sample_result[1]
+        print 'std over mean'
+        print (np.sqrt(power_spectrum_intercept)/steady_state_protein)/sample_result[1]
+

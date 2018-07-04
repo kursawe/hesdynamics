@@ -530,13 +530,77 @@ def generate_stochastic_trajectory( duration = 720,
 
     return trace
 
+def calculate_approximate_standard_deviation_at_parameter_point(basal_transcription_rate = 1.0,
+                                                                translation_rate = 1.0,
+                                                                repression_threshold = 100,
+                                                                transcription_delay = 18.5,
+                                                                mRNA_degradation_rate = 0.03,
+                                                                protein_degradation_rate = 0.03,
+                                                                hill_coefficient = 5
+                                                                ):
+    '''Approximate the standard deviation of the signal using linear noise approximation. The 
+    standard deviation in the linear noise approximation can be calculated using the integral of the
+    power spectrum derived by Galla (2009).
+    
+    Parameters
+    ----------
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+ 
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+ 
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+       
+    Returns
+    -------
+    
+    standard_deviation : float
+        theoretical standard deviaiton of the signal
+    '''
+    power_spectrum = calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_rate = basal_transcription_rate,
+                                                                             translation_rate = translation_rate,
+                                                                             repression_threshold = repression_threshold,
+                                                                             transcription_delay = transcription_delay,
+                                                                             mRNA_degradation_rate = mRNA_degradation_rate,
+                                                                             protein_degradation_rate = protein_degradation_rate,
+                                                                             hill_coefficient = hill_coefficient,
+                                                                             normalise = False)
+    #use fourier-like frequency definition 
+    power_spectrum[:,0]*= 2*np.pi
+    integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+    standard_deviation = np.sqrt(integral/np.pi)
+    
+    return standard_deviation 
+
 def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_rate = 1.0,
                                                             translation_rate = 1.0,
                                                             repression_threshold = 100,
                                                             transcription_delay = 18.5,
                                                             mRNA_degradation_rate = 0.03,
                                                             protein_degradation_rate = 0.03,
-                                                            hill_coefficient = 5
+                                                            hill_coefficient = 5,
+                                                            normalise = True
                                                             ):
     '''Calculate the theoretical power spectrum of the protein of the Monk (2003) model
     at a parameter point using equation 32 in Galla (2009), PRE.
@@ -570,6 +634,9 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
         exponent in the hill function regulating the Hes autorepression. Small values
         make the response more shallow, whereas large values will lead to a switch-like
         response if the protein concentration exceeds the repression threshold
+
+    normalise : bool
+        If True, normalise power spectrum to one.
        
     Returns
     -------
@@ -616,8 +683,9 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
                          )
                          
     power_spectrum = np.vstack((actual_frequencies, power_spectrum_values)).transpose()
-    integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
-    power_spectrum[:,1] /= integral
+    if normalise:
+        integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+        power_spectrum[:,1] /= integral
 
     return power_spectrum
 
