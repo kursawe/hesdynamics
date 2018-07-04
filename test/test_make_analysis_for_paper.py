@@ -2613,8 +2613,51 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','weird_power_spectrum.pdf'))
 
-    def xest_make_oscillation_probability_plot(self):
+    def test_plot_oscillation_probability_data(self):
         option = 'deterministic'
+
+        X = np.load(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_coherence_protein_degradation_values_' + option + '.npy'))
+        Y = np.load(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_coherence_mrna_degradation_values_' + option + '.npy'))
+        expected_coherence = np.load(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_coherence_values_' + option + '.npy'))
+        if option == 'stochastic':
+            oscillation_probability = np.load(os.path.join(os.path.dirname(__file__),
+                                           'output','oscillation_probability_values_' + option + '.npy'))
+        else: 
+            oscillation_probability = expected_coherence
+        
+        plt.figure(figsize = (4.5,2.5))
+#         plt.contourf(X,Y,oscillation_probability, 100, lw=0, rasterized = True)
+#         plt.pcolormesh(X,Y,oscillation_probability, lw = 0, rasterized = True, shading = 'gouraud')
+#         plt.pcolormesh(X,Y,oscillation_probability, lw = 0, rasterized = True)
+        plt.pcolor(X,Y,oscillation_probability)
+        plt.xlabel("Protein degradation [1/min]")
+        plt.ylabel("mRNA degradation [1/min]")
+        this_colorbar = plt.colorbar()
+        this_colorbar.ax.set_ylabel('Probability of oscillation')
+        plt.scatter(np.log(2)/90, np.log(2)/30)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_probability_' + option + '.pdf'))
+
+        plt.figure(figsize = (4.5,2.5))
+#         plt.contourf(X,Y,expected_coherence, 100, lw=0, rasterized = True)
+#         plt.pcolormesh(X,Y,expected_coherence, lw = 0, rasterized = True, shading = 'gouraud')
+#         plt.pcolormesh(X,Y,expected_coherence, lw = 0, rasterized = True)
+        plt.pcolor(X,Y,expected_coherence)
+        plt.xlabel("Protein degradation [1/min]")
+        plt.ylabel("mRNA degradation [1/min]")
+        this_colorbar = plt.colorbar()
+        this_colorbar.ax.set_ylabel('Expected coherence')
+        plt.scatter(np.log(2)/90, np.log(2)/30)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_coherence_' + option + '.pdf'))
+ 
+    def xest_make_oscillation_probability_plot(self):
+        option = 'stochastic'
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
@@ -2686,6 +2729,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                        'output','oscillation_coherence_mrna_degradation_values_' + option + '.npy'), Y)
         np.save(os.path.join(os.path.dirname(__file__),
                                        'output','oscillation_coherence_values_' + option + '.npy'), expected_coherence)
+        np.save(os.path.join(os.path.dirname(__file__),
+                                       'output','oscillation_probability_values_' + option + '.npy'), oscillation_probability)
         
         plt.figure(figsize = (4.5,2.5))
         plt.contourf(X,Y,oscillation_probability, 100, lw=0, rasterized = True)
@@ -2711,7 +2756,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','oscillation_coherence_' + option + '.pdf'))
         
-    def test_plot_lna_std_vs_model_results(self):
+    def xest_plot_lna_std_vs_model_results(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
