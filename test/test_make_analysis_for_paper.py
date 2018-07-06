@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 font = {'size'   : 10}
 plt.rc('font', **font)
 import numpy as np
+import scipy.signal
 import pandas as pd
 import seaborn as sns
 
@@ -2613,9 +2614,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','weird_power_spectrum.pdf'))
 
-    def test_plot_oscillation_probability_data(self):
+    def xest_plot_oscillation_probability_data(self):
 #         option = 'deterministic'
-        option = 'stochastic'
+        option = 'deterministic'
 
         X = np.load(os.path.join(os.path.dirname(__file__),
                                        'data','oscillation_coherence_protein_degradation_values_' + option + '.npy'))
@@ -2641,7 +2642,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.scatter(np.log(2)/90, np.log(2)/30)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','oscillation_probability_' + option + '.pdf'))
+                                       'output','oscillation_probability_' + option + '.png'), dpi = 600)
 
         plt.figure(figsize = (4.5,2.5))
 #         plt.contourf(X,Y,expected_coherence, 100, lw=0, rasterized = True)
@@ -2655,7 +2656,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.scatter(np.log(2)/90, np.log(2)/30)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','oscillation_coherence_' + option + '.pdf'))
+                                       'output','oscillation_coherence_' + option + '.png'), dpi = 600)
  
     def xest_make_oscillation_probability_plot(self):
         option = 'stochastic'
@@ -2743,7 +2744,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.scatter(np.log(2)/90, np.log(2)/30)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','oscillation_probability_' + option + '.pdf'))
+                                       'output','oscillation_probability_' + option + '.png'))
 
         plt.figure(figsize = (4.5,2.5))
         plt.contourf(X,Y,expected_coherence, 100, lw=0, rasterized = True)
@@ -2755,7 +2756,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.scatter(np.log(2)/90, np.log(2)/30)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','oscillation_coherence_' + option + '.pdf'))
+                                       'output','oscillation_coherence_' + option + '.png'))
         
     def xest_plot_lna_std_vs_model_results(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
@@ -3122,3 +3123,139 @@ class TestMakePaperAnalysis(unittest.TestCase):
         print 'std over mean'
         print (np.sqrt(power_spectrum_intercept)/steady_state_protein)/sample_result[1]
 
+    def xest_get_period_values_from_signal(self):
+        time_points = np.linspace(0,1000,100000)
+        signal_values = np.sin(2*np.pi/2*time_points) + 10
+        period_values = hes5.get_period_measurements_from_signal(time_points,signal_values)
+        for period_value in period_values[1:-1]:
+            self.assertAlmostEqual(period_value, 2.0, 3)
+        
+        signal_values = np.sin(2*np.pi/1.42*time_points) + 10
+        period_values = hes5.get_period_measurements_from_signal(time_points,signal_values)
+        print period_values
+        # in this case, for whatever weird boundary effect reason the hilbert won't give the right
+        # response on the boundaries, let's check the mean instead
+        self.assertAlmostEqual(np.mean(period_values), 1.42, 2)
+
+    def test_get_hilbert_periods_at_representative_model_parameter(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                    np.logical_and(model_results[:,1]>0.05,
+                                    np.logical_and(model_results[:,3]>0.12,
+                                                   model_results[:,3]<0.15)))))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        sample = posterior_samples[2]
+        these_mrna_traces, these_protein_traces = hes5.generate_multiple_langevin_trajectories( 200, # number_of_trajectories 
+                                                                                           1500*5, #duration 
+                                                                                           sample[2], #repression_threshold, 
+                                                                                           sample[4], #hill_coefficient,
+                                                                                           np.log(2)/30, #mRNA_degradation_rate, 
+                                                                                           np.log(2)/90, #protein_degradation_rate, 
+                                                                                           sample[0], #basal_transcription_rate, 
+                                                                                           sample[1], #translation_rate,
+                                                                                           sample[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           sample[2], #initial_protein,
+                                                                                           1000)
+        
+        this_power_spectrum,this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(these_protein_traces)
+        
+        # get first set of periods
+        all_periods = hes5.get_period_measurements_from_signal(these_protein_traces[:,0],
+                                                               these_protein_traces[:,1])
+        # and now add the rest
+        for trace in these_protein_traces[:,1:]:
+            these_periods = hes5.get_period_measurements_from_signal(these_protein_traces[:,0], trace)
+            all_periods = np.hstack((all_periods, these_periods))
+        
+        print all_periods 
+        plt.figure(figsize = (6.5,2.5))
+        plt.subplot(121)
+        plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1])
+        plt.xlim(0,0.01)
+        plt.xlabel('Frequency [1/min]')
+        plt.ylabel('Power')
+        plt.title('Period: '  + '{:.2f}'.format(this_period/60) + 'h, Coherence: ' + '{:.2f}'.format(this_coherence))
+        
+        plt.subplot(122)
+        plt.hist(all_periods/60, range = (0,10))
+        plt.axvline(this_period/60)
+        plt.xlabel('Period [h]')
+        plt.ylim(0,30)
+        plt.ylabel('Likelihood')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'representative_hilbert_periods.pdf'))
+        
+    def xest_in_silico_power_spectrum(self):
+        time_points = np.linspace(0,20000,10000)
+        in_silico_data = np.zeros((len(time_points),301))
+        in_silico_data[:,0] = time_points 
+        for trace_index in range(1,301):
+            signal_values = np.sin(2*np.pi/220*time_points) + np.random.rand(time_points)
+            in_silico_data[:, trace_index] = signal_values
+
+        this_power_spectrum,this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(in_silico_data)
+
+        plt.figure(figsize = (4.5,2.5))
+#         plt.subplot(121)
+        plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1])
+        plt.xlim(0,0.01)
+        plt.xlabel('Frequency [1/min]')
+        plt.ylabel('Power')
+        plt.title('Period: '  + '{:.2f}'.format(this_period/50) + 'h, Coherence: ' + '{:.2f}'.format(this_coherence))
+ 
+    def xest_try_hilbert_transform(self):
+        time_points = np.linspace(0,100,10000)
+        signal_values = np.sin(2*np.pi/1.42*time_points)+10
+#         time_points = np.linspace(0,15,100)
+#         signal_values = np.sin(2*np.pi/2*time_points)
+        analytic_signal = scipy.signal.hilbert(signal_values - np.mean(signal_values))
+#         analytic_signal = scipy.signal.hilbert(signal_values)
+        phase = np.angle(analytic_signal)
+        print np.signbit(phase).astype(int)
+        #this will find the index just before zero-crossings from plus to minus
+        phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
+        phase_reset_times = time_points[phase_reset_indices]
+        extracted_periods = np.diff(phase_reset_times)
+        print extracted_periods
+        print np.mean(extracted_periods)
+        
+        plt.figure(figsize = (4,2.5))
+        plt.plot(time_points, signal_values, label = 'signal')
+        plt.plot(time_points, phase, label = 'phase')
+        plt.vlines(phase_reset_times, -4,4, color = 'black')
+        plt.xlim(0,20)
+        plt.xlabel("Time")
+        plt.ylabel("Amplitude")
+        plt.tight_layout()
+        plt.legend()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','initial_hilbert_test.pdf'))
+        
+        plt.figure(figsize = (4,2.5))
+        signal_values = signal_values + np.random.rand(len(signal_values))
+        analytic_signal = scipy.signal.hilbert(signal_values)
+        phase = np.angle(analytic_signal)
+        phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
+        phase_reset_times = time_points[phase_reset_indices]
+        extracted_periods = np.diff(phase_reset_times)
+        print extracted_periods
+        print np.mean(extracted_periods)
+        plt.plot(time_points, signal_values, label = 'signal')
+        plt.plot(time_points, phase, label = 'phase')
+        plt.vlines(phase_reset_times, -1,1, color = 'black')
+        plt.xlabel("Time")
+        plt.ylabel("Amplitude")
+        plt.tight_layout()
+        plt.legend()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','initial_hilbert_test2.pdf'))
