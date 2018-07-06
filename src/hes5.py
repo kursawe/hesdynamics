@@ -1051,6 +1051,37 @@ def identify_reaction(random_number, base_propensity, propensities):
     ##Make sure we never exit the for loop:
     raise(RuntimeError("This line should never be reached."))
         
+def get_period_measurements_from_signal(time_points, signal):
+    '''Use hilbert transforms and the analytical signal to get single period measurements
+    from the given time series. Period is extracted from the time-points of phase-reset.
+    
+    Parameters:
+    -----------
+    
+    time_points : ndarray
+        1-dimensional array, contains time-point values at which the signal is measured.
+        The entries in the array are assumed to be equidistant.
+        
+    signal : ndarray
+        1-dimensional array, contains signal values at time_points
+    
+    Returns:
+    --------
+    
+    period_values : ndarray
+        contains all periods measured in the signal
+    '''
+
+    analytic_signal = scipy.signal.hilbert(signal - np.mean(signal))
+    phase = np.angle(analytic_signal)
+    #this will find the index just before zero-crossings from plus to minus
+    phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
+#     phase_reset_times = time_points[phase_reset_indices][1:]
+    phase_reset_times = time_points[phase_reset_indices]
+    period_values = np.diff(phase_reset_times)
+    
+    return period_values
+
 def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
     '''Calculate the power spectrum, coherence, and period of a set
     of trajectories. Works by applying discrete fourier transforms to the mean
