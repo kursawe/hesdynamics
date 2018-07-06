@@ -3137,7 +3137,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         # response on the boundaries, let's check the mean instead
         self.assertAlmostEqual(np.mean(period_values), 1.42, 2)
 
-    def test_get_hilbert_periods_at_representative_model_parameter(self):
+    def xest_get_hilbert_periods_at_representative_model_parameter(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
@@ -3195,23 +3195,26 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
                                    'representative_hilbert_periods.pdf'))
         
-    def xest_in_silico_power_spectrum(self):
+    def test_in_silico_power_spectrum(self):
         time_points = np.linspace(0,20000,10000)
         in_silico_data = np.zeros((len(time_points),301))
         in_silico_data[:,0] = time_points 
         for trace_index in range(1,301):
-            signal_values = np.sin(2*np.pi/220*time_points) + np.random.rand(time_points)
+            signal_values = np.sin(2*np.pi/220*time_points) + 10*np.random.rand(len(time_points))
             in_silico_data[:, trace_index] = signal_values
 
         this_power_spectrum,this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(in_silico_data)
 
-        plt.figure(figsize = (4.5,2.5))
+        plt.figure(figsize = (6.5,2.5))
 #         plt.subplot(121)
         plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1])
         plt.xlim(0,0.01)
         plt.xlabel('Frequency [1/min]')
         plt.ylabel('Power')
-        plt.title('Period: '  + '{:.2f}'.format(this_period/50) + 'h, Coherence: ' + '{:.2f}'.format(this_coherence))
+        plt.title('Period: '  + '{:.2f}'.format(this_period/60) + 'h, Coherence: ' + '{:.2f}'.format(this_coherence))
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'in_silico_power_spectrum.pdf'))
  
     def xest_try_hilbert_transform(self):
         time_points = np.linspace(0,100,10000)
