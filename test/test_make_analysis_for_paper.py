@@ -2575,8 +2575,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                                  hill_coefficient = sample[4], 
 #                                                                  mRNA_degradation_rate = np.log(2)/30, 
 #                                                                  protein_degradation_rate = np.log(2)/90, 
-                                                                 mRNA_degradation_rate = 0.001, 
-                                                                 protein_degradation_rate = 0.001, 
+                                                                 mRNA_degradation_rate = 0.01, 
+                                                                 protein_degradation_rate = 0.01, 
                                                                  basal_transcription_rate = sample[0],
                                                                  translation_rate = sample[1],
                                                                  transcription_delay = sample[3] )
@@ -2591,8 +2591,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                 sample[2],
                                 sample[3],
                                 sample[4],
-                                0.001,
-                                0.001])
+                                0.01,
+                                0.01])
 #                                 np.log(2)/30,
 #                                 np.log(2)/90])
 
@@ -2614,17 +2614,18 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                        'output','weird_power_spectrum.pdf'))
 
     def test_plot_oscillation_probability_data(self):
-        option = 'deterministic'
+#         option = 'deterministic'
+        option = 'stochastic'
 
         X = np.load(os.path.join(os.path.dirname(__file__),
-                                       'output','oscillation_coherence_protein_degradation_values_' + option + '.npy'))
+                                       'data','oscillation_coherence_protein_degradation_values_' + option + '.npy'))
         Y = np.load(os.path.join(os.path.dirname(__file__),
-                                       'output','oscillation_coherence_mrna_degradation_values_' + option + '.npy'))
+                                       'data','oscillation_coherence_mrna_degradation_values_' + option + '.npy'))
         expected_coherence = np.load(os.path.join(os.path.dirname(__file__),
-                                       'output','oscillation_coherence_values_' + option + '.npy'))
+                                       'data','oscillation_coherence_values_' + option + '.npy'))
         if option == 'stochastic':
             oscillation_probability = np.load(os.path.join(os.path.dirname(__file__),
-                                           'output','oscillation_probability_values_' + option + '.npy'))
+                                           'data','oscillation_probability_values_' + option + '.npy'))
         else: 
             oscillation_probability = expected_coherence
         
@@ -2800,9 +2801,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
         print 'total  number is'
         print number_of_poor_samples
         plt.figure(figsize = (4.5,2.5))
-        plt.scatter(theoretical_standard_deviation, posterior_results[:,1], s = 1)
-        plt.plot([0.0,0.25],1.1*np.array([0.0,0.25]))
-        plt.plot([0.0,0.25],0.9*np.array([0.0,0.25]))
+        plt.scatter(theoretical_standard_deviation, posterior_results[:,1], s = 0.5)
+        plt.plot([0.0,0.25],1.1*np.array([0.0,0.25]), lw = 1, color = 'grey')
+        plt.plot([0.0,0.25],0.9*np.array([0.0,0.25]), lw = 1, color = 'grey')
         plt.xlabel("LNA")
         plt.ylabel("CLE")
         plt.title("Relative standard deviation")
