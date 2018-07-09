@@ -3146,8 +3146,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]>0.05,
-                                    np.logical_and(model_results[:,3]>0.12,
-                                                   model_results[:,3]<0.15)))))  #standard deviation
+                                    np.logical_and(model_results[:,3]>0.35,
+                                                   model_results[:,3]<0.45)))))  #standard deviation
 
         posterior_samples = prior_samples[accepted_indices]
         posterior_results = model_results[accepted_indices]
@@ -3185,17 +3185,52 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.title('Period: '  + '{:.2f}'.format(this_period/60) + 'h, Coherence: ' + '{:.2f}'.format(this_coherence))
         
         plt.subplot(122)
-        plt.hist(all_periods/60, range = (0,10))
+        plt.hist(all_periods/60, range = (0,10), density = True)
         plt.axvline(this_period/60)
         plt.xlabel('Period [h]')
-        plt.ylim(0,30)
+        plt.ylim(0,0.0001)
         plt.ylabel('Likelihood')
         
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
                                    'representative_hilbert_periods.pdf'))
         
-    def test_in_silico_power_spectrum(self):
+    def test_get_posterior_hilbert_period_distribution(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+#         hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples)
+        
+#         np.save(os.path.join(os.path.dirname(__file__), 'output',
+#                                    'posterior_hilbert_periods'), hilbert_periods)
+        
+        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                    'posterior_hilbert_periods.npy'))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.hist(hilbert_periods/60, density = True, bins =50, range = (0,10), edgecolor = 'black')
+        plt.axvline(3.5, color = 'black')
+        print 'mean observed period is'
+        print np.mean(hilbert_periods/60)
+#         plt.axvline(this_period/60)
+        plt.xlabel('Period [h]')
+#         plt.ylim(0,1)
+        plt.ylabel('Likelihood')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'posterior_hilbert_periods.pdf'))
+ 
+    def xest_in_silico_power_spectrum(self):
         time_points = np.linspace(0,20000,10000)
         in_silico_data = np.zeros((len(time_points),301))
         in_silico_data[:,0] = time_points 
@@ -3246,19 +3281,79 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
         plt.figure(figsize = (4,2.5))
         signal_values = signal_values + np.random.rand(len(signal_values))
-        analytic_signal = scipy.signal.hilbert(signal_values)
+#         analytic_signal = scipy.signal.hilbert(signal_values)
+        analytic_signal = scipy.signal.hilbert(signal_values - np.mean(signal_values))
         phase = np.angle(analytic_signal)
         phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
         phase_reset_times = time_points[phase_reset_indices]
         extracted_periods = np.diff(phase_reset_times)
         print extracted_periods
         print np.mean(extracted_periods)
-        plt.plot(time_points, signal_values, label = 'signal')
-        plt.plot(time_points, phase, label = 'phase')
-        plt.vlines(phase_reset_times, -1,1, color = 'black')
+        plt.plot(time_points, signal_values, label = 'signal', lw = 0.1)
+        plt.plot(time_points, phase, label = 'phase', lw = .1)
+        plt.vlines(phase_reset_times, -1,1, color = 'black', zorder = 10, lw = .1)
         plt.xlabel("Time")
         plt.ylabel("Amplitude")
+        plt.xlim(0,20)
         plt.tight_layout()
         plt.legend()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','initial_hilbert_test2.pdf'))
+        
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                    np.logical_and(model_results[:,1]>0.05,
+                                    np.logical_and(model_results[:,3]>0.0,
+                                                   model_results[:,3]<0.05)))))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        sample = posterior_samples[2]
+        these_traces = hes5.generate_langevin_trajectory( 1500*5, #duration 
+                                                          sample[2], #repression_threshold, 
+                                                          sample[4], #hill_coefficient,
+                                                          np.log(2)/30, #mRNA_degradation_rate, 
+                                                          np.log(2)/90, #protein_degradation_rate, 
+                                                          sample[0], #basal_transcription_rate, 
+                                                          sample[1], #translation_rate,
+                                                          sample[3], #transcription_delay, 
+                                                          10, #initial_mRNA, 
+                                                          sample[2], #initial_protein,
+                                                          1000)
+        
+        plt.figure(figsize = (6.5,2.5))
+        plt.subplot(121)
+        signal_values = these_traces[:,2]
+        time_points = these_traces[:,0]
+#         analytic_signal = scipy.signal.hilbert(signal_values)
+        analytic_signal = scipy.signal.hilbert(signal_values - np.mean(signal_values))
+        phase = np.angle(analytic_signal)
+        phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
+        phase_reset_times = time_points[phase_reset_indices]
+        extracted_periods = np.diff(phase_reset_times)
+        print extracted_periods
+        print np.mean(extracted_periods)
+        plt.plot(time_points, signal_values, label = 'signal', lw = 0.1)
+        plt.vlines(phase_reset_times, 60000,70000, color = 'black', zorder = 10, lw = .5)
+        plt.xlabel("Time")
+        plt.ylabel("Amplitude")
+        
+        implemented_periods = hes5.get_period_measurements_from_signal(time_points, signal_values)
+        
+        self.assert_(np.array_equal(implemented_periods, extracted_periods))
+        
+        plt.subplot(122)
+        plt.plot(time_points, phase, label = 'phase', lw = .1)
+        plt.vlines(phase_reset_times, -1,1, color = 'black', zorder = 10, lw = .5)
+        plt.xlabel("Time")
+        plt.ylabel("Phase")
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','initial_hilbert_on_data.pdf'))
+        
+
