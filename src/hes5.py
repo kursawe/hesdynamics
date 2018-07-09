@@ -1071,7 +1071,6 @@ def get_period_measurements_from_signal(time_points, signal):
     period_values : ndarray
         contains all periods measured in the signal
     '''
-
     analytic_signal = scipy.signal.hilbert(signal - np.mean(signal))
     phase = np.angle(analytic_signal)
     #this will find the index just before zero-crossings from plus to minus
@@ -1442,6 +1441,9 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
 def select_posterior_samples(prior_samples, distance_table, acceptance_ratio):
     '''Collect the parameter values of all prior_samples whose distance_table entries are 
     within the acceptance_ratio closest samples.
+    
+    Note: this function is obsolute and is not being used to generate paper figures
+    sample selection is performed in the test files instead.
     
     Parameters
     ----------
@@ -1944,6 +1946,97 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     
     return summary_statistics
 
+def calculate_hilbert_periods_at_parameter_points(parameter_points):
+    '''Extract all hilbert periods that can be identified across all given parameter points 
+    from a distribution with prior dimension 'hill', i.e. where protein and degradation rates are 
+    fixed at the experimental values.
+    
+    Parameters
+    ----------
+    
+    parameter_points : ndarray
+        must have 5 columns, as specified by prior dimension 'hill'
+        
+    Returns
+    -------
+    
+    all_hilbert_periods: ndarray
+        one-dimensional array corresponding to a list containing all obtainable hilbert periods.
+    '''
+
+    pool_of_processes = mp.Pool(processes = number_of_available_cores)
+
+    process_results = [ pool_of_processes.apply_async(calculate_hilbert_periods_at_parameter_point, 
+                                                      args=(parameter_point,))
+                        for parameter_point in parameter_points ]
+
+    ## Let the pool know that these are all so that the pool will exit afterwards
+    # this is necessary to prevent memory overflows.
+    pool_of_processes.close()
+
+    all_hilbert_periods = []
+    for parameter_index, process_result in enumerate(process_results):
+        these_hilbert_periods = process_result.get()
+        all_hilbert_periods += these_hilbert_periods 
+        
+    all_hilbert_periods = np.array(all_hilbert_periods)
+
+    return all_hilbert_periods
+
+def calculate_hilbert_periods_at_parameter_point(parameter_point):
+    '''Calculate all hilbert periods at a parameter point from a distribution with prior dimension 'hill',
+    i.e. where protein and degradation rates are fixed at the experimental values.
+    
+    Parameters
+    ----------
+    
+    parameter_point : ndarray
+        must have 5 entries, as specified by prior dimension 'hill'
+        
+    Returns
+    -------
+    
+    power_spectra: ndarray
+        first column corresponds to frequency values, second column is the power spectrum from
+        the parameter point
+    '''
+    number_of_traces = 200
+    if parameter_point.shape[0] == 5:
+        mrna_traces, protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                               1500*5, #duration 
+                                                                               parameter_point[2], #repression_threshold, 
+                                                                               parameter_point[4], #hill_coefficient,
+                                                                               np.log(2)/30.0, #mRNA_degradation_rate, 
+                                                                               np.log(2)/90.0, #protein_degradation_rate, 
+                                                                               parameter_point[0], #basal_transcription_rate, 
+                                                                               parameter_point[1], #translation_rate,
+                                                                               parameter_point[3], #transcription_delay, 
+                                                                               10, #initial_mRNA, 
+                                                                               parameter_point[2], #initial_protein,
+                                                                               1000)
+    elif parameter_point.shape[0] == 7:
+        mrna_traces, protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                           1500*5, #duration 
+                                                                                           parameter_point[2], #repression_threshold, 
+                                                                                           parameter_point[4], #hill_coefficient,
+                                                                                           parameter_point[5], #mRNA_degradation_rate, 
+                                                                                           parameter_point[6], #protein_degradation_rate, 
+                                                                                           parameter_point[0], #basal_transcription_rate, 
+                                                                                           parameter_point[1], #translation_rate,
+                                                                                           parameter_point[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           parameter_point[2], #initial_protein,
+                                                                                           1000)
+    else:
+        ValueError("Shape of parameter_points not identified, must correspond to prior dimension 'hill' or 'full' ")
+
+    hilbert_periods = []
+    for protein_trace in protein_traces[:,1:].transpose(): 
+        these_hilbert_periods = get_period_measurements_from_signal(protein_traces[:,0], protein_trace).tolist()
+        hilbert_periods += these_hilbert_periods 
+        
+    return hilbert_periods
+ 
 def calculate_power_spectra_at_parameter_points(parameter_points):
     '''Calculate power spectra at parameter points from a distribution with prior dimension 'hill',
     i.e. where protein and degradation rates are fixed at the experimental values.
