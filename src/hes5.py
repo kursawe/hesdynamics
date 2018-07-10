@@ -6,7 +6,7 @@ import scipy.interpolate
 import multiprocessing as mp
 # import collections
 from numba import jit, autojit
-from numpy import ndarray
+from numpy import ndarray, number
 import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -1051,7 +1051,7 @@ def identify_reaction(random_number, base_propensity, propensities):
     ##Make sure we never exit the for loop:
     raise(RuntimeError("This line should never be reached."))
         
-def get_period_measurements_from_signal(time_points, signal):
+def get_period_measurements_from_signal(time_points, signal, smoothen = False):
     '''Use hilbert transforms and the analytical signal to get single period measurements
     from the given time series. Period is extracted from the time-points of phase-reset.
     
@@ -1065,13 +1065,23 @@ def get_period_measurements_from_signal(time_points, signal):
     signal : ndarray
         1-dimensional array, contains signal values at time_points
     
+    smoothen : bool
+        if True then a smoothening savitzki-goyal filter with a length of 75 minutes will be applied.
+        For this filter we assume that time is sampled once per minute.
+
     Returns:
     --------
     
     period_values : ndarray
         contains all periods measured in the signal
     '''
-    analytic_signal = scipy.signal.hilbert(signal - np.mean(signal))
+    if smoothen: 
+        signal_for_measurement = scipy.signal.savgol_filter(signal, 
+                                                            75, 
+                                                            3)
+    else:
+        signal_for_measurement = signal
+    analytic_signal = scipy.signal.hilbert(signal_for_measurement - np.mean(signal_for_measurement))
     phase = np.angle(analytic_signal)
     #this will find the index just before zero-crossings from plus to minus
     phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
@@ -1946,7 +1956,11 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     
     return summary_statistics
 
-def calculate_hilbert_periods_at_parameter_points(parameter_points):
+def calculate_hilbert_periods_at_parameter_points(parameter_points, 
+                                                  measurement_interval = None, 
+                                                  per_cell = False,
+                                                  smoothen = False,
+                                                  samples_per_parameter_point = None):
     '''Extract all hilbert periods that can be identified across all given parameter points 
     from a distribution with prior dimension 'hill', i.e. where protein and degradation rates are 
     fixed at the experimental values.
@@ -1956,6 +1970,22 @@ def calculate_hilbert_periods_at_parameter_points(parameter_points):
     
     parameter_points : ndarray
         must have 5 columns, as specified by prior dimension 'hill'
+        
+    measurement_interval : float
+        the measurement interval to which the hilbert transform is applied. If 'None', then the full data
+        length will be used. Otherwise, the data will get chopped into chunks of measurement_interval length
+        
+    per_cell : bool
+        if True, get average Hilbert period for individual cells, rather than all Hilbert periods
+        in one cell
+        
+    smoothen : bool
+        if True then a smoothening savitzki-goyal filter with a length of 75 minutes will be applied
+        For this filter we assume that time is sampled once per minute.
+        
+    samples_at_parameter_point : int
+        number of samples that should be drawn at each parameter point. Only considered if per_cell is True.
+        If none then 200*5*1500/measurement_interval samples will be generated
         
     Returns
     -------
@@ -1967,7 +1997,11 @@ def calculate_hilbert_periods_at_parameter_points(parameter_points):
     pool_of_processes = mp.Pool(processes = number_of_available_cores)
 
     process_results = [ pool_of_processes.apply_async(calculate_hilbert_periods_at_parameter_point, 
-                                                      args=(parameter_point,))
+                                                      args=(parameter_point, 
+                                                            measurement_interval, 
+                                                            per_cell,
+                                                            smoothen,
+                                                            samples_per_parameter_point))
                         for parameter_point in parameter_points ]
 
     ## Let the pool know that these are all so that the pool will exit afterwards
@@ -1983,7 +2017,11 @@ def calculate_hilbert_periods_at_parameter_points(parameter_points):
 
     return all_hilbert_periods
 
-def calculate_hilbert_periods_at_parameter_point(parameter_point):
+def calculate_hilbert_periods_at_parameter_point(parameter_point, 
+                                                 measurement_interval = None, 
+                                                 per_cell = False,
+                                                 smoothen = False,
+                                                 number_samples = None):
     '''Calculate all hilbert periods at a parameter point from a distribution with prior dimension 'hill',
     i.e. where protein and degradation rates are fixed at the experimental values.
     
@@ -1993,6 +2031,23 @@ def calculate_hilbert_periods_at_parameter_point(parameter_point):
     parameter_point : ndarray
         must have 5 entries, as specified by prior dimension 'hill'
         
+    measurement_interval : float
+        the measurement interval to which the hilbert transform is applied. If 'None', then the full data
+        length will be used. Otherwise, the data will get chopped into chunks of measurement_interval length
+
+        
+    per_cell : bool
+        if True, get average Hilbert period for individual cells, rather than all Hilbert periods
+        in one cell
+
+    smoothen : bool
+        if True then a smoothening savitzki-goyal filter with a length of 75 minutes will be applied
+        For this filter we assume that time is sampled once per minute.
+
+    number_samples : int
+        number of samples that should be drawn at each parameter point. Only considered if per_cell is True.
+        If none then 200*5*1500/measurement_interval samples will be generated
+
     Returns
     -------
     
@@ -2000,7 +2055,11 @@ def calculate_hilbert_periods_at_parameter_point(parameter_point):
         first column corresponds to frequency values, second column is the power spectrum from
         the parameter point
     '''
-    number_of_traces = 200
+    if number_samples is not None and per_cell is True:
+        number_of_traces = number_samples
+    else:
+        number_of_traces = 200
+
     if parameter_point.shape[0] == 5:
         mrna_traces, protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
                                                                                1500*5, #duration 
@@ -2031,9 +2090,38 @@ def calculate_hilbert_periods_at_parameter_point(parameter_point):
         ValueError("Shape of parameter_points not identified, must correspond to prior dimension 'hill' or 'full' ")
 
     hilbert_periods = []
+    time_points = protein_traces[:,0]
     for protein_trace in protein_traces[:,1:].transpose(): 
-        these_hilbert_periods = get_period_measurements_from_signal(protein_traces[:,0], protein_trace).tolist()
-        hilbert_periods += these_hilbert_periods 
+        if measurement_interval == None:
+            these_hilbert_periods = get_period_measurements_from_signal(protein_traces[:,0], protein_trace, smoothen)
+            if per_cell:
+                mean_hilbert_period = np.mean(these_hilbert_periods)
+                hilbert_periods.append(mean_hilbert_period)
+            else:
+                hilbert_periods += these_hilbert_periods.tolist()
+        else: 
+            final_time = time_points[-1]
+            number_of_intervals = final_time/measurement_interval
+            for interval_index in range(int(number_of_intervals)):
+                interval_mask = np.logical_and(time_points>=(interval_index*measurement_interval), 
+                                               time_points<((interval_index+1)*measurement_interval))
+                time_points_in_interval = time_points[interval_mask]
+                signal_values_in_interval = protein_trace[interval_mask]
+                these_hilbert_periods = get_period_measurements_from_signal(time_points_in_interval, 
+                                                                            signal_values_in_interval, smoothen)
+                if per_cell:
+                    if len(these_hilbert_periods) >= 1:
+                        mean_hilbert_period = np.mean(these_hilbert_periods)
+                    else:
+                        mean_hilbert_period = measurement_interval
+                    hilbert_periods.append(mean_hilbert_period)
+                    if number_samples is not None and len(hilbert_periods)>= number_samples:
+                        break
+                else:
+                    hilbert_periods += these_hilbert_periods.tolist()
+        
+            if number_samples is not None and per_cell is True and len(hilbert_periods)>= number_samples:
+                break
         
     return hilbert_periods
  
