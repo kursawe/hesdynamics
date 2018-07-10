@@ -465,6 +465,205 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','inference_for_paper_' + option + '.pdf'))
 
+    def xest_obtain_maximum_likelihood_estimate(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                model_results[:,1]>0.05)))  #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        my_posterior_samples[:,0] = np.log10(my_posterior_samples[:,0])
+        my_posterior_samples[:,1] = np.log10(my_posterior_samples[:,1])
+        
+        kernel_density_function = scipy.stats.gaussian_kde(my_posterior_samples.transpose())
+        minimizing_function = lambda x: -1*kernel_density_function(x)
+        
+        print 'likelihood at typical value is'
+        print kernel_density_function([0,1.3,45000,30,4])
+#         
+#         optimize_result = scipy.optimize.minimize(minimizing_function, 
+#                                                               x0 = [0,1.3,45000,30,4],
+#                                                               bounds = [(-1, np.log10(60)),
+#                                                                         (0, np.log10(40)),
+#                                                                         (0,120000),
+#                                                                         (5,40),
+#                                                                         (2,6)],
+#                                                               tol = 1e-14,
+#                                                               options = {'disp': True})
+#         
+#         maximum_likelihood_estimate = optimize_result.x
+        maximum_likelihood_estimate = scipy.optimize.fmin(minimizing_function, 
+                                                              x0 = [0,1.3,45000,30,4])
+
+        maximum_likelihood_estimate[0] = np.power(10, maximum_likelihood_estimate[0])
+        maximum_likelihood_estimate[1] = np.power(10, maximum_likelihood_estimate[1])
+        
+        print 'maximum_likelihood_estimate is'
+        print maximum_likelihood_estimate
+
+    def xest_plot_deterministic_posterior_distributions_with_KDE(self):
+        
+        option = 'full'
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        if option == 'full':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
+#                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                    model_results[:,1]>0.05)))  #standard deviation
+#                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,3]>20))))) #time_delay
+        elif option == 'oscillating': 
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
+                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                         np.logical_and(model_results[:,1]>0.05,
+                                                        model_results[:,3]>0.3)))))  #standard deviation
+        elif option == 'not_oscillating': 
+             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                         np.logical_and(model_results[:,0]<65000, #protein_number
+                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                         np.logical_and(model_results[:,1]>0.05,
+                                                        model_results[:,3]<0.1)))))  #standard deviation
+        elif option == 'deterministic': 
+             accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #protein number
+                                         np.logical_and(model_results[:,5]<65000, #protein_number
+#                                          np.logical_and(model_results[:,6]<0.15,  #standard deviation
+#                                                         model_results[:,6]>0.05))))
+                                                        model_results[:,6]>0.05)))
+        else:
+            ValueError('could not identify posterior option')
+#       
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+#         pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
+#         pairplot.savefig(os.path.join(os.path.dirname(__file__),
+#                                       'output','pairplot_extended_abc_' + option + '.pdf'))
+
+        print('Number of accepted samples is ')
+        print(len(my_posterior_samples))
+
+        my_posterior_samples[:,2]/=10000
+
+        data_frame = pd.DataFrame( data = my_posterior_samples,
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient'])
+
+        print('minimum time delay is')
+        print(np.min(data_frame['Transcription delay']))
+        print('minimum hill coefficient is')
+        print(np.min(data_frame['Hill coefficient']))
+
+        sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (11,3))
+
+        my_figure.add_subplot(151)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(-1,np.log10(60.0),10)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Transcription rate']),
+                    kde = True,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+        plt.gca().set_xlim(-1,np.log10(60.0))
+        plt.ylabel("Probability", labelpad = 20)
+        plt.xlabel("Transcription rate \n [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        # plt.gca().set_ylim(0,2.0)
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(152)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        translation_rate_bins = np.linspace(0,np.log10(40),10)
+        sns.distplot(np.log10(data_frame['Translation rate']),
+                     kde = True,
+                     rug = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = translation_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_xlim(0,np.log10(40))
+#         plt.gca().set_ylim(0,1.3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xlabel("Translation rate \n [1/min]")
+#         plt.gca().set_ylim(0,4.0)
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(153)
+        sns.distplot(data_frame['Repression threshold/1e4'],
+                     kde = True,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 5)
+#         plt.gca().set_xlim(1,200)
+        plt.xlabel("Repression threshold \n [1e4]")
+#         plt.gca().set_ylim(0,0.22)
+        plt.gca().set_xlim(0,12)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift = []
+        plots_to_shift.append(my_figure.add_subplot(154))
+#         time_delay_bins = np.linspace(5,40,10)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = True,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = 3)
+                     # bins = time_delay_bins)
+        plt.gca().set_xlim(5,40)
+#         plt.gca().set_ylim(0,0.035)
+#         plt.gca().set_ylim(0,0.08)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel(" Transcription delay \n [min]")
+#         plt.yticks([])
+ 
+        plots_to_shift.append(my_figure.add_subplot(155))
+        sns.distplot(data_frame['Hill coefficient'],
+                     kde = True,
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 5)
+#         plt.gca().set_xlim(1,200)
+#         plt.gca().set_ylim(0,0.7)
+        plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','kde_inference_for_paper_' + option + '.pdf'))
+
     def xest_plot_example_deterministic_trace(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -3146,8 +3345,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]>0.05,
-                                    np.logical_and(model_results[:,3]>0.35,
-                                                   model_results[:,3]<0.45)))))  #standard deviation
+                                    np.logical_and(model_results[:,3]>0.15,
+                                                   model_results[:,3]<0.2)))))  #standard deviation
 
         posterior_samples = prior_samples[accepted_indices]
         posterior_results = model_results[accepted_indices]
@@ -3171,7 +3370,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         all_periods = hes5.get_period_measurements_from_signal(these_protein_traces[:,0],
                                                                these_protein_traces[:,1])
         # and now add the rest
-        for trace in these_protein_traces[:,1:]:
+        for trace in these_protein_traces[:,1:].transpose():
             these_periods = hes5.get_period_measurements_from_signal(these_protein_traces[:,0], trace)
             all_periods = np.hstack((all_periods, these_periods))
         
@@ -3179,23 +3378,248 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.figure(figsize = (6.5,2.5))
         plt.subplot(121)
         plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1])
+        plt.axvline(1/this_period, color = 'purple')
         plt.xlim(0,0.01)
         plt.xlabel('Frequency [1/min]')
         plt.ylabel('Power')
         plt.title('Period: '  + '{:.2f}'.format(this_period/60) + 'h, Coherence: ' + '{:.2f}'.format(this_coherence))
         
         plt.subplot(122)
-        plt.hist(all_periods/60, range = (0,10), density = True)
-        plt.axvline(this_period/60)
+        plt.hist(all_periods/60, range = (0,10), density = True, edgecolor = 'black')
+        plt.axvline(this_period/60, color = 'purple')
+#         plt.axvline(np.mean(all_periods)/60, color = 'black')
         plt.xlabel('Period [h]')
-        plt.ylim(0,0.0001)
+#         plt.ylim(0,0.0001)
         plt.ylabel('Likelihood')
         
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
                                    'representative_hilbert_periods.pdf'))
         
-    def test_get_posterior_hilbert_period_distribution(self):
+    def xest_get_shortened_posterior_hilbert_period_distribution_smoothed_per_cell(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+        hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, measurement_interval = 12*60, 
+                                                                             smoothen = True, per_cell = True)
+        
+        np.save(os.path.join(os.path.dirname(__file__), 'output',
+                                    'shortened_smoothened_posterior_hilbert_periods_per_cell'), hilbert_periods)
+        
+#         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_posterior_hilbert_periods.npy'))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
+        plt.axvline(3.2, color = 'black')
+#         plt.axvline(0.5, color = 'black')
+        print 'mean observed period is'
+        print np.mean(hilbert_periods/60)
+#         plt.axvline(this_period/60)
+        plt.xlabel('Period [h]')
+#         plt.ylim(0,1)
+        plt.ylabel('Likelihood')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'shortened_smoothened_posterior_hilbert_periods_per_cell.pdf'))
+
+
+    def test_get_shortened_posterior_hilbert_period_distribution_smoothed(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+        hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, measurement_interval = 12*60, 
+                                                                             smoothen = True)
+        
+        np.save(os.path.join(os.path.dirname(__file__), 'output',
+                                    'shortened_smoothened_posterior_hilbert_periods'), hilbert_periods)
+        
+#         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_posterior_hilbert_periods.npy'))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
+        plt.axvline(3.2, color = 'black')
+#         plt.axvline(0.5, color = 'black')
+        print 'mean observed period is'
+        print np.mean(hilbert_periods/60)
+#         plt.axvline(this_period/60)
+        plt.xlabel('Period [h]')
+#         plt.ylim(0,1)
+        plt.ylabel('Likelihood')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'shortened_smoothened_posterior_hilbert_periods.pdf'))
+
+    def xest_get_shortened_posterior_hilbert_period_distribution_one_sample(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+        hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, 
+                                                                             measurement_interval = 12*60,
+                                                                             per_cell = True,
+                                                                             samples_per_parameter_point = 1)
+        
+        np.save(os.path.join(os.path.dirname(__file__), 'output',
+                                    'shortened_posterior_hilbert_periods_per_cell_one_sample'), hilbert_periods)
+        
+#         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_posterior_hilbert_periods.npy'))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
+        plt.axvline(3.2, color = 'black')
+#         plt.axvline(0.5, color = 'black')
+        print 'mean observed period is'
+        print np.mean(hilbert_periods/60)
+#         plt.axvline(this_period/60)
+        plt.xlabel('Period [h]')
+#         plt.ylim(0,1)
+        plt.ylabel('Likelihood')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'shortened_posterior_hilbert_periods_per_cell_one_sample.pdf'))
+
+    def xest_get_shortened_posterior_hilbert_period_distribution(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+#         hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, measurement_interval = 12*60)
+        
+#         np.save(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_posterior_hilbert_periods'), hilbert_periods)
+        
+        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                    'shortened_posterior_hilbert_periods.npy'))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
+        plt.axvline(3.2, color = 'black')
+#         plt.axvline(0.5, color = 'black')
+        print 'mean observed period is'
+        print np.mean(hilbert_periods/60)
+#         plt.axvline(this_period/60)
+        plt.xlabel('Period [h]')
+#         plt.ylim(0,1)
+        plt.ylabel('Likelihood')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'shortened_posterior_hilbert_periods.pdf'))
+
+    def xest_get_shortened_posterior_hilbert_period_distribution_per_cell(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+        hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, measurement_interval = 12*60, 
+                                                                             per_cell = True)
+        
+        np.save(os.path.join(os.path.dirname(__file__), 'output',
+                                    'shortened_posterior_hilbert_periods_per_cell'), hilbert_periods)
+        
+#         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_posterior_hilbert_periods.npy'))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
+        plt.axvline(3.2, color = 'black')
+#         plt.axvline(0.5, color = 'black')
+        print 'mean observed period is'
+        print np.mean(hilbert_periods/60)
+#         plt.axvline(this_period/60)
+        plt.xlabel('Period [h]')
+#         plt.ylim(0,1)
+        plt.ylabel('Likelihood')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'shortened_posterior_hilbert_periods_per_cell.pdf'))
+
+    def xest_get_posterior_hilbert_period_distribution_per_cell(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+        hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, per_cell = True)
+        
+        np.save(os.path.join(os.path.dirname(__file__), 'output',
+                                    'posterior_hilbert_periods_per_cell'), hilbert_periods)
+        
+#         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'posterior_hilbert_periods.npy'))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
+        plt.axvline(3.2, color = 'black')
+#         plt.axvline(0.5, color = 'black')
+        print 'mean observed period is'
+        print np.mean(hilbert_periods/60)
+#         plt.axvline(this_period/60)
+        plt.xlabel('Period [h]')
+#         plt.ylim(0,1)
+        plt.ylabel('Likelihood')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'posterior_hilbert_periods_per_cell.pdf'))
+ 
+    def xest_get_posterior_hilbert_period_distribution(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
@@ -3217,8 +3641,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                     'posterior_hilbert_periods.npy'))
 
         plt.figure(figsize = (4.5,2.5))
-        plt.hist(hilbert_periods/60, density = True, bins =50, range = (0,10), edgecolor = 'black')
-        plt.axvline(3.5, color = 'black')
+        plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
+        plt.axvline(3.2, color = 'black')
+#         plt.axvline(0.5, color = 'black')
         print 'mean observed period is'
         print np.mean(hilbert_periods/60)
 #         plt.axvline(this_period/60)
@@ -3308,8 +3733,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
                                     np.logical_and(model_results[:,1]>0.05,
-                                    np.logical_and(model_results[:,3]>0.0,
-                                                   model_results[:,3]<0.05)))))  #standard deviation
+                                    np.logical_and(model_results[:,3]>0.12,
+                                                   model_results[:,3]<0.17)))))  #standard deviation
 
         posterior_samples = prior_samples[accepted_indices]
         posterior_results = model_results[accepted_indices]
@@ -3339,9 +3764,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
         print extracted_periods
         print np.mean(extracted_periods)
         plt.plot(time_points, signal_values, label = 'signal', lw = 0.1)
-        plt.vlines(phase_reset_times, 60000,70000, color = 'black', zorder = 10, lw = .5)
-        plt.xlabel("Time")
-        plt.ylabel("Amplitude")
+        plt.vlines(phase_reset_times, 45000,55000, color = 'black', zorder = 10, lw = .5)
+        plt.xlabel("Time [min]")
+        plt.ylabel("Expression")
         
         implemented_periods = hes5.get_period_measurements_from_signal(time_points, signal_values)
         
@@ -3350,10 +3775,42 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.subplot(122)
         plt.plot(time_points, phase, label = 'phase', lw = .1)
         plt.vlines(phase_reset_times, -1,1, color = 'black', zorder = 10, lw = .5)
-        plt.xlabel("Time")
+        plt.xlabel("Time [min]")
         plt.ylabel("Phase")
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','initial_hilbert_on_data.pdf'))
         
+        plt.figure(figsize = (6.5,2.5))
+        plt.subplot(121)
+        smoothened_signal = scipy.signal.savgol_filter(signal_values, 
+                                                            75, 
+                                                            3)
+#         analytic_signal = scipy.signal.hilbert(signal_values)
+        analytic_signal = scipy.signal.hilbert(smoothened_signal - np.mean(smoothened_signal))
+        phase = np.angle(analytic_signal)
+        phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
+        phase_reset_times = time_points[phase_reset_indices]
+        extracted_periods = np.diff(phase_reset_times)
+        print extracted_periods
+        print np.mean(extracted_periods)
+        plt.plot(time_points, smoothened_signal, label = 'signal', lw = 0.1)
+        plt.vlines(phase_reset_times, 45000,55000, color = 'black', zorder = 10, lw = .5)
+        plt.xlabel("Time [min]")
+        plt.ylabel("Expression")
+        
+        implemented_periods = hes5.get_period_measurements_from_signal(time_points, signal_values, smoothen = True)
+        
+        self.assert_(np.array_equal(implemented_periods, extracted_periods))
+        
+        plt.subplot(122)
+        plt.plot(time_points, phase, label = 'phase', lw = .1)
+        plt.vlines(phase_reset_times, -1,1, color = 'black', zorder = 10, lw = .5)
+        plt.xlabel("Time [min]")
+        plt.ylabel("Phase")
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','initial_hilbert_on_data_smoothened.pdf'))
+        
+
 
