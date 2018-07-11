@@ -3396,6 +3396,100 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
                                    'representative_hilbert_periods.pdf'))
         
+    def xest_kolmogorov_smirnov_on_period_and_stdev(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+ 
+        experimental_periods = np.loadtxt(os.path.join(os.path.dirname(__file__), 'data',
+                                          'experimental_periods.csv'))
+
+        experimental_stdevs = np.loadtxt(os.path.join(os.path.dirname(__file__), 'data',
+                                          'experimental_stdevs.csv'))
+        
+        simulated_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                          'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
+        
+        real_simulated_periods = simulated_periods[simulated_periods<(12.0*60)]
+
+        simulated_stdevs = posterior_results[:,1]
+        
+        print experimental_periods
+        print experimental_stdevs
+        
+        period_stats = scipy.stats.ks_2samp(experimental_periods, real_simulated_periods/60)
+        print 'period kolmogorov-smirnov test is'
+        print scipy.stats.ks_2samp(experimental_periods, real_simulated_periods/60)
+        
+        stdev_stats = scipy.stats.ks_2samp(experimental_stdevs, simulated_stdevs)
+        print 'stdev kolmogorov-smirnov test is'
+        print scipy.stats.ks_2samp(experimental_stdevs, simulated_stdevs)
+        
+        plt.figure(figsize = [6.5,4.5])
+        plt.subplot(221)
+        sns.boxplot(data = [simulated_stdevs, experimental_stdevs])
+        plt.xticks([0,1], ['Model', 'Experiment']) 
+        plt.text(0.25,0.2, 'K-S-value: ' + '{:.2f}'.format(stdev_stats[0]) + 
+                 '\np-value: ' + '{:.2f}'.format(stdev_stats[1]), fontsize = 8)
+        plt.ylabel('Stdev')
+        
+        plt.subplot(222)
+        sns.boxplot(data = [real_simulated_periods/60, experimental_periods])
+        plt.xticks([0,1], ['Model', 'Experiment']) 
+#         plt.axhline(12)
+        plt.text(0.25,10, 'K-S-value: ' + '{:.2f}'.format(period_stats[0]) + 
+                 '\np-value: ' + '{:.2e}'.format(period_stats[1]), fontsize = 8)
+        plt.ylabel('Period [h]')
+
+        simulated_stdevs.sort()
+        experimental_stdevs.sort()
+
+        real_simulated_periods.sort()
+        experimental_periods.sort()
+        
+        print 'number of experimental periods:'
+        number_of_experimental_periods = len(experimental_periods)
+        print len(experimental_periods)
+
+        print 'number or real_simulated_periods'
+        number_of_simulated_periods = len(real_simulated_periods)
+        print len(real_simulated_periods)
+        
+        print 'product over sum'
+        print number_of_experimental_periods*number_of_simulated_periods/(number_of_experimental_periods+
+                                                                          number_of_simulated_periods)
+        
+#         plt.figure(figsize = [6.5,2.5])
+        plt.subplot(223)
+        plt.step(simulated_stdevs, (np.arange(simulated_stdevs.size)+1.0)/simulated_stdevs.size, label = "Model")
+        plt.step(experimental_stdevs, (np.arange(experimental_stdevs.size)+1.0)/experimental_stdevs.size, label = "Experiment")
+        plt.legend(loc='lower right')
+        plt.xlabel('Stdev')
+        plt.ylabel('Cumulative probability')
+        
+        plt.subplot(224)
+        plt.step(real_simulated_periods/60, (np.arange(real_simulated_periods.size)+1.0)/real_simulated_periods.size)
+        plt.step(experimental_periods, (np.arange(experimental_periods.size)+1.0)/experimental_periods.size)
+#         plt.axhline(12)
+        plt.xlabel('Period [h]')
+        plt.ylabel('Cumulative probability')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                'output','Model_data_period_and_stdev_distribution_comparison.pdf'))
+#         plt.tight_layout()
+#         plt.savefig(os.path.join(os.path.dirname(__file__),
+#                                  'output','Kolmogoriv_w_cumulative_plotted.pdf'))
+
+
     def xest_get_shortened_posterior_hilbert_period_distribution_smoothed_per_cell(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -3434,7 +3528,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'shortened_smoothened_posterior_hilbert_periods_per_cell.pdf'))
 
 
-    def test_get_shortened_posterior_hilbert_period_distribution_smoothed(self):
+    def xest_get_shortened_posterior_hilbert_period_distribution_smoothed(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
@@ -3447,15 +3541,56 @@ class TestMakePaperAnalysis(unittest.TestCase):
         posterior_samples = prior_samples[accepted_indices]
         posterior_results = model_results[accepted_indices]
         
-        hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, measurement_interval = 12*60, 
-                                                                             smoothen = True)
+#         hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, measurement_interval = 12*60, 
+#                                                                              smoothen = True)
         
-        np.save(os.path.join(os.path.dirname(__file__), 'output',
-                                    'shortened_smoothened_posterior_hilbert_periods'), hilbert_periods)
+#         np.save(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_smoothened_posterior_hilbert_periods'), hilbert_periods)
         
-#         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
-#                                     'shortened_posterior_hilbert_periods.npy'))
+        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                    'shortened_smoothened_posterior_hilbert_periods.npy'))
 
+        plt.figure(figsize = (4.5,2.5))
+        plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,13), edgecolor = 'black')
+        plt.axvline(3.2, color = 'black')
+#         plt.axvline(0.5, color = 'black')
+        print 'mean observed period is'
+        print np.mean(hilbert_periods/60)
+#         plt.axvline(this_period/60)
+        plt.xlabel('Period [h]')
+#         plt.ylim(0,1)
+        plt.ylabel('Likelihood')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
+                                   'shortened_smoothened_posterior_hilbert_periods.pdf'))
+
+    def test_get_shortened_smoothened_posterior_hilbert_period_distribution_one_sample(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+#         hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, 
+#                                                                              measurement_interval = 12*60,
+#                                                                              per_cell = True,
+#                                                                              smoothen = True,
+#                                                                              samples_per_parameter_point = 1)
+        
+#         np.save(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample'), hilbert_periods)
+        
+        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                    'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.npy'))
+
+        hilbert_periods = hilbert_periods[hilbert_periods<10*60]
         plt.figure(figsize = (4.5,2.5))
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
@@ -3469,7 +3604,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
-                                   'shortened_smoothened_posterior_hilbert_periods.pdf'))
+                                   'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.pdf'))
 
     def xest_get_shortened_posterior_hilbert_period_distribution_one_sample(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
@@ -3489,11 +3624,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                                              per_cell = True,
                                                                              samples_per_parameter_point = 1)
         
-        np.save(os.path.join(os.path.dirname(__file__), 'output',
-                                    'shortened_posterior_hilbert_periods_per_cell_one_sample'), hilbert_periods)
+#         np.save(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_posterior_hilbert_periods_per_cell_one_sample'), hilbert_periods)
         
-#         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
-#                                     'shortened_posterior_hilbert_periods.npy'))
+        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                    'shortened_posterior_hilbert_periods.npy'))
 
         plt.figure(figsize = (4.5,2.5))
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
