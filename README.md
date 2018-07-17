@@ -1,33 +1,16 @@
-# hesdynamics
-How can Hes5 oscillations in spinal cord neural progenitor cells be described?
+# Supplementary code for the paper "Quantitative and real-time analysis of neurogenesis with single cell resolution in mouse tissue reveals stochastic and periodic expression dynamics of HES5"
 
 Dependencies (tested on Ubuntu 16.04):
 
--nosetests
--matplotib
--pandas
--seaborn
--numba
--PyDDE (https://github.com/hensing/PyDDE) 
--the ubuntu package python-tk (sudo apt install python-tk)
+- nosetests
+- matplotib
+- pandas
+- seaborn
+- numba
+- PyDDE (https://github.com/hensing/PyDDE) 
+- the ubuntu package python-tk (sudo apt install python-tk)
 
-For me, installing PyDDE threw some errors - I fixed them by editing setup.py and changing the line 
+Please see the file `troubleshooting.md` for typical installation errors.
 
-EXTRA_COMPILE_ARGS = []
+For any questions concerning this repository, please email Jochen Kursawe at `jochen dot kursawe at manchester dot ac dot uk`
 
-to
-
-EXTRA_COMPILE_ARGS = ['-Wno-error=-Wformat,-Wunused_but_set_variable']
-
-I was then able to install PyDDE by entering the directory PyDDE-master and typing
-
-sudo python setup.py install
-
-In order to get git cloning to work with HTTP on the manchester cluster I need to follow these instructions:
-
-https://www.a2hosting.co.uk/kb/developer-corner/version-control-systems1/403-forbidden-error-message-when-you-try-to-push-to-a-github-repository
-
-Further, on the manchester research cluster tests need to be invoked like this:
-
-CONDA_PREFIX=/opt/gridware/apps/binapps/anaconda/3/4.2.0
-LD_PRELOAD=$CONDA_PREFIX/lib/libmkl_core.so:$CONDA_PREFIX/lib/libmkl_sequential.so nosetests -s test_my_test.py
