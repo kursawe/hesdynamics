@@ -3628,7 +3628,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #                                     'shortened_posterior_hilbert_periods_per_cell_one_sample'), hilbert_periods)
         
         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
-                                    'shortened_posterior_hilbert_periods.npy'))
+                                    'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 
         plt.figure(figsize = (4.5,2.5))
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
