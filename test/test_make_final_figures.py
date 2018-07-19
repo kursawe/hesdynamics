@@ -21,7 +21,7 @@ import hes5
 
 class TestMakeFinalFigures(unittest.TestCase):
                                  
-    def xest_make_period_distribution_plot(self):
+    def test_make_period_distribution_plot(self):
         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
                                 'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 #                                   'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.npy'))
@@ -37,7 +37,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         print 'standard deviation of periods is'
         print np.std(hilbert_periods/60)
 #         plt.axvline(this_period/60)
-        plt.xlabel('Period [h]')
+        plt.xlabel('Period [hrs]')
 #         plt.ylim(0,1)
         plt.ylabel('Likelihood')
         
@@ -47,7 +47,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
 
-    def test_make_standard_deviation_distribution_plot(self):
+    def xest_make_standard_deviation_distribution_plot(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
