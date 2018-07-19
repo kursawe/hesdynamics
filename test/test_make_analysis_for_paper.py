@@ -149,9 +149,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','hes5_phase_space_analysis.pdf'))
 
-    def xest_plot_posterior_distributions(self):
+    def test_plot_posterior_distributions(self):
         
-        option = 'amplitude'
+        option = 'deterministic'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -187,8 +187,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         elif option == 'deterministic': 
              accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #protein number
                                          np.logical_and(model_results[:,5]<65000, #protein_number
-                                         np.logical_and(model_results[:,6]<0.15,  #standard deviation
-                                                        model_results[:,6]>0.05))))
+#                                          np.logical_and(model_results[:,6]<0.15,  #standard deviation
+                                                        model_results[:,6]>0.05)))
         else:
             ValueError('could not identify posterior option')
 #       
@@ -3565,7 +3565,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
                                    'shortened_smoothened_posterior_hilbert_periods.pdf'))
 
-    def test_get_shortened_smoothened_posterior_hilbert_period_distribution_one_sample(self):
+    def xest_get_shortened_smoothened_posterior_hilbert_period_distribution_one_sample(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
