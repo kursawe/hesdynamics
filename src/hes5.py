@@ -1902,7 +1902,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            full_parameter[3], #transcription_delay, 
                                                                                            10, #initial_mRNA, 
                                                                                            full_parameter[2], #initial_protein,
-                                                                                           1000)
+                                                                                           2000)
     elif model == 'agnostic':
         these_mrna_traces, these_protein_traces = generate_multiple_agnostic_trajectories( number_of_traces, # number_of_trajectories 
                                                                                            1500*5, #duration 
@@ -1918,7 +1918,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            full_parameter[2], #initial_protein,
                                                                                            1000)
  
-    this_deterministic_trace = generate_deterministic_trajectory(1500*5+1000, 
+    this_deterministic_trace = generate_deterministic_trajectory(1500*5+2000, 
                                                                 full_parameter[2], 
                                                                 full_parameter[4], 
                                                                 full_parameter[5], 
@@ -1930,7 +1930,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                 full_parameter[2], 
                                                                 for_negative_times = 'no_negative')
     
-    this_deterministic_trace = this_deterministic_trace[this_deterministic_trace[:,0]>1000] # remove equilibration time
+    this_deterministic_trace = this_deterministic_trace[this_deterministic_trace[:,0]>2000] # remove equilibration time
 #     this_deterministic_trace = np.vstack((these_protein_traces[:,0],
 #                                           these_mrna_traces[:,1],
 #                                           these_protein_traces[:,1])).transpose()
@@ -1941,7 +1941,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     this_mean_mRNA = np.mean(these_mrna_traces[:,1:])
     this_deterministic_mean = np.mean(this_deterministic_trace[:,2])
     this_deterministic_std = np.std(this_deterministic_trace[:,2])/this_deterministic_mean
-    deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 1000, 
+    deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 2000, 
                                             this_deterministic_trace[:,2])).transpose()
     _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
     summary_statistics[0] = this_mean
