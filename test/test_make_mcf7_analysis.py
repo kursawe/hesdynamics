@@ -51,7 +51,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 #                                       'output','pairplot_mcf7_abc_' +  str(total_number_of_samples) + '_'
 #                                       + str(acceptance_ratio) + '.pdf'))
 
-    def test_plot_posterior_distributions(self):
+    def xest_plot_posterior_distributions(self):
         
         option = 'deterministic'
 
@@ -521,3 +521,387 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','deterministic_mcf7_trajectory.pdf'))
  
+    def xest_plot_cle_vs_gillespie_results(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_MCF7_altered')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<4000,
+                                    np.logical_and(model_results[:,4]>40,
+                                    np.logical_and(model_results[:,4]<60, #mrna number
+                                                   model_results[:,1]>0.05)))))  #standard deviation
+#                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+        print('number of accepted samples is')
+        print(len(posterior_samples[:,0]))
+        
+#         posterior_samples = posterior_samples[:10,:]
+#         posterior_results = posterior_results[:10,:]
+#         gillespie_results = hes5.calculate_gillespie_summary_statistics_at_parameters(posterior_samples)
+
+        saving_path = os.path.join(os.path.dirname(__file__),'output','gillespie_posterior_results')
+        
+#         np.save(saving_path + '.npy', gillespie_results)
+        gillespie_results = np.load(saving_path + '.npy')
+
+        gillespie_standard_deviation = gillespie_results[:,1]
+
+        error_ratios = posterior_results[:,1]/gillespie_standard_deviation
+        
+        print('number of outlier samples')
+        print(np.sum(error_ratios>1.1))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.scatter(gillespie_standard_deviation, posterior_results[:,1], s = 0.5)
+        plt.plot([0.0,0.07],1.1*np.array([0.0,0.07]), lw = 1, color = 'grey')
+        plt.plot([0.0,0.07],0.9*np.array([0.0,0.07]), lw = 1, color = 'grey')
+        plt.xlabel("Gillespie")
+        plt.ylabel("CLE")
+        plt.title("Relative standard deviation")
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','mcf7_CLE_validation.pdf'))
+
+    def test_plot_more_accurate_cle_vs_gillespie_results(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_MCF7_altered')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<4000,
+                                    np.logical_and(model_results[:,4]>40,
+                                    np.logical_and(model_results[:,4]<60, #mrna number
+                                                   model_results[:,1]>0.05)))))  #standard deviation
+#                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+        
+        print('number of accepted samples is')
+        print(len(posterior_samples[:,0]))
+        
+#         posterior_samples = posterior_samples[:10,:]
+#         posterior_results = posterior_results[:10,:]
+#         gillespie_results = hes5.calculate_gillespie_summary_statistics_at_parameters(posterior_samples)
+
+        saving_path = os.path.join(os.path.dirname(__file__),'output','gillespie_posterior_results')
+        
+#         np.save(saving_path + '.npy', gillespie_results)
+        gillespie_results = np.load(saving_path + '.npy')
+
+        more_accurate_cle_results = hes5.calculate_summary_statistics_at_parameters(posterior_samples)
+        gillespie_standard_deviation = gillespie_results[:,1]
+
+        error_ratios = posterior_results[:,1]/gillespie_standard_deviation
+        
+        print('number of outlier samples')
+        print(np.sum(error_ratios>1.1))
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.scatter(posterior_results[:,1], more_accurate_cle_results[:,1], s = 0.5)
+        plt.plot([0.0,0.07],1.1*np.array([0.0,0.07]), lw = 1, color = 'grey')
+        plt.plot([0.0,0.07],0.9*np.array([0.0,0.07]), lw = 1, color = 'grey')
+        plt.xlabel("Gillespie")
+        plt.ylabel("CLE")
+        plt.title("Relative standard deviation")
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','mcf7_CLE_validation.pdf'))
+
+    def xest_plot_lna_std_vs_model_results(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_MCF7_altered')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<4000,
+                                    np.logical_and(model_results[:,4]>40,
+                                    np.logical_and(model_results[:,4]<60, #mrna number
+                                                   model_results[:,1]>0.05)))))  #standard deviation
+#                                                    model_results[:,1]>0.05)))  #standard deviation
+
+        posterior_samples = prior_samples[accepted_indices]
+        posterior_results = model_results[accepted_indices]
+
+        theoretical_standard_deviation = np.zeros(len(posterior_samples))
+        for sample_index, sample in enumerate(posterior_samples):
+            this_standard_deviation = hes5.calculate_approximate_standard_deviation_at_parameter_point(basal_transcription_rate = sample[0],
+                                                                translation_rate = sample[1],
+                                                                repression_threshold = sample[2],
+                                                                transcription_delay = sample[3],
+                                                                mRNA_degradation_rate = np.log(2)/41,
+                                                                protein_degradation_rate = np.log(2)/(3.85*60),
+                                                                hill_coefficient = sample[4]
+                                                                )
+
+            steady_state_mrna, steady_state_protein = hes5.calculate_steady_state_of_ode(basal_transcription_rate = sample[0],
+                                                                translation_rate = sample[1],
+                                                                repression_threshold = sample[2],
+                                                                mRNA_degradation_rate = np.log(2)/41,
+                                                                protein_degradation_rate = np.log(2)/(3.85*60),
+                                                                hill_coefficient = sample[4]
+                                                                )
+
+            relative_standard_deviation = this_standard_deviation/steady_state_protein
+
+            theoretical_standard_deviation[ sample_index ] = relative_standard_deviation 
+
+        error_ratios = theoretical_standard_deviation / posterior_results[:,1]
+        relative_errors = np.abs(error_ratios - 1)
+        number_of_poor_samples = np.sum(relative_errors>0.1)
+        print 'ratio of poor approximations is'
+        print number_of_poor_samples/float(len(posterior_samples))
+        print 'total  number is'
+        print number_of_poor_samples
+        plt.figure(figsize = (4.5,2.5))
+        plt.scatter(theoretical_standard_deviation, posterior_results[:,1], s = 0.5)
+        plt.plot([0.0,0.25],1.1*np.array([0.0,0.25]), lw = 1, color = 'grey')
+        plt.plot([0.0,0.25],0.9*np.array([0.0,0.25]), lw = 1, color = 'grey')
+        plt.xlabel("LNA")
+        plt.ylabel("CLE")
+        plt.title("Relative standard deviation")
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','mcf7_LNA_validation.pdf'))
+
+        # now, we need to plot where the outliers are:
+        outlier_mask = relative_errors > 0.1
+        outlier_samples = posterior_samples[outlier_mask]
+        outlier_results = posterior_results[outlier_mask]
+
+        print 'outlier coherences are'
+        print outlier_results[:,3]
+        outlier_samples[:,2]/=10000
+        print 'minimal outlier coherence is'
+        print np.min(outlier_results[:,3])
+        print 'posterior samples with coherence above 0.44'
+        print np.sum(posterior_results[:,3]>0.5)
+
+        data_frame = pd.DataFrame( data = outlier_samples[:,:5],
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient'])
+
+        sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (11,3))
+
+        my_figure.add_subplot(151)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(-1,np.log10(60.0),20)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Transcription rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+        plt.gca().set_xlim(-1,np.log10(60.0))
+        plt.ylabel("Probability", labelpad = 20)
+        plt.xlabel("Transcription rate \n [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        plt.gca().set_ylim(0,1.0)
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(152)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        translation_rate_bins = np.linspace(0,np.log10(40),20)
+        sns.distplot(np.log10(data_frame['Translation rate']),
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = translation_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_xlim(0,np.log10(40))
+        plt.gca().set_ylim(0,1.3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xlabel("Translation rate \n [1/min]")
+        plt.gca().set_ylim(0,2.0)
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(153)
+        sns.distplot(data_frame['Repression threshold/1e4'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.xlabel("Repression threshold \n [1e4]")
+        plt.gca().set_ylim(0,0.22)
+        plt.gca().set_xlim(0,12)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift = []
+        plots_to_shift.append(my_figure.add_subplot(154))
+        time_delay_bins = np.linspace(5,40,10)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = time_delay_bins)
+        plt.gca().set_xlim(5,40)
+#         plt.gca().set_ylim(0,0.035)
+        plt.gca().set_ylim(0,0.04)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel(" Transcription delay \n [min]")
+#         plt.yticks([])
+ 
+        plots_to_shift.append(my_figure.add_subplot(155))
+        sns.distplot(data_frame['Hill coefficient'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_ylim(0,0.35)
+        plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','mcf7_LNA_outliers.pdf'))
+
+        #what happens in the cases when the CLE has higher std than the LNA?
+        outlier_mask = error_ratios<0.9
+        outlier_samples = posterior_samples[outlier_mask]
+        outlier_results = posterior_results[outlier_mask]
+
+        print 'outlier coherences are'
+        print outlier_results[:,3]
+        outlier_samples[:,2]/=10000
+        print 'minimal outlier coherence is'
+        print np.min(outlier_results[:,3])
+        print 'posterior samples with coherence above 0.44'
+        print np.sum(posterior_results[:,3]>0.5)
+
+        data_frame = pd.DataFrame( data = outlier_samples[:,:5],
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e4', 
+                                             'Transcription delay',
+                                             'Hill coefficient'])
+
+        sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        font = {'size'   : 28}
+        plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (11,3))
+
+        my_figure.add_subplot(151)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(-1,np.log10(60.0),20)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Transcription rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+        plt.gca().set_xlim(-1,np.log10(60.0))
+        plt.ylabel("Probability", labelpad = 20)
+        plt.xlabel("Transcription rate \n [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        plt.gca().set_ylim(0,1.0)
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(152)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        translation_rate_bins = np.linspace(0,np.log10(40),20)
+        sns.distplot(np.log10(data_frame['Translation rate']),
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = translation_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_xlim(0,np.log10(40))
+        plt.gca().set_ylim(0,1.3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xlabel("Translation rate \n [1/min]")
+        plt.gca().set_ylim(0,2.0)
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(153)
+        sns.distplot(data_frame['Repression threshold/1e4'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.xlabel("Repression threshold \n [1e4]")
+        plt.gca().set_ylim(0,0.22)
+        plt.gca().set_xlim(0,12)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift = []
+        plots_to_shift.append(my_figure.add_subplot(154))
+        time_delay_bins = np.linspace(5,40,10)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     bins = time_delay_bins)
+        plt.gca().set_xlim(5,40)
+#         plt.gca().set_ylim(0,0.035)
+        plt.gca().set_ylim(0,0.04)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel(" Transcription delay \n [min]")
+#         plt.yticks([])
+ 
+        plots_to_shift.append(my_figure.add_subplot(155))
+        sns.distplot(data_frame['Hill coefficient'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_ylim(0,0.35)
+        plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','mcf_7_LNA_other_outliers.pdf'))
+

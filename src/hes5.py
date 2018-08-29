@@ -1712,7 +1712,7 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
 
     return summary_statistics
     
-def calculate_gillespie_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
+def calculate_gillespie_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 200,
                                                          number_of_cpus = number_of_available_cores):
     '''Calculate the mean, relative standard deviation, period, and coherence
     of protein traces at each parameter point in parameter_values. 
@@ -1741,20 +1741,21 @@ def calculate_gillespie_summary_statistics_at_parameters(parameter_values, numbe
         each row contains the summary statistics (mean, std, period, coherence) for the corresponding
         parameter set in parameter_values
     '''
+    # may need to include parameter conversion here
     summary_statistics = np.zeros((parameter_values.shape[0], 4))
     for parameter_index, parameter_value in enumerate(parameter_values):
         these_mRNA_traces, these_protein_traces = generate_multiple_trajectories( 
                                                         number_of_trajectories = number_of_traces_per_sample, 
-                                                        duration = 1500,
+                                                        duration = 1500*5,
                                                         basal_transcription_rate = parameter_value[0],
                                                         translation_rate = parameter_value[1], 
                                                         repression_threshold = parameter_value[2], 
                                                         transcription_delay = parameter_value[3],
-                                                        mRNA_degradation_rate = np.log(2)/30, 
-                                                        protein_degradation_rate = np.log(2)/90, 
+                                                        mRNA_degradation_rate = parameter_value[5], 
+                                                        protein_degradation_rate = parameter_value[6], 
                                                         initial_mRNA = 0,
                                                         initial_protein = parameter_value[2],
-                                                        equilibration_time = 1000,
+                                                        equilibration_time = 2000,
                                                         number_of_cpus = number_of_cpus)
         _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
         this_mean = np.mean(these_protein_traces[:,1:])
