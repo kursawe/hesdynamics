@@ -53,7 +53,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 
     def xest_plot_posterior_distributions(self):
         
-        option = 'deterministic'
+        option = 'coherence'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_MCF7_altered')
@@ -98,6 +98,13 @@ class TestMakeMCF7Analysis(unittest.TestCase):
                                         np.logical_and(model_results[:,1]>0.05,
                                         np.logical_and(model_results[:,3]>0.3,
                                                        model_results[:,2]<6*60)))))))  #standard deviation
+        elif option == 'coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000,
+                                        np.logical_and(model_results[:,4]>40,
+                                        np.logical_and(model_results[:,4]<60, #mrna number
+                                        np.logical_and(model_results[:,1]>0.05, 
+                                                       model_results[:,3]>0.3))))))  #standard deviation
         elif option == 'amplitude_and_coherence':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
                                         np.logical_and(model_results[:,0]<4000, #protein_number
@@ -123,13 +130,21 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         elif option == 'deterministic': 
              accepted_indices = np.where(np.logical_and(model_results[:,5]>2000, #protein number
                                          np.logical_and(model_results[:,5]<4000, #protein_number
-#                                          np.logical_and(model_results[:,6]<0.15,  #standard deviation
-                                                        model_results[:,6]>0.05)))
+                                         np.logical_and(model_results[:,9]>40,
+                                         np.logical_and(model_results[:,9]<60, #mrna number
+                                                        model_results[:,6]>0.05)))))  #standard deviation
         else:
             ValueError('could not identify posterior option')
 #       
         my_posterior_samples = prior_samples[accepted_indices]
         print my_posterior_samples[:,1]
+        
+        print('minimal hill')
+        print(np.min(my_posterior_samples[:,4]))
+        print('miximal time delay')
+        print(np.min(my_posterior_samples[:,3]))
+        print('maximal time delay')
+        print(np.max(my_posterior_samples[:,3]))
         
 #         pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
 #         pairplot.savefig(os.path.join(os.path.dirname(__file__),
@@ -463,7 +478,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','stochastic_mcf7_trajectory.pdf'))
         
-    def xest_plot_deterministic_trace_at_inferred_parameter(self):
+    def test_plot_deterministic_trace_at_inferred_parameter(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
 #                                    'sampling_results_MCF7')
@@ -471,16 +486,14 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                    np.logical_and(model_results[:,0]<4000, #protein_number
-                                    np.logical_and(model_results[:,4]>40,
-                                    np.logical_and(model_results[:,4]<60, #mrna number
-                                    np.logical_and(model_results[:,3]>0.3,
-#                                     np.logical_and(prior_samples[:,2]<3500, #mrna number
-#                                     np.logical_and(prior_samples[:,4]>5, #mrna number
-#                                     np.logical_and(prior_samples[:,3]>35, #mrna number
-#                                                    model_results[:,1]>0.05))))))))  #standard deviation
-                                                   model_results[:,1]>0.05)))))) #standard deviation
+
+        accepted_indices = np.where(np.logical_and(model_results[:,5]>2000, #protein number
+                                    np.logical_and(model_results[:,5]<4000, #protein_number
+                                    np.logical_and(model_results[:,9]>40,
+                                    np.logical_and(model_results[:,9]<60, #mrna number
+                                                   model_results[:,6]>0.05)))))  #standard deviation
+#                                     np.logical_and(model_results[:,7]<6*60,
+#                                                    model_results[:,6]>0.05))))))  #standard deviation
  
         my_posterior_samples = prior_samples[accepted_indices]
         my_results = model_results[accepted_indices]
@@ -509,7 +522,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
                   '\n' + r'$\alpha_p =$ ' + '{:.2f}'.format(my_sample[1]) + 
                   r', $p_0 = $ ' + '{:.2f}'.format(my_sample[2]) + 
                   r', $\tau = $ ' + '{:.2f}'.format(my_sample[3]) +
-                  ', Period: ' + '{:.2f}'.format(this_result[2]/60),
+                  ', Period: ' + '{:.2f}'.format(this_result[7]/60),
                   fontsize = 5)
         plt.plot(my_trajectory[:,0]/60, 
                  my_trajectory[:,1]*10, label = 'mRNA*10', color = 'black')
@@ -542,12 +555,13 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         
 #         posterior_samples = posterior_samples[:10,:]
 #         posterior_results = posterior_results[:10,:]
-#         gillespie_results = hes5.calculate_gillespie_summary_statistics_at_parameters(posterior_samples)
+        gillespie_results = hes5.calculate_gillespie_summary_statistics_at_parameters(posterior_samples)
+#         gillespie_results = hes5.calculate_summary_statistics_at_parameters(posterior_samples, model = 'gillespie_sequential')
 
-        saving_path = os.path.join(os.path.dirname(__file__),'output','gillespie_posterior_results')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','new_gillespie_posterior_results')
         
-#         np.save(saving_path + '.npy', gillespie_results)
-        gillespie_results = np.load(saving_path + '.npy')
+        np.save(saving_path + '.npy', gillespie_results)
+#         gillespie_results = np.load(saving_path + '.npy')
 
         gillespie_standard_deviation = gillespie_results[:,1]
 
@@ -567,7 +581,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','mcf7_CLE_validation.pdf'))
 
-    def test_plot_more_accurate_cle_vs_gillespie_results(self):
+    def xest_plot_more_accurate_cle_vs_gillespie_results(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                    'sampling_results_MCF7_altered')
         model_results = np.load(saving_path + '.npy' )

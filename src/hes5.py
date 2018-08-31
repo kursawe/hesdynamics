@@ -976,38 +976,85 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
     else:
         transcription_schedule = np.array([-1.0])
 
-    pool_of_processes = mp.Pool(processes = number_of_cpus)
-    arguments = [ (duration, repression_threshold, hill_coefficient,
-                  mRNA_degradation_rate, protein_degradation_rate, 
-                  basal_transcription_rate, translation_rate,
-                  transcription_delay, initial_mRNA, initial_protein,
-                  equilibration_time, transcription_schedule, sampling_timestep, False) ]*number_of_trajectories
-#                   equilibration_time, transcription_schedule) ]*number_of_trajectories
-    process_results = [ pool_of_processes.apply_async(generate_stochastic_trajectory, args=x)
-                        for x in arguments ]
+    ## only spawn subprocesses if we have more than one core
+    if number_of_cpus > 1:   
+        pool_of_processes = mp.Pool(processes = number_of_cpus)
+        arguments = [ (duration, repression_threshold, hill_coefficient,
+                      mRNA_degradation_rate, protein_degradation_rate, 
+                      basal_transcription_rate, translation_rate,
+                      transcription_delay, initial_mRNA, initial_protein,
+                      equilibration_time, transcription_schedule, sampling_timestep, False) ]*number_of_trajectories
+#                       equilibration_time, transcription_schedule) ]*number_of_trajectories
+        process_results = [ pool_of_processes.apply_async(generate_stochastic_trajectory, args=x)
+                            for x in arguments ]
 
-    ## Let the pool know that these are all so that the pool will exit afterwards
-    # this is necessary to prevent memory overflows.
-    pool_of_processes.close()
+        ## Let the pool know that these are all so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
 
-    list_of_traces = []
-    for result in process_results:
-        this_trace = result.get()
-        list_of_traces.append(this_trace)
+        list_of_traces = []
+        for result in process_results:
+            this_trace = result.get()
+            list_of_traces.append(this_trace)
+        
+        first_trace = list_of_traces[0]
+
+        sample_times = first_trace[:,0]
+        mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+        protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+        
+        mRNA_trajectories[:,0] = sample_times
+        protein_trajectories[:,0] = sample_times
+
+        for trajectory_index, this_trace in enumerate(list_of_traces): 
+            # offset one index for time column
+            mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
+            protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
+ 
+    elif number_of_cpus == 1:
+        first_trace = generate_stochastic_trajectory(duration, 
+                                                     repression_threshold, 
+                                                     hill_coefficient, 
+                                                     mRNA_degradation_rate, 
+                                                     protein_degradation_rate, 
+                                                     basal_transcription_rate, 
+                                                     translation_rate, 
+                                                     transcription_delay, 
+                                                     initial_mRNA, 
+                                                     initial_protein, 
+                                                     equilibration_time,
+                                                     transcription_schedule,
+                                                     sampling_timestep,
+                                                     False)
+
+        sample_times = first_trace[:,0]
+        mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+        protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
     
-    first_trace = list_of_traces[0]
+        mRNA_trajectories[:,0] = sample_times
+        protein_trajectories[:,0] = sample_times
+        mRNA_trajectories[:,1] = first_trace[:,1]
+        protein_trajectories[:,1] = first_trace[:,2]
 
-    sample_times = first_trace[:,0]
-    mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
-    protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
-    
-    mRNA_trajectories[:,0] = sample_times
-    protein_trajectories[:,0] = sample_times
-
-    for trajectory_index, this_trace in enumerate(list_of_traces): 
+        for trajectory_index in range(1,number_of_trajectories): 
         # offset one index for time column
-        mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
-        protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
+            this_trace = generate_stochastic_trajectory(duration, 
+                                                        repression_threshold, 
+                                                        hill_coefficient, 
+                                                        mRNA_degradation_rate, 
+                                                        protein_degradation_rate, 
+                                                        basal_transcription_rate, 
+                                                        translation_rate, 
+                                                        transcription_delay, 
+                                                        initial_mRNA, 
+                                                        initial_protein, 
+                                                        equilibration_time,
+                                                        transcription_schedule,
+                                                        sampling_timestep,
+                                                        False)
+
+            mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
+            protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
  
     return mRNA_trajectories, protein_trajectories
 
@@ -1692,7 +1739,9 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
         on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
 
     model : string
-        options are 'langevin', 'gillespie', 'agnostic'
+        options are 'langevin', 'gillespie', 'agnostic', 'gillespie_sequential'
+        gillespie_sequential means that traces from different parameters will be calculated in parallel,
+        rather than multiple traces from the same parameter
 
     Returns
     -------
@@ -1701,7 +1750,7 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
         each row contains the summary statistics (mean, std, period, coherence) for the corresponding
         parameter set in parameter_values
     '''
-    if model == 'langevin' or model == 'agnostic':
+    if model == 'langevin' or model == 'agnostic' or model == 'gillespie_sequential':
         summary_statistics = calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample,
                                                             number_of_cpus, model)
     else:
@@ -1751,6 +1800,7 @@ def calculate_gillespie_summary_statistics_at_parameters(parameter_values, numbe
                                                         translation_rate = parameter_value[1], 
                                                         repression_threshold = parameter_value[2], 
                                                         transcription_delay = parameter_value[3],
+                                                        hill_coefficient = parameter_value[4],
                                                         mRNA_degradation_rate = parameter_value[5], 
                                                         protein_degradation_rate = parameter_value[6], 
                                                         initial_mRNA = 0,
@@ -1791,7 +1841,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
 
     model : string
-        options are 'langevin', 'gillespie', 'agnostic'
+        options are 'langevin', 'gillespie_sequential', 'agnostic'
 
     Returns
     -------
@@ -1800,7 +1850,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         each row contains the summary statistics (mean, std, period, coherence, mean_mrna) for the corresponding
         parameter set in parameter_values
     '''
-    summary_statistics = np.zeros((parameter_values.shape[0], 9))
+    summary_statistics = np.zeros((parameter_values.shape[0], 10))
 
     pool_of_processes = mp.Pool(processes = number_of_cpus)
 
@@ -1881,7 +1931,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
         number of traces that should be run per sample to calculate the summary statistics
 
     model : string
-        options are 'langevin', 'gillespie', 'agnostic'
+        options are 'langevin', 'gillespie_sequential', 'agnostic'
 
     Returns
     -------
@@ -1918,6 +1968,20 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            10, #initial_mRNA, 
                                                                                            full_parameter[2], #initial_protein,
                                                                                            1000)
+    elif model == 'gillespie_sequential':
+        these_mrna_traces, these_protein_traces = generate_multiple_trajectories( number_of_trajectories = number_of_traces, # number_of_trajectories 
+                                                                                  duration = 1500*5, #duration 
+                                                                                  repression_threshold = full_parameter[2], #repression_threshold, 
+                                                                                  hill_coefficient = full_parameter[4], #hill_coefficient,
+                                                                                  mRNA_degradation_rate = full_parameter[5], #mRNA_degradation_rate, 
+                                                                                  protein_degradation_rate = full_parameter[6], #protein_degradation_rate, 
+                                                                                  basal_transcription_rate = full_parameter[0], #basal_transcription_rate, 
+                                                                                  translation_rate = full_parameter[1], #translation_rate,
+                                                                                  transcription_delay = full_parameter[3], #transcription_delay, 
+                                                                                  initial_mRNA = 10, #initial_mRNA, 
+                                                                                  initial_protein = full_parameter[2], #initial_protein,
+                                                                                  equilibration_time = 2000,
+                                                                                  number_of_cpus = 1 )
  
     this_deterministic_trace = generate_deterministic_trajectory(1500*5+2000, 
                                                                 full_parameter[2], 
@@ -1935,12 +1999,13 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
 #     this_deterministic_trace = np.vstack((these_protein_traces[:,0],
 #                                           these_mrna_traces[:,1],
 #                                           these_protein_traces[:,1])).transpose()
-    summary_statistics = np.zeros(9)
+    summary_statistics = np.zeros(10)
     _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
     this_mean = np.mean(these_protein_traces[:,1:])
     this_std = np.std(these_protein_traces[:,1:])/this_mean
     this_mean_mRNA = np.mean(these_mrna_traces[:,1:])
     this_deterministic_mean = np.mean(this_deterministic_trace[:,2])
+    this_deterministic_mean_mRNA = np.mean(this_deterministic_trace[:,1])
     this_deterministic_std = np.std(this_deterministic_trace[:,2])/this_deterministic_mean
     deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 2000, 
                                             this_deterministic_trace[:,2])).transpose()
@@ -1954,6 +2019,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     summary_statistics[6] = this_deterministic_std
     summary_statistics[7] = this_deterministic_period
     summary_statistics[8] = this_deterministic_coherence
+    summary_statistics[9] = this_deterministic_mean_mRNA
     
     return summary_statistics
 
