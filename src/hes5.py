@@ -218,6 +218,226 @@ def hes5_ddegrad(y, parameters, time):
 
     return np.array( [dmRNA,dprotein] )
 
+def generate_deterministic_goodfellow_trajectory( duration = 720, 
+                                                  repression_threshold_protein_on_mRNA = 100,
+                                                  repression_threshold_protein_on_miRNA = 100,
+                                                  repression_threshold_miRNA_on_mRNA = 100,
+                                                  repression_threshold_miRNA_on_protein = 100,
+                                                  hill_coefficient_protein_on_mRNA = 5,
+                                                  hill_coefficient_protein_on_miRNA = 5,
+                                                  hill_coefficient_miRNA_on_mRNA = 5,
+                                                  hill_coefficient_miRNA_on_protein = 100,
+                                                  transcription_delay = 19,
+                                                  upper_mRNA_degradation_rate = 0.03,
+                                                  lower_mRNA_degradation_rate = 0.03,
+                                                  protein_degradation_rate = 0.03,
+                                                  miRNA_degradation_rate = 0.00001,
+                                                  initial_mRNA = 3,
+                                                  initial_protein = 100,
+                                                  initial_miRNA = 1):
+    '''Generate one trace of the Goodfellow model. This function implements the deterministic model in 
+    Goodfellow, Nature Communications (2014).
+    
+    Parameters
+    ----------
+    
+    duration : float
+        duration of the trace in minutes
+
+    repression_threshold_protein_on_mRNA : float
+        repression threshold, Hes autorepresses its own transcription if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Goodfellow paper
+        
+    repression_threshold_protein_on_miRNA : float
+        repression threshold, Hes represses production of micro RNA if the Hes copynumber is larger
+        than this repression threshold. Corresponds to P1 in the Goodfellow paper.
+        
+    repression_threshold_miRNA_on_mRNA : float
+        repression threshold, the micro RNA represses Hes transcription if the micro RNA copynumber is larger
+        than this repression threshold. Corresponds to r0 in the Goodfellow paper
+        
+    hill_coefficient_protein_on_mRNA : float
+        exponent in the hill function regulating the Hes autorepression of its own transcription. 
+        Small values make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold, corresponds to n0 in the
+        Goodfellow paper.
+
+    hill_coefficient_miRNA_on_mRNA : float
+        exponent in the hill function regulating the impact of the micro RNA on mRNA translation. Small values
+        make the response more shallow, whereas large values will lead to a switch-like response if the miRNA 
+        concentration exceeds the repression threshold. Corresponds to m0 in the Goodfellow paper.
+
+    hill_coefficient_protein_on_miRNA : float
+        exponent in the hill function regulating the repression of miRNA transcription by Hes. Small values
+        make the response more shallow, whereas large values will lead to a switch-like response if the protein 
+        concentration exceeds the repression threshold. Corresponds to n1 in the Goodfellow paper.
+
+    upper_mRNA_degradation_rate : float
+        upper bound for the rate at which mRNA is degraded, in copynumber per minute. Corresponds to b_l in the
+        Goodfellow paper.
+
+    lower_mRNA_degradation_rate : float
+        lower bound for the rate at which mRNA is degraded, in copynumber per minute. Corresponds to b_u in the
+        Goodfellow paper.
+
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+        
+    for_negative_times : string
+        decides what protein and MRNA values are assumed for negative times. This 
+        is necessary since function values for t-tau are required for all t>0. 
+        The values 'initial', 'zero' and 'no_negative' are supported. The default 'initial' will assume that protein and 
+        mRNA numbers were constant at the values of the initial condition for all negative times.
+        If 'zero' is chosen, then the protein and mRNA numbers are assumed to be 0 at negative times. 
+        If 'no_negative' is chosen, no assumptions are made for negative times, and transcription
+        is blocked until transcription_delay has passed.
+        
+    Returns
+    -------
+    
+    trace : ndarray
+        2 dimenstional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number, fourth column is miRNA copy number.
+    '''
+    
+    hes5_dde = PyDDE.dde()
+    initial_condition = np.array([initial_mRNA,initial_protein]) 
+    # The coefficients (constants) in the equations 
+    if for_negative_times == 'initial':
+        negative_times_indicator = 0.0 
+    elif for_negative_times == 'zero':
+        negative_times_indicator = 1.0 
+    elif for_negative_times == 'no_negative':
+        negative_times_indicator = 2.0 
+    else:
+        ValueError("The parameter set for for_negative_times could not be interpreted.")
+            
+        parameters = np.array([ repression_threshold_protein_on_mRNA,
+                                repression_threshold_protein_on_miRNA,
+                                repression_threshold_miRNA_on_mRNA,
+                                repression_threshold_miRNA_on_protein,
+                                hill_coefficient_protein_on_mRNA,
+                                hill_coefficient_protein_on_miRNA,
+                                hill_coefficient_miRNA_on_mRNA,
+                                hill_coefficient_miRNA_on_protein,
+                                transcription_delay,
+                                upper_mRNA_degradation_rate,
+                                lower_mRNA_degradation_rate,
+                                protein_degradation_rate,
+                                miRNA_degradation_rate,
+                                negative_times_indicator ]) 
+
+        hes5_dde.dde(y=initial_condition, times=np.arange(0.0, duration, 1.0), 
+                     func=goodfellow_ddegrad, parms=parameters, 
+                     tol=0.000005, dt=0.01, hbsize=10000, nlag=1, ssc=[0.0, 0.0]) 
+                     #hbsize is buffer size, I believe this is how many values in the past are stored
+                     #nlag is the number of delay variables (tau_1, tau2, ... taun_lag)
+                     #ssc means "statescale" and would somehow only matter for values close to 0
+
+        this_data = hes5_dde.data
+        return hes5_dde.data
+
+def goodfellow_ddegrad(y, parameters, time):
+    '''Gradient of the Hes5 delay differential equation for
+    deterministic runs of the model. 
+    It evaluates the right hand side of DDE 1 in Monk(2003).
+    
+    Parameters
+    ----------
+    y : ndarray
+        vector of the form [mRNA, protein] contain the concentration of these species at time t
+        
+    parameters : ndarray
+        vector of the form [ repression_threshold_protein_on_mRNA, repression_threshold_protein_on_miRNA, 
+                             repression_threshold_miRNA_on_mRNA, hill_coefficient_protein_on_mRNA, 
+                             hill_coefficient_miRNA_on_mRNA, hill_coefficient_protein_on_miRNA,
+                             transcription_delay, upper_mRNA_degradation_rate, lower_mRNA_degradation_rate,
+                             protein_degradation_rate, miRNA_degradation_rate, negative_times_indicator ]
+        containing the value of these parameters.
+        The value of negative_times_indicator corresponds to for_negative_times in generate_deterministic_trajectory().
+        The value 0.0 corresponds to the option 'initial', whereas 1.0 corresponds to 'zero',
+        and 2.0 corresponds to 'no_negative'.
+    
+    time : float
+        time at which the gradient is calculated
+        
+    Returns
+    -------
+    
+    gradient : ndarray
+        vector of the form [dmRNA, dProtein] containing the evaluated right hand side of the 
+        delay differential equation for the species concentrations provided in y, the given
+        parameters, and at time t.
+    '''
+    repression_threshold_protein_on_mRNA = float(parameters[0])
+    repression_threshold_protein_on_miRNA = float(parameters[1])
+    repression_threshold_miRNA_on_mRNA = float(parameters[2])
+    repression_threshold_miRNA_on_protein = float(parameters[3])
+    hill_coefficient_protein_on_mRNA = float(parameters[4])
+    hill_coefficient_protein_on_miRNA = float(parameters[5])
+    hill_coefficient_miRNA_on_mRNA = float(parameters[6])
+    hill_coefficient_miRNA_on_protein = float(parameters[7])
+    transcription_delay = float(parameters[8])
+    upper_mRNA_degradation_rate = float(parameters[9])
+    lower_mRNA_degradation_rate = float(parameters[10])
+    protein_degradation_rate = float(parameters[11])
+    miRNA_degradation_rate = float(parameters[12])
+    negative_times_indicator = float(parameters[13]) 
+
+    if negative_times_indicator == 0.0:
+        for_negative_times = 'initial'
+    elif negative_times_indicator == 1.0:
+        for_negative_times = 'zero'
+    elif negative_times_indicator == 2.0:
+        for_negative_times = 'no_negative'
+    else:
+        ValueError("Could not interpret the value of for_negative_times")
+
+    mRNA = float(y[0])
+    protein = float(y[1])
+    miRNA = float(y[2])
+    
+    if (time>time_delay):
+        past_protein = PyDDE.pastvalue(1,time-time_delay,0)
+    elif time>0.0:
+        if for_negative_times == 'initial':
+            past_protein = PyDDE.pastvalue(1,0.0,0)
+        elif for_negative_times == 'zero':
+            past_protein = 0.0
+    else:
+        past_protein = protein
+
+    translation_hill_function_value = 1.0/(1.0 + pow(miRNA/repression_threshold_miRNA_on_protein,
+                                                     hill_coefficient_miRNA_on_protein))
+    dprotein = translation_rate*translation_hill_function_value*mRNA - protein_degradation_rate*protein
+    
+    if for_negative_times != 'no_negative':
+        transcription_hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_mRNA,
+                                           hill_coefficient_protein_on_mRNA))
+        translation_hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_mRNA,
+                                           hill_coefficient_protein_on_mRNA))
+        dmRNA = basal_transcription_rate*hill_function_value-mRNA_degradation_rate*mRNA
+    else:
+        if time < time_delay:
+            dmRNA = -mRNA_degradation_rate*mRNA
+        else:
+            hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_mRNA,
+                                               hill_coefficient_protein_on_mRNA))
+            dmRNA = basal_transcription_rate*hill_function_value-mRNA_degradation_rate*mRNA
+
+    return np.array( [dmRNA,dprotein] )
 
 def is_parameter_point_stochastically_oscillatory( repression_threshold = 10000,
                                     hill_coefficient = 5,

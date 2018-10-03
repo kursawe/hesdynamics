@@ -51,12 +51,39 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 #                                       'output','pairplot_mcf7_abc_' +  str(total_number_of_samples) + '_'
 #                                       + str(acceptance_ratio) + '.pdf'))
 
-    def xest_plot_posterior_distributions(self):
+    def xest_make_narrower_abc_samples(self):
+        ## generate posterior samples
+        total_number_of_samples = 200000
+        acceptance_ratio = 0.02
+
+#         total_number_of_samples = 10
+#         acceptance_ratio = 0.5
+
+        prior_bounds = {'basal_transcription_rate' : (0.5,60),
+                        'translation_rate' : (0.08,0.4),
+                        'repression_threshold' : (0,7000),
+                        'time_delay' : (5,80),
+                        'hill_coefficient' : (2,10),
+                        'protein_degradation_rate' : ( np.log(2)/(3.85*60), np.log(2)/(3.85*60) ),
+                        'mRNA_degradation_rate' : ( np.log(2)/41.0, np.log(2)/41.0) }
+
+        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
+                                                                acceptance_ratio,
+                                                                number_of_traces_per_sample = 200,
+                                                                saving_name = 'sampling_results_MCF7_narrowed',
+                                                                prior_bounds = prior_bounds,
+                                                                prior_dimension = 'full',
+                                                                logarithmic = True )
         
-        option = 'coherence'
+        self.assertEquals(my_posterior_samples.shape, 
+                          (int(round(total_number_of_samples*acceptance_ratio)), 7))
+
+    def test_plot_posterior_distributions(self):
+        
+        option = 'coherence_and_period'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_MCF7_altered')
+                                    'sampling_results_MCF7_narrowed')
 #                                    'sampling_results_MCF7')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -141,10 +168,16 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         
         print('minimal hill')
         print(np.min(my_posterior_samples[:,4]))
-        print('miximal time delay')
+        print('minimal time delay')
         print(np.min(my_posterior_samples[:,3]))
         print('maximal time delay')
         print(np.max(my_posterior_samples[:,3]))
+        print('minimal translation')
+        print(np.min(my_posterior_samples[:,1]))
+        print('maximal translation')
+        print(np.max(my_posterior_samples[:,1]))
+        print('minimal transcription')
+        print(np.min(my_posterior_samples[:,0]))
         
 #         pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
 #         pairplot.savefig(os.path.join(os.path.dirname(__file__),
@@ -478,7 +511,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','stochastic_mcf7_trajectory.pdf'))
         
-    def test_plot_deterministic_trace_at_inferred_parameter(self):
+    def xest_plot_deterministic_trace_at_inferred_parameter(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
 #                                    'sampling_results_MCF7')
