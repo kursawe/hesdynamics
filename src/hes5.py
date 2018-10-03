@@ -378,9 +378,9 @@ def is_parameter_point_deterministically_oscillatory( repression_threshold = 100
             if omega*transcription_delay < ( 2*np.pi - arccos_value ):
                 is_oscillatory = True
             else:
-                print 'Cannot determine if parameter point oscillates'
-                print [basal_transcription_rate, translation_rate, repression_threshold,
-                       transcription_delay, hill_coefficient, mRNA_degradation_rate, protein_degradation_rate]
+                print('Cannot determine if parameter point oscillates')
+                print([basal_transcription_rate, translation_rate, repression_threshold,
+                       transcription_delay, hill_coefficient, mRNA_degradation_rate, protein_degradation_rate])
                 is_oscillatory = False
 #                 raise ValueError("cannot determine if parameter point oscillates")
         else:
