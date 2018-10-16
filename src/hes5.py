@@ -219,6 +219,9 @@ def hes5_ddegrad(y, parameters, time):
     return np.array( [dmRNA,dprotein] )
 
 def generate_deterministic_goodfellow_trajectory( duration = 720, 
+                                                  basal_mRNA_transcription_rate = 1.0,
+                                                  basal_miRNA_transcription_rate = 1.0,
+                                                  translation_rate = 10,
                                                   repression_threshold_protein_on_mRNA = 100,
                                                   repression_threshold_protein_on_miRNA = 100,
                                                   repression_threshold_miRNA_on_mRNA = 100,
@@ -313,7 +316,7 @@ def generate_deterministic_goodfellow_trajectory( duration = 720,
     '''
     
     hes5_dde = PyDDE.dde()
-    initial_condition = np.array([initial_mRNA,initial_protein]) 
+    initial_condition = np.array([initial_mRNA,initial_miRNA,initial_protein]) 
     # The coefficients (constants) in the equations 
     if for_negative_times == 'initial':
         negative_times_indicator = 0.0 
@@ -324,7 +327,10 @@ def generate_deterministic_goodfellow_trajectory( duration = 720,
     else:
         ValueError("The parameter set for for_negative_times could not be interpreted.")
             
-        parameters = np.array([ repression_threshold_protein_on_mRNA,
+        parameters = np.array([ basal_mRNA_transcription_rate,
+                                basal_miRNA_transcription_rate,
+                                translation_rate,
+                                repression_threshold_protein_on_mRNA,
                                 repression_threshold_protein_on_miRNA,
                                 repression_threshold_miRNA_on_mRNA,
                                 repression_threshold_miRNA_on_protein,
@@ -357,7 +363,7 @@ def goodfellow_ddegrad(y, parameters, time):
     Parameters
     ----------
     y : ndarray
-        vector of the form [mRNA, protein] contain the concentration of these species at time t
+        vector of the form [mRNA, miRNA, protein] contain the concentration of these species at time t
         
     parameters : ndarray
         vector of the form [ repression_threshold_protein_on_mRNA, repression_threshold_protein_on_miRNA, 
@@ -377,24 +383,26 @@ def goodfellow_ddegrad(y, parameters, time):
     -------
     
     gradient : ndarray
-        vector of the form [dmRNA, dProtein] containing the evaluated right hand side of the 
+        vector of the form [dmRNA, dmiRNA, dProtein] containing the evaluated right hand side of the 
         delay differential equation for the species concentrations provided in y, the given
         parameters, and at time t.
     '''
-    repression_threshold_protein_on_mRNA = float(parameters[0])
-    repression_threshold_protein_on_miRNA = float(parameters[1])
-    repression_threshold_miRNA_on_mRNA = float(parameters[2])
-    repression_threshold_miRNA_on_protein = float(parameters[3])
-    hill_coefficient_protein_on_mRNA = float(parameters[4])
-    hill_coefficient_protein_on_miRNA = float(parameters[5])
-    hill_coefficient_miRNA_on_mRNA = float(parameters[6])
-    hill_coefficient_miRNA_on_protein = float(parameters[7])
-    transcription_delay = float(parameters[8])
-    upper_mRNA_degradation_rate = float(parameters[9])
-    lower_mRNA_degradation_rate = float(parameters[10])
-    protein_degradation_rate = float(parameters[11])
-    miRNA_degradation_rate = float(parameters[12])
-    negative_times_indicator = float(parameters[13]) 
+    basal_mRNA_transcription_rate = float(parameters[0])
+    basal_miRNA_transcription_rate = float(parameters[1])
+    repression_threshold_protein_on_mRNA = float(parameters[2])
+    repression_threshold_protein_on_miRNA = float(parameters[3])
+    repression_threshold_miRNA_on_mRNA = float(parameters[4])
+    repression_threshold_miRNA_on_protein = float(parameters[5])
+    hill_coefficient_protein_on_mRNA = float(parameters[6])
+    hill_coefficient_protein_on_miRNA = float(parameters[7])
+    hill_coefficient_miRNA_on_mRNA = float(parameters[8])
+    hill_coefficient_miRNA_on_protein = float(parameters[9])
+    transcription_delay = float(parameters[10])
+    upper_mRNA_degradation_rate = float(parameters[11])
+    lower_mRNA_degradation_rate = float(parameters[12])
+    protein_degradation_rate = float(parameters[13])
+    miRNA_degradation_rate = float(parameters[14])
+    negative_times_indicator = float(parameters[15]) 
 
     if negative_times_indicator == 0.0:
         for_negative_times = 'initial'
@@ -419,25 +427,35 @@ def goodfellow_ddegrad(y, parameters, time):
     else:
         past_protein = protein
 
+    ## rate of protein change
     translation_hill_function_value = 1.0/(1.0 + pow(miRNA/repression_threshold_miRNA_on_protein,
                                                      hill_coefficient_miRNA_on_protein))
     dprotein = translation_rate*translation_hill_function_value*mRNA - protein_degradation_rate*protein
     
-    if for_negative_times != 'no_negative':
-        transcription_hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_mRNA,
-                                           hill_coefficient_protein_on_mRNA))
-        translation_hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_mRNA,
-                                           hill_coefficient_protein_on_mRNA))
-        dmRNA = basal_transcription_rate*hill_function_value-mRNA_degradation_rate*mRNA
+    ## hill functions for miRNA and mRNA
+    miRNA_production_hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_miRNA,
+                                           hill_coefficient_protein_on_miRNA))
+
+    transcription_hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_mRNA,
+                                       hill_coefficient_protein_on_mRNA))
+
+    effective_mRNA_degradation_rate = ( upper_mRNA_degradation_rate +
+                                        ( lower_mRNA_degradation_rate - upper_mRNA_degradation_rate )/
+                                        ( 1.0 + pow(miRNA/repression_threshold_miRNA_on_mRNA, 
+                                                   hill_coefficient_miRNA_on_mRNA) ) )   
+
+    if for_negative_times != 'no_negative': #in this case look up protein at negative times, which has been set above
+        dmRNA = basal_mRNA_transcription_rate*translation_hill_function_value - effective_mRNA_degradation_rate*mRNA
+        dmiRNA = basal_miRNA_transcription_rate - miRNA_degradation_rate*miRNA
     else:
         if time < time_delay:
-            dmRNA = -mRNA_degradation_rate*mRNA
+            dmRNA = -effective_mRNA_degradation_rate*mRNA
+            dmiRNA = -miRNA_degradation_rate*miRNA
         else:
-            hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_mRNA,
-                                               hill_coefficient_protein_on_mRNA))
-            dmRNA = basal_transcription_rate*hill_function_value-mRNA_degradation_rate*mRNA
+            dmRNA = basal_transcription_rate*translation_hill_function_value - effective_mRNA_degradation_rate*mRNA
+            dmiRNA = basal_miRNA_transcription_rate - miRNA_degradation_rate*miRNA
 
-    return np.array( [dmRNA,dprotein] )
+    return np.array( [dmRNA, dmiRNA, dprotein] )
 
 def is_parameter_point_stochastically_oscillatory( repression_threshold = 10000,
                                     hill_coefficient = 5,
