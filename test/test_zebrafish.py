@@ -53,11 +53,9 @@ class TestZebrafish(unittest.TestCase):
                                        'output','oscillating_trajectory.pdf'))
         
 
-    def protein_difference_upon_degradation_increase(self,
-                                                     repression_threshold,
-                                                     hill_coefficient,
-                                                     RNA_degradation,
-                                                     protein_degradation):
+    def protein_difference_upon_degradation_increase(self, parameter_array):
+
+        repression_threshold, hill_coefficient, RNA_degradation, protein_degradation = parameter_array
         
         _, mean_protein_before_increase = hes5.calculate_steady_state_of_ode(repression_threshold,
                                                                           hill_coefficient,
@@ -68,21 +66,23 @@ class TestZebrafish(unittest.TestCase):
 
         _, mean_protein_after_increase = hes5.calculate_steady_state_of_ode(repression_threshold,
                                                                          hill_coefficient,
-                                                                         RNA_degradation,
+                                                                         RNA_degradation*2.0,
                                                                          protein_degradation,
                                                                          1.0,
                                                                          1.0)
         
-        difference = (mean_protein_before_increase - mean_protein_after_increase)/mean_protein_before_increase
+        difference = -(mean_protein_before_increase - mean_protein_after_increase)/mean_protein_before_increase
+        
+        print 'these parameters are'
+        print parameter_array
+        print 'this difference is'
+        print difference
         
         return difference
     
-    def degradation_constraint_function(self,
-                                        repression_threshold,
-                                        hill_coefficient,
-                                        RNA_degradation,
-                                        protein_degradation):
+    def degradation_constraint_function(self,parameter_array):
         
+        repression_threshold, hill_coefficient, RNA_degradation, protein_degradation = parameter_array
         _, steady_protein = hes5.calculate_steady_state_of_ode(repression_threshold,
                                                                hill_coefficient,
                                                                RNA_degradation,
@@ -90,30 +90,46 @@ class TestZebrafish(unittest.TestCase):
                                                                1.0,
                                                                1.0)
 
-        hill_derivative = ( 1.0/np.power(1.0+np.power(steady_protein/repression_threshold,hill_coefficient),2)*
+        hill_derivative = ( hill_coefficient/np.power(1.0+np.power(steady_protein/repression_threshold,hill_coefficient),2)*
                             np.power(steady_protein/repression_threshold,hill_coefficient - 1)/repression_threshold )
         
+#         print 'these parameters are'
+#         print parameter_array
+#         print 'the degradation constraint is'
+#         print hill_derivative - RNA_degradation*protein_degradation
         return hill_derivative - RNA_degradation*protein_degradation  
     
-    def delay_constraint_function(self,
-                                  repression_threshold,
-                                  hill_coefficient,
-                                  RNA_degradation,
-                                  protein_degradation):
+    def delay_constraint_function(self,parameter_array):
         
-        hill_derivative = ( 1.0/np.power(1.0+np.power(steady_protein/repression_threshold,hill_coefficient),2)*
+        repression_threshold, hill_coefficient, RNA_degradation, protein_degradation = parameter_array
+
+        _, steady_protein = hes5.calculate_steady_state_of_ode(repression_threshold,
+                                                               hill_coefficient,
+                                                               RNA_degradation,
+                                                               protein_degradation,
+                                                               1.0,
+                                                               1.0)
+
+        hill_derivative = ( hill_coefficient/np.power(1.0+np.power(steady_protein/repression_threshold,hill_coefficient),2)*
                             np.power(steady_protein/repression_threshold,hill_coefficient - 1)/repression_threshold )
 
         squared_degradation_difference = protein_degradation*protein_degradation - RNA_degradation*RNA_degradation
         squared_degradation_sum = protein_degradation*protein_degradation + RNA_degradation*RNA_degradation
 
-        omega = np.sqrt(0.5*(np.sqrt(squared_degradation_difference*squared_degradation_difference
-                               + 4*derivative_term*hill_derivative) - 
+        try:
+            omega = np.sqrt(0.5*(np.sqrt(squared_degradation_difference*squared_degradation_difference
+                               + 4*hill_derivative*hill_derivative) - 
                                squared_degradation_sum))
-        arccos_value = np.arccos( ( omega*omega - protein_degradation_rate*mRNA_degradation_rate)/
+        except RuntimeWarning:
+            return -10.0
+        arccos_value = np.arccos( ( omega*omega - protein_degradation*RNA_degradation)/
                                     hill_derivative )
         
-        return omega*transcription_delay - arccos_value
+#         print 'these parameters are'
+#         print parameter_array
+#         print 'the degradation constraint is'
+#         print hill_derivative - RNA_degradation*protein_degradation
+        return omega - arccos_value
     
     def test_maximise_protein_reduction_by_degradation_increase(self):
 
@@ -124,12 +140,13 @@ class TestZebrafish(unittest.TestCase):
                              'fun' : self.delay_constraint_function }
         
         optimize_result = scipy.optimize.minimize(fun = self.protein_difference_upon_degradation_increase, 
-                                                  x0 = np.array([1.0,5.0,1.0,1.0]),
+                                                  x0 = np.array([1.0,6.0,0.01,0.01]),
                                                   constraints = [degradation_constraint, delay_constraint],
-                                                  bounds = [[0.0,np.inf],
+                                                  bounds = [[0.0001,np.inf],
                                                             [2.0,6.0],
-                                                            [0.0,100.0],
-                                                            [0.0,100.0]])
+                                                            [0.0,3.0],
+                                                            [0.0,3.0]])
         
+        import pdb; pdb.set_trace()
         print('the maximal difference we can get is')
         print(optimize_result.x)
