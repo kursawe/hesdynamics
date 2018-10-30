@@ -23,7 +23,7 @@ class TestInference(unittest.TestCase):
         
         ## the F constant matrix is left out for now
         protein_at_observation = true_data[0:900:10,(0,2)]
-        protein_at_observation[1] += np.random.randn(90)
+        protein_at_observation[:,1] += np.random.randn(90)
             
         parameters = [720, 10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29]
          
