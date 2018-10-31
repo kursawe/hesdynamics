@@ -52,7 +52,7 @@ def kalman_filter(protein_at_observation,model_parameters):
     for i in range(1,n+1):
     	for j in range(i-1,-1,-1):
     		updated_state_space_mean[j,(1,2)] = (state_space_mean[j,(1,2)] +
-    											 C*(protein_at_observation[j,1]-state_space_mean[i,(1,2)]))
+    		*(protein_at_observation[j,1]-state_space_mean[i,(1,2)]))
 			
 			updated_state_space_variance[j,(1,2)] = (state_space_variance[j,(1,2)] - C*state_space_variance[j,(1,2)])
 	
