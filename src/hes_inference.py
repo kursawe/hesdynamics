@@ -1,5 +1,5 @@
 ## need to write code here
-def kalman_filter(protein_at_observation,model_parameters):
+def kalman_filter(protein_at_observations,model_parameters):
     """
     Perform Kalman-Bucy filter based on observation of protein
     copy numbers. This implements the filter described by Calderazzo et al., Bioinformatics (2018).
@@ -7,7 +7,7 @@ def kalman_filter(protein_at_observation,model_parameters):
     Parameters
     ----------
     
-    protein_at_observation : numpy array.
+    protein_at_observations : numpy array.
         Observed protein. The dimension is n x 2, where n is the number of observation time points.
         The first column is the time, and the second column is the observed protein copy number at
         the corresponding time.
@@ -32,7 +32,26 @@ def kalman_filter(protein_at_observation,model_parameters):
                 cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
     
     """
+    ## include some initialisation here - use the functions calculate_steady_state_of_ode and
+    ## calculate_approximate_standard_deviation_at_parameter_point form the hes5 module
     
+    ## then loop through observations
+    ## and at each observation implement prediction step and then the update step
+    
+    current_state_space_mean_estimate = something
+    current_state_space_variance_estimate = something
+    for observation_index, current_observation in enumerate(protein_at_observations):
+        predicted_state_space_mean, predicted_state_space_variance = kalman_prediction_step(current_state_space_mean_estimate,
+                                                                                            current_state_space_variance_estimate,
+                                                                                            model_parameters)
+        current_state_space_mean_estimate, current_state_space_variance_estimate = kalman_update_step(predicted_state_space_mean,
+                                                                                                      predicted_state_space_variance,
+                                                                                                      current_observation)
+    
+    return current_state_space_mean_estimate, current_state_space_variance_estimate
+
+    ### use the code below in the upcoming function kalman_update_step
+
     ## first we need \rho_{t+\delta t-\tau:t+\delta t} and P_{t+\delta t-\tau:t+\delta t},
     ## which can be obtained using the differential equations in supplementary section 4.
     ## For the time being we will call these 'state_space_mean' and 'state_space_variance',
@@ -49,12 +68,13 @@ def kalman_filter(protein_at_observation,model_parameters):
     # also there are a few things wrong with this. I think the right hand side should also
     # use the updated mean and variance, and also the observation y_{t+\delta t} in the first
     # equation is wrong.
-    for i in range(1,n+1):
-    	for j in range(i-1,-1,-1):
-    		updated_state_space_mean[j,(1,2)] = (state_space_mean[j,(1,2)] +
-    		*(protein_at_observation[j,1]-state_space_mean[i,(1,2)]))
+    for observation_index in range(1,n+1):
+        # propagate rho and P here
+    	for past_time_index in range(observation_index-1,-1,-1):
+    		updated_state_space_mean[past_time_index,(1,2)] = (state_space_mean[past_time_index,(1,2)] +
+    		    C*(protein_at_observation[past_time_index,1]-state_space_mean[past_time_index,(1,2)]))
     		
-    		updated_state_space_variance[j,(1,2)] = (state_space_variance[j,(1,2)] - C*state_space_variance[j,(1,2)])
+    		updated_state_space_variance[past_time_index,(1,2)] = (state_space_variance[past_time_index,(1,2)] - C*state_space_variance[past_time_index,(1,2)])
 	
 	return updated_state_space_mean, updated_state_space_variance
 	
