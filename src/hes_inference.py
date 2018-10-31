@@ -1,4 +1,5 @@
-## need to write code here
+import math
+
 def kalman_filter(protein_at_observations,model_parameters):
     """
     Perform Kalman-Bucy filter based on observation of protein
@@ -21,12 +22,12 @@ def kalman_filter(protein_at_observations,model_parameters):
     Returns
     -------
     
-    updated_state_space_mean : numpy array.
-        An array of length n, which gives the number of observation time points.
+    state_space_mean : numpy array.
+        An array of dimension n x 3, which gives the number of observation time points.
         The first column is time, the second column is the mean mRNA, and the third
         column is the mean protein.
     
-    updated_state_space_variance : numpy array.
+    state_space_variance : numpy array.
         An array of dimension 2n x 2n. 
               [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
                 cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
@@ -38,45 +39,96 @@ def kalman_filter(protein_at_observations,model_parameters):
     ## then loop through observations
     ## and at each observation implement prediction step and then the update step
     
-    current_state_space_mean_estimate = something
-    current_state_space_variance_estimate = something
+    state_space_mean = something
+    state_space_variance= something
     for observation_index, current_observation in enumerate(protein_at_observations):
-        predicted_state_space_mean, predicted_state_space_variance = kalman_prediction_step(current_state_space_mean_estimate,
-                                                                                            current_state_space_variance_estimate,
+        predicted_state_space_mean, predicted_state_space_variance = kalman_prediction_step(state_space_mean,
+                                                                                            state_space_variance,
                                                                                             model_parameters)
-        current_state_space_mean_estimate, current_state_space_variance_estimate = kalman_update_step(predicted_state_space_mean,
-                                                                                                      predicted_state_space_variance,
-                                                                                                      current_observation)
+        state_space_mean, state_space_variance = kalman_update_step(predicted_state_space_mean,
+                                                                   predicted_state_space_variance,
+                                                                   current_observation,
+                                                                   time_delay)
     
-    return current_state_space_mean_estimate, current_state_space_variance_estimate
+    return state_space_mean, state_space_variance
 
-    ### use the code below in the upcoming function kalman_update_step
+def kalman_update_step(predicted_state_space_mean, predicted_state_space_variance,current_observation,time_delay):
+    """
+    Perform the Kalman filter update step on the predicted mean and variance, given a new observation.
+    This implements the equations at the beginning of page 4 in Calderazzo et al., Bioinformatics (2018).
+    This assumes that the observations are collected at fixed time intervals.
+    
+    Parameters
+    ----------
+    
+    predicted_state_space_mean : numpy array.
+        The dimension is n x 3, where n is the number of previous observations until the current time.
+        The first column is time, the second column is mean mRNA, and the third column is mean protein.
+    
+    predicted_state_space_variance : numpy array.
+        The dimension is 2n x 2n, where n is the number of previous observations until the current time.
+            [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
+              cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
 
+    current_observation : numpy array.
+        The dimension is 1 x 2, where the first entry is time, and the second is the protein observation.
+        
+    time_delay : float.
+        The fixed transciptional time delay in the system. This tells us how far back we need to update our
+        state space estimates.
+        
+    Returns
+    -------
+    
+    state_space_mean : numpy array.
+        The dimension is n x 3, where the first column is time, and the second and third columns are the mean
+        mRNA and mean protein levels respectively. This corresponds to \rho* in
+        Calderazzo et al., Bioinformatics (2018).
+        
+    state_space_variance : numpy array.
+        The dimension is 2n x 2n, where n is the number of previous observations until the current time.
+            [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
+              cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ].
+              
+        This corresponds to P* in Calderazzo et al., Bioinformatics (2018).
+        
+    """
     ## first we need \rho_{t+\delta t-\tau:t+\delta t} and P_{t+\delta t-\tau:t+\delta t},
     ## which can be obtained using the differential equations in supplementary section 4.
     ## For the time being we will call these 'state_space_mean' and 'state_space_variance',
     ## and they will be updated in the following way.
     
-    # n is the number of observation time points.
-    n = len(protein_at_observation[:,0])
-    
     # initialise updated mean and variance arrays.
-    updated_state_space_mean = state_space_mean
-    updated_state_space_variance = state_space_variance
+    state_space_mean = predicted_state_space_mean
+    state_space_variance = predicted_state_space_variance
     
+    observation_time_step = state_space_mean[1,0] - state_space_mean[0,0]
+    maximum_delay_index = int(math.ceil(time_delay/observation_time_step))
+    
+    # This is F in the paper
+    observation_transform = np.array([0,1])
+    observation_variance = 0.1
+    helper_inverse = 1.0/(observation_transform.dot(state_space_variance[(number_of_observations-1,-1),
+                                                     (number_of_observations-1,-1)].dot(transpose(observation_transform)))
+                                                     +observation_variance)
+        
     # need to define C (the coefficient of adaptation) somewhere
     # also there are a few things wrong with this. I think the right hand side should also
     # use the updated mean and variance, and also the observation y_{t+\delta t} in the first
     # equation is wrong.
-    for observation_index in range(1,n+1):
-        # propagate rho and P here
-    	for past_time_index in range(observation_index-1,-1,-1):
-    		updated_state_space_mean[past_time_index,(1,2)] = (state_space_mean[past_time_index,(1,2)] +
-    		    C*(protein_at_observation[past_time_index,1]-state_space_mean[past_time_index,(1,2)]))
+    for past_time_index in range(len(state_space_mean),len(state_space_mean)-maximum_delay_index-1,-1):
+        # need to double-check this derivation for the following line, this is C in the paper
+        adaptation_coefficient = state_space_variance[(past_time_index-1,number_of_observations+past_time_index-1),
+                                    (past_time_index-1,number_of_observations+past_time_index-1)].dot(
+                                    transpose(observation_transform))*helper_inverse
+        
+    	state_space_mean[past_time_index,(1,2)] = (state_space_mean[past_time_index,(1,2)] +
+    	    adaption_coefficient*(current_observation[1]-observation_transform.dot(state_space_mean[-1,(1,2)])))
     		
-    		updated_state_space_variance[past_time_index,(1,2)] = (state_space_variance[past_time_index,(1,2)] - C*state_space_variance[past_time_index,(1,2)])
+    	state_space_variance[past_time_index,(1,2)] = (state_space_variance[past_time_index,(1,2)] - 
+                                                       adaptation_coefficient*state_space_variance[past_time_index,(1,2)])
 	
-	return updated_state_space_mean, updated_state_space_variance
+	return state_space_mean, state_space_variance
 	
 	
 	
