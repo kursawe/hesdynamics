@@ -95,7 +95,8 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
     """
     ## first we need \rho_{t+\delta t-\tau:t+\delta t} and P_{t+\delta t-\tau:t+\delta t},
     ## which can be obtained using the differential equations in supplementary section 4.
-    ## For the time being we will call these 'state_space_mean' and 'state_space_variance',
+    ## This will be done in the kalman_prediction_step function.
+    ## We will call these 'state_space_mean' and 'state_space_variance',
     ## and they will be updated in the following way.
     
     # initialise updated mean and variance arrays.
@@ -116,17 +117,18 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
     # also there are a few things wrong with this. I think the right hand side should also
     # use the updated mean and variance, and also the observation y_{t+\delta t} in the first
     # equation is wrong.
-    for past_time_index in range(len(state_space_mean),len(state_space_mean)-maximum_delay_index-1,-1):
+    for past_time_index in range(len(state_space_mean),len(state_space_mean)-maximum_delay_index,-1):
         # need to double-check this derivation for the following line, this is C in the paper
-        adaptation_coefficient = state_space_variance[(past_time_index-1,number_of_observations+past_time_index-1),
-                                    (past_time_index-1,number_of_observations+past_time_index-1)].dot(
+        adaptation_coefficient = state_space_variance[(past_time_index-1,past_time_index-1),
+                                    (number_of_observations-1,2*number_of_observations-1)].dot(
                                     transpose(observation_transform))*helper_inverse
         
     	state_space_mean[past_time_index,(1,2)] = (state_space_mean[past_time_index,(1,2)] +
-    	    adaption_coefficient*(current_observation[1]-observation_transform.dot(state_space_mean[-1,(1,2)])))
+    	    adaptation_coefficient*(current_observation[1]-observation_transform.dot(state_space_mean[-1,(1,2)])))
     		
     	state_space_variance[past_time_index,(1,2)] = (state_space_variance[past_time_index,(1,2)] - 
-                                                       adaptation_coefficient*state_space_variance[past_time_index,(1,2)])
+                                                       adaptation_coefficient*observation_transform.dot(state_space_variance[(number_of_observations-1,2*number_of_observations-1),
+                                                       (past_time_index,(1,2)])))
 	
 	return state_space_mean, state_space_variance
 	
