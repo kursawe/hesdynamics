@@ -44,7 +44,8 @@ def kalman_filter(protein_at_observations,model_parameters):
     for observation_index, current_observation in enumerate(protein_at_observations):
         predicted_state_space_mean, predicted_state_space_variance = kalman_prediction_step(state_space_mean,
                                                                                             state_space_variance,
-                                                                                            model_parameters)
+                                                                                            model_parameters,
+                                                                                            observation_time_step)
         state_space_mean, state_space_variance = kalman_update_step(predicted_state_space_mean,
                                                                    predicted_state_space_variance,
                                                                    current_observation,
@@ -53,7 +54,7 @@ def kalman_filter(protein_at_observations,model_parameters):
     return state_space_mean, state_space_variance
 
 
-def kalman_prediction_step(state_space_mean,state_space_variance,model_parameters):
+def kalman_prediction_step(state_space_mean,state_space_variance,model_parameters,observation_time_step):
     """
     Perform the Kalman filter prediction about future observation, based on current knowledge i.e. current
     state space mean and variance. This gives rho_{t+\delta t-tau:t+\delta t} and P_{t+\delta t-tau:t+\delta t},
@@ -77,6 +78,10 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
         repression_threshold, hill_coefficient, mRNA_degradation_rate,
         protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
+    
+    observation_time_step : float.
+        This gives the time between each experimental observation, and allows us to calculate the number of
+        discretisation time steps required for the forward Euler scheme. 
 
     Returns
     -------
@@ -90,10 +95,30 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
           cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
 
     """
-	## need to write function
-
-
-
+    
+    discretisation_time_step = 1.0
+    number_of_hidden_states = int(observation_time_step/discretisation_time_step)
+    
+    repression_threshold = model_parameters[0]
+    hill_coefficient = model_parameters[1]
+    mRNA_degradation_rate = model_parameters[2]
+    protein_degradation_rate = model_parameters[3]
+    basal_transcription_rate = model_parameters[4]
+    translation_rate = model_parameters[5]
+    transcription_delay = model_parameters[6]
+    
+    discrete_delay = int(np.around(transcription_delay/discretisation_time_step))
+        
+    for time_index in range(number_of_hidden_states):
+        
+        hill_function_value = 1.0/(1.0+np.power(state_space_mean[time_index-discrete_delay,2]/repression_threshold,hill_coefficient))
+        
+        state_space_mean[time_index+1,(1,2)] = (state_space_mean[time_index,(1,2)] + state_space_mean[time_index,(1,2)].dot(
+                                                                                        np.array([[-mRNA_degradation_rate,translation_rate],
+                                                                                                 [0,-protein_degradation_rate]]))
+                                                                                   + np.array([basal_transcription_rate*hill_function_value,0])
+                                            
+                                            
 def kalman_update_step(predicted_state_space_mean, predicted_state_space_variance,current_observation,time_delay):
     """
     Perform the Kalman filter update step on the predicted mean and variance, given a new observation.
