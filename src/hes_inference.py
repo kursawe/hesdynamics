@@ -72,25 +72,24 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
             [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
               cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
 
-	model_parameters : numpy array.
-    	An array containing the model parameters in the following order.
+    model_parameters : numpy array.
+        An array containing the model parameters in the following order.
         repression_threshold, hill_coefficient, mRNA_degradation_rate,
         protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
 
-	Returns
-	-------
-
-	predicted_state_space_mean : numpy array.
+    Returns
+    -------
+    predicted_state_space_mean : numpy array.
         The dimension is n x 3, where n is the number of previous observations until the current time.
         The first column is time, the second column is mean mRNA, and the third column is mean protein.
 
     predicted_state_space_variance : numpy array.
-        The dimension is 2n x 2n, where n is the number of previous observations until the current time.
-            [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
-              cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
+    The dimension is 2n x 2n, where n is the number of previous observations until the current time.
+        [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
+          cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
 
-	"""
+    """
 	## need to write function
 
 
