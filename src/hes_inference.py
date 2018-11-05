@@ -197,10 +197,6 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
                                                      (number_of_observations-1,-1)].dot(np.transpose(observation_transform)))
                                                      +observation_variance)
 
-    # need to define C (the coefficient of adaptation) somewhere
-    # also there are a few things wrong with this. I think the right hand side should also
-    # use the updated mean and variance, and also the observation y_{t+\delta t} in the first
-    # equation is wrong.
     for past_time_index in range(len(state_space_mean),len(state_space_mean)-maximum_delay_index,-1):
         # need to double-check this derivation for the following line, this is C in the paper
         adaptation_coefficient = state_space_variance[(past_time_index-1,past_time_index-1),
