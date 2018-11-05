@@ -92,7 +92,7 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
     predicted_state_space_variance : numpy array.
     The dimension is 2n x 2n, where n is the number of previous observations until the current time.
         [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
-          cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]number_of_obse
+          cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
 
     """
 
