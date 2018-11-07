@@ -146,7 +146,8 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
             past_time_index,past_time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)] + number_of_hidden_states*(
             predicted_state_space_variance[(past_time_index,past_time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)]*np.array([[-mRNA_degradation_rate,translation_rate],
             [0,-protein_degradation_rate]])+predicted_state_space_variance[(
-            past_time_index,past_time_index+total_number_of_timepoints-discrete_delay),(time_index,time_index+total_number_of_timepoints-discrete_delay)])
+            past_time_index,past_time_index+total_number_of_timepoints-discrete_delay),(time_index,time_index+total_number_of_timepoints-discrete_delay)]*np.array([[0,0],
+            [basal_transcription_rate*hill_function_derivative_value,0]]))
 
     return predicted_state_space_mean, predicted_state_space_variance
 
