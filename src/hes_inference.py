@@ -31,7 +31,6 @@ def kalman_filter(protein_at_observations,model_parameters):
         An array of dimension 2n x 2n.
               [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
                 cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
-
     """
     ## include some initialisation here - use the functions calculate_steady_state_of_ode and
     ## calculate_approximate_standard_deviation_at_parameter_point form the hes5 module
@@ -93,7 +92,6 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
     The dimension is 2n x 2n, where n is the number of previous observations until the current time.
         [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
           cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
-
     """
 
     previous_number_of_states = state_space_mean.shape[0]
@@ -144,14 +142,13 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
 
         for past_time_index in range(time_index-discrete_delay,time_index):
 
-            predicted_state_space_variance[(past_time_index,past_time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)] = predicted_state_space_variance[
-                (past_time_index,past_time_index+total_number_of_timepoints),(time_index-1,time_index+total_number_of_timepoints-1)] + number_of_hidden_states*(
+            predicted_state_space_variance[(past_time_index,past_time_index+total_number_of_timepoints),(time_index+1,time_index+total_number_of_timepoints+1)] = predicted_state_space_variance[(
+            past_time_index,past_time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)] + number_of_hidden_states*(
+            predicted_state_space_variance[(past_time_index,past_time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)]*np.array([[-mRNA_degradation_rate,translation_rate],
+            [0,-protein_degradation_rate]])+predicted_state_space_variance[(
+            past_time_index,past_time_index+total_number_of_timepoints-discrete_delay),(time_index,time_index+total_number_of_timepoints-discrete_delay)])
 
-                )
-
-
-
-        return predicted_state_space_mean, predicted_state_space_variance
+    return predicted_state_space_mean, predicted_state_space_variance
 
 def kalman_update_step(predicted_state_space_mean, predicted_state_space_variance,current_observation,time_delay):
     """
@@ -192,7 +189,6 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
               cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ].
 
         This corresponds to P* in Calderazzo et al., Bioinformatics (2018).
-
     """
     ## first we need \rho_{t+\delta t-\tau:t+\delta t} and P_{t+\delta t-\tau:t+\delta t},
     ## which can be obtained using the differential equations in supplementary section 4.
