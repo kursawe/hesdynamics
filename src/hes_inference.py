@@ -1,4 +1,5 @@
 import math
+import hes5
 
 def kalman_filter(protein_at_observations,model_parameters):
     """
@@ -38,8 +39,15 @@ def kalman_filter(protein_at_observations,model_parameters):
     ## then loop through observations
     ## and at each observation implement prediction step and then the update step
 
-    state_space_mean = something
-    state_space_variance = something
+    state_space_mean = np.zeros((protein_at_observations.shape[0],3))
+    state_space_mean[:,(1,2)] = calculate_steady_state_of_ode(repression_threshold=model_parameters[1],hill_coefficient=model_parameters[2],
+                                                     mRNA_degradation_rate=model_parameters[3],protein_degradation_rate=model_parameters[4],
+                                                     basal_transcription_rate=model_parameters[5],translation_rate=model_parameters[6])
+
+    state_space_variance = np.zeros((2*protein_at_observations.shape[0],2*protein_at_observations.shape[0]))
+    state_space_variance[:protein_at_observations.shape[0],:protein_at_observations.shape[0]] = np.power(calculate_approximate_mRNA_standard_deviation_at_parameter_point(),2)
+    state_space_variance[protein_at_observations.shape[0]:,protein_at_observations.shape[0]:] = np.power(calculate_approximate_protein_standard_deviation_at_parameter_point(),2)
+
     for observation_index, current_observation in enumerate(protein_at_observations):
         predicted_state_space_mean, predicted_state_space_variance = kalman_prediction_step(state_space_mean,
                                                                                             state_space_variance,
@@ -96,7 +104,7 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
 
     previous_number_of_states = state_space_mean.shape[0]
     predicted_state_space_mean = np.zeros((previous_number_of_states+number_of_hidden_states,3))
-    predicted_state_space_mean[:previous_number_of_states,] = state_space_mean
+    predicted_state_space_mean[:previous_number_of_states] = state_space_mean
 
     predicted_state_space_variance = np.zeros((2*(previous_number_of_states+number_of_hidden_states),2*(previous_number_of_states+number_of_hidden_states)))
     predicted_state_space_variance[:previous_number_of_states,:previous_number_of_states] = state_space_variance[:previous_number_of_states,:previous_number_of_states]
@@ -106,7 +114,7 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
 
     discretisation_time_step = 1.0
     number_of_hidden_states = int(np.around(observation_time_step/discretisation_time_step))
-    total_number_of_timepoints = number_of_hidden_states*
+    total_number_of_timepoints = previous_number_of_states+number_of_hidden_states
 
     repression_threshold = model_parameters[0]
     hill_coefficient = model_parameters[1]
@@ -123,13 +131,13 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
         hill_function_value = 1.0/(1.0+np.power(predicted_state_space_mean[time_index-discrete_delay,2]/repression_threshold,hill_coefficient))
         hill_function_derivative_value = (-hill_coefficient/repression_threshold)*np.power(1+(predicted_state_space_mean[time_index-discrete_delay,2]/repression_threshold),-(hill_coefficient+1))
 
-        predicted_state_space_mean[time_index+1,(1,2)] = (predicted_state_space_mean[time_index,(1,2)] + number_of_hidden_states*(predicted_state_space_mean[time_index,(1,2)].dot(
+        predicted_state_space_mean[time_index+1,(1,2)] = (predicted_state_space_mean[time_index,(1,2)] + discretisation_time_step*(predicted_state_space_mean[time_index,(1,2)].dot(
                                                                                         np.array([[-mRNA_degradation_rate,translation_rate],
                                                                                                  [0,-protein_degradation_rate]]))
                                                                                    + np.array([basal_transcription_rate*hill_function_value,0])))
 
         predicted_state_space_variance[(time_index+1,time_index+total_number_of_timepoints+1),(time_index+1,time_index+total_number_of_timepoints+1)] = (
-                predicted_state_space_variance[(time_index,time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)] + number_of_hidden_states*(
+                predicted_state_space_variance[(time_index,time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)] + discretisation_time_step*(
                 np.array([[-mRNA_degradation_rate,0],[translation_rate,-protein_degradation_rate]]).dot(predicted_state_space_variance[(time_index,time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)])
                 + np.transpose(predicted_state_space_variance[(time_index,time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)]).dot(np.array([[-mRNA_degradation_rate,translation_rate],
                          [0,-protein_degradation_rate]]))
@@ -140,10 +148,10 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
             )
         )
 
-        for past_time_index in range(time_index-discrete_delay,time_index):
+        for past_time_index in range(time_index-discrete_delay+1,time_index+1):
 
             predicted_state_space_variance[(past_time_index,past_time_index+total_number_of_timepoints),(time_index+1,time_index+total_number_of_timepoints+1)] = predicted_state_space_variance[(
-            past_time_index,past_time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)] + number_of_hidden_states*(
+            past_time_index,past_time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)] + discretisation_time_step*(
             predicted_state_space_variance[(past_time_index,past_time_index+total_number_of_timepoints),(time_index,time_index+total_number_of_timepoints)]*np.array([[-mRNA_degradation_rate,translation_rate],
             [0,-protein_degradation_rate]])+predicted_state_space_variance[(
             past_time_index,past_time_index+total_number_of_timepoints-discrete_delay),(time_index,time_index+total_number_of_timepoints-discrete_delay)]*np.array([[0,0],
@@ -200,6 +208,8 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
     # initialise updated mean and variance arrays.
     state_space_mean = predicted_state_space_mean
     state_space_variance = predicted_state_space_variance
+
+    total_number_of_timepoints = state_space_mean.shape[0]
 
     observation_time_step = state_space_mean[1,0] - state_space_mean[0,0]
     maximum_delay_index = int(math.ceil(time_delay/observation_time_step))
