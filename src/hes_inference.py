@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import hes5
 
 def kalman_filter(protein_at_observations,model_parameters):
@@ -40,7 +41,7 @@ def kalman_filter(protein_at_observations,model_parameters):
     ## and at each observation implement prediction step and then the update step
 
     state_space_mean = np.zeros((protein_at_observations.shape[0],3))
-    state_space_mean[:,(1,2)] = calculate_steady_state_of_ode(repression_threshold=model_parameters[1],hill_coefficient=model_parameters[2],
+    state_space_mean[:,(1,2)] = hes5.calculate_steady_state_of_ode(repression_threshold=model_parameters[1],hill_coefficient=model_parameters[2],
                                                      mRNA_degradation_rate=model_parameters[3],protein_degradation_rate=model_parameters[4],
                                                      basal_transcription_rate=model_parameters[5],translation_rate=model_parameters[6])
 
