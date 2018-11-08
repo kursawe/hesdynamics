@@ -221,17 +221,17 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
                                                      (total_number_of_timepoints-1,-1)].dot(np.transpose(observation_transform)))
                                                      +observation_variance)
 
-    for past_time_index in range(len(state_space_mean),len(state_space_mean)-maximum_delay_index,-1):
+    for past_time_index in range(total_number_of_timepoints,total_number_of_timepoints-maximum_delay_index,-1):
         # need to double-check this derivation for the following line, this is C in the paper
-        adaptation_coefficient = state_space_variance[(past_time_index-1,past_time_index-1),
+        adaptation_coefficient = state_space_variance[(past_time_index-1,past_time_index+total_number_of_timepoints-1),
                                     (total_number_of_timepoints-1,2*total_number_of_timepoints-1)].dot(
                                     transpose(observation_transform))*helper_inverse
 
-    	state_space_mean[past_time_index,(1,2)] = (state_space_mean[past_time_index,(1,2)] +
-    	    adaptation_coefficient*(current_observation[1]-observation_transform.dot(state_space_mean[-1,(1,2)])))
+        state_space_mean[past_time_index,(1,2)] = (state_space_mean[past_time_index,(1,2)] +
+                                                    adaptation_coefficient*(current_observation[1]-observation_transform.dot(state_space_mean[-1,(1,2)])))
+        state_space_variance[(past_time_index,past_time_index+total_number_of_timepoints),(past_time_index,past_time_index+total_number_of_timepoints)] = (
+            state_space_variance[(past_time_index,past_time_index+total_number_of_timepoints),(past_time_index,past_time_index+total_number_of_timepoints)] -
+            adaptation_coefficient*observation_transform.dot(state_space_variance[(total_number_of_timepoints-1,2*total_number_of_timepoints-1),
+            (past_time_index-1,past_time_index+total_number_of_timepoints-1)]))
 
-    	state_space_variance[past_time_index,(1,2)] = (state_space_variance[past_time_index,(1,2)] -
-                                                       adaptation_coefficient*observation_transform.dot(state_space_variance[(total_number_of_timepoints-1,2*total_number_of_timepoints-1),
-                                                       (past_time_index,(1,2)])))
-
-	return state_space_mean, state_space_variance
+    return state_space_mean, state_space_variance
