@@ -41,13 +41,16 @@ def kalman_filter(protein_at_observations,model_parameters):
     ## and at each observation implement prediction step and then the update step
 
     state_space_mean = np.zeros((protein_at_observations.shape[0],3))
-    state_space_mean[:,(1,2)] = hes5.calculate_steady_state_of_ode(repression_threshold=model_parameters[1],hill_coefficient=model_parameters[2],
-                                                     mRNA_degradation_rate=model_parameters[3],protein_degradation_rate=model_parameters[4],
-                                                     basal_transcription_rate=model_parameters[5],translation_rate=model_parameters[6])
+    state_space_mean[:,(1,2)] = hes5.calculate_steady_state_of_ode(repression_threshold=model_parameters[0],hill_coefficient=model_parameters[1],
+                                                     mRNA_degradation_rate=model_parameters[2],protein_degradation_rate=model_parameters[3],
+                                                     basal_transcription_rate=model_parameters[4],translation_rate=model_parameters[5])
+    state_space_mean[:,0] = np.linspace(-model_parameters[6],0,1.0)
 
     state_space_variance = np.zeros((2*protein_at_observations.shape[0],2*protein_at_observations.shape[0]))
-    state_space_variance[:protein_at_observations.shape[0],:protein_at_observations.shape[0]] = np.power(calculate_approximate_mRNA_standard_deviation_at_parameter_point(),2)
-    state_space_variance[protein_at_observations.shape[0]:,protein_at_observations.shape[0]:] = np.power(calculate_approximate_protein_standard_deviation_at_parameter_point(),2)
+    state_space_variance[:protein_at_observations.shape[0],:protein_at_observations.shape[0]] = np.power(hes5.calculate_approximate_mRNA_standard_deviation_at_parameter_point(),2)
+    state_space_variance[protein_at_observations.shape[0]:,protein_at_observations.shape[0]:] = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(),2)
+
+    observation_time_step = protein_at_observations[1,0]-protein_at_observations[0,0]
 
     for observation_index, current_observation in enumerate(protein_at_observations):
         predicted_state_space_mean, predicted_state_space_variance = kalman_prediction_step(state_space_mean,
@@ -102,8 +105,11 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
         [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
           cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
     """
-
+    discretisation_time_step = 1.0
+    number_of_hidden_states = int(np.around(observation_time_step/discretisation_time_step))
     previous_number_of_states = state_space_mean.shape[0]
+    total_number_of_timepoints = previous_number_of_states+number_of_hidden_states
+
     predicted_state_space_mean = np.zeros((previous_number_of_states+number_of_hidden_states,3))
     predicted_state_space_mean[:previous_number_of_states] = state_space_mean
 
@@ -112,10 +118,6 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
     predicted_state_space_variance[:previous_number_of_states,previous_number_of_states+number_of_hidden_states:2*previous_number_of_states+number_of_hidden_states] = state_space_variance[:previous_number_of_states,previous_number_of_states:]
     predicted_state_space_variance[previous_number_of_states+number_of_hidden_states:2*previous_number_of_states+number_of_hidden_states,:previous_number_of_states] = state_space_variance[previous_number_of_states:,:previous_number_of_states]
     predicted_state_space_variance[previous_number_of_states+number_of_hidden_states:2*previous_number_of_states+number_of_hidden_states,previous_number_of_states+number_of_hidden_states:2*previous_number_of_states+number_of_hidden_states] = state_space_variance[previous_number_of_states:,previous_number_of_states:]
-
-    discretisation_time_step = 1.0
-    number_of_hidden_states = int(np.around(observation_time_step/discretisation_time_step))
-    total_number_of_timepoints = previous_number_of_states+number_of_hidden_states
 
     repression_threshold = model_parameters[0]
     hill_coefficient = model_parameters[1]
