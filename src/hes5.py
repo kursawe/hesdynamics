@@ -1549,7 +1549,7 @@ def generate_posterior_samples( total_number_of_samples,
         
     prior_dimension : string
         'reduced', 'hill' or 'full', or 'agnostic' are possible options. If 'full', then the mRNA and protein degradation rates
-        will be inferred in addition to other model parameters, excluding the Hill coefficient. If 'hill',
+        will be inferred in addition to other model parameters. If 'hill',
         then all parameters exclucing the mRNA and protein degradation rates will be inferred. 
         If the model is 'agnostic', then this option will be ignored.
         
