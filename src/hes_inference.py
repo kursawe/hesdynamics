@@ -156,12 +156,10 @@ def kalman_prediction_step(state_space_mean,state_space_variance,model_parameter
 
         hill_function_value = 1.0/(1.0+np.power(past_protein/repression_threshold,hill_coefficient))
         hill_function_derivative_value = (-hill_coefficient/repression_threshold)*np.power(1+(past_protein/repression_threshold),-(hill_coefficient+1))
+        derivative_of_mean = np.dot(current_mean,np.array([[-mRNA_degradation_rate,translation_rate],[0,-protein_degradation_rate]])) + np.array([basal_transcription_rate*hill_function_value,0])
 
         # this is the next mean
-        predicted_state_space_mean[next_time_index,(1,2)] = (current_mean + discretisation_time_step*(current_mean.dot(
-                                                                                        np.array([[-mRNA_degradation_rate,translation_rate],
-                                                                                                 [0,-protein_degradation_rate]]))
-                                                                                   + np.array([basal_transcription_rate*hill_function_value,0])))
+        predicted_state_space_mean[next_time_index,(1,2)] = current_mean + discretisation_time_step*derivative_of_mean
         # this is the next variance
         predicted_state_space_variance[np.ix_([next_time_index,next_time_index+total_number_of_timepoints],[next_time_index,next_time_index+total_number_of_timepoints])] = (
                 predicted_state_space_variance[np.ix_([current_time_index,current_time_index+total_number_of_timepoints],[current_time_index,current_time_index+total_number_of_timepoints])]
@@ -262,9 +260,7 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
 
     for past_time_index in range(total_number_of_timepoints-1,total_number_of_timepoints-maximum_delay_index,-1):
         # need to double-check this derivation for the following line, this is C in the paper
-        adaptation_coefficient = state_space_variance[np.ix_([past_time_index-1,past_time_index+total_number_of_timepoints-1],
-                                    [total_number_of_timepoints-1,2*total_number_of_timepoints-1])].dot(
-                                    np.transpose(observation_transform))*helper_inverse
+        adaptation_coefficient = state_space_variance[np.ix_([past_time_index,past_time_index+total_number_of_timepoints],[total_number_of_timepoints-1,2*total_number_of_timepoints-1])].dot(np.transpose(observation_transform))*helper_inverse
 
         state_space_mean[past_time_index,(1,2)] = (state_space_mean[past_time_index,(1,2)] +
                                                     adaptation_coefficient*(current_observation[1]-observation_transform.dot(state_space_mean[-1,(1,2)])))
@@ -274,5 +270,5 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
             -
             adaptation_coefficient*
             observation_transform.dot(state_space_variance[np.ix_([total_number_of_timepoints-1,2*total_number_of_timepoints-1],[past_time_index-1,past_time_index+total_number_of_timepoints-1])]))
-
+        #import pdb; pdb.set_trace()
     return state_space_mean, state_space_variance

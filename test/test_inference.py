@@ -19,7 +19,7 @@ class TestInference(unittest.TestCase):
 
     def test_inference(self):
         ## run a sample simulation to generate example protein data
-        true_data = hes5.generate_langevin_trajectory(duration = 900)
+        true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
         ## the F constant matrix is left out for now
         protein_at_observation = true_data[0:900:10,(0,2)]
@@ -40,4 +40,10 @@ class TestInference(unittest.TestCase):
         # variance needs to be positive definite and symmetric, maybe include quantitative check
 
         ##plot data together with state-space distribution
-        pass
+        my_figure = plt.figure()
+        plt.plot(true_data[:,0]+10,true_data[:,2],label='true data')
+        #plt.plot(state_space_mean[:,0],state_space_mean[:,1])
+        plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','kalman_test.pdf'))
