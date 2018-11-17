@@ -41,9 +41,9 @@ class TestInference(unittest.TestCase):
 
         ##plot data together with state-space distribution
         my_figure = plt.figure()
-        plt.plot(true_data[:,0]+10,true_data[:,2],label='true data')
-        #plt.plot(state_space_mean[:,0],state_space_mean[:,1])
-        plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein')
+        plt.scatter(np.arange(0,900,10),protein_at_observation[:,1],marker='o',s=4,c='r',label='observations',zorder=3)
+        plt.plot(true_data[:,0],true_data[:,2],label='true data',zorder=1)
+        plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',zorder=2)
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','kalman_test.pdf'))
