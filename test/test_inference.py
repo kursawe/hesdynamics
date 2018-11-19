@@ -23,7 +23,7 @@ class TestInference(unittest.TestCase):
 
         ## the F constant matrix is left out for now
         protein_at_observation = true_data[0:900:10,(0,2)]
-        protein_at_observation[:,1] += np.random.randn(90)
+        protein_at_observation[:,1] += np.random.randn(90)*0
         protein_at_observation[:,1] = np.maximum(protein_at_observation[:,1],0)
 
         parameters = [10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29]
@@ -38,13 +38,13 @@ class TestInference(unittest.TestCase):
         #self.assertEqual(state_space_variance.shape[1],1860)
         # check dimensionality of state_space_mean and the state_space_variance
         # variance needs to be positive definite and symmetric, maybe include quantitative check
-        #z = 1.96*np.sqrt(state_space_variance[np.arange(state_space_mean.shape[0]-1,2*state_space_mean.shape[0]-1),np.arange(state_space_mean.shape[0]-1,2*state_space_mean.shape[0]-1)])/np.sqrt(90)
         ##plot data together with state-space distribution
         my_figure = plt.figure()
         plt.scatter(np.arange(0,900,10),protein_at_observation[:,1],marker='o',s=4,c='r',label='observations',zorder=3)
         plt.plot(true_data[:,0],true_data[:,2],label='true data',zorder=1)
         plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',zorder=2)
         #plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=z)
+        #plt.ylim(3000,8000)
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','kalman_test.pdf'))

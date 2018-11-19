@@ -61,16 +61,20 @@ def kalman_filter(protein_at_observations,model_parameters):
     ## currently this step does nothing -- need to troubleshoot why
     state_space_mean, state_space_variance = kalman_update_step(initial_state_space_mean,initial_state_space_variance,protein_at_observations[0,:],time_delay)
 
-    for observation_index, current_observation in enumerate(protein_at_observations[1:,:]):
-        print(observation_index,current_observation)
+    for observation_index, future_observation in enumerate(protein_at_observations[1:,:]):
         predicted_state_space_mean, predicted_state_space_variance = kalman_prediction_step(state_space_mean,
                                                                                             state_space_variance,
                                                                                             model_parameters,
                                                                                             observation_time_step)
         state_space_mean, state_space_variance = kalman_update_step(predicted_state_space_mean,
                                                                    predicted_state_space_variance,
-                                                                   current_observation,
+                                                                   future_observation,
                                                                    time_delay)
+    # final prediction
+    state_space_mean, state_space_variance = kalman_prediction_step(state_space_mean,
+                                                                    state_space_variance,
+                                                                    model_parameters,
+                                                                    observation_time_step)
     return state_space_mean, state_space_variance
 
 def kalman_prediction_step(state_space_mean,state_space_variance,model_parameters,observation_time_step):
@@ -255,7 +259,7 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
 
     # This is F in the paper
     observation_transform = np.array([0,1])
-    observation_variance = 0.1
+    observation_variance = 0
     helper_inverse = 1.0/(observation_transform.dot(state_space_variance[np.ix_([total_number_of_timepoints-1,-1],
                                                      [total_number_of_timepoints-1,-1])].dot(np.transpose(observation_transform)))
                                                      +observation_variance)
@@ -264,6 +268,7 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
         # need to double-check this derivation for the following line, this is C in the paper
         adaptation_coefficient = (state_space_variance[np.ix_([past_time_index,past_time_index+total_number_of_timepoints],[total_number_of_timepoints-1,-1])].dot(
                                   np.transpose(observation_transform))*helper_inverse)
+        #print(state_space_variance[np.ix_([past_time_index,past_time_index+total_number_of_timepoints],[total_number_of_timepoints-1,-1])])
 
         state_space_mean[past_time_index,(1,2)] = (state_space_mean[past_time_index,(1,2)] +
                                                     adaptation_coefficient.dot((current_observation[1]-observation_transform.dot(state_space_mean[-1,(1,2)]))))
