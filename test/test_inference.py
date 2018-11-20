@@ -39,12 +39,30 @@ class TestInference(unittest.TestCase):
         # check dimensionality of state_space_mean and the state_space_variance
         # variance needs to be positive definite and symmetric, maybe include quantitative check
         ##plot data together with state-space distribution
+        number_of_states = state_space_mean.shape[0]
+
+        protein_covariance_matrix = state_space_variance[number_of_states:,number_of_states:]
+        protein_variance = np.diagonal(protein_covariance_matrix)
+        protein_error = np.sqrt(protein_variance)
+
         my_figure = plt.figure()
         plt.scatter(np.arange(0,900,10),protein_at_observation[:,1],marker='o',s=4,c='r',label='observations',zorder=3)
-        plt.plot(true_data[:,0],true_data[:,2],label='true data',zorder=1)
-        plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',zorder=2)
-        #plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=z)
-        #plt.ylim(3000,8000)
+        plt.plot(true_data[:,0],true_data[:,2],label='true protein',zorder=1)
+#         plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',zorder=2)
+        plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=protein_error)
+        plt.ylim(3000,8000)
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','kalman_test.pdf'))
+                                       'output','kalman_test_protein.pdf'))
+
+        mRNA_covariance_matrix = state_space_variance[:number_of_states,:number_of_states]
+        mRNA_variance = np.diagonal(mRNA_covariance_matrix)
+        mRNA_error = np.sqrt(protein_variance)
+        my_figure = plt.figure()
+        plt.plot(true_data[:,0],true_data[:,1],label='true mRNA',zorder=1)
+#         plt.plot(state_space_mean[:,0],state_space_mean[:,1],label='inferred mRNA',zorder=2)
+        plt.errorbar(state_space_mean[:,0],state_space_mean[:,1],yerr=mRNA_error)
+        plt.ylim(20,70)
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','kalman_test_mRNA.pdf'))
