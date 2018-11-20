@@ -365,14 +365,34 @@ class TestZebrafish(unittest.TestCase):
 
         my_figure.add_subplot(166)
 #         translation_rate_bins = np.logspace(0,2.3,20)
-        degradation_rate_bins = np.linspace(np.log(2.0)/15.0,np.log(2)/1.0,20)
-        sns.distplot(data_frame['mRNA degradation'],
-                     kde = False,
-                     rug = False,
-                     norm_hist = True,
-                     hist_kws = {'edgecolor' : 'black'},
-                     bins = degradation_rate_bins)
-#         plt.gca().set_xscale("log")
+#         degradation_rate_bins = np.linspace(np.log(2.0)/15.0,np.log(2)/1.0,20)
+#         histogram, bin_edges = np.histogram(data_frame['mRNA degradation'], degradation_rate_bins, 
+#                                             density = True)
+#         plt.hist(histogram[::-1], np.log(2)/bin_edges[::-1] )
+
+        half_lifes = np.log(2)/data_frame['mRNA degradation']
+        half_life_bins = np.linspace(1,15,20)
+        half_life_histogram, _ = np.histogram(half_lifes, half_life_bins, density = True)
+        prior_histogram, _ = np.histogram( np.log(2)/prior_samples[:,5], half_life_bins, density = True )
+        corrected_histogram = half_life_histogram/prior_histogram
+        bin_centres = (half_life_bins[:-1] + half_life_bins[1:])/2
+        width = 0.7*(half_life_bins[1] - half_life_bins[0])
+         
+        plt.bar(bin_centres, corrected_histogram, align = 'center' , width = width )
+#         sns.distplot(half_lifes,
+#                      kde = False,
+#                      rug = False,
+#                      norm_hist = True,
+#                      hist_kws = {'edgecolor' : 'black'},
+#                      bins = half_life_bins)
+#
+#         sns.distplot(data_frame['mRNA degradation'],
+#                      kde = False,
+#                      rug = False,
+#                      norm_hist = True,
+#                      hist_kws = {'edgecolor' : 'black'},
+#                      bins = degradation_rate_bins)
+# #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(1,200)
 #         plt.gca().set_xlim(-2,0)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
