@@ -20,7 +20,7 @@ def kalman_filter(protein_at_observations,model_parameters):
     model_parameters : numpy array.
         An array containing the model parameters in the following order:
         repression_threshold, hill_coefficient, mRNA_degradation_rate,
-        protein_degradation_rate, basal_transcription_rate, translation_rate, 
+        protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
 
     Returns
@@ -39,26 +39,26 @@ def kalman_filter(protein_at_observations,model_parameters):
     time_delay = model_parameters[6]
 
     # This is the time step dt in the forward euler scheme
-    discretisation_time_step = 1.0    
+    discretisation_time_step = 1.0
     # This is the delay as an integer multiple of the discretization timestep so that we can index with it
     discrete_delay = int(np.around(time_delay/discretisation_time_step))
 
     observation_time_step = protein_at_observations[1,0]-protein_at_observations[0,0]
     # 'synthetic' observations, which allow us to update backwards in time
-    number_of_hidden_states = int(np.around(observation_time_step/discretisation_time_step))    
+    number_of_hidden_states = int(np.around(observation_time_step/discretisation_time_step))
 
     ## initialise "negative time" with the mean and standard deviations of the LNA
     initial_number_of_states = discrete_delay + 1
     initial_state_space_mean = np.zeros((initial_number_of_states,3))
     initial_state_space_mean[:,(1,2)] = hes5.calculate_steady_state_of_ode(repression_threshold=model_parameters[0],
-                                                                           hill_coefficient=model_parameters[1], 
+                                                                           hill_coefficient=model_parameters[1],
                                                                            mRNA_degradation_rate=model_parameters[2],
-                                                                           protein_degradation_rate=model_parameters[3], 
+                                                                           protein_degradation_rate=model_parameters[3],
                                                                            basal_transcription_rate=model_parameters[4],
                                                                            translation_rate=model_parameters[5])
 
     # assign time entries
-    initial_state_space_mean[:,0] = np.linspace(-time_delay,0,discrete_delay+1)
+    initial_state_space_mean[:,0] = np.linspace(-time_delay,0,initial_number_of_states)
 
     # initialise initial covariance matrix
     initial_state_space_variance = np.zeros((2*(initial_number_of_states),2*(initial_number_of_states)))
@@ -66,12 +66,12 @@ def kalman_filter(protein_at_observations,model_parameters):
     # set the mRNA variance at nagative times to the LNA approximation
     LNA_mRNA_variance = np.power(hes5.calculate_approximate_mRNA_standard_deviation_at_parameter_point(),2)
     # the top left block of the matrix corresponds to the mRNA covariance, see docstring above
-    initial_state_space_variance[:initial_number_of_states,:initial_number_of_states] = LNA_mRNA_variance   
+    initial_state_space_variance[:initial_number_of_states,:initial_number_of_states] = LNA_mRNA_variance
 
     # set the protein variance at nagative times to the LNA approximation
     LNA_protein_variance = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(),2)
     # the bottom right block of the matrix corresponds to the mRNA covariance, see docstring above
-    initial_state_space_variance[initial_number_of_states:,initial_number_of_states:] = LNA_protein_variance 
+    initial_state_space_variance[initial_number_of_states:,initial_number_of_states:] = LNA_protein_variance
 
     # update the past ("negative time")
     ## currently this step does nothing -- need to troubleshoot why
@@ -113,13 +113,13 @@ def kalman_prediction_step(state_space_mean,
 
     state_space_variance : numpy array.
     	The dimension is 2n x 2n, where n is the number of states until the current time. The definition
-    	is identical to the one provided in the Kalman filter function, i.e. 
+    	is identical to the one provided in the Kalman filter function, i.e.
             [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
               cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
 
     model_parameters : numpy array.
         An array containing the model parameters. The order is identical to the one provided in the
-        Kalman filter function documentation, i.e. 
+        Kalman filter function documentation, i.e.
         repression_threshold, hill_coefficient, mRNA_degradation_rate,
         protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
@@ -198,7 +198,7 @@ def kalman_prediction_step(state_space_mean,
 
         ## first we calculate the mean
         derivative_of_mean = ( np.array([[-mRNA_degradation_rate,0.0],
-                                         [translation_rate,-protein_degradation_rate]]).dot(current_mean) + 
+                                         [translation_rate,-protein_degradation_rate]]).dot(current_mean) +
                                np.array([basal_transcription_rate*hill_function_value,0]) )
 
         # this is the next mean
