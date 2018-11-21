@@ -43,6 +43,7 @@ class TestInference(unittest.TestCase):
 
         protein_covariance_matrix = state_space_variance[number_of_states:,number_of_states:]
         protein_variance = np.diagonal(protein_covariance_matrix)
+        print(protein_variance)
         protein_error = np.sqrt(protein_variance)
 
         my_figure = plt.figure()
@@ -57,6 +58,7 @@ class TestInference(unittest.TestCase):
 
         mRNA_covariance_matrix = state_space_variance[:number_of_states,:number_of_states]
         mRNA_variance = np.diagonal(mRNA_covariance_matrix)
+        print(mRNA_variance)
         mRNA_error = np.sqrt(protein_variance)
         my_figure = plt.figure()
         plt.plot(true_data[:,0],true_data[:,1],label='true mRNA',zorder=1)

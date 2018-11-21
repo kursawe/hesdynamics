@@ -65,11 +65,13 @@ def kalman_filter(protein_at_observations,model_parameters):
 
     # set the mRNA variance at nagative times to the LNA approximation
     LNA_mRNA_variance = np.power(hes5.calculate_approximate_mRNA_standard_deviation_at_parameter_point(),2)
+    print(LNA_mRNA_variance)
     # the top left block of the matrix corresponds to the mRNA covariance, see docstring above
     initial_state_space_variance[:initial_number_of_states,:initial_number_of_states] = LNA_mRNA_variance   
 
     # set the protein variance at nagative times to the LNA approximation
     LNA_protein_variance = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(),2)
+    print(LNA_protein_variance)
     # the bottom right block of the matrix corresponds to the mRNA covariance, see docstring above
     initial_state_space_variance[initial_number_of_states:,initial_number_of_states:] = LNA_protein_variance 
 
@@ -79,6 +81,8 @@ def kalman_filter(protein_at_observations,model_parameters):
                                                                 initial_state_space_variance,
                                                                 protein_at_observations[0],
                                                                 time_delay)
+    print(state_space_mean)
+    print(state_space_variance)
 
     ## loop through observations and at each observation apply the Kalman prediction step and then the update step
     for current_observation in protein_at_observations[1:]:
@@ -193,54 +197,77 @@ def kalman_prediction_step(state_space_mean,
                                                                      hill_coefficient - 1)/( repression_threshold*
                                            np.power(1.0+np.power( past_protein/repression_threshold,
                                                                 hill_coefficient),2))
-        # I'm pretty sure the following line is not a hill function dervative.
-#         hill_function_derivative_value = (-hill_coefficient/repression_threshold)*np.power(1+(past_protein/repression_threshold),-(hill_coefficient+1))
 
-        ## first we calculate the mean
+        ## derivative of mean is contributions from instant reactions + contributions from past reactions
         derivative_of_mean = ( np.array([[-mRNA_degradation_rate,0.0],
                                          [translation_rate,-protein_degradation_rate]]).dot(current_mean) + 
                                np.array([basal_transcription_rate*hill_function_value,0]) )
 
-        # this is the next mean
-        predicted_state_space_mean[next_time_index,(1,2)] = current_mean + discretisation_time_step*derivative_of_mean
+        next_mean = current_mean + discretisation_time_step*derivative_of_mean
+        predicted_state_space_mean[next_time_index,(1,2)] = next_mean
 
-        ## now we calculate the variance
-        current_variance = predicted_state_space_variance[np.ix_([current_time_index,current_time_index+new_number_of_states],[current_time_index,current_time_index+new_number_of_states])]
+        current_covariance_matrix = predicted_state_space_variance[np.ix_([current_time_index,new_number_of_states + current_time_index],
+                                                                          [current_time_index,new_number_of_states + current_time_index])]
         # this is P(t-\tau,t) in page 5 of the supplementary material of Calderazzo et. al.
-        past_row_variance = predicted_state_space_variance[np.ix_([past_time_index,past_time_index+new_number_of_states],[current_time_index,current_time_index+new_number_of_states])]
+        covariance_matrix_past_to_now = predicted_state_space_variance[np.ix_([past_time_index,new_number_of_states + past_time_index],
+                                                                              [current_time_index,new_number_of_states +current_time_index])]
         # this is P(t,t-\tau) in page 5 of the supplementary material of Calderazzo et. al.
-        past_column_variance = predicted_state_space_variance[np.ix_([current_time_index,current_time_index+new_number_of_states],[past_time_index,past_time_index+new_number_of_states])]
-        # derivations are found in Calderazzo et. al. (2018)
-        jacobian_g = np.array([[-mRNA_degradation_rate,0],[translation_rate,-protein_degradation_rate]])
-        jacobian_f = np.array([[0,basal_transcription_rate*hill_function_derivative_value],[0,0]])
-        matrix_A = np.array([[mRNA_degradation_rate*predicted_state_space_mean[current_time_index,1]+basal_transcription_rate*hill_function_value,0],
-                    [0,translation_rate*predicted_state_space_mean[current_time_index,1]+protein_degradation_rate*predicted_state_space_mean[current_time_index,2]]])
+        covariance_matrix_now_to_past = predicted_state_space_variance[np.ix_([current_time_index,new_number_of_states + current_time_index],
+                                                                              [past_time_index,new_number_of_states + past_time_index])]
+        # derivations for the following are found in Calderazzo et. al. (2018)
+        # g is [[-mRNA_degradation_rate,0],                  *[M(t),
+        #       [translation_rate,-protein_degradation_rate]] [P(t)]
+        # and its derivative will be called instant_jacobian
+        # f is [[basal_transcription_rate*hill_function(past_protein)],0]
+        # and its derivative with respect to the past state will be called delayed_jacobian
+        # the matrix A in the paper will be called variance_of_noise
+        instant_jacobian = np.array([[-mRNA_degradation_rate,0],[translation_rate,-protein_degradation_rate]])
+        # jacobian of f is derivative of f with respect to past state ([past_mRNA, past_protein])
+        delayed_jacobian = np.array([[0,basal_transcription_rate*hill_function_derivative_value],[0,0]])
+         
+        variance_change_current_contribution = ( instant_jacobian.dot(current_covariance_matrix) + 
+                                                 np.transpose(instant_jacobian.dot(current_covariance_matrix)) )
 
-        derivative_of_variance = (jacobian_g.dot(current_variance) + np.transpose(jacobian_g.dot(current_variance))
-                                  +
-                                  jacobian_f.dot(past_row_variance) + past_column_variance.dot(np.transpose(jacobian_f))
-                                  +
-                                  matrix_A)
+        variance_change_past_contribution = ( delayed_jacobian.dot(covariance_matrix_past_to_now) + 
+                                              covariance_matrix_now_to_past.dot(np.transpose(delayed_jacobian)) )
+
+        variance_of_noise = np.array([[mRNA_degradation_rate*current_mean[0]+basal_transcription_rate*hill_function_value,0],
+                                      [0,translation_rate*current_mean[0]+protein_degradation_rate*current_mean[1]]])
+
+        derivative_of_variance = ( variance_change_current_contribution +
+                                   variance_change_past_contribution +
+                                   variance_of_noise )
 
         # this is the next variance
-        predicted_state_space_variance[np.ix_([next_time_index,next_time_index+total_number_of_timepoints],[next_time_index,next_time_index+total_number_of_timepoints])] = (
-            current_variance + discretisation_time_step*derivative_of_variance)
+        next_covariance_matrix = current_covariance_matrix + discretisation_time_step*derivative_of_variance
 
-        ## now we need to update the cross correlations
-        for time_index in range(past_time_index-1,current_time_index):
+        predicted_state_space_variance[np.ix_([next_time_index, new_number_of_states + next_time_index],
+                                              [next_time_index, new_number_of_states + next_time_index])] = next_covariance_matrix
 
-            predicted_state_space_variance[np.ix_([current_time_index,current_time_index+total_number_of_timepoints],[time_index+1,time_index+total_number_of_timepoints+1])] = (
-                predicted_state_space_variance[np.ix_([current_time_index,current_time_index+total_number_of_timepoints],[time_index,time_index+total_number_of_timepoints])]
-                +
-                discretisation_time_step*(
-                predicted_state_space_variance[np.ix_([current_time_index,current_time_index+total_number_of_timepoints],[time_index,time_index+total_number_of_timepoints])].dot(
-                np.transpose(jacobian_g))
-                +
-                predicted_state_space_variance[np.ix_([current_time_index,current_time_index+total_number_of_timepoints],[past_time_index,past_time_index+total_number_of_timepoints])].dot(
-                np.transpose(jacobian_f))))
-            # the matrix is symmetric so update the transpose as well
-            predicted_state_space_variance[np.ix_([time_index+1,time_index+total_number_of_timepoints+1],[current_time_index,current_time_index+total_number_of_timepoints])] = (
-                predicted_state_space_variance[np.ix_([current_time_index,current_time_index+total_number_of_timepoints],[time_index+1,time_index+total_number_of_timepoints+1])])
+        ## now we need to update the cross correlations, P(s,t) in the Calderazzo paper
+        # the range needs to include t, since we want to propagate P(t,t) into P(t,t+Deltat)
+        for intermediate_time_index in range(past_time_index,current_time_index+1):
+            # This corresponds to P(s,t) in the Calderazzo paper
+            covariance_matrix_intermediate_to_current = predicted_state_space_variance[np.ix_([intermediate_time_index, new_number_of_states + intermediate_time_index],
+                                                                                              [current_time_index, new_number_of_states + current_time_index])]
+            
+            covariance_matrix_intermediate_to_past = predicted_state_space_variance[np.ix_([intermediate_time_index, new_number_of_states + intermediate_time_index],
+                                                                                           [past_time_index, new_number_of_states + past_time_index])]
+
+            covariance_derivative = ( covariance_matrix_intermediate_to_current.dot( np.transpose(instant_jacobian)) +
+                                      covariance_matrix_intermediate_to_past.dot( np.transpose(delayed_jacobian)))
+            
+            # This corresponds to P(s,t+Deltat) in the Calderazzo paper
+            covariance_matrix_intermediate_to_next = covariance_matrix_intermediate_to_current + discretisation_time_step*covariance_derivative
+            
+            # Fill in the big matrix
+            predicted_state_space_variance[np.ix_([intermediate_time_index,new_number_of_states + intermediate_time_index],
+                                                  [next_time_index,new_number_of_states + next_time_index])] = covariance_matrix_intermediate_to_current
+
+            # Fill in the big matrix with transpose arguments, i.e. P(t+Deltat, s) - works if initialised symmetrically
+            predicted_state_space_variance[np.ix_([next_time_index,new_number_of_states + next_time_index],
+                                                  [intermediate_time_index,new_number_of_states + intermediate_time_index])] = covariance_matrix_intermediate_to_current.transpose()
+
     return predicted_state_space_mean, predicted_state_space_variance
 
 def kalman_update_step(predicted_state_space_mean, predicted_state_space_variance,current_observation,time_delay):
@@ -253,11 +280,11 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
     ----------
 
     predicted_state_space_mean : numpy array.
-        The dimension is n x 3, where n is the number of previous observations until the current time.
+        The dimension is n x 3, where n is the number of states until the current time.
         The first column is time, the second column is mean mRNA, and the third column is mean protein.
 
     predicted_state_space_variance : numpy array.
-        The dimension is 2n x 2n, where n is the number of previous observations until the current time.
+        The dimension is 2n x 2n, where n is the number of states until the current time.
             [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
               cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
 
@@ -277,35 +304,36 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
         Calderazzo et al., Bioinformatics (2018).
 
     state_space_variance : numpy array.
-        The dimension is 2n x 2n, where n is the number of previous observations until the current time.
+        This corresponds to P* in Calderazzo et al., Bioinformatics (2018).
+        The dimension is 2n x 2n, where n is the number of states until the current time.
             [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
               cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ].
-
-        This corresponds to P* in Calderazzo et al., Bioinformatics (2018).
     """
-    ## first we need \rho_{t+\delta t-\tau:t+\delta t} and P_{t+\delta t-\tau:t+\delta t},
-    ## which can be obtained using the differential equations in supplementary section 4.
-    ## This will be done in the kalman_prediction_step function.
-    ## We will call these 'state_space_mean' and 'state_space_variance',
-    ## and they will be updated in the following way.
-
     # initialise updated mean and variance arrays.
     state_space_mean = predicted_state_space_mean
     state_space_variance = predicted_state_space_variance
 
-    total_number_of_timepoints = state_space_mean.shape[0]
+    number_of_states = state_space_mean.shape[0]
 
-    observation_time_step = state_space_mean[1,0] - state_space_mean[0,0]
-    maximum_delay_index = int(math.ceil(time_delay/observation_time_step))
+    discretisation_time_step = state_space_mean[1,0] - state_space_mean[0,0]
+    discrete_delay = int(np.around(transcription_delay/discretisation_time_step))
 
     # This is F in the paper
     observation_transform = np.array([0,1])
-    observation_variance = 0
-    helper_inverse = 1.0/(observation_transform.dot(state_space_variance[np.ix_([total_number_of_timepoints-1,-1],
-                                                     [total_number_of_timepoints-1,-1])].dot(np.transpose(observation_transform)))
-                                                     +observation_variance)
+    
+    # This is Sigma_e in the paper
+    measurement_variance = 1.0
+    
+    # This is P(t+Deltat,t+Deltat) in the paper
+    final_coviariance_matrix = state_space_variance[np.ix_([number_of_states-1,-1],
+                                                           [number_of_states-1,-1])]
 
-    for past_time_index in range(total_number_of_timepoints-1,total_number_of_timepoints-maximum_delay_index-2,-1):
+    # This is (FP_{t+Deltat}F^T + Sigma_e)^-1
+    helper_inverse = 1.0/(observation_transform.dot( final_covariance_matrix.dot(np.transpose(observation_transform)))
+                                                     + measurement_variance )
+
+    # The -2 in the last entry is to account for the python range function stopping one short
+    for past_time_index in range(number_of_states-1,number_of_states-discrete_delay-2,-1):
         # need to double-check this derivation for the following line, this is C in the paper
         adaptation_coefficient = (state_space_variance[np.ix_([past_time_index,past_time_index+total_number_of_timepoints],[total_number_of_timepoints-1,-1])].dot(
                                   np.transpose(observation_transform))*helper_inverse)
