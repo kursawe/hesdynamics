@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import hes5
+from numpy import number
 
 #discretisation_time_step=1.0
 
@@ -214,6 +215,7 @@ def kalman_prediction_step(state_space_mean,
         # this is P(t,t-\tau) in page 5 of the supplementary material of Calderazzo et. al.
         covariance_matrix_now_to_past = predicted_state_space_variance[np.ix_([current_time_index,new_number_of_states + current_time_index],
                                                                               [past_time_index,new_number_of_states + past_time_index])]
+
         # derivations for the following are found in Calderazzo et. al. (2018)
         # g is [[-mRNA_degradation_rate,0],                  *[M(t),
         #       [translation_rate,-protein_degradation_rate]] [P(t)]
@@ -238,7 +240,7 @@ def kalman_prediction_step(state_space_mean,
                                    variance_change_past_contribution +
                                    variance_of_noise )
 
-        # this is the next variance
+        # P(t+Deltat,t+Deltat)
         next_covariance_matrix = current_covariance_matrix + discretisation_time_step*derivative_of_variance
 
         predicted_state_space_variance[np.ix_([next_time_index, new_number_of_states + next_time_index],
@@ -310,13 +312,13 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
               cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ].
     """
     # initialise updated mean and variance arrays.
-    state_space_mean = predicted_state_space_mean
-    state_space_variance = predicted_state_space_variance
+    state_space_mean = np.copy(predicted_state_space_mean)
+    state_space_variance = np.copy(predicted_state_space_variance)
 
     number_of_states = state_space_mean.shape[0]
 
     discretisation_time_step = state_space_mean[1,0] - state_space_mean[0,0]
-    discrete_delay = int(np.around(transcription_delay/discretisation_time_step))
+    discrete_delay = int(np.around(time_delay/discretisation_time_step))
 
     # This is F in the paper
     observation_transform = np.array([0,1])
@@ -325,27 +327,48 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
     measurement_variance = 1.0
     
     # This is P(t+Deltat,t+Deltat) in the paper
-    final_coviariance_matrix = state_space_variance[np.ix_([number_of_states-1,-1],
-                                                           [number_of_states-1,-1])]
+    predicted_final_covariance_matrix = predicted_state_space_variance[np.ix_([number_of_states-1,-1],
+                                                                       [number_of_states-1,-1])]
+    
+    # This is \rho(t+Deltat)
+    predicted_final_state_space_mean = predicted_state_space_mean[-1,(1,2)]
 
     # This is (FP_{t+Deltat}F^T + Sigma_e)^-1
-    helper_inverse = 1.0/(observation_transform.dot( final_covariance_matrix.dot(np.transpose(observation_transform)))
+    helper_inverse = 1.0/(observation_transform.dot( predicted_final_covariance_matrix.dot(np.transpose(observation_transform)))
                                                      + measurement_variance )
 
     # The -2 in the last entry is to account for the python range function stopping one short
     for past_time_index in range(number_of_states-1,number_of_states-discrete_delay-2,-1):
-        # need to double-check this derivation for the following line, this is C in the paper
-        adaptation_coefficient = (state_space_variance[np.ix_([past_time_index,past_time_index+total_number_of_timepoints],[total_number_of_timepoints-1,-1])].dot(
-                                  np.transpose(observation_transform))*helper_inverse)
-        #print(state_space_variance[np.ix_([past_time_index,past_time_index+total_number_of_timepoints],[total_number_of_timepoints-1,-1])])
 
-        state_space_mean[past_time_index,(1,2)] = (state_space_mean[past_time_index,(1,2)] +
-                                                    adaptation_coefficient.dot((current_observation[1]-observation_transform.dot(state_space_mean[-1,(1,2)]))))
+        # This is P(s,t+Deltat)
+        predicted_covariance_matrix_past_to_final = predicted_state_space_variance[np.ix_([past_time_index,number_of_states + past_time_index],
+                                                                                [number_of_states-1,-1])]
+        
+        # This is C in the paper
+        adaptation_coefficient = (predicted_covariance_matrix_past_to_final.dot( np.transpose(observation_transform) )*helper_inverse)
 
-        state_space_variance[np.ix_([past_time_index,past_time_index+total_number_of_timepoints],[past_time_index,past_time_index+total_number_of_timepoints])] = (
-            state_space_variance[np.ix_([past_time_index,past_time_index+total_number_of_timepoints],[past_time_index,past_time_index+total_number_of_timepoints])]
-            -
-            adaptation_coefficient.dot(
-            observation_transform.dot(state_space_variance[np.ix_([total_number_of_timepoints-1,-1],[past_time_index,past_time_index+total_number_of_timepoints])])))
-        #import pdb; pdb.set_trace()
+        # This is \rho(s)
+        predicted_past_state_space_mean = predicted_state_space_mean[past_time_index,(1,2)]
+        
+        # This is \rho*(s)
+        updated_past_state_space_mean = ( predicted_past_state_space_mean + 
+                                          adaptation_coefficient.dot((current_observation[1]-
+                                                                      observation_transform.dot(predicted_final_state_space_mean))))
+        
+        # Fill in the rho*
+        state_space_mean[past_time_index,(1,2)] = updated_past_state_space_mean
+                                                    
+        # This is P(s,s)
+        predicted_past_covariance_matrix = predicted_state_space_variance[np.ix_([past_time_index,number_of_states + past_time_index],
+                                                                                 [past_time_index,number_of_states + past_time_index])]
+
+        # This is P*(s,s)
+        updated_past_covariance_matrix = (predicted_past_covariance_matrix - 
+                                          adaptation_coefficient.dot(observation_transform.dot(predicted_covariance_matrix_past_to_final)) ) 
+
+        
+        # Fill in the P*
+        state_space_variance[np.ix_([past_time_index,number_of_states + past_time_index],
+                                    [past_time_index,number_of_states + past_time_index])] = updated_past_covariance_matrix
+            
     return state_space_mean, state_space_variance
