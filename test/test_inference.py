@@ -49,8 +49,8 @@ class TestInference(unittest.TestCase):
         my_figure = plt.figure()
         plt.scatter(np.arange(0,900,10),protein_at_observation[:,1],marker='o',s=4,c='r',label='observations',zorder=3)
         plt.plot(true_data[:,0],true_data[:,2],label='true protein',zorder=1)
-#         plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',zorder=2)
-        plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=protein_error)
+#        plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',zorder=2)
+        plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=protein_error,ecolor='grey')
         plt.ylim(3000,8000)
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),

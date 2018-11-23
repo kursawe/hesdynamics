@@ -371,7 +371,7 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
 
     # This is P*
     updated_shortened_covariance_matrix = ( shortened_covariance_matrix -
-                                            np.dot(adaptation_coefficient.reshape((60,1)),observation_transform.reshape((1,2))).dot(
+                                            np.dot(adaptation_coefficient.reshape((2*(discrete_delay+1),1)),observation_transform.reshape((1,2))).dot(
                                                 shortened_covariance_matrix_final_to_past))
 
     # initialise state space variance
@@ -380,6 +380,7 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
     # Fill in updated values
     state_space_variance[np.ix_(all_indices_up_to_delay,
                                 all_indices_up_to_delay)] = updated_shortened_covariance_matrix
+
 #     print('in update step, this is the shortened P before and after updating')
 #     print(shortened_covariance_matrix)
 #     print(updated_shortened_covariance_matrix)
