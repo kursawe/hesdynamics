@@ -5,7 +5,7 @@ from numpy import number
 
 #discretisation_time_step=1.0
 
-def kalman_filter(protein_at_observations,model_parameters):
+def kalman_filter(protein_at_observations,model_parameters,measurement_variance = 10):
     """
     Perform Kalman-Bucy filter based on observation of protein
     copy numbers. This implements the filter described by Calderazzo et al., Bioinformatics (2018).
@@ -23,6 +23,9 @@ def kalman_filter(protein_at_observations,model_parameters):
         repression_threshold, hill_coefficient, mRNA_degradation_rate,
         protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
 
     Returns
     -------
@@ -79,7 +82,8 @@ def kalman_filter(protein_at_observations,model_parameters):
     state_space_mean, state_space_variance = kalman_update_step(initial_state_space_mean,
                                                                 initial_state_space_variance,
                                                                 protein_at_observations[0],
-                                                                time_delay)
+                                                                time_delay,
+                                                                measurement_variance)
 
     ## loop through observations and at each observation apply the Kalman prediction step and then the update step
     for current_observation in protein_at_observations[1:]:
@@ -90,7 +94,8 @@ def kalman_filter(protein_at_observations,model_parameters):
         state_space_mean, state_space_variance = kalman_update_step(predicted_state_space_mean,
                                                                     predicted_state_space_variance,
                                                                     current_observation,
-                                                                    time_delay)
+                                                                    time_delay,
+                                                                    measurement_variance)
 
     return state_space_mean, state_space_variance
 
@@ -268,7 +273,7 @@ def kalman_prediction_step(state_space_mean,
 
     return predicted_state_space_mean, predicted_state_space_variance
 
-def kalman_update_step(predicted_state_space_mean, predicted_state_space_variance,current_observation,time_delay):
+def kalman_update_step(predicted_state_space_mean,predicted_state_space_variance,current_observation,time_delay,measurement_variance):
     """
     Perform the Kalman filter update step on the predicted mean and variance, given a new observation.
     This implements the equations at the beginning of page 4 in Calderazzo et al., Bioinformatics (2018).
@@ -292,6 +297,9 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
     time_delay : float.
         The fixed transciptional time delay in the system. This tells us how far back we need to update our
         state space estimates.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
 
     Returns
     -------
@@ -338,9 +346,6 @@ def kalman_update_step(predicted_state_space_mean, predicted_state_space_varianc
 
     # This is F in the paper
     observation_transform = np.array([0,1])
-
-    # This is Sigma_e in the paper
-    measurement_variance = 1.0
 
     # This is P(t+Deltat,t+Deltat) in the paper
     predicted_final_covariance_matrix = predicted_state_space_variance[np.ix_([number_of_states-1,-1],

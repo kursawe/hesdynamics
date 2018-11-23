@@ -10,7 +10,7 @@ from numpy import ndarray, number
 import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import seaborn.apionly as sns
+import seaborn as sns
 import pandas as pd
 import socket
 import jitcdde
