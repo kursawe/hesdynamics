@@ -143,13 +143,13 @@ def kalman_prediction_step(state_space_mean,
     ----------
 
     state_space_mean : numpy array.
-    	The dimension is n x 3, where n is the number of states until the current time.
+        The dimension is n x 3, where n is the number of states until the current time.
         The first column is time, the second column is mean mRNA, and the third column is mean protein. It
         represents the information based on observations we have already made.
 
     state_space_variance : numpy array.
-    	The dimension is 2n x 2n, where n is the number of states until the current time. The definition
-    	is identical to the one provided in the Kalman filter function, i.e.
+        The dimension is 2n x 2n, where n is the number of states until the current time. The definition
+        is identical to the one provided in the Kalman filter function, i.e.
             [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
               cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
 
@@ -463,3 +463,80 @@ def calculate_likelihood_at_parameter_point(protein_at_observations,model_parame
     likelihood = np.prod(norm.pdf(observations,mean,sd))
 
     return likelihood
+
+def kalman_random_walk(protein_at_observations,model_parameters,parameter_variance,measurement_variance,iterations):
+    """
+    A basic random walk metropolis algorithm that infers parameters for a given
+    set of protein observations. The likelihood is calculated using the
+    calculate_likelihood_at_parameter_point function, and uninformative normal
+    priors are assumed.
+
+    Parameters
+    ----------
+
+    protein_at_observations : numpy array.
+        An array containing protein observations over a given length of time.
+
+    model_parameters : numpy array.
+        A 1x7 array containing means for the model parameter prior distributions. These are in the order:
+        repression_threshold, hill_coefficient, mRNA_degradation_rate,
+        protein_degradation_rate, basal_transcription_rate, translation_rate,
+        transcription_delay.
+
+    variance : float.
+        The variance for all of the normal distributions (this could be changed to be an array
+        which individual variances for each of the parameters).
+
+    iterations : float.
+        The number of iterations desired.
+
+    Returns
+    -------
+
+    random_walk : numpy array.
+        An array with dimensions (iterations x 7). Each column contains the random walk for each parameter.
+    """
+
+    from scipy.stats import norm
+    number_of_observations = protein_at_observations.shape[0]
+    sd = np.sqrt(parameter_variance)
+
+    repression_threshold = model_parameters[0]
+    hill_coefficient = model_parameters[1]
+    mRNA_degradation_rate = model_parameters[2]
+    protein_degradation_rate = model_parameters[3]
+    basal_transcription_rate = model_parameters[4]
+    translation_rate = model_parameters[5]
+    transcription_delay = model_parameters[6]
+
+    random_walk = np.zeros((iterations,7))
+    random_walk[0,:] = model_parameters
+
+
+    for i in range(iterations):
+
+        repression_threshold_new = np.random.normal(repression_threshold,sd)
+        hill_coefficient_new = np.random.normal(hill_coefficient,sd)
+        mRNA_degradation_rate_new = np.random.normal(mRNA_degradation_rate,sd)
+        protein_degradation_rate_new = np.random.normal(protein_degradation_rate,sd)
+        basal_transcription_rate_new = np.random.normal(basal_transcription_rate,sd)
+        translation_rate_new = np.random.normal(translation_rate,sd)
+        transcription_delay_new = np.random.normal(transcription_delay,sd)
+
+        model_parameters_new = np.array([repression_threshold_new, hill_coefficient_new, mRNA_degradation_rate_new,
+                                         protein_degradation_rate_new, basal_transcription_rate_new, translation_rate_new,
+                                         transcription_delay_new])
+        if np.sum(model_parameters_new>0) == 7:
+            prior = np.prod(norm.pdf(model_parameters,model_parameters,sd))/np.prod(norm.pdf(model_parameters_new,model_parameters,sd))
+            likelihood = (calculate_likelihood_at_parameter_point(protein_at_observations,model_parameters_new,measurement_variance)
+                         / calculate_likelihood_at_parameter_point(protein_at_observations,model_parameters,measurement_variance))
+
+            acceptance_ratio = prior*likelihood
+            if np.random.uniform() < acceptance_ratio:
+                model_parameters = model_parameters_new
+                random_walk[i,:] = model_parameters
+
+        else:
+            random_walk[i,:] = model_parameters
+
+    return random_walk
