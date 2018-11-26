@@ -39,6 +39,11 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
         An array of dimension 2n x 2n.
               [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
                 cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
+
+    predicted_observation_distributions : numpy array.
+        An array of dimension n x 3 where n is the number of observation time points.
+        The first column is time, the second and third columns are the mean and variance
+        of the distribution of the expected observations at each time point, respectively.
     """
     time_delay = model_parameters[6]
 
@@ -77,27 +82,52 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
     LNA_protein_variance = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(),2)
     # the bottom right block of the matrix corresponds to the mRNA covariance, see docstring above
     np.fill_diagonal( initial_state_space_variance[initial_number_of_states:,initial_number_of_states:] , LNA_protein_variance )
+
+    observation_transform = np.array([0,1])
+
+    predicted_observation_distributions = np.zeros((protein_at_observations.shape[0],3))
+    predicted_observation_distributions[0,0] = 0
+    predicted_observation_distributions[0,1] = observation_transform.dot(initial_state_space_mean[-1,(1,2)])
+
+    current_number_of_states = initial_state_space_mean.shape[0]
+    last_predicted_covariance_matrix = initial_state_space_variance[np.ix_([current_number_of_states-1,-1],
+                                                                             [current_number_of_states-1,-1])]
+
+    predicted_observation_distributions[0,2] = (observation_transform.dot(
+                                                                     last_predicted_covariance_matrix).dot(observation_transform.transpose())
+                                                                     +
+                                                                     measurement_variance)
     # update the past ("negative time")
-    ## currently this step does nothing -- need to troubleshoot why
     state_space_mean, state_space_variance = kalman_update_step(initial_state_space_mean,
                                                                 initial_state_space_variance,
                                                                 protein_at_observations[0],
                                                                 time_delay,
                                                                 measurement_variance)
-
     ## loop through observations and at each observation apply the Kalman prediction step and then the update step
-    for current_observation in protein_at_observations[1:]:
+    for observation_index, current_observation in enumerate(protein_at_observations[1:]):
         predicted_state_space_mean, predicted_state_space_variance = kalman_prediction_step(state_space_mean,
                                                                                             state_space_variance,
                                                                                             model_parameters,
                                                                                             observation_time_step)
+        predicted_observation_distributions[observation_index+1,0] = current_observation[0]
+        predicted_observation_distributions[observation_index+1,1] = observation_transform.dot(predicted_state_space_mean[-1,(1,2)])
+
+        current_number_of_states = state_space_mean.shape[0]
+        last_predicted_covariance_matrix = predicted_state_space_variance[np.ix_([current_number_of_states-1,-1],
+                                                                                 [current_number_of_states-1,-1])]
+
+        predicted_observation_distributions[observation_index+1,2] = (observation_transform.dot(
+                                                                         last_predicted_covariance_matrix).dot(observation_transform.transpose())
+                                                                         +
+                                                                         measurement_variance)
+
         state_space_mean, state_space_variance = kalman_update_step(predicted_state_space_mean,
                                                                     predicted_state_space_variance,
                                                                     current_observation,
                                                                     time_delay,
                                                                     measurement_variance)
 
-    return state_space_mean, state_space_variance
+    return state_space_mean, state_space_variance, predicted_observation_distributions
 
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
@@ -393,3 +423,43 @@ def kalman_update_step(predicted_state_space_mean,predicted_state_space_variance
 #     np.fill_diagonal(updated_shortened_covariance_matrix,np.maximum(np.diag(updated_shortened_covariance_matrix),0))
 
     return state_space_mean, state_space_variance
+
+def calculate_likelihood_at_parameter_point(protein_at_observations,model_parameters,measurement_variance = 10):
+    """
+    Calculates the likelihood of our data given the paramters, using the Kalman filter.
+
+    Parameters
+    ----------
+
+    protein_at_observations : numpy array.
+        Observed protein. The dimension is n x 2, where n is the number of observation time points.
+        The first column is the time, and the second column is the observed protein copy number at
+        that time. The filter assumes that observations are generated with a fixed, regular time interval.
+
+    model_parameters : numpy array.
+        An array containing the model parameters in the following order:
+        repression_threshold, hill_coefficient, mRNA_degradation_rate,
+        protein_degradation_rate, basal_transcription_rate, translation_rate,
+        transcription_delay.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    Returns
+    -------
+
+    likelihood : float.
+        The likelihood of the data.
+    """
+    from scipy.stats import norm
+
+    _, _, predicted_observation_distributions = kalman_filter(protein_at_observations,
+                                                              model_parameters,
+                                                              measurement_variance)
+    observations = protein_at_observations[:,1]
+    mean = predicted_observation_distributions[:,1]
+    sd = np.sqrt(predicted_observation_distributions[:,2])
+
+    likelihood = np.prod(norm.pdf(observations,mean,sd))
+
+    return likelihood
