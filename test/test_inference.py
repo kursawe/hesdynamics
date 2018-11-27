@@ -166,14 +166,14 @@ class TestInference(unittest.TestCase):
 		protein_at_observations[:,1] += np.random.randn(90)*100
 		protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
 
-		parameter_means = np.array([10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29])
-		parameter_variances = np.array([100,1,0.002,0.002,0.1,0.1,3])
+		parameter_means = [8000,10,5, 5, 5, 5, 15]
+		parameter_variances = [100,5,0.5,0.5,0.1,0.1,3]
 		measurement_variance = 100
-		iterations = 5
+		iterations = 1000
 
-		random_walk, acceptance_rate = hes_inference.kalman_random_walk(5,protein_at_observations,parameter_means,parameter_variances,
+		random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,parameter_means,parameter_variances,
 													   measurement_variance,
-													   0.1,
+													   1,
 													   np.identity(7))
 
 		my_figure = plt.figure(figsize=(4,10))

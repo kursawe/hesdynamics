@@ -349,7 +349,7 @@ def kalman_update_step(predicted_state_space_mean,predicted_state_space_variance
             [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
               cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ].
     """
-    discretisation_time_step = predicted_state_space_mean[1,0] - predicted_state_space_mean[0,0]
+    discretisation_time_step = 1 #predicted_state_space_mean[1,0] - predicted_state_space_mean[0,0]
     discrete_delay = int(np.around(time_delay/discretisation_time_step))
     number_of_states = predicted_state_space_mean.shape[0]
 
@@ -466,6 +466,10 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     observations = protein_at_observations[:,1]
     mean = predicted_observation_distributions[:,1]
     sd = np.sqrt(predicted_observation_distributions[:,2])
+    #print('obs:',observations)
+    #print('mu:',mean)
+    #print('sd:',sd)
+    #print(norm.pdf(observations,mean,sd))
     log_likelihood = np.sum(np.log(norm.pdf(observations,mean,sd)))
 
     return log_likelihood
@@ -524,6 +528,7 @@ def kalman_random_walk(iterations,protein_at_observations,parameter_means,parame
     acceptance_count = 0
     for i in range(0,iterations):
         parameter_means_new = parameter_means + acceptance_tuner*cholesky_covariance.dot(np.random.multivariate_normal(np.zeros(7),np.identity(7)))
+        print(parameter_means_new)
 
         if np.sum(parameter_means_new>0) == 7:
             log_prior = np.sum(np.log(norm.pdf(parameter_means_new,parameter_means,sd)))/np.sum(np.log(norm.pdf(parameter_means,parameter_means,sd)))
@@ -534,9 +539,9 @@ def kalman_random_walk(iterations,protein_at_observations,parameter_means,parame
                 parameter_means = parameter_means_new
                 acceptance_count += 1
 
-        parameter_means = np.array(parameter_means)
         random_walk[i,:] = parameter_means
+        #print(random_walk[i,:])
 
     acceptance_rate = acceptance_count/iterations
-    import pdb; pdb.set_trace()
+    print(acceptance_rate)
     return random_walk, acceptance_rate
