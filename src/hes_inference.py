@@ -470,7 +470,7 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
 
     return log_likelihood
 
-def kalman_random_walk(protein_at_observations,model_parameters,parameter_variance,measurement_variance,iterations):
+def kalman_random_walk(iterations,protein_at_observations,parameter_means,parameter_variances,measurement_variance,acceptance_tuner,parameter_covariance):
     """
     A basic random walk metropolis algorithm that infers parameters for a given
     set of protein observations. The likelihood is calculated using the
@@ -480,71 +480,63 @@ def kalman_random_walk(protein_at_observations,model_parameters,parameter_varian
     Parameters
     ----------
 
+    iterations : float.
+        The number of iterations desired.
+
     protein_at_observations : numpy array.
         An array containing protein observations over a given length of time.
 
-    model_parameters : numpy array.
+    parameter_means : numpy array.
         A 1x7 array containing means for the model parameter prior distributions. These are in the order:
         repression_threshold, hill_coefficient, mRNA_degradation_rate,
+    number_of_observations = protein_at_observations.shape[0]
         protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
 
-    parameter_variance : numpy array.
+    parameter_variances : numpy array.
         The variance for each of the normal distributions from which the model parameters are chosen.
 
     measurement_variance : float.
         The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
 
-    iterations : float.
-        The number of iterations desired.
+    acceptance_tuner : float.
+        A scalar value which is to be tuned to get an optimal level of acceptance (0.234) in the random walk
+        algorithm. See Roberts et. al. (1997)
+
+    parameter_covariance : numpy array.
+        A 7x7 variance-covariance matrix of the parameters. It is obtained by first doing a run of the algorithm,
+        and then computing the variance-covariance matrix of the output, after discarding burn-in.
 
     Returns
     -------
 
     random_walk : numpy array.
         An array with dimensions (iterations x 7). Each column contains the random walk for each parameter.
+
+    acceptance_rate : float.
+        An integer between 0 and 1 which tells us the proportion of accepted proposal parameters. This is 0.234.
     """
-
     from scipy.stats import norm
-    number_of_observations = protein_at_observations.shape[0]
-    sd = np.sqrt(parameter_variance)
-
-    repression_threshold = model_parameters[0]
-    hill_coefficient = model_parameters[1]
-    mRNA_degradation_rate = model_parameters[2]
-    protein_degradation_rate = model_parameters[3]
-    basal_transcription_rate = model_parameters[4]
-    translation_rate = model_parameters[5]
-    transcription_delay = model_parameters[6]
+    sd = np.sqrt(parameter_variances)
+    cholesky_covariance = np.linalg.cholesky(parameter_covariance)
 
     random_walk = np.zeros((iterations,7))
-    random_walk[0,:] = model_parameters
+    acceptance_count = 0
+    for i in range(0,iterations):
+        parameter_means_new = parameter_means + acceptance_tuner*cholesky_covariance.dot(np.random.multivariate_normal(np.zeros(7),np.identity(7)))
 
+        if np.sum(parameter_means_new>0) == 7:
+            log_prior = np.sum(np.log(norm.pdf(parameter_means_new,parameter_means,sd)))/np.sum(np.log(norm.pdf(parameter_means,parameter_means,sd)))
+            log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,parameter_means_new,measurement_variance)/calculate_log_likelihood_at_parameter_point(protein_at_observations,parameter_means,measurement_variance)
+            acceptance_ratio = np.exp(log_prior+log_likelihood)
 
-    for i in range(iterations):
-
-        repression_threshold_new = np.random.normal(repression_threshold,sd[0])
-        hill_coefficient_new = np.random.normal(hill_coefficient,sd[1])
-        mRNA_degradation_rate_new = np.random.normal(mRNA_degradation_rate,sd[2])
-        protein_degradation_rate_new = np.random.normal(protein_degradation_rate,sd[3])
-        basal_transcription_rate_new = np.random.normal(basal_transcription_rate,sd[4])
-        translation_rate_new = np.random.normal(translation_rate,sd[5])
-        transcription_delay_new = np.random.normal(transcription_delay,sd[6])
-
-        model_parameters_new = np.array([repression_threshold_new, hill_coefficient_new, mRNA_degradation_rate_new,
-                                         protein_degradation_rate_new, basal_transcription_rate_new, translation_rate_new,
-                                         transcription_delay_new])
-
-        if np.sum(model_parameters_new>0) == 7:
-            prior = np.prod(norm.pdf(model_parameters,model_parameters,sd))/np.prod(norm.pdf(model_parameters_new,model_parameters,sd))
-            likelihood = np.exp((calculate_log_likelihood_at_parameter_point(protein_at_observations,model_parameters,measurement_variance)
-                         / calculate_log_likelihood_at_parameter_point(protein_at_observations,model_parameters_new,measurement_variance)))
-            acceptance_ratio = prior*likelihood
             if np.random.uniform() < acceptance_ratio:
-                model_parameters = model_parameters_new
-                random_walk[i,:] = model_parameters
+                parameter_means = parameter_means_new
+                acceptance_count += 1
 
-        else:
-            random_walk[i,:] = model_parameters
+        parameter_means = np.array(parameter_means)
+        random_walk[i,:] = parameter_means
 
-    return random_walk
+    acceptance_rate = acceptance_count/iterations
+    import pdb; pdb.set_trace()
+    return random_walk, acceptance_rate

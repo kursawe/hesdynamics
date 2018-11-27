@@ -166,40 +166,43 @@ class TestInference(unittest.TestCase):
 		protein_at_observations[:,1] += np.random.randn(90)*100
 		protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
 
-		model_parameters = [10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29]
-		parameter_variance = [100,1,0.002,0.002,0.1,0.1,3]
+		parameter_means = np.array([10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29])
+		parameter_variances = np.array([100,1,0.002,0.002,0.1,0.1,3])
 		measurement_variance = 100
 		iterations = 5
 
-		random_walk = hes_inference.kalman_random_walk(protein_at_observations,model_parameters,parameter_variance,measurement_variance,iterations)
+		random_walk, acceptance_rate = hes_inference.kalman_random_walk(5,protein_at_observations,parameter_means,parameter_variances,
+													   measurement_variance,
+													   0.1,
+													   np.identity(7))
 
 		my_figure = plt.figure(figsize=(4,10))
 		plt.subplot(7,1,1)
-		plt.plot(np.arange(iterations),random_walk[:,0],color='#F69454')
+		plt.plot(np.arange(iterations),random_walk[:,0])
 		plt.title('repression_threshold')
 
 		plt.subplot(7,1,2)
-		plt.plot(np.arange(iterations),random_walk[:,1],color='#F69454')
+		plt.plot(np.arange(0,iterations),random_walk[:,1],color='#F69454')
 		plt.title('hill_coefficient')
 
 		plt.subplot(7,1,3)
-		plt.plot(np.arange(iterations),random_walk[:,2],color='#F69454')
+		plt.plot(np.arange(0,iterations),random_walk[:,2],color='#F69454')
 		plt.title('mRNA_degradation_rate')
 
 		plt.subplot(7,1,4)
-		plt.plot(np.arange(iterations),random_walk[:,3],color='#F69454')
+		plt.plot(np.arange(0,iterations),random_walk[:,3],color='#F69454')
 		plt.title('protein_degradation_rate')
 
 		plt.subplot(7,1,5)
-		plt.plot(np.arange(iterations),random_walk[:,4],color='#F69454')
+		plt.plot(np.arange(0,iterations),random_walk[:,4],color='#F69454')
 		plt.title('basal_transcription_rate')
 
 		plt.subplot(7,1,6)
-		plt.plot(np.arange(iterations),random_walk[:,5],color='#F69454')
+		plt.plot(np.arange(0,iterations),random_walk[:,5],color='#F69454')
 		plt.title('translation_rate')
 
 		plt.subplot(7,1,7)
-		plt.plot(np.arange(iterations),random_walk[:,6],color='#F69454')
+		plt.plot(np.arange(0,iterations),random_walk[:,6],color='#F69454')
 		plt.title('transcription_delay')
 
 		plt.tight_layout()
