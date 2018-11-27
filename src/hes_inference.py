@@ -236,6 +236,8 @@ def kalman_prediction_step(state_space_mean,
                                np.array([basal_transcription_rate*hill_function_value,0]) )
 
         next_mean = current_mean + discretisation_time_step*derivative_of_mean
+        # ensures the prediction is non negative
+        next_mean = np.maximum(next_mean,0)
         predicted_state_space_mean[next_time_index,(1,2)] = next_mean
 
         current_covariance_matrix = predicted_state_space_variance[np.ix_([current_time_index,new_number_of_states + current_time_index],
@@ -273,6 +275,8 @@ def kalman_prediction_step(state_space_mean,
 
         # P(t+Deltat,t+Deltat)
         next_covariance_matrix = current_covariance_matrix + discretisation_time_step*derivative_of_variance
+        # ensure that the diagonal entries are non negative
+        np.fill_diagonal(next_covariance_matrix,np.maximum(np.diag(next_covariance_matrix),0))
 
         predicted_state_space_variance[np.ix_([next_time_index, new_number_of_states + next_time_index],
                                               [next_time_index, new_number_of_states + next_time_index])] = next_covariance_matrix
@@ -300,7 +304,7 @@ def kalman_prediction_step(state_space_mean,
             # Fill in the big matrix with transpose arguments, i.e. P(t+Deltat, s) - works if initialised symmetrically
             predicted_state_space_variance[np.ix_([next_time_index,new_number_of_states + next_time_index],
                                                   [intermediate_time_index,new_number_of_states + intermediate_time_index])] = covariance_matrix_intermediate_to_current.transpose()
-
+    #import pdb; pdb.set_trace()
     return predicted_state_space_mean, predicted_state_space_variance
 
 def kalman_update_step(predicted_state_space_mean,predicted_state_space_variance,current_observation,time_delay,measurement_variance):
@@ -393,6 +397,8 @@ def kalman_update_step(predicted_state_space_mean,predicted_state_space_variance
                                          adaptation_coefficient*(current_observation[1] -
                                                                  observation_transform.dot(
                                                                      predicted_final_state_space_mean)) )
+    # ensures the the mean mRNA and Protein are non negative
+    updated_stacked_state_space_mean = np.maximum(updated_stacked_state_space_mean,0)
 
     # unstack the rho into two columns, one with mRNA and one with protein
     updated_state_space_mean = np.column_stack((updated_stacked_state_space_mean[:(discrete_delay+1)],
@@ -408,7 +414,8 @@ def kalman_update_step(predicted_state_space_mean,predicted_state_space_variance
     updated_shortened_covariance_matrix = ( shortened_covariance_matrix -
                                             np.dot(adaptation_coefficient.reshape((2*(discrete_delay+1),1)),observation_transform.reshape((1,2))).dot(
                                                 shortened_covariance_matrix_final_to_past))
-
+    # ensure that the diagonal entries are non negative
+    np.fill_diagonal(updated_shortened_covariance_matrix,np.maximum(np.diag(updated_shortened_covariance_matrix),0))
     # initialise state space variance
     state_space_variance = np.copy(predicted_state_space_variance)
 
@@ -420,13 +427,13 @@ def kalman_update_step(predicted_state_space_mean,predicted_state_space_variance
 #     print(shortened_covariance_matrix)
 #     print(updated_shortened_covariance_matrix)
 # might try the following
-#     np.fill_diagonal(updated_shortened_covariance_matrix,np.maximum(np.diag(updated_shortened_covariance_matrix),0))
+
 
     return state_space_mean, state_space_variance
 
-def calculate_likelihood_at_parameter_point(protein_at_observations,model_parameters,measurement_variance = 10):
+def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_parameters,measurement_variance = 10):
     """
-    Calculates the likelihood of our data given the paramters, using the Kalman filter.
+    Calculates the log of the likelihood of our data given the paramters, using the Kalman filter.
 
     Parameters
     ----------
@@ -434,7 +441,7 @@ def calculate_likelihood_at_parameter_point(protein_at_observations,model_parame
     protein_at_observations : numpy array.
         Observed protein. The dimension is n x 2, where n is the number of observation time points.
         The first column is the time, and the second column is the observed protein copy number at
-        that time. The filter assumes that observations are generated with a fixed, regular time interval.
+        that time.
 
     model_parameters : numpy array.
         An array containing the model parameters in the following order:
@@ -448,8 +455,8 @@ def calculate_likelihood_at_parameter_point(protein_at_observations,model_parame
     Returns
     -------
 
-    likelihood : float.
-        The likelihood of the data.
+    log_likelihood : float.
+        The log of the likelihood of the data.
     """
     from scipy.stats import norm
 
@@ -459,10 +466,9 @@ def calculate_likelihood_at_parameter_point(protein_at_observations,model_parame
     observations = protein_at_observations[:,1]
     mean = predicted_observation_distributions[:,1]
     sd = np.sqrt(predicted_observation_distributions[:,2])
+    log_likelihood = np.sum(np.log(norm.pdf(observations,mean,sd)))
 
-    likelihood = np.prod(norm.pdf(observations,mean,sd))
-
-    return likelihood
+    return log_likelihood
 
 def kalman_random_walk(protein_at_observations,model_parameters,parameter_variance,measurement_variance,iterations):
     """
@@ -483,9 +489,11 @@ def kalman_random_walk(protein_at_observations,model_parameters,parameter_varian
         protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
 
-    variance : float.
-        The variance for all of the normal distributions (this could be changed to be an array
-        which individual variances for each of the parameters).
+    parameter_variance : numpy array.
+        The variance for each of the normal distributions from which the model parameters are chosen.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
 
     iterations : float.
         The number of iterations desired.
@@ -515,22 +523,22 @@ def kalman_random_walk(protein_at_observations,model_parameters,parameter_varian
 
     for i in range(iterations):
 
-        repression_threshold_new = np.random.normal(repression_threshold,sd)
-        hill_coefficient_new = np.random.normal(hill_coefficient,sd)
-        mRNA_degradation_rate_new = np.random.normal(mRNA_degradation_rate,sd)
-        protein_degradation_rate_new = np.random.normal(protein_degradation_rate,sd)
-        basal_transcription_rate_new = np.random.normal(basal_transcription_rate,sd)
-        translation_rate_new = np.random.normal(translation_rate,sd)
-        transcription_delay_new = np.random.normal(transcription_delay,sd)
+        repression_threshold_new = np.random.normal(repression_threshold,sd[0])
+        hill_coefficient_new = np.random.normal(hill_coefficient,sd[1])
+        mRNA_degradation_rate_new = np.random.normal(mRNA_degradation_rate,sd[2])
+        protein_degradation_rate_new = np.random.normal(protein_degradation_rate,sd[3])
+        basal_transcription_rate_new = np.random.normal(basal_transcription_rate,sd[4])
+        translation_rate_new = np.random.normal(translation_rate,sd[5])
+        transcription_delay_new = np.random.normal(transcription_delay,sd[6])
 
         model_parameters_new = np.array([repression_threshold_new, hill_coefficient_new, mRNA_degradation_rate_new,
                                          protein_degradation_rate_new, basal_transcription_rate_new, translation_rate_new,
                                          transcription_delay_new])
+
         if np.sum(model_parameters_new>0) == 7:
             prior = np.prod(norm.pdf(model_parameters,model_parameters,sd))/np.prod(norm.pdf(model_parameters_new,model_parameters,sd))
-            likelihood = (calculate_likelihood_at_parameter_point(protein_at_observations,model_parameters_new,measurement_variance)
-                         / calculate_likelihood_at_parameter_point(protein_at_observations,model_parameters,measurement_variance))
-
+            likelihood = np.exp((calculate_log_likelihood_at_parameter_point(protein_at_observations,model_parameters,measurement_variance)
+                         / calculate_log_likelihood_at_parameter_point(protein_at_observations,model_parameters_new,measurement_variance)))
             acceptance_ratio = prior*likelihood
             if np.random.uniform() < acceptance_ratio:
                 model_parameters = model_parameters_new

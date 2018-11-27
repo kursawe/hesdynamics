@@ -150,9 +150,13 @@ class TestInference(unittest.TestCase):
 		protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
 
 		parameters = [10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29]
+		parameters2 = [10000,5,np.log(2)/30, np.log(2)/90, 2, 7, 29]
 
-		likelihood = hes_inference.calculate_likelihood_at_parameter_point(protein_at_observations,parameters,measurement_variance = 10000)
+		likelihood = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,parameters,measurement_variance = 10000)
+		likelihood2 = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,parameters2,measurement_variance = 10000)
 		print(likelihood)
+		print(likelihood2)
+		#print(np.exp(likelihood2/likelihood))
 
 	def test_kalman_random_walk(self):
 
@@ -163,6 +167,41 @@ class TestInference(unittest.TestCase):
 		protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
 
 		model_parameters = [10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29]
+		parameter_variance = [100,1,0.002,0.002,0.1,0.1,3]
+		measurement_variance = 100
+		iterations = 5
 
-		random_walk = hes_inference.kalman_random_walk(protein_at_observations,model_parameters,50,100,20)
-		print(random_walk)
+		random_walk = hes_inference.kalman_random_walk(protein_at_observations,model_parameters,parameter_variance,measurement_variance,iterations)
+
+		my_figure = plt.figure(figsize=(4,10))
+		plt.subplot(7,1,1)
+		plt.plot(np.arange(iterations),random_walk[:,0],color='#F69454')
+		plt.title('repression_threshold')
+
+		plt.subplot(7,1,2)
+		plt.plot(np.arange(iterations),random_walk[:,1],color='#F69454')
+		plt.title('hill_coefficient')
+
+		plt.subplot(7,1,3)
+		plt.plot(np.arange(iterations),random_walk[:,2],color='#F69454')
+		plt.title('mRNA_degradation_rate')
+
+		plt.subplot(7,1,4)
+		plt.plot(np.arange(iterations),random_walk[:,3],color='#F69454')
+		plt.title('protein_degradation_rate')
+
+		plt.subplot(7,1,5)
+		plt.plot(np.arange(iterations),random_walk[:,4],color='#F69454')
+		plt.title('basal_transcription_rate')
+
+		plt.subplot(7,1,6)
+		plt.plot(np.arange(iterations),random_walk[:,5],color='#F69454')
+		plt.title('translation_rate')
+
+		plt.subplot(7,1,7)
+		plt.plot(np.arange(iterations),random_walk[:,6],color='#F69454')
+		plt.title('transcription_delay')
+
+		plt.tight_layout()
+		my_figure.savefig(os.path.join(os.path.dirname(__file__),
+									   'output','kalman_random_walk.pdf'))
