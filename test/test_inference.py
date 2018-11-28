@@ -162,23 +162,26 @@ class TestInference(unittest.TestCase):
 
 		true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
+		#true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
 		protein_at_observations = true_data[0:900:10,(0,2)]
 		protein_at_observations[:,1] += np.random.randn(90)*100
 		protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
 
-		parameter_means = [8000,10,5, 5, 5, 5, 15]
-		parameter_variances = [100,5,0.5,0.5,0.1,0.1,3]
+		hyper_parameters = [100,100,6,0.8,1,0.2,1,0.2,4,0.25,4,0.25,15,2]
 		measurement_variance = 100
-		iterations = 1000
+		iterations = 5000
+		initial_state = np.array([7000,12,1,1,1,1,10])
+		covariance = np.identity(7)
 
-		random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,parameter_means,parameter_variances,
-													   measurement_variance,
-													   1,
-													   np.identity(7))
+		random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state)
+		print(random_walk)
+		print(acceptance_rate)
+		np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk.npy'),
+					random_walk)
 
 		my_figure = plt.figure(figsize=(4,10))
 		plt.subplot(7,1,1)
-		plt.plot(np.arange(iterations),random_walk[:,0])
+		plt.plot(np.arange(iterations),random_walk[:,0],color='#F69454')
 		plt.title('repression_threshold')
 
 		plt.subplot(7,1,2)

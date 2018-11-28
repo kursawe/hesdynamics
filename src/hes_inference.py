@@ -433,7 +433,9 @@ def kalman_update_step(predicted_state_space_mean,predicted_state_space_variance
 
 def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_parameters,measurement_variance = 10):
     """
-    Calculates the log of the likelihood of our data given the paramters, using the Kalman filter.
+    Calculates the log of the likelihood of our data given the paramters, using the Kalman filter. It uses the
+    predicted_observation_distributions from the kalman_filter function. The entries of this array in the second and
+    third columns represent the probability of the future observation of mRNA and Protein respectively, given our current knowledge.
 
     Parameters
     ----------
@@ -466,15 +468,12 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     observations = protein_at_observations[:,1]
     mean = predicted_observation_distributions[:,1]
     sd = np.sqrt(predicted_observation_distributions[:,2])
-    #print('obs:',observations)
-    #print('mu:',mean)
-    #print('sd:',sd)
-    #print(norm.pdf(observations,mean,sd))
-    log_likelihood = np.sum(np.log(norm.pdf(observations,mean,sd)))
+
+    log_likelihood = np.sum(norm.logpdf(observations,mean,sd))
 
     return log_likelihood
 
-def kalman_random_walk(iterations,protein_at_observations,parameter_means,parameter_variances,measurement_variance,acceptance_tuner,parameter_covariance):
+def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,acceptance_tuner,parameter_covariance,initial_state):
     """
     A basic random walk metropolis algorithm that infers parameters for a given
     set of protein observations. The likelihood is calculated using the
@@ -490,15 +489,16 @@ def kalman_random_walk(iterations,protein_at_observations,parameter_means,parame
     protein_at_observations : numpy array.
         An array containing protein observations over a given length of time.
 
-    parameter_means : numpy array.
-        A 1x7 array containing means for the model parameter prior distributions. These are in the order:
+    hyper_parameters : numpy array.
+        A 1x14 array containing the hyperparameters for the model parameter prior distributions. The
+        distributions are chosen to be from the Gamma family, given that values are restricted to the
+        postive reals. Thus there are two hyperparameters for each model parameter.
+        The model parameters are given in the order:
         repression_threshold, hill_coefficient, mRNA_degradation_rate,
-    number_of_observations = protein_at_observations.shape[0]
         protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
-
-    parameter_variances : numpy array.
-        The variance for each of the normal distributions from which the model parameters are chosen.
+        Therefore the first two entries correspond to repression_threshold, the
+        next two to hill_coefficient, etc.
 
     measurement_variance : float.
         The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
@@ -508,8 +508,12 @@ def kalman_random_walk(iterations,protein_at_observations,parameter_means,parame
         algorithm. See Roberts et. al. (1997)
 
     parameter_covariance : numpy array.
-        A 7x7 variance-covariance matrix of the parameters. It is obtained by first doing a run of the algorithm,
+        A 7x7 variance-covariance matrix of the state space parameters. It is obtained by first doing a run of the algorithm,
         and then computing the variance-covariance matrix of the output, after discarding burn-in.
+
+    initial_state : numpy array.
+        A 1x7 array containing the initial state in parameter space. This is obtained by first doing a run of the
+        algorithm, and then computing the column means (after discarding burn-in) to get a good initial value.
 
     Returns
     -------
@@ -520,28 +524,32 @@ def kalman_random_walk(iterations,protein_at_observations,parameter_means,parame
     acceptance_rate : float.
         An integer between 0 and 1 which tells us the proportion of accepted proposal parameters. This is 0.234.
     """
-    from scipy.stats import norm
-    sd = np.sqrt(parameter_variances)
+    from scipy.stats import gamma, multivariate_normal
+    zero_row = np.zeros(7)
+    identity = np.identity(7)
     cholesky_covariance = np.linalg.cholesky(parameter_covariance)
+    shape = hyper_parameters[0:14:2]
+    scale = hyper_parameters[1:14:2]
+    current_state = initial_state
 
     random_walk = np.zeros((iterations,7))
     acceptance_count = 0
     for i in range(0,iterations):
-        parameter_means_new = parameter_means + acceptance_tuner*cholesky_covariance.dot(np.random.multivariate_normal(np.zeros(7),np.identity(7)))
-        print(parameter_means_new)
+        new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(zero_row,identity))
 
-        if np.sum(parameter_means_new>0) == 7:
-            log_prior = np.sum(np.log(norm.pdf(parameter_means_new,parameter_means,sd)))/np.sum(np.log(norm.pdf(parameter_means,parameter_means,sd)))
-            log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,parameter_means_new,measurement_variance)/calculate_log_likelihood_at_parameter_point(protein_at_observations,parameter_means,measurement_variance)
-            acceptance_ratio = np.exp(log_prior+log_likelihood)
+        if all(item > 0 for item in new_state) == True:
+            log_prior_ratio = np.sum(gamma.logpdf(new_state,a=shape,scale=scale)) - np.sum(gamma.logpdf(current_state,a=shape,scale=scale))
+            log_likelihood_ratio = (calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance) -
+                                    calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance))
+            print('log prior ratio:',log_prior_ratio)
+            print('log likelihood ratio:', log_likelihood_ratio)
+            acceptance_ratio = np.exp(log_prior_ratio+log_likelihood_ratio)
 
             if np.random.uniform() < acceptance_ratio:
-                parameter_means = parameter_means_new
+                current_state = new_state
                 acceptance_count += 1
 
-        random_walk[i,:] = parameter_means
-        #print(random_walk[i,:])
+        random_walk[i,:] = current_state
 
     acceptance_rate = acceptance_count/iterations
-    print(acceptance_rate)
     return random_walk, acceptance_rate
