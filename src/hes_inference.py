@@ -2,7 +2,7 @@ import math
 import numpy as np
 import hes5
 from numpy import number
-from numba import jit
+from numba import jit, autojit
 
 #discretisation_time_step=1.0
 def kalman_filter(protein_at_observations,model_parameters,measurement_variance = 10):
@@ -129,6 +129,7 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
 
     return state_space_mean, state_space_variance, predicted_observation_distributions
 
+@autojit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            model_parameters,
