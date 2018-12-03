@@ -549,6 +549,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         for i in range(1,iterations):
             print(cholesky_covariance)
             if i >= 20:
+                acceptance_tuner = 0.8
                 if np.mod(i,10) == 0:
                     parameter_covariance = np.cov(random_walk[10:i,].T) + 0.000001*identity
                     cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
