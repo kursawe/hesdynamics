@@ -547,37 +547,29 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     # if user chooses adaptive mcmc, the following will execute.
     if kwargs.get("adaptive") == "true":
         for i in range(1,iterations):
-
-            if np.mod(i,20) == 0:
-                parameter_covariance = np.cov(random_walk[:i,].T) + 0.000001*identity
-                cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
+            print(cholesky_covariance)
+            if i >= 20:
+                if np.mod(i,10) == 0:
+                    parameter_covariance = np.cov(random_walk[10:i,].T) + 0.000001*identity
+                    cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
 
             new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
             print('iteration number:',i)
-            print('proposal:\n',new_state)
 
             if all(item > 0 for item in new_state) == True:
-
                 new_log_prior = np.sum(gamma.logpdf(new_state,a=shape,scale=scale))
                 current_log_prior = np.sum(gamma.logpdf(current_state,a=shape,scale=scale))
-                print('new log prior:',new_log_prior)
-                print('current log prior:',current_log_prior)
-
                 new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
                 current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)
                 print('new log likelihood:',new_log_likelihood)
                 print('current log likelihood:',current_log_likelihood)
-
-                print('log alpha:',new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
                 acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
-                print('acceptance ratio:',acceptance_ratio)
 
                 if np.random.uniform() < acceptance_ratio:
                     current_state = new_state
                     acceptance_count += 1
 
             random_walk[i,:] = current_state
-
         acceptance_rate = acceptance_count/iterations
 #####################################################################################################################
     else:
