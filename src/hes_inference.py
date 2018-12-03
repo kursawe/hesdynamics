@@ -129,7 +129,6 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
 
     return state_space_mean, state_space_variance, predicted_observation_distributions
 
-@autojit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            model_parameters,
@@ -461,7 +460,7 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     log_likelihood : float.
         The log of the likelihood of the data.
     """
-    from rvlib import norm_logpdf
+    from scipy.stats import norm
 
     _, _, predicted_observation_distributions = kalman_filter(protein_at_observations,
                                                               model_parameters,
@@ -470,12 +469,12 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     mean = predicted_observation_distributions[:,1]
     sd = np.sqrt(predicted_observation_distributions[:,2])
 
-    log_likelihood = np.sum(norm_logpdf(mean,sd,observations))
+    log_likelihood = np.sum(norm.logpdf(observations,mean,sd))
 
     return log_likelihood
 
 
-def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,acceptance_tuner,parameter_covariance,initial_state):
+def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,acceptance_tuner,parameter_covariance,initial_state,**kwargs):
     """
     A basic random walk metropolis algorithm that infers parameters for a given
     set of protein observations. The likelihood is calculated using the
@@ -526,45 +525,87 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     acceptance_rate : float.
         An integer between 0 and 1 which tells us the proportion of accepted proposal parameters. This is 0.234.
     """
-    from rvlib import gamma_logpdf, mvnormal_rand
+    # define set of valid optional inputs, and raise error if not valid
+    valid_kwargs = ['adaptive']
+    unknown_kwargs = [k for (k, v) in kwargs.items() if k not in valid_kwargs]
+    if len(unknown_kwargs):
+        raise TypeError("Did not understand the following kwargs:" " %s" % unknown_kwargs)
+
+    from scipy.stats import gamma, multivariate_normal
+
     zero_row = np.zeros(7)
     identity = np.identity(7)
     cholesky_covariance = np.linalg.cholesky(parameter_covariance)
     shape = hyper_parameters[0:14:2]
     scale = hyper_parameters[1:14:2]
-    print(shape)
-    print(scale)
     current_state = initial_state
-    print(cholesky_covariance)
 
     random_walk = np.zeros((iterations,7))
+    random_walk[0,:] = current_state
     acceptance_count = 0
-    for i in range(0,iterations):
-        new_state = current_state + acceptance_tuner*cholesky_covariance.dot(mvnormal_rand(7))
-        print('iteration number:',i)
-        print('proposal:\n',new_state)
 
-        if all(item > 0 for item in new_state) == True:
+    # if user chooses adaptive mcmc, the following will execute.
+    if kwargs.get("adaptive") == "true":
+        for i in range(1,iterations):
 
-            new_log_prior = np.sum(gamma_logpdf(shape,scale,new_state))
-            current_log_prior = np.sum(gamma_logpdf(shape,scale,current_state))
-            print('new log prior:',new_log_prior)
-            print('current log prior:',current_log_prior)
+            if np.mod(i,20) == 0:
+                parameter_covariance = np.cov(random_walk[:i,].T) + 0.000001*identity
+                cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
 
-            new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
-            current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)
-            print('new log likelihood:',new_log_likelihood)
-            print('current log likelihood:',current_log_likelihood)
+            new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
+            print('iteration number:',i)
+            print('proposal:\n',new_state)
 
-            print('log alpha:',new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
-            acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
-            print('acceptance ratio:',acceptance_ratio)
+            if all(item > 0 for item in new_state) == True:
 
-            if np.random.uniform() < acceptance_ratio:
-                current_state = new_state
-                acceptance_count += 1
+                new_log_prior = np.sum(gamma.logpdf(new_state,a=shape,scale=scale))
+                current_log_prior = np.sum(gamma.logpdf(current_state,a=shape,scale=scale))
+                print('new log prior:',new_log_prior)
+                print('current log prior:',current_log_prior)
 
-        random_walk[i,:] = current_state
+                new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
+                current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)
+                print('new log likelihood:',new_log_likelihood)
+                print('current log likelihood:',current_log_likelihood)
 
-    acceptance_rate = acceptance_count/iterations
+                print('log alpha:',new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
+                acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
+                print('acceptance ratio:',acceptance_ratio)
+
+                if np.random.uniform() < acceptance_ratio:
+                    current_state = new_state
+                    acceptance_count += 1
+
+            random_walk[i,:] = current_state
+
+        acceptance_rate = acceptance_count/iterations
+#####################################################################################################################
+    else:
+        for i in range(1,iterations):
+            new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
+            print('iteration number:',i)
+            print('proposal:\n',new_state)
+
+            if all(item > 0 for item in new_state) == True:
+                new_log_prior = np.sum(gamma.logpdf(new_state,a=shape,scale=scale))
+                current_log_prior = np.sum(gamma.logpdf(current_state,a=shape,scale=scale))
+                print('new log prior:',new_log_prior)
+                print('current log prior:',current_log_prior)
+
+                new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
+                current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)
+                print('new log likelihood:',new_log_likelihood)
+                print('current log likelihood:',current_log_likelihood)
+
+                print('log alpha:',new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
+                acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
+                print('acceptance ratio:',acceptance_ratio)
+
+                if np.random.uniform() < acceptance_ratio:
+                    current_state = new_state
+                    acceptance_count += 1
+
+            random_walk[i,:] = current_state
+        acceptance_rate = acceptance_count/iterations
+
     return random_walk, acceptance_rate
