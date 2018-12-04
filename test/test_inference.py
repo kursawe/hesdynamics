@@ -17,7 +17,7 @@ import hes_inference
 
 class TestInference(unittest.TestCase):
 
-    def xest_check_kalman_filter_not_broken(self):
+    def test_check_kalman_filter_not_broken(self):
 
         # load in some saved observations and correct kalman filter predictions
         saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
@@ -78,8 +78,11 @@ class TestInference(unittest.TestCase):
         parameters = [10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29]
 
         ## apply kalman filter to the data
-        state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(protein_at_observations,
-                                                                                                                  parameters,measurement_variance=10000)
+        state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(protein_at_observations,parameters,
+                                                                                                                  measurement_variance=10000)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_filter_mean.npy'),state_space_mean)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_filter_variance.npy'),state_space_variance)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_filter_distributions.npy'),predicted_observation_distributions)
 
         # check dimensionality of state_space_mean and the state_space_variance
         self.assertEqual(state_space_mean.shape[0],920)
@@ -205,7 +208,7 @@ class TestInference(unittest.TestCase):
         #print(likelihood2)
         #print(np.exp(likelihood2/likelihood))
 
-    def test_kalman_random_walk(self):
+    def xest_kalman_random_walk(self):
 
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
