@@ -18,7 +18,7 @@ import hes_inference
 
 class TestInference(unittest.TestCase):
 
-    def xest_check_kalman_filter_not_broken(self):
+    def test_check_kalman_filter_not_broken(self):
 
         # load in some saved observations and correct kalman filter predictions
         saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
@@ -79,8 +79,11 @@ class TestInference(unittest.TestCase):
         parameters = [10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29]
 
         ## apply kalman filter to the data
-        state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(protein_at_observations,
-                                                                                                                  parameters,measurement_variance=10000)
+        state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(protein_at_observations,parameters,
+                                                                                                                  measurement_variance=10000)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_filter_mean.npy'),state_space_mean)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_filter_variance.npy'),state_space_variance)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_filter_distributions.npy'),predicted_observation_distributions)
 
         # check dimensionality of state_space_mean and the state_space_variance
         self.assertEqual(state_space_mean.shape[0],920)
@@ -233,7 +236,7 @@ class TestInference(unittest.TestCase):
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state,adaptive='false')
         time_after_call = time.time()
         time_passed = time_after_call - time_before_call
-        print('time used in random walk:')
+        print('time used in random walk (originally 9s):')
         print(time_passed)
         
         print('random walk and acceptance rate')
