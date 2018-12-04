@@ -9,6 +9,7 @@ font = {'size'   : 10}
 plt.rc('font', **font)
 import numpy as np
 from jitcdde import jitcdde,y,t
+import time
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
@@ -205,7 +206,41 @@ class TestInference(unittest.TestCase):
         #print(likelihood2)
         #print(np.exp(likelihood2/likelihood))
 
-    def test_kalman_random_walk(self):
+    def test_kalman_random_walk_for_profiling(self):
+
+        true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
+
+        saving_path  = os.path.join(os.path.dirname(__file__), 'data','random_walk')
+        previous_run = np.load(saving_path + '.npy')
+
+        #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
+        protein_at_observations = true_data[0:900:10,(0,2)]
+        protein_at_observations[:,1] += np.random.randn(90)*100
+        protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
+
+        hyper_parameters = np.array([5,2000,2,2.5,5,0.1,5,0.1,3,0.333,3,0.333,3,10])
+        measurement_variance = 10000
+        iterations = 5
+        #initial_state = np.array([np.mean(previous_run[1000:,0]),np.mean(previous_run[1000:,1]),
+        #                          np.mean(previous_run[1000:,2]),np.mean(previous_run[1000:,3]),
+        #                          np.mean(previous_run[1000:,4]),np.mean(previous_run[1000:,5]),
+        #                          np.mean(previous_run[1000:,6])])
+        #covariance = np.cov(previous_run.T)
+        initial_state = np.array([8000,5,0.1,0.1,1,1,10])
+        covariance = np.diag([100000000,16,0.01,0.02,2,2,50])
+
+        time_before_call = time.time()
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state,adaptive='false')
+        time_after_call = time.time()
+        time_passed = time_after_call - time_before_call
+        print('time used in random walk:')
+        print(time_passed)
+        
+        print('random walk and acceptance rate')
+        print(random_walk)
+        print(acceptance_rate)
+
+    def xest_kalman_random_walk(self):
 
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
