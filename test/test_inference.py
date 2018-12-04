@@ -33,34 +33,34 @@ class TestInference(unittest.TestCase):
 
         state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(fixed_protein_observations,
                                                                                                                   parameters,measurement_variance=10000)
-        self.assertEqual(state_space_mean,true_kalman_prediction_mean)
-        self.assertEqual(state_space_variance,true_kalman_prediction_variance)
-        self.assertEqual(predicted_observation_distributions,true_kalman_prediction_distributions)
+        np.testing.assert_almost_equal(state_space_mean,true_kalman_prediction_mean)
+        np.testing.assert_almost_equal(state_space_variance,true_kalman_prediction_variance)
+        np.testing.assert_almost_equal(predicted_observation_distributions,true_kalman_prediction_distributions)
 
         # If above tests fail, comment them out to look at the plot below. Could be useful for identifying problems.
-        my_figure = plt.figure()
-        plt.subplot(2,1,1)
-        plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
-        plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
-        plt.plot(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
-        plt.errorbar(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
-        plt.legend(fontsize='x-small')
-        plt.title('What the Plot should look like')
-        plt.xlabel('Time')
-        plt.ylabel('Protein Copy Numbers')
-
-        plt.subplot(2,1,2)
-        plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
-        plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
-        plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
-        plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
-        plt.legend(fontsize='x-small')
-        plt.title('What the current function gives')
-        plt.xlabel('Time')
-        plt.ylabel('Protein Copy Numbers')
-        plt.tight_layout()
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','kalman_check.pdf'))
+#         my_figure = plt.figure()
+#         plt.subplot(2,1,1)
+#         plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
+#         plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
+#         plt.plot(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
+#         plt.errorbar(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
+#         plt.legend(fontsize='x-small')
+#         plt.title('What the Plot should look like')
+#         plt.xlabel('Time')
+#         plt.ylabel('Protein Copy Numbers')
+# 
+#         plt.subplot(2,1,2)
+#         plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
+#         plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
+#         plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
+#         plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
+#         plt.legend(fontsize='x-small')
+#         plt.title('What the current function gives')
+#         plt.xlabel('Time')
+#         plt.ylabel('Protein Copy Numbers')
+#         plt.tight_layout()
+#         my_figure.savefig(os.path.join(os.path.dirname(__file__),
+#                                        'output','kalman_check.pdf'))
 
 
     def xest_kalman_filter(self):
@@ -236,10 +236,10 @@ class TestInference(unittest.TestCase):
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state,adaptive='false')
         time_after_call = time.time()
         time_passed = time_after_call - time_before_call
-        print('time used in random walk (originally 9s):')
+        print('\ntime used in random walk (originally roughly 9s, now roughly 5s):')
         print(time_passed)
         
-        print('random walk and acceptance rate')
+        print('\nrandom walk and acceptance rate')
         print(random_walk)
         print(acceptance_rate)
 
