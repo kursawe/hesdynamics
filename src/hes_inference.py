@@ -106,9 +106,9 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
 
     # making it numba-ready
     last_predicted_covariance_matrix = np.zeros((2,2))
-    for short_row_index, long_row_index in enumerate([initial_number_of_states-1, 
+    for short_row_index, long_row_index in enumerate([initial_number_of_states-1,
                                                       total_number_of_states+initial_number_of_states-1]):
-        for short_column_index, long_column_index in enumerate([initial_number_of_states -1, 
+        for short_column_index, long_column_index in enumerate([initial_number_of_states -1,
                                                                 total_number_of_states+initial_number_of_states-1]):
             last_predicted_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                  long_column_index]
@@ -127,7 +127,7 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
     ## loop through observations and at each observation apply the Kalman prediction step and then the update step
 #     for observation_index, current_observation in enumerate(protein_at_observations[1:]):
     for observation_index in range(len(protein_at_observations)-1):
-        current_observation = protein_at_observations[1+observation_index,:] 
+        current_observation = protein_at_observations[1+observation_index,:]
         state_space_mean, state_space_variance = kalman_prediction_step(state_space_mean,
                                                                         state_space_variance,
                                                                         current_observation,
@@ -141,9 +141,9 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
 
         # not using np.ix_-like indexing to make it numba-ready
         last_predicted_covariance_matrix = np.zeros((2,2))
-        for short_row_index, long_row_index in enumerate([current_number_of_states-1, 
+        for short_row_index, long_row_index in enumerate([current_number_of_states-1,
                                                           total_number_of_states+current_number_of_states-1]):
-            for short_column_index, long_column_index in enumerate([current_number_of_states -1, 
+            for short_column_index, long_column_index in enumerate([current_number_of_states -1,
                                                                     total_number_of_states+current_number_of_states-1]):
                 last_predicted_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                      long_column_index]
@@ -261,27 +261,27 @@ def kalman_prediction_step(state_space_mean,
 
         # in the next lines we use for loop instead of np.ix_-like indexing for numba
         current_covariance_matrix = np.zeros((2,2))
-        for short_row_index, long_row_index in enumerate([current_time_index, 
+        for short_row_index, long_row_index in enumerate([current_time_index,
                                                           total_number_of_states+current_time_index]):
-            for short_column_index, long_column_index in enumerate([current_time_index, 
+            for short_column_index, long_column_index in enumerate([current_time_index,
                                                                     total_number_of_states+current_time_index]):
                 current_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                      long_column_index]
 
         # this is P(t-\tau,t) in page 5 of the supplementary material of Calderazzo et. al.
         covariance_matrix_past_to_now = np.zeros((2,2))
-        for short_row_index, long_row_index in enumerate([past_time_index, 
+        for short_row_index, long_row_index in enumerate([past_time_index,
                                                           total_number_of_states+past_time_index]):
-            for short_column_index, long_column_index in enumerate([current_time_index, 
+            for short_column_index, long_column_index in enumerate([current_time_index,
                                                                     total_number_of_states+current_time_index]):
                 covariance_matrix_past_to_now[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                      long_column_index]
 
         # this is P(t,t-\tau) in page 5 of the supplementary material of Calderazzo et. al.
         covariance_matrix_now_to_past = np.zeros((2,2))
-        for short_row_index, long_row_index in enumerate([current_time_index, 
+        for short_row_index, long_row_index in enumerate([current_time_index,
                                                           total_number_of_states+current_time_index]):
-            for short_column_index, long_column_index in enumerate([past_time_index, 
+            for short_column_index, long_column_index in enumerate([past_time_index,
                                                                     total_number_of_states+past_time_index]):
                 covariance_matrix_now_to_past[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                      long_column_index]
@@ -315,9 +315,9 @@ def kalman_prediction_step(state_space_mean,
         np.fill_diagonal(next_covariance_matrix,np.maximum(np.diag(next_covariance_matrix),0))
 
         # in the next lines we use for loop instead of np.ix_-like indexing for numba
-        for short_row_index, long_row_index in enumerate([next_time_index, 
+        for short_row_index, long_row_index in enumerate([next_time_index,
                                                           total_number_of_states+next_time_index]):
-            for short_column_index, long_column_index in enumerate([next_time_index, 
+            for short_column_index, long_column_index in enumerate([next_time_index,
                                                                     total_number_of_states+next_time_index]):
                 state_space_variance[long_row_index,long_column_index] = next_covariance_matrix[short_row_index,
                                                                                                 short_column_index]
@@ -328,17 +328,17 @@ def kalman_prediction_step(state_space_mean,
             # This corresponds to P(s,t) in the Calderazzo paper
             # for loops instead of np.ix_-like indexing
             covariance_matrix_intermediate_to_current = np.zeros((2,2))
-            for short_row_index, long_row_index in enumerate([intermediate_time_index, 
+            for short_row_index, long_row_index in enumerate([intermediate_time_index,
                                                               total_number_of_states+intermediate_time_index]):
-                for short_column_index, long_column_index in enumerate([current_time_index, 
+                for short_column_index, long_column_index in enumerate([current_time_index,
                                                                         total_number_of_states+current_time_index]):
                     covariance_matrix_intermediate_to_current[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                                          long_column_index]
             # This corresponds to P(s,t-tau)
             covariance_matrix_intermediate_to_past = np.zeros((2,2))
-            for short_row_index, long_row_index in enumerate([intermediate_time_index, 
+            for short_row_index, long_row_index in enumerate([intermediate_time_index,
                                                               total_number_of_states+intermediate_time_index]):
-                for short_column_index, long_column_index in enumerate([past_time_index, 
+                for short_column_index, long_column_index in enumerate([past_time_index,
                                                                         total_number_of_states+past_time_index]):
                     covariance_matrix_intermediate_to_past[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                                          long_column_index]
@@ -350,16 +350,16 @@ def kalman_prediction_step(state_space_mean,
             covariance_matrix_intermediate_to_next = covariance_matrix_intermediate_to_current + discretisation_time_step*covariance_derivative
 
             # Fill in the big matrix
-            for short_row_index, long_row_index in enumerate([intermediate_time_index, 
+            for short_row_index, long_row_index in enumerate([intermediate_time_index,
                                                               total_number_of_states+intermediate_time_index]):
-                for short_column_index, long_column_index in enumerate([next_time_index, 
+                for short_column_index, long_column_index in enumerate([next_time_index,
                                                                         total_number_of_states+next_time_index]):
                     state_space_variance[long_row_index,long_column_index] = covariance_matrix_intermediate_to_current[short_row_index,
                                                                                                                        short_column_index]
             # Fill in the big matrix with transpose arguments, i.e. P(t+Deltat, s) - works if initialised symmetrically
-            for short_row_index, long_row_index in enumerate([next_time_index, 
+            for short_row_index, long_row_index in enumerate([next_time_index,
                                                               total_number_of_states+next_time_index]):
-                for short_column_index, long_column_index in enumerate([intermediate_time_index, 
+                for short_column_index, long_column_index in enumerate([intermediate_time_index,
                                                                         total_number_of_states+intermediate_time_index]):
                     state_space_variance[long_row_index,long_column_index] = covariance_matrix_intermediate_to_current[short_column_index,
                                                                                                                        short_row_index]
@@ -432,7 +432,7 @@ def kalman_update_step(state_space_mean,state_space_variance,current_observation
     # consistent with variance (P)
     stacked_state_space_mean = np.hstack((shortened_state_space_mean[:,0],
                                           shortened_state_space_mean[:,1]))
-    
+
     # funny indexing with 1:3 instead of (1,2) to make numba happy
     predicted_final_state_space_mean = state_space_mean[current_number_of_states-1,1:3]
 
@@ -441,7 +441,7 @@ def kalman_update_step(state_space_mean,state_space_variance,current_observation
     mRNA_indices_to_keep = np.arange(current_number_of_states - discrete_delay - 1,current_number_of_states,1)
     protein_indices_to_keep = np.arange(total_number_of_states + current_number_of_states - discrete_delay - 1,total_number_of_states + current_number_of_states,1)
     all_indices_up_to_delay = np.hstack((mRNA_indices_to_keep, protein_indices_to_keep))
-    
+
     # using for loop indexing for numba
     shortened_covariance_matrix = np.zeros((all_indices_up_to_delay.shape[0],all_indices_up_to_delay.shape[0]))
     for shortened_row_index, long_row_index in enumerate(all_indices_up_to_delay):
@@ -463,9 +463,9 @@ def kalman_update_step(state_space_mean,state_space_variance,current_observation
 #                                                               [[current_number_of_states-1,total_number_of_states+current_number_of_states-1]]]
     # funny indexing to get numba to work properly
     predicted_final_covariance_matrix = np.zeros((2,2))
-    for short_row_index, long_row_index in enumerate([current_number_of_states-1, 
+    for short_row_index, long_row_index in enumerate([current_number_of_states-1,
                                                       total_number_of_states+current_number_of_states-1]):
-        for short_column_index, long_column_index in enumerate([current_number_of_states-1, 
+        for short_column_index, long_column_index in enumerate([current_number_of_states-1,
                                                                     total_number_of_states+current_number_of_states-1]):
             predicted_final_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                          long_column_index]
@@ -626,10 +626,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     # if user chooses adaptive mcmc, the following will execute.
     if kwargs.get("adaptive") == "true":
         for i in range(1,iterations):
-            print(cholesky_covariance)
             if i >= 5000:
-                if np.mod(i,500) == 0:
-                    parameter_covariance = np.cov(random_walk[4000:i,].T) + 0.000001*identity
+                if np.mod(i,5000) == 0:
+                    parameter_covariance = np.cov(random_walk[4000:i,].T) + 0.000000001*identity
                     cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
 
             new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
@@ -640,8 +639,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 current_log_prior = np.sum(gamma.logpdf(current_state,a=shape,scale=scale))
                 new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
                 current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)
-                print('new log likelihood:',new_log_likelihood)
-                print('current log likelihood:',current_log_likelihood)
                 acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
 
                 if np.random.uniform() < acceptance_ratio:
@@ -655,22 +652,14 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         for i in range(1,iterations):
             new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
             print('iteration number:',i)
-            print('proposal:\n',new_state)
 
             if all(item > 0 for item in new_state) == True:
                 new_log_prior = np.sum(gamma.logpdf(new_state,a=shape,scale=scale))
                 current_log_prior = np.sum(gamma.logpdf(current_state,a=shape,scale=scale))
-                print('new log prior:',new_log_prior)
-                print('current log prior:',current_log_prior)
 
                 new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
                 current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)
-                print('new log likelihood:',new_log_likelihood)
-                print('current log likelihood:',current_log_likelihood)
-
-                print('log alpha:',new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
                 acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
-                print('acceptance ratio:',acceptance_ratio)
 
                 if np.random.uniform() < acceptance_ratio:
                     current_state = new_state
