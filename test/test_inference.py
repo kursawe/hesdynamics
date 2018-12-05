@@ -63,7 +63,7 @@ class TestInference(unittest.TestCase):
 #                                        'output','kalman_check.pdf'))
 
 
-    def test_kalman_filter(self):
+    def xest_kalman_filter(self):
         ## run a sample simulation to generate example protein data
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
         np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_trace_true_data.npy'),
@@ -209,7 +209,7 @@ class TestInference(unittest.TestCase):
         #print(likelihood2)
         #print(np.exp(likelihood2/likelihood))
 
-    def xest_kalman_random_walk_for_profiling(self):
+    def test_kalman_random_walk_for_profiling(self):
 
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
