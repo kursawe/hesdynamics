@@ -5,7 +5,6 @@ from numpy import number
 from numba import jit, autojit
 
 #discretisation_time_step=1.0
-@profile
 def kalman_filter(protein_at_observations,model_parameters,measurement_variance = 10):
     """
     Perform Kalman-Bucy filter based on observation of protein
@@ -140,7 +139,6 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
 
     return state_space_mean, state_space_variance, predicted_observation_distributions
 
-@profile
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            current_observation,
@@ -310,7 +308,6 @@ def kalman_prediction_step(state_space_mean,
     #import pdb; pdb.set_trace()
     return state_space_mean, state_space_variance
 
-@profile
 def kalman_update_step(state_space_mean,state_space_variance,current_observation,time_delay,observation_time_step,measurement_variance):
     """
     Perform the Kalman filter update step on the predicted mean and variance, given a new observation.
