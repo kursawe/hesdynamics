@@ -2,6 +2,7 @@ import PyDDE
 import numpy as np
 import scipy.signal
 import scipy.optimize
+from brentq import brentq
 import scipy.interpolate
 import multiprocessing as mp
 # import collections
@@ -531,6 +532,7 @@ def generate_stochastic_trajectory( duration = 720,
     return trace
 
 ### This part is standard deviation for the protein
+@jit(nopython=True)
 def calculate_approximate_protein_standard_deviation_at_parameter_point(basal_transcription_rate = 1.0,
                                                                 translation_rate = 1.0,
                                                                 repression_threshold = 100,
@@ -594,6 +596,7 @@ def calculate_approximate_protein_standard_deviation_at_parameter_point(basal_tr
 
     return standard_deviation
 
+@jit(nopython=True)
 def calculate_theoretical_protein_power_spectrum_at_parameter_point(basal_transcription_rate = 1.0,
                                                             translation_rate = 1.0,
                                                             repression_threshold = 100,
@@ -691,6 +694,7 @@ def calculate_theoretical_protein_power_spectrum_at_parameter_point(basal_transc
     return power_spectrum
 
 ### this part is standard deviation for the mRNA
+@jit(nopython=True)
 def calculate_approximate_mRNA_standard_deviation_at_parameter_point(basal_transcription_rate = 1.0,
                                                                 translation_rate = 1.0,
                                                                 repression_threshold = 100,
@@ -754,6 +758,7 @@ def calculate_approximate_mRNA_standard_deviation_at_parameter_point(basal_trans
 
     return standard_deviation
 
+@jit(nopython=True)
 def calculate_theoretical_mRNA_power_spectrum_at_parameter_point(basal_transcription_rate = 1.0,
                                                             translation_rate = 1.0,
                                                             repression_threshold = 100,
@@ -843,6 +848,7 @@ def calculate_theoretical_mRNA_power_spectrum_at_parameter_point(basal_transcrip
                          )
 
     power_spectrum = np.vstack((actual_frequencies, power_spectrum_values)).transpose()
+    integral = 1.0
     if normalise:
         integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
         power_spectrum[:,1] /= integral
@@ -2570,6 +2576,7 @@ def smoothen_power_spectrum(power_spectrum):
 
     return smoothened_spectrum
 
+@jit(nopython = True)
 def calculate_steady_state_of_ode(  repression_threshold = 10000,
                                     hill_coefficient = 5,
                                     mRNA_degradation_rate = np.log(2)/30,
@@ -2623,7 +2630,8 @@ def calculate_steady_state_of_ode(  repression_threshold = 10000,
                                (mRNA_degradation_rate*protein_degradation_rate*
                                 repression_threshold))
 
-    relative_protein = scipy.optimize.brentq( ode_root_function, 0.0 , 100.0, args=(characteristic_constant, hill_coefficient))
+#     relative_protein = scipy.optimize.brentq( ode_root_function, 0.0 , 100.0, args=(characteristic_constant, hill_coefficient))
+    relative_protein = brentq( ode_root_function, 0.0 , 100.0, params=(characteristic_constant, hill_coefficient))
 
     steady_protein = relative_protein*repression_threshold
 
@@ -2631,6 +2639,7 @@ def calculate_steady_state_of_ode(  repression_threshold = 10000,
 
     return steady_mRNA, steady_protein
 
+@jit(nopython = True)
 def ode_root_function(x, characteristic_constant, hill_coefficient):
     '''Helper function calculate_steady_state_of_ode. Returns
 
