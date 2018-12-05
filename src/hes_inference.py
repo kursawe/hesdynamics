@@ -116,7 +116,7 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
                                                                         observation_time_step)
 
         current_number_of_states = int((current_observation[0]/10)*number_of_hidden_states + discrete_delay+1)
-        print(current_number_of_states)
+        print('kalman_filter for loop:',current_number_of_states)
 
         predicted_observation_distributions[observation_index+1,0] = current_observation[0]
         predicted_observation_distributions[observation_index+1,1] = observation_transform.dot(state_space_mean[current_number_of_states-1,(1,2)])
@@ -207,7 +207,7 @@ def kalman_prediction_step(state_space_mean,
 
     ## next_time_index corresponds to 't+Deltat' in the propagation equation on page 5 of the supplementary
     ## material in the calderazzo paper
-    for next_time_index in range(current_number_of_states, current_number_of_states + number_of_hidden_states-1):
+    for next_time_index in range(current_number_of_states-1, current_number_of_states + number_of_hidden_states):
         print('next_time_index:',next_time_index)
         current_time_index = next_time_index - 1 # this corresponds to t
         past_time_index = current_time_index - discrete_delay # this corresponds to t-tau
@@ -279,6 +279,7 @@ def kalman_prediction_step(state_space_mean,
         ## now we need to update the cross correlations, P(s,t) in the Calderazzo paper
         # the range needs to include t, since we want to propagate P(t,t) into P(t,t+Deltat)
         for intermediate_time_index in range(past_time_index,current_time_index+1):
+            print('intermediate:',intermediate_time_index)
             # This corresponds to P(s,t) in the Calderazzo paper
             # using np.ix_-like indexing
             covariance_matrix_intermediate_to_current = state_space_variance[[[intermediate_time_index],[total_number_of_states + intermediate_time_index]],
