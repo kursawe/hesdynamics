@@ -18,7 +18,7 @@ import hes_inference
 
 class TestInference(unittest.TestCase):
 
-    def xest_check_kalman_filter_not_broken(self):
+    def test_check_kalman_filter_not_broken(self):
 
         # load in some saved observations and correct kalman filter predictions
         saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
@@ -29,7 +29,7 @@ class TestInference(unittest.TestCase):
         true_kalman_prediction_distributions = np.load(saving_path + '_prediction_distributions.npy')
 
         # run the current kalman filter using the same parameters and observations, then compare
-        parameters = [10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29]
+        parameters = [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
 
         state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(fixed_protein_observations,
                                                                                                                   parameters,measurement_variance=10000)
@@ -37,30 +37,39 @@ class TestInference(unittest.TestCase):
         np.testing.assert_almost_equal(state_space_variance,true_kalman_prediction_variance)
         np.testing.assert_almost_equal(predicted_observation_distributions,true_kalman_prediction_distributions)
 
+        number_of_states = state_space_mean.shape[0]
+        protein_covariance_matrix = state_space_variance[number_of_states:,number_of_states:]
+        protein_variance = np.diagonal(protein_covariance_matrix)
+        protein_error = np.sqrt(protein_variance)*2
+
+        mRNA_covariance_matrix = state_space_variance[:number_of_states,:number_of_states]
+        mRNA_variance = np.diagonal(mRNA_covariance_matrix)
+        mRNA_error = np.sqrt(mRNA_variance)*2
+
         # If above tests fail, comment them out to look at the plot below. Could be useful for identifying problems.
-#         my_figure = plt.figure()
-#         plt.subplot(2,1,1)
-#         plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
-#         plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
-#         plt.plot(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
-#         plt.errorbar(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
-#         plt.legend(fontsize='x-small')
-#         plt.title('What the Plot should look like')
-#         plt.xlabel('Time')
-#         plt.ylabel('Protein Copy Numbers')
-#
-#         plt.subplot(2,1,2)
-#         plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
-#         plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
-#         plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
-#         plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
-#         plt.legend(fontsize='x-small')
-#         plt.title('What the current function gives')
-#         plt.xlabel('Time')
-#         plt.ylabel('Protein Copy Numbers')
-#         plt.tight_layout()
-#         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-#                                        'output','kalman_check.pdf'))
+        my_figure = plt.figure()
+        plt.subplot(2,1,1)
+        plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
+        plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
+        plt.plot(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
+        plt.errorbar(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
+        plt.legend(fontsize='x-small')
+        plt.title('What the Plot should look like')
+        plt.xlabel('Time')
+        plt.ylabel('Protein Copy Numbers')
+
+        plt.subplot(2,1,2)
+        plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
+        plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
+        plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
+        plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
+        plt.legend(fontsize='x-small')
+        plt.title('What the current function gives')
+        plt.xlabel('Time')
+        plt.ylabel('Protein Copy Numbers')
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','kalman_not_broken_test.pdf'))
 
 
     def xest_kalman_filter(self):
@@ -209,7 +218,7 @@ class TestInference(unittest.TestCase):
         #print(likelihood2)
         #print(np.exp(likelihood2/likelihood))
 
-    def test_kalman_random_walk_for_profiling(self):
+    def xest_kalman_random_walk_for_profiling(self):
 
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
@@ -223,7 +232,7 @@ class TestInference(unittest.TestCase):
 
         hyper_parameters = np.array([5,2000,2,2.5,5,0.1,5,0.1,3,0.333,3,0.333,3,10])
         measurement_variance = 10000
-        iterations = 5
+        iterations = 100
         #initial_state = np.array([np.mean(previous_run[1000:,0]),np.mean(previous_run[1000:,1]),
         #                          np.mean(previous_run[1000:,2]),np.mean(previous_run[1000:,3]),
         #                          np.mean(previous_run[1000:,4]),np.mean(previous_run[1000:,5]),
@@ -231,6 +240,8 @@ class TestInference(unittest.TestCase):
         #covariance = np.cov(previous_run.T)
         initial_state = np.array([8000,5,0.1,0.1,1,1,10])
         covariance = np.diag([100000000,16,0.01,0.02,2,2,50])
+
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(5,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state,adaptive='false')
 
         time_before_call = time.time()
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state,adaptive='false')
