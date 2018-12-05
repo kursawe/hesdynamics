@@ -48,7 +48,7 @@ class TestInference(unittest.TestCase):
 #         plt.title('What the Plot should look like')
 #         plt.xlabel('Time')
 #         plt.ylabel('Protein Copy Numbers')
-# 
+#
 #         plt.subplot(2,1,2)
 #         plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
 #         plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
@@ -63,7 +63,7 @@ class TestInference(unittest.TestCase):
 #                                        'output','kalman_check.pdf'))
 
 
-    def xest_kalman_filter(self):
+    def test_kalman_filter(self):
         ## run a sample simulation to generate example protein data
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
         np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_trace_true_data.npy'),
@@ -209,7 +209,7 @@ class TestInference(unittest.TestCase):
         #print(likelihood2)
         #print(np.exp(likelihood2/likelihood))
 
-    def test_kalman_random_walk_for_profiling(self):
+    def xest_kalman_random_walk_for_profiling(self):
 
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
@@ -238,7 +238,7 @@ class TestInference(unittest.TestCase):
         time_passed = time_after_call - time_before_call
         print('\ntime used in random walk (originally roughly 9s, now roughly 5s):')
         print(time_passed)
-        
+
         print('\nrandom walk and acceptance rate')
         print(random_walk)
         print(acceptance_rate)
