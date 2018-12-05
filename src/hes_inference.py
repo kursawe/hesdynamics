@@ -107,9 +107,9 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
     # making it numba-ready
     last_predicted_covariance_matrix = np.zeros((2,2))
     for short_row_index, long_row_index in enumerate([initial_number_of_states-1, 
-                                                      total_number_of_states]):
+                                                      total_number_of_states+initial_number_of_states-1]):
         for short_column_index, long_column_index in enumerate([initial_number_of_states -1, 
-                                                                total_number_of_states]):
+                                                                total_number_of_states+initial_number_of_states-1]):
             last_predicted_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                  long_column_index]
 
