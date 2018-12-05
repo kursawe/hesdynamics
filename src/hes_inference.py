@@ -626,6 +626,13 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     # if user chooses adaptive mcmc, the following will execute.
     if kwargs.get("adaptive") == "true":
         for i in range(1,iterations):
+            # tune the acceptance parameter so acceptance rate is optimised
+            if np.mod(i,1000) == 0:
+                if acceptance_count/i < 0.243:
+                    acceptance_tuner = 0.8*acceptance_tuner
+                else:
+                    acceptance_tuner = 1.2*acceptance_tuner
+            # every 5000 iterations, update the covariance matrix
             if i >= 5000:
                 if np.mod(i,5000) == 0:
                     parameter_covariance = np.cov(random_walk[4000:i,].T) + 0.000000001*identity
