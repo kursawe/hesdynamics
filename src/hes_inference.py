@@ -4,9 +4,10 @@ import hes5
 from numpy import number
 from numba import jit, autojit
 from pandas.util.testing import all_index_generator
+from scipy.stats import norm
 
 #discretisation_time_step=1.0
-# @jit(nopython=True)
+@jit(nopython=True)
 def kalman_filter(protein_at_observations,model_parameters,measurement_variance = 10):
     """
     Perform Kalman-Bucy filter based on observation of protein
@@ -66,13 +67,15 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
     state_space_mean = np.zeros((total_number_of_states,3))
     # potential solution for numba:
 #     state_space_mean = np.ones((total_number_of_states,3))
-    state_space_mean[:initial_number_of_states,(1,2)] = hes5.calculate_steady_state_of_ode(repression_threshold=model_parameters[0],
+    steady_state = hes5.calculate_steady_state_of_ode(repression_threshold=model_parameters[0],
                                                                                                    hill_coefficient=model_parameters[1],
                                                                                                    mRNA_degradation_rate=model_parameters[2],
                                                                                                    protein_degradation_rate=model_parameters[3],
                                                                                                    basal_transcription_rate=model_parameters[4],
                                                                                                    translation_rate=model_parameters[5])
 
+    for row_index in range(initial_number_of_states):
+        state_space_mean[row_index,1:3] = steady_state
     final_observation_time = protein_at_observations[-1,0]
     # assign time entries
     state_space_mean[:,0] = np.linspace(-time_delay,final_observation_time,total_number_of_states)
@@ -539,7 +542,6 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     log_likelihood : float.
         The log of the likelihood of the data.
     """
-    from scipy.stats import norm
 
     _, _, predicted_observation_distributions = kalman_filter(protein_at_observations,
                                                               model_parameters,
