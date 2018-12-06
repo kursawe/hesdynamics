@@ -627,17 +627,18 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     if kwargs.get("adaptive") == "true":
         for i in range(1,iterations):
             # tune the acceptance parameter so acceptance rate is optimised
-            if np.mod(i,10) == 0:
+            if np.mod(i,500) == 0:
                 print('before:',acceptance_tuner)
-                if float(acceptance_count)/float(i) < 0.243:
+                print(float(acceptance_count)/float(i))
+                if float(acceptance_count)/float(i) < 0.234:
                     acceptance_tuner = 0.8*acceptance_tuner
                 else:
                     acceptance_tuner = 1.2*acceptance_tuner
                 print('after:',acceptance_tuner)
             # every 5000 iterations, update the covariance matrix
             if i >= 5000:
-                if np.mod(i,5000) == 0:
-                    parameter_covariance = np.cov(random_walk[4000:i,].T) + 0.000000001*identity
+                if np.mod(i,3000) == 0:
+                    parameter_covariance = np.cov(random_walk[4000:i,].T) + 0.0000000001*identity
                     cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
 
             new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
@@ -659,14 +660,15 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 #####################################################################################################################
     else:
         for i in range(1,iterations):
-            # tune the acceptance parameter so acceptance rate is optimised
-            if np.mod(i,1000) == 0:
-                print('before:',acceptance_tuner)
-                if float(acceptance_count)/float(i) < 0.243:
-                    acceptance_tuner = 0.8*acceptance_tuner
-                else:
-                    acceptance_tuner = 1.2*acceptance_tuner
-                print('after:',acceptance_tuner)
+            # # tune the acceptance parameter so acceptance rate is optimised
+            # if np.mod(i,500) == 0:
+            #     print('before:',acceptance_tuner)
+            #     print(float(acceptance_count)/float(i))
+            #     if float(acceptance_count)/float(i) < 0.234:
+            #         acceptance_tuner = 0.8*acceptance_tuner
+            #     else:
+            #         acceptance_tuner = 1.2*acceptance_tuner
+            #     print('after:',acceptance_tuner)
 
             new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
             print('iteration number:',i)
