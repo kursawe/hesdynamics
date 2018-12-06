@@ -591,7 +591,16 @@ def calculate_approximate_protein_standard_deviation_at_parameter_point(basal_tr
                                                                              normalise = False)
     #use fourier-like frequency definition
     power_spectrum[:,0]*= 2*np.pi
-    integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+
+    integral = 0.0
+    for power_index, power in enumerate(power_spectrum[1:,1]):
+        previous_power = power_spectrum[power_index-1,1]
+        previous_time = power_spectrum[power_index-1,0]
+        current_time = power_spectrum[power_index,0]
+        delta_x = current_time-previous_time
+        integral+=(previous_power+power)*delta_x
+    integral/=2.0
+    power_spectrum[:,1] /= integral
     standard_deviation = np.sqrt(integral/np.pi)
 
     return standard_deviation
@@ -688,7 +697,14 @@ def calculate_theoretical_protein_power_spectrum_at_parameter_point(basal_transc
 
     power_spectrum = np.vstack((actual_frequencies, power_spectrum_values)).transpose()
     if normalise:
-        integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+        integral = 0.0
+        for power_index, power in enumerate(power_spectrum[1:,1]):
+            previous_power = power_spectrum[power_index-1,1]
+            current_time = power_spectrum[power_index,0]
+            previous_time = power_spectrum[power_index-1,0]
+            delta_x = current_time-previous_time
+            integral+=(previous_power+power)*delta_x
+        integral/=2.0
         power_spectrum[:,1] /= integral
 
     return power_spectrum
@@ -753,7 +769,14 @@ def calculate_approximate_mRNA_standard_deviation_at_parameter_point(basal_trans
                                                                              normalise = False)
     #use fourier-like frequency definition
     power_spectrum[:,0]*= 2*np.pi
-    integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+    integral = 0.0
+    for power_index, power in enumerate(power_spectrum[1:,1]):
+        previous_power = power_spectrum[power_index-1,1]
+        previous_time = power_spectrum[power_index-1,0]
+        current_time = power_spectrum[power_index,0]
+        delta_x = current_time-previous_time
+        integral+=(previous_power+power)*delta_x
+    integral/=2.0
     standard_deviation = np.sqrt(integral/np.pi)
 
     return standard_deviation
@@ -850,7 +873,14 @@ def calculate_theoretical_mRNA_power_spectrum_at_parameter_point(basal_transcrip
     power_spectrum = np.vstack((actual_frequencies, power_spectrum_values)).transpose()
     integral = 1.0
     if normalise:
-        integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+        integral = 0.0
+        for power_index, power in enumerate(power_spectrum[1:,1]):
+            previous_power = power_spectrum[power_index-1,1]
+            previous_time = power_spectrum[power_index-1,0]
+            current_time = power_spectrum[power_index,0]
+            delta_x = current_time-previous_time
+            integral+=(previous_power+power)*delta_x
+        integral/=2.0
         power_spectrum[:,1] /= integral
 
     return power_spectrum
