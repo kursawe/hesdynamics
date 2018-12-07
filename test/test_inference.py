@@ -260,7 +260,7 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([5.0,2000.0,2.0,2.5,5.0,0.1,5.0,0.1,3.0,0.333,3.0,0.333,3.0,10.0]) # gamma
 
         measurement_variance = 10000.0
-        iterations = 700
+        iterations = 20000
         #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
         #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
         #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
