@@ -84,7 +84,7 @@ def brentq(f, xa, xb, xtol=1e-12, rtol=4.4408920985006262e-16, iter=100, params 
             fcur = fblk
             fblk = fpre
 
-        delta = (xtol + rtol*abs(xcur))/2
+        delta = (xtol + rtol*abs(xcur))/2.0
         sbis = (xblk - xcur)/2
         if (fcur == 0 | (abs(sbis) < delta)):
             return xcur

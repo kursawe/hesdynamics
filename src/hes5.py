@@ -594,9 +594,9 @@ def calculate_approximate_protein_standard_deviation_at_parameter_point(basal_tr
 
     integral = 0.0
     for power_index, power in enumerate(power_spectrum[1:,1]):
-        previous_power = power_spectrum[power_index-1,1]
-        previous_time = power_spectrum[power_index-1,0]
-        current_time = power_spectrum[power_index,0]
+        previous_power = power_spectrum[power_index,1]
+        previous_time = power_spectrum[power_index,0]
+        current_time = power_spectrum[power_index+1,0]
         delta_x = current_time-previous_time
         integral+=(previous_power+power)*delta_x
     integral/=2.0
@@ -699,9 +699,9 @@ def calculate_theoretical_protein_power_spectrum_at_parameter_point(basal_transc
     if normalise:
         integral = 0.0
         for power_index, power in enumerate(power_spectrum[1:,1]):
-            previous_power = power_spectrum[power_index-1,1]
-            current_time = power_spectrum[power_index,0]
-            previous_time = power_spectrum[power_index-1,0]
+            previous_power = power_spectrum[power_index,1]
+            current_time = power_spectrum[power_index+1,0]
+            previous_time = power_spectrum[power_index,0]
             delta_x = current_time-previous_time
             integral+=(previous_power+power)*delta_x
         integral/=2.0
@@ -771,9 +771,9 @@ def calculate_approximate_mRNA_standard_deviation_at_parameter_point(basal_trans
     power_spectrum[:,0]*= 2*np.pi
     integral = 0.0
     for power_index, power in enumerate(power_spectrum[1:,1]):
-        previous_power = power_spectrum[power_index-1,1]
-        previous_time = power_spectrum[power_index-1,0]
-        current_time = power_spectrum[power_index,0]
+        previous_power = power_spectrum[power_index,1]
+        previous_time = power_spectrum[power_index,0]
+        current_time = power_spectrum[power_index+1,0]
         delta_x = current_time-previous_time
         integral+=(previous_power+power)*delta_x
     integral/=2.0
@@ -875,9 +875,9 @@ def calculate_theoretical_mRNA_power_spectrum_at_parameter_point(basal_transcrip
     if normalise:
         integral = 0.0
         for power_index, power in enumerate(power_spectrum[1:,1]):
-            previous_power = power_spectrum[power_index-1,1]
-            previous_time = power_spectrum[power_index-1,0]
-            current_time = power_spectrum[power_index,0]
+            previous_power = power_spectrum[power_index,1]
+            previous_time = power_spectrum[power_index,0]
+            current_time = power_spectrum[power_index+1,0]
             delta_x = current_time-previous_time
             integral+=(previous_power+power)*delta_x
         integral/=2.0
