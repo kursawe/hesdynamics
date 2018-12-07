@@ -627,14 +627,14 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     if kwargs.get("adaptive") == "true":
         for i in range(1,iterations):
             # tune the acceptance parameter so acceptance rate is optimised
-            if np.mod(i,500) == 0:
-                print('before:',acceptance_tuner)
-                print(float(acceptance_count)/float(i))
-                if float(acceptance_count)/float(i) < 0.234:
-                    acceptance_tuner = 0.8*acceptance_tuner
-                else:
-                    acceptance_tuner = 1.2*acceptance_tuner
-                print('after:',acceptance_tuner)
+            # if np.mod(i,500) == 0:
+            #     print('before:',acceptance_tuner)
+            #     print(float(acceptance_count)/float(i))
+            #     if float(acceptance_count)/float(i) < 0.234:
+            #         acceptance_tuner = 0.8*acceptance_tuner
+            #     else:
+            #         acceptance_tuner = 1.2*acceptance_tuner
+            #     print('after:',acceptance_tuner)
             # every 5000 iterations, update the covariance matrix
             if i >= 5000:
                 if np.mod(i,3000) == 0:

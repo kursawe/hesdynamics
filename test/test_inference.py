@@ -258,16 +258,16 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([5.0,2000.0,2.0,2.5,5.0,0.1,5.0,0.1,3.0,0.333,3.0,0.333,3.0,10.0]) # gamma
 
         measurement_variance = 10000.0
-        iterations = 200000
+        iterations = 600
         #initial_state = np.array([np.mean(previous_run[1000:,0]),np.mean(previous_run[1000:,1]),
         #                          np.mean(previous_run[1000:,2]),np.mean(previous_run[1000:,3]),
         #                          np.mean(previous_run[1000:,4]),np.mean(previous_run[1000:,5]),
         #                          np.mean(previous_run[1000:,6])])
         #covariance = np.cov(previous_run.T)
         initial_state = np.array([1.0,1.0,1.0,1.0,1.0,1.0,1.0])
-        covariance = np.diag([1000000.0,3.0,0.1,0.1,0.1,0.1,500.0])
+        covariance = np.diag([500000.0,3.0,0.01,0.01,0.01,0.02,30.0])
 
-        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.45,covariance,initial_state)
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,1.0,covariance,initial_state)
         print(acceptance_rate)
         np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk.npy'),
                     random_walk)
