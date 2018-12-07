@@ -681,7 +681,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
                 current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)
                 acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
-                print(acceptance_count/i)
+                print(float(acceptance_count)/i)
 
                 if np.random.uniform() < acceptance_ratio:
                     current_state = new_state

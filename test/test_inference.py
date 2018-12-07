@@ -258,7 +258,7 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([5.0,2000.0,2.0,2.5,5.0,0.1,5.0,0.1,3.0,0.333,3.0,0.333,3.0,10.0]) # gamma
 
         measurement_variance = 10000.0
-        iterations = 600
+        iterations = 80000
         #initial_state = np.array([np.mean(previous_run[1000:,0]),np.mean(previous_run[1000:,1]),
         #                          np.mean(previous_run[1000:,2]),np.mean(previous_run[1000:,3]),
         #                          np.mean(previous_run[1000:,4]),np.mean(previous_run[1000:,5]),
