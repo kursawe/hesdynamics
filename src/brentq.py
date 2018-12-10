@@ -39,6 +39,21 @@
 #
 # */
 from numba import jit
+import math
+import numpy as np
+
+@jit(nopython = True)
+def logpdf(x,mu,sigma):
+    _norm_pdf_C = np.sqrt(2*np.pi)
+    _norm_pdf_logC = np.log(_norm_pdf_C)
+    logpdf = -((x-mu)/(4*sigma))**2- _norm_pdf_logC - np.log(sigma)
+    return logpdf
+
+# @jit(nopython = True)
+def gammalogpdf(x,a,theta):
+    agamma = np.array([math.lgamma(item) for item in a])
+    logpdfvalue = (a-1.0)*np.log(x) - x/theta - a*np.log(theta)- agamma 
+    return logpdfvalue
 
 @jit(nopython = True)
 def brentq(f, xa, xb, xtol=1e-12, rtol=4.4408920985006262e-16, iter=100, params = (1.0,1.0)):

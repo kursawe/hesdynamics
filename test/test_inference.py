@@ -18,7 +18,7 @@ import hes_inference
 
 class TestInference(unittest.TestCase):
 
-    def test_check_kalman_filter_not_broken(self):
+    def xest_check_kalman_filter_not_broken(self):
 
         # load in some saved observations and correct kalman filter predictions
         saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
@@ -218,7 +218,7 @@ class TestInference(unittest.TestCase):
         #print(likelihood2)
         #print(np.exp(likelihood2/likelihood))
 
-    def xest_kalman_random_walk_for_profiling(self):
+    def test_kalman_random_walk_for_profiling(self):
 
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
@@ -238,13 +238,31 @@ class TestInference(unittest.TestCase):
         #                          np.mean(previous_run[1000:,4]),np.mean(previous_run[1000:,5]),
         #                          np.mean(previous_run[1000:,6])])
         #covariance = np.cov(previous_run.T)
-        initial_state = np.array([8000,5,0.1,0.1,1,1,10])
-        covariance = np.diag([100000000,16,0.01,0.02,2,2,50])
+        initial_state = np.array([8000,5,0.1,0.1,1,1,29])
+        covariance = np.diag([100000000,16,0.01,0.02,2,2,0.01])
+        iterations2 = 5
+        numbera = 0.08
+        fals_variable = False
 
-        random_walk, acceptance_rate = hes_inference.kalman_random_walk(5,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state,adaptive='false')
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations2,
+                                                                        protein_at_observations,
+                                                                        hyper_parameters,
+                                                                        measurement_variance,
+                                                                        numbera,
+                                                                        covariance,
+                                                                        initial_state,
+                                                                        fals_variable)
 
+        iterations = 100
         time_before_call = time.time()
-        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state,adaptive='false')
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,
+                                                                        protein_at_observations,
+                                                                        hyper_parameters,
+                                                                        measurement_variance,
+                                                                        0.08,
+                                                                        covariance,
+                                                                        initial_state,
+                                                                        fals_variable)
         time_after_call = time.time()
         time_passed = time_after_call - time_before_call
         print('\ntime used in random walk (originally roughly 9s, now roughly 5s):')
