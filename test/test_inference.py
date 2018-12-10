@@ -243,7 +243,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def test_kalman_random_walk(self):
+    def xest_kalman_random_walk(self):
 
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
@@ -306,3 +306,31 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','kalman_random_walk.pdf'))
+
+    def test_compute_likelihood_at_multiple_parameters(self):
+
+        true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
+        protein_at_observations = true_data[0:900:10,(0,2)]
+        protein_at_observations[:,1] += np.random.randn(90)*100
+        protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
+
+        likelihood_at_multiple_parameters = np.zeros((10,10,10,10,10))
+
+        mRNA_degradation_rate    = np.log(2)/30
+        protein_degradation_rate = np.log(2)/90
+        for repression_index, repression_threshold in enumerate(np.arange(7500,12500,500)):
+            for hill_index, hill_coefficient in enumerate(np.arange(2,7,0.5)):
+                for basal_index, basal_transcription_rate in enumerate(np.arange(0.5,1.5,0.1)):
+                    for translation_index, translation_rate in enumerate(np.arange(0.5,1.5,0.1)):
+                        for transcription_index, transcription_delay in enumerate(np.arange(5,55,5)):
+                            likelihood_at_multiple_parameters[repression_index,hill_index,basal_index,translation_index,transcription_index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
+                                                                                                                             model_parameters=np.array([repression_threshold,
+                                                                                                                                                       hill_coefficient,
+                                                                                                                                                       mRNA_degradation_rate,
+                                                                                                                                                       protein_degradation_rate,
+                                                                                                                                                       basal_transcription_rate,
+                                                                                                                                                       translation_rate,
+                                                                                                                                                       transcription_delay]),
+                                                                                                                            measurement_variance = 10000)
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters.npy'),likelihood_at_multiple_parameters)
