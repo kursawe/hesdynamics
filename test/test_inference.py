@@ -243,31 +243,31 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def xest_kalman_random_walk(self):
+    def test_kalman_random_walk(self):
 
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
 
         saving_path  = os.path.join(os.path.dirname(__file__), 'data','random_walk')
-        previous_run = np.load(saving_path + '_test50.npy')
+        previous_run = np.load(saving_path + '_test20.npy')
 
-        previous_random_walk = previous_run[1000:7500,]
+        previous_random_walk = previous_run[1000:,]
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         protein_at_observations = true_data[0:900:10,(0,2)]
         protein_at_observations[:,1] += np.random.randn(90)*100
         protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
 
-        hyper_parameters = np.array([5.0,2000.0,2.0,2.5,5.0,0.1,5.0,0.1,3.0,0.333,3.0,0.333,3.0,10.0]) # gamma
+        hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
 
         measurement_variance = 10000.0
-        iterations = 20000
-        #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
-        #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
-        #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
-        #                          np.mean(previous_random_walk[:,6])])
-        #covariance = np.cov(previous_random_walk.T)
-        initial_state = np.array([1.0,1.0,np.log(2)/30,np.log(2)/90,1.0,1.0,1.0])
-        covariance = np.diag(np.array([140000000.0,100.0,0,0,0.7,0.7,15000.0]))
+        iterations = 500000
+        initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
+                                  np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
+                                  np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
+                                  np.mean(previous_random_walk[:,6])])
+        covariance = np.cov(previous_random_walk.T)
+        #initial_state = np.array([1.0,1.0,np.log(2)/30,np.log(2)/90,1.0,1.0,1.0])
+        #covariance = np.diag(np.array([140000000.0,100.0,0,0,0.7,0.7,15000.0]))
 
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.12,covariance,initial_state)
         print(acceptance_rate)
@@ -307,7 +307,7 @@ class TestInference(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','kalman_random_walk.pdf'))
 
-    def test_compute_likelihood_at_multiple_parameters(self):
+    def xest_compute_likelihood_at_multiple_parameters(self):
 
         true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
         protein_at_observations = true_data[0:900:10,(0,2)]
