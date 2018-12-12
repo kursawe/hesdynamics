@@ -610,13 +610,14 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     if len(unknown_kwargs):
         raise TypeError("Did not understand the following kwargs:" " %s" % unknown_kwargs)
 
-    from scipy.stats import gamma, multivariate_normal
+    from scipy.stats import gamma, multivariate_normal, uniform
 
     zero_row = np.zeros(7)
     identity = np.identity(7)
-    cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.0001*np.identity(7))
-    shape = hyper_parameters[0:14:2]
-    scale = hyper_parameters[1:14:2]
+    #cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.0001*np.identity(7))
+    number_of_hyper_parameters = hyper_parameters.shape[0]
+    shape = hyper_parameters[0:number_of_hyper_parameters:2]
+    scale = hyper_parameters[1:number_of_hyper_parameters:2]
     current_state = initial_state
 
     random_walk = np.zeros((iterations,7))
@@ -670,13 +671,14 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             #         acceptance_tuner = 1.2*acceptance_tuner
             #     print('after:',acceptance_tuner)
 
-            new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
+            #new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
+            new_state = current_state + acceptance_tuner*np.sqrt(parameter_covariance).dot(multivariate_normal.rvs(size=7))
             print(current_state)
             print('iteration number:',i)
 
             if all(item > 0 for item in new_state) == True:
-                new_log_prior = np.sum(gamma.logpdf(new_state,a=shape,scale=scale))
-                current_log_prior = np.sum(gamma.logpdf(current_state,a=shape,scale=scale))
+                new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
+                current_log_prior = np.sum(uniform.logpdf(current_state,loc=shape,scale=scale))
 
                 new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
                 current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)

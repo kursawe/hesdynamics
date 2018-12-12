@@ -257,19 +257,20 @@ class TestInference(unittest.TestCase):
         protein_at_observations[:,1] += np.random.randn(90)*100
         protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
 
-        hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
+        #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
+        hyper_parameters = np.array([0,120000,2,5,0,1,0,1,0,65,0,45,4,45]) # uniform
 
         measurement_variance = 10000.0
         iterations = 500000
-        initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
-                                  np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
-                                  np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
-                                  np.mean(previous_random_walk[:,6])])
-        covariance = np.cov(previous_random_walk.T)
-        #initial_state = np.array([1.0,1.0,np.log(2)/30,np.log(2)/90,1.0,1.0,1.0])
-        #covariance = np.diag(np.array([140000000.0,100.0,0,0,0.7,0.7,15000.0]))
+        # initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
+        #                           np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
+        #                           np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
+        #                           np.mean(previous_random_walk[:,6])])
+        # covariance = np.cov(previous_random_walk.T)
+        initial_state = np.array([1.0,1.0,np.log(2)/30,np.log(2)/90,1.0,1.0,1.0])
+        covariance = np.diag(np.array([250000000.0,100.0,0,0,2,2,15000.0]))
 
-        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.12,covariance,initial_state)
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state)
         print(acceptance_rate)
         np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk.npy'),
                     random_walk)
