@@ -253,17 +253,17 @@ class TestInference(unittest.TestCase):
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
-        hyper_parameters = np.array([0,120000,2,6,0,1,0,1,0,65,0,45,4,45]) # uniform
+        hyper_parameters = np.array([0,120000,2,10,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,60]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 50000
+        iterations = 2000
         # initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
         #                           np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
         #                           np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                           np.mean(previous_random_walk[:,6])])
         # covariance    = np.cov(previous_random_walk.T)
-        initial_state  = np.array([1.0,1.0,np.log(2)/30,np.log(2)/90,1.0,1.0,1.0])
-        covariance     = np.diag(np.array([25000.0,0.4,0,0,0.01,0.01,8.0]))
+        initial_state  = np.array([1.0,1.0,np.log(2)/30,np.log(2)/90,0,0,1.0])
+        covariance     = np.diag(np.array([2500000.0,2.0,0,0,0.0034,0.0034,10.0]))
 
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,1.2,covariance,initial_state)
         print(acceptance_rate)
@@ -287,11 +287,11 @@ class TestInference(unittest.TestCase):
         plt.title('protein_degradation_rate')
 
         plt.subplot(7,1,5)
-        plt.plot(np.arange(0,iterations),random_walk[:,4],color='#F69454')
+        plt.plot(np.arange(0,iterations),np.power(10,random_walk[:,4]),color='#F69454')
         plt.title('basal_transcription_rate')
 
         plt.subplot(7,1,6)
-        plt.plot(np.arange(0,iterations),random_walk[:,5],color='#F69454')
+        plt.plot(np.arange(0,iterations),np.power(10,random_walk[:,5]),color='#F69454')
         plt.title('translation_rate')
 
         plt.subplot(7,1,7)
@@ -302,7 +302,7 @@ class TestInference(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','kalman_random_walk.pdf'))
 
-    def test_compute_likelihood_at_multiple_parameters(self):
+    def xest_compute_likelihood_at_multiple_parameters(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         protein_at_observations = np.load(saving_path + '_observations.npy')

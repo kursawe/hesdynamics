@@ -673,16 +673,33 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             #new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
             new_state = current_state + acceptance_tuner*np.sqrt(parameter_covariance).dot(multivariate_normal.rvs(size=7))
-            print(current_state)
             print('iteration number:',i)
+            print('current state:\n',current_state)
 
-            if all(item > 0 for item in new_state) == True:
-                new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
-                current_log_prior = np.sum(uniform.logpdf(current_state,loc=shape,scale=scale))
+            positive_new_parameters = new_state[[0,1,2,3,6]]
 
-                new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
-                current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)
-                acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
+            if all(item > 0 for item in positive_new_parameters) == True:
+                new_log_prior          = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
+                current_log_prior      = np.sum(uniform.logpdf(current_state,loc=shape,scale=scale))
+
+                # reparameterise
+                reparameterised_new_state            = np.copy(new_state)
+                reparameterised_current_state        = np.copy(current_state)
+                #print(reparameterised_new_state)
+                reparameterised_new_state[[4,5]]     = np.power(10,new_state[[4,5]])
+                reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
+                #print(reparameterised_new_state)
+
+                try:
+                    new_log_likelihood     = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_new_state,measurement_variance)
+                except ValueError:
+                    new_log_likelihood = -np.inf
+                    
+                current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
+                print('new log lik:', new_log_likelihood)
+                print('cur log lik:', current_log_likelihood)
+                acceptance_ratio       = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
+
                 print(float(acceptance_count)/i)
 
                 if np.random.uniform() < acceptance_ratio:
