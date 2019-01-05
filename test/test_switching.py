@@ -370,7 +370,7 @@ class TestSwitching(unittest.TestCase):
         system_size = 1000
 
         slow_gillespie_mrna, slow_gillespie_protein,_ = switching.generate_multiple_switching_trajectories( 
-                                                        number_of_trajectories = 100,
+                                                        number_of_trajectories = 1000,
                                                         duration = 1000*60,
                                                         repression_threshold = 10*system_size,
                                                         mRNA_degradation_rate = 0.03,
@@ -382,10 +382,10 @@ class TestSwitching(unittest.TestCase):
                                                         translation_rate = 1.0,
                                                         hill_coefficient = 4.1,
                                                         equilibration_time = 10*60,
-                                                        switching_rate = 2)
+                                                        switching_rate = 20)
 
         slow_langevin_mrna, slow_langevin_protein = switching.generate_multiple_switching_langevin_trajectories( 
-                                                        number_of_trajectories = 100,
+                                                        number_of_trajectories = 1000,
                                                         duration = 1000*60,
                                                         repression_threshold = 10*system_size,
                                                         mRNA_degradation_rate = 0.03,
@@ -397,7 +397,7 @@ class TestSwitching(unittest.TestCase):
                                                         translation_rate = 1.0,
                                                         hill_coefficient = 4.1,
                                                         equilibration_time = 10*60,
-                                                        switching_rate = 2)
+                                                        switching_rate = 20)
 # 
         mean_langevin_mRNA = np.mean(slow_langevin_mrna[:,1])
         mean_langevin_protein = np.mean(slow_langevin_protein[:,1])
@@ -428,7 +428,7 @@ class TestSwitching(unittest.TestCase):
                                                         translation_rate = 1.0,
                                                         hill_coefficient = 4.1,
                                                         equilibration_time = 100*60,
-                                                        switching_rate = 10)
+                                                        switching_rate = 20)
 #
 #         my_fast_trajectory = switching.generate_switching_trajectory( duration = 100*60,
 #                                                          repression_threshold = 10*system_size,
@@ -444,40 +444,40 @@ class TestSwitching(unittest.TestCase):
 #                                                          switching_rate = 500.0)
 # 
 # 
-        steady_state = hes5.calculate_steady_state_of_ode(repression_threshold = 10*system_size,
-                                                        mRNA_degradation_rate = 0.03,
-                                                        protein_degradation_rate = 0.03,
-                                                        basal_transcription_rate = 1.0*system_size,
-                                                        translation_rate = 1.0,
-                                                        hill_coefficient = 4.1)
-        #Second, plot the model
-        figuresize = (4,4)
-        my_figure = plt.figure(figsize=figuresize)
-        plt.subplot(211)
-#         plt.plot(deterministic_trajectory[:,0]/60, 
-#                  deterministic_trajectory[:,1])
-        plt.plot(my_slow_trajectory[:,0]/60, 
-                my_slow_trajectory[:,1])
-        plt.plot(my_fast_trajectory[:,0]/60,
-                my_fast_trajectory[:,1])
-        plt.axhline(steady_state[0])
-#         plt.ylim(0,2)
-        plt.xlabel('Time')
-        plt.ylabel('mRNA expression')
-
-        plt.subplot(212)
-#         plt.plot(deterministic_trajectory[:,0]/60, 
-#                 deterministic_trajectory[:,2])
-        plt.plot(my_slow_trajectory[:,0]/60, 
-                my_slow_trajectory[:,2])
-        plt.plot(my_fast_trajectory[:,0]/60,
-                my_fast_trajectory[:,2])
-#         plt.ylim(0,5000)
-        plt.axhline(steady_state[1])
-        plt.xlabel('Time')
-        plt.ylabel('Protein expression')
-#         plt.ylim(20,35)
-        plt.tight_layout()
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','switching_lambda_dependence.pdf'))
-
+#         steady_state = hes5.calculate_steady_state_of_ode(repression_threshold = 10*system_size,
+#                                                         mRNA_degradation_rate = 0.03,
+#                                                         protein_degradation_rate = 0.03,
+#                                                         basal_transcription_rate = 1.0*system_size,
+#                                                         translation_rate = 1.0,
+#                                                         hill_coefficient = 4.1)
+#         #Second, plot the model
+#         figuresize = (4,4)
+#         my_figure = plt.figure(figsize=figuresize)
+#         plt.subplot(211)
+# #         plt.plot(deterministic_trajectory[:,0]/60, 
+# #                  deterministic_trajectory[:,1])
+#         plt.plot(my_slow_trajectory[:,0]/60, 
+#                 my_slow_trajectory[:,1])
+#         plt.plot(my_fast_trajectory[:,0]/60,
+#                 my_fast_trajectory[:,1])
+#         plt.axhline(steady_state[0])
+# #         plt.ylim(0,2)
+#         plt.xlabel('Time')
+#         plt.ylabel('mRNA expression')
+# 
+#         plt.subplot(212)
+# #         plt.plot(deterministic_trajectory[:,0]/60, 
+# #                 deterministic_trajectory[:,2])
+#         plt.plot(my_slow_trajectory[:,0]/60, 
+#                 my_slow_trajectory[:,2])
+#         plt.plot(my_fast_trajectory[:,0]/60,
+#                 my_fast_trajectory[:,2])
+# #         plt.ylim(0,5000)
+#         plt.axhline(steady_state[1])
+#         plt.xlabel('Time')
+#         plt.ylabel('Protein expression')
+# #         plt.ylim(20,35)
+#         plt.tight_layout()
+#         my_figure.savefig(os.path.join(os.path.dirname(__file__),
+#                                        'output','switching_lambda_dependence.pdf'))
+# 
