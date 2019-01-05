@@ -2104,7 +2104,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
     for parameter_index, process_result in enumerate(process_results):
         these_summary_statistics = process_result.get()
         summary_statistics[ parameter_index ] = these_summary_statistics
-
+    
     return summary_statistics
 
 def get_full_parameter_for_reduced_parameter(reduced_parameter):
@@ -2575,6 +2575,9 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
                                           5: 'noise_strength',
                                           6: 'mRNA_degradation_rate',
                                           7: 'protein_degradation_rate'}
+    
+    if 'mRNA_half_life' in prior_bounds:
+        index_to_parameter_name_lookup[6] = 'mRNA_half_life'
    
     standard_prior_bounds = {'basal_transcription_rate' : (0.5,100),
                              'translation_rate' : (1,200),
@@ -2612,6 +2615,10 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
             prior_samples[:,parameter_index] = these_parameter_bounds[0]*np.power(
                                                these_parameter_bounds[1]/float(these_parameter_bounds[0]),
                                                prior_samples[:,parameter_index])
+        elif this_parameter_name == 'mRNA_half_life':
+            prior_samples[:,parameter_index] *= these_parameter_bounds[1] - these_parameter_bounds[0]
+            prior_samples[:,parameter_index] += these_parameter_bounds[0]
+            prior_samples[:,parameter_index] = np.log(2)/prior_samples[:,parameter_index]
         else:
             prior_samples[:,parameter_index] *= these_parameter_bounds[1] - these_parameter_bounds[0]
             prior_samples[:,parameter_index] += these_parameter_bounds[0]

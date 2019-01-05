@@ -151,10 +151,10 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def xest_make_abc_samples(self):
+    def test_make_abc_samples(self):
         ## generate posterior samples
         total_number_of_samples = 200000
-#         total_number_of_samples = 20
+#         total_number_of_samples = 100
         acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
@@ -162,11 +162,11 @@ class TestZebrafish(unittest.TestCase):
 
         prior_bounds = {'basal_transcription_rate' : (0.01,60),
                         'translation_rate' : (0.01,40),
-                        'repression_threshold' : (0,10000),
+                        'repression_threshold' : (0,16000),
                         'time_delay' : (5,40),
                         'hill_coefficient' : (2,6),
                         'protein_degradation_rate' : ( np.log(2)/15.0, np.log(2)/15.0 ),
-                        'mRNA_degradation_rate' : ( np.log(2)/15.0, np.log(2)/1.0) }
+                        'mRNA_half_life' : ( 1, 15) }
 
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
@@ -179,7 +179,7 @@ class TestZebrafish(unittest.TestCase):
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 7))
         
-    def test_plot_zebrafish_inference(self):
+    def xest_plot_zebrafish_inference(self):
         option = 'period_and_coherence'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -222,7 +222,7 @@ class TestZebrafish(unittest.TestCase):
         elif option == 'coherence':
             accepted_indices = np.where( model_results[:,3]>0.3 )  #standard deviation
         elif option == 'period':
-            accepted_indices = np.where( model_results[:,2]<60 )  #standard deviation
+            accepted_indices = np.where( model_results[:,2]<100 )  #standard deviation
         elif option == 'period_and_coherence':
             accepted_indices = np.where( np.logical_and( model_results[:,2]<100,
                                                          model_results[:,3]>0.3 ))  
@@ -373,8 +373,11 @@ class TestZebrafish(unittest.TestCase):
         half_lifes = np.log(2)/data_frame['mRNA degradation']
         half_life_bins = np.linspace(1,15,20)
         half_life_histogram, _ = np.histogram(half_lifes, half_life_bins, density = True)
+        print(half_life_histogram)
         prior_histogram, _ = np.histogram( np.log(2)/prior_samples[:,5], half_life_bins, density = True )
         corrected_histogram = half_life_histogram/prior_histogram
+#         corrected_histogram = half_life_histogram
+        print(corrected_histogram)
         bin_centres = (half_life_bins[:-1] + half_life_bins[1:])/2
         width = 0.7*(half_life_bins[1] - half_life_bins[0])
          
