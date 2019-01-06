@@ -37,10 +37,10 @@ def generate_switching_trajectory( duration = 720,
                                     sampling_timestep = 1.0,
                                     switching_rate = 1.0,
                                     initial_environment_on = True):
-    '''Generate one trace of the Hes5 model. This function implements a stochastic version of
-    the model model in Monk, Current Biology (2003). It applies the Gillespie-rejection method described
-    in Cai et al, J. Chem. Phys. (2007) as Algorithm 2. This method is an exact method to calculate
-    the temporal evolution of stochastic reaction systems with delay.     
+    '''Generate one trace of the Hes model with transcriptional switching. This function implements a stochastic version of
+    the model in Monk, Current Biology (2003) where the hill function emerges from transcriptional switching. 
+    It applies the Gillespie-rejection method described in Cai et al, J. Chem. Phys. (2007) as Algorithm 2. 
+    This method is an exact method to calculate the temporal evolution of stochastic reaction systems with delay.     
 
     Parameters
     ----------
@@ -216,8 +216,9 @@ def generate_multiple_switching_trajectories( number_of_trajectories = 10,
                                     initial_environment_on = True,
                                     number_of_cpus = number_of_available_cores,
                                     sampling_timestep = 1.0):
-    '''Generate multiple stochastic traces the Hes5 model by using
-       generate_stochastic_trajectory.
+    '''Generate multiple stochastic traces the switching Hes model by using
+       generate_switching_trajectory. The trajectories are simulated in parallel, i.e.
+       individually on different processes.
      
     Parameters
     ----------
@@ -369,23 +370,23 @@ def generate_switching_langevin_trajectory( duration = 720,
                                   equilibration_time = 0.0,
                                   switching_rate = 1.0
                                   ):
-    '''Generate one trace of the protein-autorepression model using a langevin approximation. 
+    '''Generate one trace of the protein-autorepression model with transcriptional switching using a langevin approximation. 
     This function implements the Ito integral of 
      
-    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(mu_m+alpha_m*G(P(t-tau))d(ksi)
+    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(mu_m+alpha_m*G(P(t-tau) + 2*theta^2*alpha_m^2/lambda)d(ksi)
     dP/dt = -mu_p*P + alpha_p*M + sqrt(mu_p*alpha_p)d(ksi)
      
-    Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p are
-    rates of mRNA degradation, protein degradation, basal transcription, and translation; in that order.
+    Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p, lambda are
+    rates of mRNA degradation, protein degradation, basal transcription, translation, and switching; in that order.
     The variable ksi represents Gaussian white noise with delta-function auto-correlation and G 
     represents the Hill function G(P) = 1/(1+P/p_0)^n, where p_0 is the repression threshold
-    and n is the Hill coefficient.
+    and n is the Hill coefficient. Theta takes the form Theta^2 = (P(t-tau)/p_0)^n/(1+(p/p_0)^n)^3
      
     This model is an approximation of the stochastic version of the model in Monk, Current Biology (2003),
     which is implemented in generate_stochastic_trajectory(). For negative times we assume that there
     was no transcription.
      
-    Warning : The time step of integration is chosen as 1 minute, and hence the time-delay is only
+    Warning : The time step of integration is chosen as 0.1 minute, and hence the time-delay is only
               implemented with this accuracy.   
  
     Parameters
@@ -465,7 +466,7 @@ def generate_switching_langevin_trajectory( duration = 720,
             this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
             this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
             repression_power = np.power(protein_at_delay/repression_threshold, hill_coefficient)
-            switching_noise_strength = delta_t*repression_power*basal_transcription_rate*basal_transcription_rate/(
+            switching_noise_strength = 2*delta_t*repression_power*basal_transcription_rate*basal_transcription_rate/(
                 switching_rate*np.power(1+repression_power,3))
             d_mRNA = (-this_average_mRNA_degradation_number
                       +this_average_transcription_number
@@ -504,8 +505,8 @@ def generate_multiple_switching_langevin_trajectories( number_of_trajectories = 
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
                                     switching_rate = 1.0):
-    '''Generate multiple langevin stochastic traces from the Monk model by using
-       generate_langevin_trajectory.
+    '''Generate multiple langevin stochastic traces from the switching-modified Monk model by using
+       generate_langevin_trajectory. This function operates sequentially, not in parallel.
      
     Parameters
     ----------

@@ -366,7 +366,7 @@ class TestSwitching(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','switching_lambda_dependence_langevin.pdf'))
 
-    def test_difference_langevin_gillespie(self):
+    def xest_difference_langevin_gillespie(self):
         system_size = 1000
 
         slow_gillespie_mrna, slow_gillespie_protein,_ = switching.generate_multiple_switching_trajectories( 
@@ -481,3 +481,43 @@ class TestSwitching(unittest.TestCase):
 #         my_figure.savefig(os.path.join(os.path.dirname(__file__),
 #                                        'output','switching_lambda_dependence.pdf'))
 # 
+
+    def test_measure_time_average(self):
+        
+        # define a set of timesteps 
+        timestep = 0.1
+        durations = np.arange(0.1,5.0,timestep)
+        time_averages = np.zeros((durations.shape[0],2))
+        time_averages[:,0] = durations
+        number_of_trajectories = 10000
+        for duration_index, duration in enumerate(durations):
+            print duration
+            _,_,my_full_trajectories = switching.generate_multiple_switching_trajectories( 
+                                                        number_of_trajectories = number_of_trajectories,
+                                                        duration = duration,
+                                                        repression_threshold = 1.0,
+                                                        mRNA_degradation_rate = 0.0,
+                                                        protein_degradation_rate = 0.0,
+                                                        transcription_delay = 0.0,
+                                                        initial_mRNA = 0,
+                                                        initial_protein = 2.0,
+                                                        basal_transcription_rate = 0.0,
+                                                        translation_rate = 0.0,
+                                                        hill_coefficient = 1,
+                                                        equilibration_time = 100,
+                                                        switching_rate = 1.0,
+                                                        sampling_timestep = 0.01)
+            for trajectory in my_full_trajectories[:,1:].transpose():
+                average_a = np.trapz(trajectory,
+                                     my_full_trajectories[:,0])
+                average_a/=duration
+                time_averages[duration_index,1] += average_a
+            time_averages[duration_index,1] /= number_of_trajectories
+
+        plt.figure()
+        plt.plot(time_averages[:,0], time_averages[:,1])
+        plt.ylim(0,1)
+        plt.xlabel('time window')
+        plt.ylabel('time average')
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                        'output','time_average_distribution.pdf'))
