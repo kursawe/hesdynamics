@@ -243,7 +243,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def test_kalman_random_walk(self):
+    def xest_kalman_random_walk(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
@@ -253,7 +253,7 @@ class TestInference(unittest.TestCase):
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
-        hyper_parameters = np.array([0,120000,2,10,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,60]) # uniform
+        hyper_parameters = np.array([0,120000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
         iterations = 2000
@@ -262,11 +262,11 @@ class TestInference(unittest.TestCase):
         #                           np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                           np.mean(previous_random_walk[:,6])])
         # covariance    = np.cov(previous_random_walk.T)
-        initial_state  = np.array([1.0,1.0,np.log(2)/30,np.log(2)/90,0,0,1.0])
-        covariance     = np.diag(np.array([2500000.0,2.0,0,0,0.0034,0.0034,10.0]))
+        initial_state  = np.array([1.0,2.0,0.1,0.1,0,0,4.0])
+        covariance     = np.diag(np.array([1000.0,0.05,0.0001,0.0001,0.0034,0.0034,0.1]))
 
-        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,1.2,covariance,initial_state)
-        print(acceptance_rate)
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,1.0,covariance,initial_state)
+        print('acceptance rate was', acceptance_rate)
         np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk.npy'),random_walk)
 
         my_figure = plt.figure(figsize=(4,10))
@@ -302,7 +302,7 @@ class TestInference(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','kalman_random_walk.pdf'))
 
-    def xest_compute_likelihood_at_multiple_parameters(self):
+    def test_compute_likelihood_at_multiple_parameters(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         protein_at_observations = np.load(saving_path + '_observations.npy')
@@ -311,18 +311,18 @@ class TestInference(unittest.TestCase):
         mRNA_degradation_rate    = np.log(2)/30
         protein_degradation_rate = np.log(2)/90
 
-        for repression_index, repression_threshold in enumerate(np.arange(7500,12500,500)):
+        for repression_index, repression_threshold in enumerate(np.arange(0,10000,500)):
             for hill_index, hill_coefficient in enumerate(np.arange(2,7,0.5)):
-                for basal_index, basal_transcription_rate in enumerate(np.arange(0.5,1.5,0.1)):
-                    for translation_index, translation_rate in enumerate(np.arange(0.5,1.5,0.1)):
+                for basal_index, basal_transcription_rate in enumerate(np.arange(-1,1.5,0.25)):
+                    for translation_index, translation_rate in enumerate(np.arange(-1,1.5,0.25)):
                         for transcription_index, transcription_delay in enumerate(np.arange(5,55,5)):
                             likelihood_at_multiple_parameters[repression_index,hill_index,basal_index,translation_index,transcription_index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
                                                                                                                                                 model_parameters=np.array([repression_threshold,
                                                                                                                                                                            hill_coefficient,
                                                                                                                                                                            mRNA_degradation_rate,
                                                                                                                                                                            protein_degradation_rate,
-                                                                                                                                                                           basal_transcription_rate,
-                                                                                                                                                                           translation_rate,
+                                                                                                                                                                           np.power(10,basal_transcription_rate),
+                                                                                                                                                                           np.power(10,translation_rate),
                                                                                                                                                                            transcription_delay]),
                                                                                                                                                 measurement_variance = 10000)
 

@@ -694,10 +694,11 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     new_log_likelihood     = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_new_state,measurement_variance)
                 except ValueError:
                     new_log_likelihood = -np.inf
-                    
+
                 current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
                 print('new log lik:', new_log_likelihood)
                 print('cur log lik:', current_log_likelihood)
+
                 acceptance_ratio       = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
 
                 print(float(acceptance_count)/i)
