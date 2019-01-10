@@ -243,7 +243,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def xest_kalman_random_walk(self):
+    def test_kalman_random_walk(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
@@ -256,16 +256,16 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([0,120000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 2000
+        iterations = 200000
         # initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
         #                           np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
         #                           np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                           np.mean(previous_random_walk[:,6])])
         # covariance    = np.cov(previous_random_walk.T)
-        initial_state  = np.array([1.0,2.0,0.1,0.1,0,0,4.0])
-        covariance     = np.diag(np.array([1000.0,0.05,0.0001,0.0001,0.0034,0.0034,0.1]))
+        initial_state  = np.array([1.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0])
+        covariance     = np.diag(np.array([1000000.0,0.08,0,0,0.034,0.034,0.8]))
 
-        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,1.0,covariance,initial_state)
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
         print('acceptance rate was', acceptance_rate)
         np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk.npy'),random_walk)
 
@@ -302,7 +302,7 @@ class TestInference(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','kalman_random_walk.pdf'))
 
-    def test_compute_likelihood_at_multiple_parameters(self):
+    def xest_compute_likelihood_at_multiple_parameters(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         protein_at_observations = np.load(saving_path + '_observations.npy')
