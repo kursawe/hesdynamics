@@ -311,11 +311,11 @@ class TestInference(unittest.TestCase):
         mRNA_degradation_rate    = np.log(2)/30
         protein_degradation_rate = np.log(2)/90
 
-        for repression_index, repression_threshold in enumerate(np.arange(0,10000,500)):
-            for hill_index, hill_coefficient in enumerate(np.arange(2,7,0.5)):
+        for repression_index, repression_threshold in enumerate(np.arange(100,30100,3000)):
+            for hill_index, hill_coefficient in enumerate(np.arange(2,11,0.9)):
                 for basal_index, basal_transcription_rate in enumerate(np.arange(-1,1.5,0.25)):
                     for translation_index, translation_rate in enumerate(np.arange(-1,1.5,0.25)):
-                        for transcription_index, transcription_delay in enumerate(np.arange(5,55,5)):
+                        for transcription_index, transcription_delay in enumerate(np.arange(1,66,6.5)):
                             likelihood_at_multiple_parameters[repression_index,hill_index,basal_index,translation_index,transcription_index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
                                                                                                                                                 model_parameters=np.array([repression_threshold,
                                                                                                                                                                            hill_coefficient,
