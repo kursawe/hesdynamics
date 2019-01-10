@@ -2577,7 +2577,7 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
                                           7: 'protein_degradation_rate'}
     
     if 'mRNA_half_life' in prior_bounds:
-        index_to_parameter_name_lookup[6] = 'mRNA_half_life'
+        index_to_parameter_name_lookup[5] = 'mRNA_half_life'
    
     standard_prior_bounds = {'basal_transcription_rate' : (0.5,100),
                              'translation_rate' : (1,200),

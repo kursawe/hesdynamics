@@ -151,7 +151,7 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def test_make_abc_samples(self):
+    def xest_make_abc_samples(self):
         ## generate posterior samples
         total_number_of_samples = 200000
 #         total_number_of_samples = 100
@@ -179,8 +179,8 @@ class TestZebrafish(unittest.TestCase):
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 7))
         
-    def xest_plot_zebrafish_inference(self):
-        option = 'period_and_coherence'
+    def test_plot_zebrafish_inference(self):
+        option = 'prior'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
@@ -194,31 +194,12 @@ class TestZebrafish(unittest.TestCase):
                                                        model_results[:,1]>0.05))))  #standard deviation
 #                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     prior_samples[:,3]>20))))) #time_delay
-        elif option == 'amplitude':
+        elif option == 'mean':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<4000,
-                                        np.logical_and(model_results[:,4]>40,
-                                        np.logical_and(model_results[:,4]<60, #mrna number
-                                                       model_results[:,1]>0.05)))))  #standard deviation
+                                                       model_results[:,0]<8000))  #standard deviation
 #                                                        model_results[:,1]>0.05)))  #standard deviation
         elif option == 'prior':
             accepted_indices = range(len(prior_samples))
-        elif option == 'coherence_and_hill':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<4000,
-                                        np.logical_and(model_results[:,4]>40,
-                                        np.logical_and(model_results[:,4]<60, #mrna number
-                                        np.logical_and(model_results[:,1]>0.05,
-                                        np.logical_and(model_results[:,3]>0.3,
-                                                       prior_samples[:,4]<5)))))))  #standard deviation
-        elif option == 'coherence_and_period':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<4000,
-                                        np.logical_and(model_results[:,4]>40,
-                                        np.logical_and(model_results[:,4]<60, #mrna number
-                                        np.logical_and(model_results[:,1]>0.05,
-                                        np.logical_and(model_results[:,3]>0.3,
-                                                       model_results[:,2]<6*60)))))))  #standard deviation
         elif option == 'coherence':
             accepted_indices = np.where( model_results[:,3]>0.3 )  #standard deviation
         elif option == 'period':
@@ -226,6 +207,11 @@ class TestZebrafish(unittest.TestCase):
         elif option == 'period_and_coherence':
             accepted_indices = np.where( np.logical_and( model_results[:,2]<100,
                                                          model_results[:,3]>0.3 ))  
+        elif option == 'mean_period_and_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,2]<100,
+                                                       model_results[:,3]>0.3))))  
         elif option == 'amplitude_and_coherence':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
                                         np.logical_and(model_results[:,0]<4000, #protein_number
@@ -233,21 +219,6 @@ class TestZebrafish(unittest.TestCase):
 #                                         np.logical_and(model_results[:,4]>60, #mrna number
                                         np.logical_and(model_results[:,1]>0.05,
                                                        model_results[:,3]>0.15)))) #standard deviation
-        elif option == 'mean':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                                       model_results[:,0]<65000)) #protein_number
-        elif option == 'oscillating': 
-             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                         np.logical_and(model_results[:,0]<65000, #protein_number
-                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                         np.logical_and(model_results[:,1]>0.05,
-                                                        model_results[:,3]>0.3)))))  #standard deviation
-        elif option == 'not_oscillating': 
-             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                         np.logical_and(model_results[:,0]<65000, #protein_number
-                                         np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                         np.logical_and(model_results[:,1]>0.05,
-                                                        model_results[:,3]<0.1)))))  #standard deviation
         elif option == 'deterministic': 
              accepted_indices = np.where(np.logical_and(model_results[:,5]>2000, #protein number
                                          np.logical_and(model_results[:,5]<4000, #protein_number
@@ -327,7 +298,7 @@ class TestZebrafish(unittest.TestCase):
 #         plt.gca().set_xlim(1,200)
         plt.xlabel("Repression threshold \n [1e4]")
         plt.gca().set_ylim(0,0.3)
-        plt.gca().set_xlim(0,6)
+        plt.gca().set_xlim(0,12)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
 #         plt.yticks([])
@@ -371,23 +342,24 @@ class TestZebrafish(unittest.TestCase):
 #         plt.hist(histogram[::-1], np.log(2)/bin_edges[::-1] )
 
         half_lifes = np.log(2)/data_frame['mRNA degradation']
+        print half_lifes
         half_life_bins = np.linspace(1,15,20)
-        half_life_histogram, _ = np.histogram(half_lifes, half_life_bins, density = True)
-        print(half_life_histogram)
-        prior_histogram, _ = np.histogram( np.log(2)/prior_samples[:,5], half_life_bins, density = True )
-        corrected_histogram = half_life_histogram/prior_histogram
+#         half_life_histogram, _ = np.histogram(half_lifes, half_life_bins, density = True)
+#         print(half_life_histogram)
+#         prior_histogram, _ = np.histogram( np.log(2)/prior_samples[:,5], half_life_bins, density = True )
+#         corrected_histogram = half_life_histogram/prior_histogram
 #         corrected_histogram = half_life_histogram
-        print(corrected_histogram)
-        bin_centres = (half_life_bins[:-1] + half_life_bins[1:])/2
-        width = 0.7*(half_life_bins[1] - half_life_bins[0])
+#         print(corrected_histogram)
+#         bin_centres = (half_life_bins[:-1] + half_life_bins[1:])/2
+#         width = 0.7*(half_life_bins[1] - half_life_bins[0])
          
-        plt.bar(bin_centres, corrected_histogram, align = 'center' , width = width )
-#         sns.distplot(half_lifes,
-#                      kde = False,
-#                      rug = False,
-#                      norm_hist = True,
-#                      hist_kws = {'edgecolor' : 'black'},
-#                      bins = half_life_bins)
+#         plt.bar(bin_centres, corrected_histogram, align = 'center' , width = width )
+        sns.distplot(half_lifes,
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black'},
+                    bins = half_life_bins)
 #
 #         sns.distplot(data_frame['mRNA degradation'],
 #                      kde = False,
@@ -400,7 +372,7 @@ class TestZebrafish(unittest.TestCase):
 #         plt.gca().set_xlim(-2,0)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
 #         plt.xticks([-1,0], [r'$10^{-1}$',r'$10^0$'])
-        plt.xlabel("Degradation rate \n [1/min]")
+        plt.xlabel("mRNA half-life \n [min]")
 #         plt.gca().set_ylim(0,4.0)
 #         plt.gca().set_ylim(0,1.0)
 #         plt.yticks([])
@@ -518,4 +490,138 @@ class TestZebrafish(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','zebrafish_coherence_distribution.pdf'))
- 
+        
+    def xest_increase_mRNA_degradation(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        old_model_results = model_results[accepted_indices]
+        my_posterior_samples_increased_degradation = np.copy(my_posterior_samples)
+        my_posterior_samples_increased_degradation[:,5]*=1.5
+        new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_increased_degradation, 
+                                                                        number_of_traces_per_sample=200 )
+
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation')
+
+        np.save(saving_path + '.npy', new_model_results)
+        np.save(saving_path + '_parameters.npy', my_posterior_samples_increased_degradation )
+        np.save(saving_path + '_old.npy', old_model_results)
+        np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
+        
+    def xest_plot_mrna_increase_results(self):
+        
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation')
+        results_after_change = np.load(saving_path + '.npy')
+        parameters_after_change = np.load(saving_path + '_parameters.npy')
+        results_before_change = np.load(saving_path + '_old.npy')
+        parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+    
+        this_figure, axes = plt.subplots(2,3,figsize = (6.5,4.5))
+
+        ## DEGRADATION
+        this_data_frame = pd.DataFrame(np.column_stack((parameters_before_change[:,5],
+                                                       parameters_after_change[:,5])),
+                                        columns = ['before','after'])
+        this_axes = axes[0,0]
+        this_data_frame.boxplot(ax = axes[0,0])
+        this_axes.set_ylabel('mRNA degradation')
+
+        ## EXPRESSION
+        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,0],
+                                                        results_after_change[:,0])),
+                                        columns = ['before','after'])
+        this_axes = axes[0,1]
+        this_data_frame.boxplot(ax = axes[0,1])
+        this_axes.set_ylabel('Hes expression')
+
+        ## STANDARD DEVIATION
+        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,1],
+                                                        results_after_change[:,1])),
+                                        columns = ['before','after'])
+        this_axes = axes[0,2]
+        this_data_frame.boxplot(ax = this_axes)
+        this_axes.set_ylabel('Hes std')
+
+        ## PERIOD
+        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,2],
+                                                        results_after_change[:,2])),
+                                        columns = ['before','after'])
+        this_axes = axes[1,0]
+        this_data_frame.boxplot(ax = this_axes)
+        this_axes.set_ylabel('Period')
+
+        ## COHERENCE
+        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,3],
+                                                        results_after_change[:,3])),
+                                        columns = ['before','after'])
+        this_axes = axes[1,1]
+        this_data_frame.boxplot(ax = this_axes)
+        this_axes.set_ylabel('Coherence')
+
+        ## MRNA
+        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,4],
+                                                        results_after_change[:,4])),
+                                        columns = ['before','after'])
+        this_axes = axes[1,2]
+        this_data_frame.boxplot(ax = this_axes)
+        this_axes.set_ylabel('mRNA number')
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation.pdf'))
+
+    def xest_plot_mRNA_change_examples(self):
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation')
+        results_after_change = np.load(saving_path + '.npy')
+        parameters_after_change = np.load(saving_path + '_parameters.npy')
+        results_before_change = np.load(saving_path + '_old.npy')
+        parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+    
+        example_parameter_index = 20
+        example_parameter_before = parameters_before_change[example_parameter_index]
+        example_parameter_after = parameters_after_change[example_parameter_index]
+        
+        example_trace_before = hes5.generate_langevin_trajectory( 720, #duration 
+                                                                  example_parameter_before[2], #repression_threshold, 
+                                                                  example_parameter_before[4], #hill_coefficient,
+                                                                  example_parameter_before[5], #mRNA_degradation_rate, 
+                                                                  example_parameter_before[6], #protein_degradation_rate, 
+                                                                  example_parameter_before[0], #basal_transcription_rate, 
+                                                                  example_parameter_before[1], #translation_rate,
+                                                                  example_parameter_before[3], #transcription_delay, 
+                                                                  10, #initial_mRNA, 
+                                                                  example_parameter_before[2], #initial_protein,
+                                                                  2000)
+
+        example_trace_after = hes5.generate_langevin_trajectory( 720, #duration 
+                                                                  example_parameter_after[2], #repression_threshold, 
+                                                                  example_parameter_after[4], #hill_coefficient,
+                                                                  example_parameter_after[5], #mRNA_degradation_rate, 
+                                                                  example_parameter_after[6], #protein_degradation_rate, 
+                                                                  example_parameter_after[0], #basal_transcription_rate, 
+                                                                  example_parameter_after[1], #translation_rate,
+                                                                  example_parameter_after[3], #transcription_delay, 
+                                                                  10, #initial_mRNA, 
+                                                                  example_parameter_after[2], #initial_protein,
+                                                                  2000)
+
+        plt.figure(figsize = (6.5, 2.5))
+        plt.subplot(121)
+        plt.plot(example_trace_before[:,0],
+                 example_trace_before[:,2])
+        plt.ylabel('Hes expression')
+        plt.xlabel('Time')
+        plt.subplot(122)
+        plt.plot(example_trace_after[:,0],
+                 example_trace_after[:,2])
+        plt.ylabel('Hes expression')
+        plt.xlabel('Time')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation_examples.pdf'))
