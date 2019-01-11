@@ -262,8 +262,8 @@ class TestInference(unittest.TestCase):
         #                           np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                           np.mean(previous_random_walk[:,6])])
         # covariance    = np.cov(previous_random_walk.T)
-        initial_state  = np.array([1.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0])
-        covariance     = np.diag(np.array([1000000.0,0.08,0,0,0.034,0.034,0.8]))
+        initial_state  = np.array([50000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0])
+        covariance     = np.diag(np.array([25000000.0,0.1,0,0,0.034,0.034,1.5]))
 
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
         print('acceptance rate was', acceptance_rate)
