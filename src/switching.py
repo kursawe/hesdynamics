@@ -600,3 +600,133 @@ def generate_multiple_switching_langevin_trajectories( number_of_trajectories = 
         protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
   
     return mRNA_trajectories, protein_trajectories
+
+
+# @autojit(nopython=True)
+def generate_ode_switching_trajectory( duration = 720, 
+                                    repression_threshold = 10000,
+                                    hill_coefficient = 5,
+                                    mRNA_degradation_rate = np.log(2)/30,
+                                    protein_degradation_rate = np.log(2)/90, 
+                                    basal_transcription_rate = 1,
+                                    translation_rate = 1,
+                                    transcription_delay = 29,
+                                    initial_mRNA = 0,
+                                    initial_protein = 0,
+                                    equilibration_time = 0.0,
+                                    sampling_timestep = 1.0,
+                                    switching_rate = 1.0,
+                                    initial_environment_on = True):
+    '''Generate one trace of the Hes model with transcriptional switching. This function implements a stochastic version of
+    the model in Monk, Current Biology (2003) where the hill function emerges from transcriptional switching. 
+    This approximation is valid in the limit of large copy numbers, i.e. the only deviation from the
+    dde description is the transcriptional bursting.
+
+    Parameters
+    ----------
+    
+    duration : float
+        duration of the trace in minutes
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+        
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time 
+        in order to get rid of any overshoots, for example
+        
+    switching_rate : float
+        rate of environmental switching
+
+    initial_environment_on : bool
+        True if the environment is in on state at the beginning
+        
+    Returns
+    -------
+    
+    trace : ndarray
+        2 dimensional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number, fourth column is environmental state
+    '''
+    
+    discretization_time_step=0.0001
+
+    discrete_delay = int(np.around(time_delay/discretisation_time_step))
+    
+    total_number_of_timesteps = int(duration/discretization_time_step)
+    
+    mrna_trajectory = np.zeros(total_number_of_timesteps+discrete_delay+1)
+    protein_trajectory = np.zeros(total_number_of_timesteps)
+    environment_trajectory = np.zeros(total_number_of_timesteps, dtype = 'bool')
+    times = np.arange(-transcription_delay,duration, total_number_of_timesteps+discrete_delay+1)
+    
+    mrna_trajectory[:discrete_delay+1] = initial_mRNA
+    protein_trajectory[:discrete_delay+1] = initial_protein
+    environment_trajectory[:discrete_delay+1] = initial_environment_on
+    
+    helper_index =0
+    for time_index in range(discrete_delay+1,total_number_of_timesteps+discrete_delay+1)
+       helper_index =helper_index +1
+       dmRNA=alpha*1./(1.+(y(i-nlag-1)/p0)**h)-mu*x(i-1)
+       fx=alpha*b(sigma(modulo(i-nlag-1,nnlag)))
+            -mu*x(modulo(i-1,nnlag))
+       fy=alpha*x(modulo(i-1,nnlag))-mu*y(modulo(i-1,nnlag))
+       
+
+       x(modulo(i,nnlag))=x(modulo(i-1,nnlag))+dt*fx
+       y(modulo(i,nnlag))=y(modulo(i-1,nnlag))+dt*fy
+
+       s=sigma(modulo(i-1,nnlag))
+       sigma(modulo(i,nnlag))=s
+       if((s.eq.0).and.(ran5(iseed).lt.(lambda*dt))) then
+          sigma(modulo(i,nnlag))=1
+          goto 1717
+       end if
+
+       if((s.eq.1).and.(ran5(iseed).lt.
+            (lambda*(y(modulo(i-1,nnlag))/p0)**h*dt))) then
+          sigma(modulo(i,nnlag))=0
+       end if
+
+ 171    continue
+       
+          
+      
+       if(helper_index .eq.1000) then 
+          write(*,*) i*dt/60.,x(modulo(i,nnlag)),y(modulo(i,nnlag)),
+               sigma(modulo(i,nnlag)),modulo(i,nnlag)
+          write(19,*) i*dt/60.,x(modulo(i,nnlag)),y(modulo(i,nnlag))
+          helper_index =0
+       end if
+
+    
+       
+    end do
+
+
+    
+   
