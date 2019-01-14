@@ -763,7 +763,7 @@ def calculate_theoretical_mRNA_power_spectrum_at_parameter_point(basal_transcrip
                                                             hill_coefficient = 5,
                                                             normalise = True
                                                             ):
-    '''Calculate the theoretical power spectrum of the protein of the Monk (2003) model
+    '''Calculate the theoretical power spectrum of the mRNA of the Monk (2003) model
     at a parameter point using equation 31 in Galla (2009), PRE.
 
     Parameters

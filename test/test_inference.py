@@ -253,16 +253,16 @@ class TestInference(unittest.TestCase):
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
-        hyper_parameters = np.array([0,120000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
+        hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 200000
+        iterations = 2000
         # initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
         #                           np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
         #                           np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                           np.mean(previous_random_walk[:,6])])
         # covariance    = np.cov(previous_random_walk.T)
-        initial_state  = np.array([50000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0])
+        initial_state  = np.array([5000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0])
         covariance     = np.diag(np.array([25000000.0,0.1,0,0,0.034,0.034,1.5]))
 
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
