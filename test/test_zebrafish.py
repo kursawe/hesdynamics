@@ -179,7 +179,7 @@ class TestZebrafish(unittest.TestCase):
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 7))
         
-    def test_plot_zebrafish_inference(self):
+    def xest_plot_zebrafish_inference(self):
         option = 'prior'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -516,9 +516,37 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old.npy', old_model_results)
         np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
         
-    def xest_plot_mrna_increase_results(self):
+    def xest_decrease_mRNA_degradation(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
         
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation')
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        old_model_results = model_results[accepted_indices]
+        my_posterior_samples_increased_degradation = np.copy(my_posterior_samples)
+        my_posterior_samples_increased_degradation[:,5]*=2.0/3.0
+        new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_increased_degradation, 
+                                                                        number_of_traces_per_sample=200 )
+
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_decreased_degradation')
+
+        np.save(saving_path + '.npy', new_model_results)
+        np.save(saving_path + '_parameters.npy', my_posterior_samples_increased_degradation )
+        np.save(saving_path + '_old.npy', old_model_results)
+        np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
+ 
+    def xest_plot_mrna_change_results(self):
+        
+        change = 'decreased'
+#         change = 'increased'
+        
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
         results_after_change = np.load(saving_path + '.npy')
         parameters_after_change = np.load(saving_path + '_parameters.npy')
         results_before_change = np.load(saving_path + '_old.npy')
@@ -575,16 +603,17 @@ class TestZebrafish(unittest.TestCase):
         this_axes.set_ylabel('mRNA number')
 
         plt.tight_layout()
-        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation.pdf'))
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation.pdf'))
 
     def xest_plot_mRNA_change_examples(self):
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation')
+        change = 'decreased'
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
         results_after_change = np.load(saving_path + '.npy')
         parameters_after_change = np.load(saving_path + '_parameters.npy')
         results_before_change = np.load(saving_path + '_old.npy')
         parameters_before_change = np.load(saving_path + '_parameters_old.npy')
     
-        example_parameter_index = 20
+        example_parameter_index = 100
         example_parameter_before = parameters_before_change[example_parameter_index]
         example_parameter_after = parameters_after_change[example_parameter_index]
         
@@ -624,4 +653,72 @@ class TestZebrafish(unittest.TestCase):
         plt.ylabel('Hes expression')
         plt.xlabel('Time')
         plt.tight_layout()
-        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation_examples.pdf'))
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_examples.pdf'))
+
+    def test_plot_smfish_results(self):
+        root = os.path.join('/home','y91198jk','hdd','smfishdata','231118deconvoluted','Experiment_2','repeat_1')
+        items_in_root = os.listdir(root)
+        view_folders = [ item for item in items_in_root if item.startswith('view')]
+        data_files = dict()
+
+        ## FIND RESULTS FILES
+        for view in view_folders:
+            this_results_folder = os.path.join(root,view,'fish_quant_results')
+            these_result_items = os.listdir(this_results_folder)
+            for item in these_result_items:
+                if item.startswith('__FQ_batch_summary_MATURE_'):
+                    this_results_file_name = item
+                    break
+            this_results_file = os.path.join(this_results_folder, this_results_file_name)
+            data_files[view] = this_results_file
+        print data_files
+        
+        ## READ DATA
+        nuclear_dots = dict()
+        total_dots = dict()
+        cytoplasmic_dots = dict()
+        for view in data_files:
+            these_data = pd.read_csv(data_files[view], header = 4, sep = '\t') 
+#                                         usecols = ['N_thresh_Total', 'N_thresh_Nuc'])
+            total_number_of_dots = these_data['N_thres_Total']
+            number_dots_in_nucleus = these_data['N_thres_Nuc']
+            number_dots_in_cytoplasm = total_number_of_dots - number_dots_in_nucleus
+            nuclear_dots[view] = number_dots_in_nucleus
+            total_dots[view] = total_number_of_dots
+            cytoplasmic_dots[view] = number_dots_in_cytoplasm
+            
+        ## Calculate totals
+        total_number_of_dots = []
+        total_cytoplasmic_number_of_dots = []
+        total_nuclear_number_of_dots = []
+        for view in data_files:
+            total_number_of_dots += total_dots[view].tolist()
+            total_cytoplasmic_number_of_dots += cytoplasmic_dots[view].tolist()
+            total_nuclear_number_of_dots += nuclear_dots[view].tolist()
+            
+        nuclear_dots['total'] = total_nuclear_number_of_dots
+        total_dots['total'] = total_number_of_dots
+        cytoplasmic_dots['total'] = total_cytoplasmic_number_of_dots
+        
+        maximimal_number_of_dots = np.max(total_number_of_dots)
+
+        ## PLOT DATA
+        types_of_plot = {'total':total_dots,
+                         'nuclear':nuclear_dots,
+                         'cytoplasmic':cytoplasmic_dots}
+        for view in total_dots:
+            for type in types_of_plot:
+                plt.figure(figsize = (4.5,2.5))
+                these_dots = types_of_plot[type][view]
+#                 these_dots = [number for number in these_dots if number != 0]
+                plt.hist(these_dots,bins=100, range = [0,maximimal_number_of_dots])
+                plt.axvline(np.median(these_dots), lw=1, color = 'black')
+                plt.axvline(np.mean(these_dots), lw=1, color = 'black')
+                plt.ylabel('occurrence')
+                plt.xlabel('# ' + type + ' mRNA')
+                plt.title('Mean: ' + '{:.2f}'.format(np.mean(these_dots)) + 
+                          ', Median: ' + '{:.2f}'.format(np.median(these_dots)) +
+                          ', #cells: ' + str(len(these_dots)))
+                plt.tight_layout()
+                plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                         'smfish_' + view + '_' + type + '.pdf'))
