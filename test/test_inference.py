@@ -247,7 +247,7 @@ class TestInference(unittest.TestCase):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        previous_run            = np.load(saving_path + 'random_walk_test20.npy')
+        previous_run            = np.load(saving_path + 'random_walk.npy')
 
         previous_random_walk = previous_run[1000:,]
 
@@ -256,14 +256,14 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 2000
-        # initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
-        #                           np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
-        #                           np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
-        #                           np.mean(previous_random_walk[:,6])])
-        # covariance    = np.cov(previous_random_walk.T)
-        initial_state  = np.array([5000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0])
-        covariance     = np.diag(np.array([25000000.0,0.1,0,0,0.034,0.034,1.5]))
+        iterations = 500000
+        #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
+        #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
+        #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
+        #                          np.mean(previous_random_walk[:,6])])
+        #covariance    = np.cov(previous_random_walk.T)
+        initial_state = np.array([5000.0,2.0,0.01,0.01,0,0,4.0])
+        covariance    = np.diag(np.array([25000000.0,0.1,0.000005,0.000005,0.034,0.034,1.5]))
 
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
         print('acceptance rate was', acceptance_rate)
@@ -300,7 +300,7 @@ class TestInference(unittest.TestCase):
 
         plt.tight_layout()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','kalman_random_walk.pdf'))
+                                       'output','random_walk.pdf'))
 
     def xest_compute_likelihood_at_multiple_parameters(self):
 

@@ -666,13 +666,13 @@ def calculate_theoretical_protein_power_spectrum_at_parameter_point(basal_transc
 #                                      1.0 + steady_state_protein/float(repression_threshold),
 #                                                     hill_coefficient)
 
-    power_spectrum_values = ( translation_rate*translation_rate*
+    power_spectrum_values = ( np.power(translation_rate,2)*
                        ( basal_transcription_rate * steady_state_hill_function_value +
                          mRNA_degradation_rate*steady_state_mrna)
                       +
-                       ( np.power(pi_frequencies,2) + mRNA_degradation_rate*mRNA_degradation_rate)*
+                        (np.power(pi_frequencies,2) + np.power(mRNA_degradation_rate,2))*
                          ( translation_rate*steady_state_mrna + protein_degradation_rate*steady_state_protein)
-                      )/(np.power(- np.power(pi_frequencies,2) +
+                      )/(np.power(-np.power(pi_frequencies,2) +
                                   protein_degradation_rate*mRNA_degradation_rate
                                   - basal_transcription_rate*translation_rate*steady_state_hill_derivative*
                                   np.cos(pi_frequencies*transcription_delay),2)
@@ -826,7 +826,7 @@ def calculate_theoretical_mRNA_power_spectrum_at_parameter_point(basal_transcrip
 #                                      1.0 + steady_state_protein/float(repression_threshold),
 #                                                     hill_coefficient)
 
-    power_spectrum_values = ( (pi_frequencies*pi_frequencies+protein_degradation_rate*protein_degradation_rate)*(
+    power_spectrum_values = ( (np.power(pi_frequencies,2)+np.power(protein_degradation_rate,2))*(
                                basal_transcription_rate*steady_state_hill_function_value + mRNA_degradation_rate*steady_state_mrna)
                                +
                                np.power(basal_transcription_rate*steady_state_hill_derivative,2)*(translation_rate*steady_state_mrna +
