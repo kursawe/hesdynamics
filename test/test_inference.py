@@ -247,25 +247,25 @@ class TestInference(unittest.TestCase):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        previous_run            = np.load(saving_path + 'random_walk.npy')
+        previous_run            = np.load(saving_path + 'random_walk_500.npy')
 
-        previous_random_walk = previous_run[1000:,]
+        previous_random_walk = previous_run[100000:,]
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
         hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 500000
-        #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
-        #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
-        #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
-        #                          np.mean(previous_random_walk[:,6])])
-        #covariance    = np.cov(previous_random_walk.T)
-        initial_state = np.array([5000.0,2.0,0.01,0.01,0,0,4.0])
-        covariance    = np.diag(np.array([25000000.0,0.1,0.000005,0.000005,0.034,0.034,1.5]))
+        iterations = 500
+        initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
+                                  np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
+                                  np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
+                                  np.mean(previous_random_walk[:,6])])
+        covariance    = np.cov(previous_random_walk.T)
+        #initial_state = np.array([5000.0,2.0,0.01,0.01,0,0,4.0])
+        #covariance    = np.diag(np.array([25000000.0,0.1,0.000005,0.000005,0.034,0.034,1.5]))
 
-        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state)
         print('acceptance rate was', acceptance_rate)
         np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk.npy'),random_walk)
 
@@ -327,3 +327,48 @@ class TestInference(unittest.TestCase):
                                                                                                                                                 measurement_variance = 10000)
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters.npy'),likelihood_at_multiple_parameters)
+
+    def xest_multiple_random_walk_traces_in_parallel(self):
+
+        saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
+        protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
+        #previous_run            = np.load(saving_path + 'random_walk.npy')
+
+        #previous_random_walk = previous_run[1000:,]
+
+        #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
+        #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
+        hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
+
+        measurement_variance = 10000.0
+        #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
+        #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
+        #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
+        #                          np.mean(previous_random_walk[:,6])])
+        #covariance    = np.cov(previous_random_walk.T)
+        covariance    = np.diag(np.array([25000000.0,0.1,0.000005,0.000005,0.034,0.034,1.5]))
+
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
+        initial_states       = np.array([[5000.0,2.0,0.01,0.01,0,0,4.0],[5000.0,2.0,0.01,0.01,0,0,4.0],
+                                         [5000.0,2.0,0.01,0.01,0,0,4.0],[5000.0,2.0,0.01,0.01,0,0,4.0],
+                                         [5000.0,2.0,0.01,0.01,0,0,4.0],[5000.0,2.0,0.01,0.01,0,0,4.0],
+                                         [5000.0,2.0,0.01,0.01,0,0,4.0],[5000.0,2.0,0.01,0.01,0,0,4.0]])
+        number_of_iterations = 200
+        number_of_cpus       = 8
+
+        pool_of_processes = mp.Pool(processes = number_of_cpus)
+
+        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
+                                                          args=(parameter_value, number_of_traces_per_sample,
+                                                                model))
+                            for parameter_value in parameter_values ]
+
+        ## Let the pool know that these are all so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
+
+        for parameter_index, process_result in enumerate(process_results):
+            these_summary_statistics = process_result.get()
+            summary_statistics[ parameter_index ] = these_summary_statistics
+
+        return summary_statistics

@@ -614,8 +614,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     zero_row = np.zeros(7)
     identity = np.identity(7)
-    parameter_deviation = np.sqrt(parameter_covariance)
-    #cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.0001*identity)
+    #parameter_deviation = np.sqrt(parameter_covariance)
+    cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.0001*identity)
+    print(cholesky_covariance)
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
     scale = hyper_parameters[1:number_of_hyper_parameters:2]
@@ -673,7 +674,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             #     print('after:',acceptance_tuner)
 
             #new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
-            new_state = current_state + acceptance_tuner*parameter_deviation.dot(multivariate_normal.rvs(size=7))
+            new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
             print('iteration number:',i)
             print('current state:\n',current_state)
 
