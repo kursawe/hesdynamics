@@ -614,9 +614,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     zero_row = np.zeros(7)
     identity = np.identity(7)
-    #parameter_deviation = np.sqrt(parameter_covariance)
-    cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.0001*identity)
-    print(cholesky_covariance)
+    parameter_deviation = np.sqrt(parameter_covariance)
+    #cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.0001*identity)
+    #print(cholesky_covariance)
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
     scale = hyper_parameters[1:number_of_hyper_parameters:2]
@@ -674,9 +674,10 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             #     print('after:',acceptance_tuner)
 
             #new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
-            new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
-            print('iteration number:',i)
-            print('current state:\n',current_state)
+            new_state = current_state + acceptance_tuner*parameter_deviation.dot(multivariate_normal.rvs(size=7))
+            if np.mod(i,500) == 0:
+                print('iteration number:',i)
+                print('current state:\n',current_state)
 
             positive_new_parameters = new_state[[0,1,2,3,6]]
 
@@ -696,12 +697,14 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     new_log_likelihood = -np.inf
 
                 current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
-                print('new log lik:', new_log_likelihood)
-                print('cur log lik:', current_log_likelihood)
+                if np.mod(i,500) == 0:
+                    print('new log lik:', new_log_likelihood)
+                    print('cur log lik:', current_log_likelihood)
 
                 acceptance_ratio       = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
 
-                print(float(acceptance_count)/i)
+                if np.mod(i,500) == 0:
+                    print(float(acceptance_count)/i)
 
                 if np.random.uniform() < acceptance_ratio:
                     current_state = new_state
@@ -709,5 +712,4 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             random_walk[i,:] = current_state
         acceptance_rate = acceptance_count/iterations
-
     return random_walk, acceptance_rate
