@@ -257,13 +257,13 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 500
+        iterations = 50
         #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
         #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
         #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                          np.mean(previous_random_walk[:,6])])
         #covariance    = np.cov(previous_random_walk.T)
-        initial_state = np.array([5000.0,2.0,0.01,0.01,0,0,4.0])
+        initial_state = np.array([500.0,3.0,np.log(2)/30,np.log(2)/90,0.5,0.5,17.0])
         covariance    = np.diag(np.array([25000000.0,0.1,0.000005,0.000005,0.034,0.034,1.5]))
 
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state)
@@ -350,10 +350,10 @@ class TestInference(unittest.TestCase):
                                            0,                                0,
                                            np.var(previous_random_walk[:,4]),np.var(previous_random_walk[:,5]),
                                            np.var(previous_random_walk[:,6])]))
-        initial_states = np.array([[5000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0],       [500.0,3.0,np.log(2)/30,np.log(2)/90,1,1,17.0],
-                                   [15000.0,2.0,np.log(2)/30,np.log(2)/90,-0.5,0.2,7.0], [500.0,5.0,np.log(2)/30,np.log(2)/90,0.5,0.4,25.0],
-                                   [7000.0,3.5,np.log(2)/30,np.log(2)/90,1.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
-                                   [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.8,15.0]])
+        initial_states = np.array([[5000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0],       [500.0,3.0,np.log(2)/30,np.log(2)/90,0.5,0.5,17.0],
+                                   [15000.0,2.0,np.log(2)/30,np.log(2)/90,-0.1,0.2,7.0], [500.0,5.0,np.log(2)/30,np.log(2)/90,0.5,0.4,25.0],
+                                   [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
+                                   [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.1,15.0]])
 
         number_of_iterations = 10000
 
