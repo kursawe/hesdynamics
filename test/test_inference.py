@@ -332,9 +332,9 @@ class TestInference(unittest.TestCase):
     def test_multiple_random_walk_traces_in_parallel(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        #previous_run            = np.load(saving_path + 'random_walk.npy')
+        previous_run            = np.load(saving_path + 'random_walk_500.npy')
 
-        #previous_random_walk = previous_run[1000:,]
+        previous_random_walk = previous_run[100000:,]
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
@@ -346,26 +346,26 @@ class TestInference(unittest.TestCase):
         #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                          np.mean(previous_random_walk[:,6])])
         #covariance    = np.cov(previous_random_walk.T)
-        covariance    = np.diag(np.array([25000000.0,0.1,0.000005,0.000005,0.034,0.034,1.5]))
+        covariance     = np.diag(np.array([np.var(previous_random_walk[:,0]),np.var(previous_random_walk[:,1]),
+                                           0,                                0,
+                                           np.var(previous_random_walk[:,4]),np.var(previous_random_walk[:,5]),
+                                           np.var(previous_random_walk[:,6])]))
+        initial_states = np.array([[5000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0],       [100.0,3.0,np.log(2)/30,np.log(2)/90,1,1,17.0],
+                                   [15000.0,2.0,np.log(2)/30,np.log(2)/90,-0.5,0.2,7.0], [500.0,5.0,np.log(2)/30,np.log(2)/90,0.5,0.4,25.0],
+                                   [7000.0,3.5,np.log(2)/30,np.log(2)/90,1.4,-0.25,20.0],[19000.0,1.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
+                                   [1000.0,5.5,np.log(2)/30,np.log(2)/90,1,1,15.0],      [50.0,1.0,np.log(2)/30,np.log(2)/90,0.2,0.8,15.0]])
 
-        #random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
-        initial_states       = np.array([[5000.0,2.0,0.01,0.01,0,0,4.0],[5000.0,2.0,0.01,0.01,0,0,4.0],
-                                        [5000.0,2.0,0.01,0.01,0,0,4.0],[5000.0,2.0,0.01,0.01,0,0,4.0],
-                                        [5000.0,2.0,0.01,0.01,0,0,4.0],[5000.0,2.0,0.01,0.01,0,0,4.0],
-                                        [5000.0,2.0,0.01,0.01,0,0,4.0],[5000.0,2.0,0.01,0.01,0,0,4.0]])
-        # initial_states = np.array([[5000.0,2.0,0.01,0.01,0,0,4.0]])
         number_of_iterations = 10000
+
         number_of_cpus       = mp.cpu_count()
-
         pool_of_processes = mp.Pool(processes = number_of_cpus)
-
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
                                                           args=(number_of_iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state))
                             for initial_state in initial_states ]
-
         ## Let the pool know that these are all so that the pool will exit afterwards
         # this is necessary to prevent memory overflows.
         pool_of_processes.close()
+
         list_of_random_walks = []
         list_of_acceptance_rates = []
         for process_result in process_results:
