@@ -604,6 +604,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     acceptance_rate : float.
         An integer between 0 and 1 which tells us the proportion of accepted proposal parameters. This is 0.234.
     """
+    np.random.seed()
     # define set of valid optional inputs, and raise error if not valid
     valid_kwargs = ['adaptive']
     unknown_kwargs = [k for (k, v) in kwargs.items() if k not in valid_kwargs]
