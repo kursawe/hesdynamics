@@ -356,7 +356,7 @@ class TestInference(unittest.TestCase):
                                         [5000.0,2.0,0.01,0.01,0,0,4.0],[5000.0,2.0,0.01,0.01,0,0,4.0]])
         # initial_states = np.array([[5000.0,2.0,0.01,0.01,0,0,4.0]])
         number_of_iterations = 10000
-        number_of_cpus       = 8
+        number_of_cpus       = mp.cpu_count()
 
         pool_of_processes = mp.Pool(processes = number_of_cpus)
 
