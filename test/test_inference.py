@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 font = {'size'   : 10}
 plt.rc('font', **font)
 import numpy as np
+import scipy as sp
 import multiprocessing as mp
 from jitcdde import jitcdde,y,t
 import time
@@ -330,7 +331,7 @@ class TestInference(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters.npy'),likelihood_at_multiple_parameters)
 
     def test_multiple_random_walk_traces_in_parallel(self):
-
+        sp.random.seed()
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
         #previous_run            = np.load(saving_path + 'random_walk.npy')
