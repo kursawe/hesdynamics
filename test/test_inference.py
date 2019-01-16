@@ -350,10 +350,10 @@ class TestInference(unittest.TestCase):
                                            0,                                0,
                                            np.var(previous_random_walk[:,4]),np.var(previous_random_walk[:,5]),
                                            np.var(previous_random_walk[:,6])]))
-        initial_states = np.array([[5000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0],       [100.0,3.0,np.log(2)/30,np.log(2)/90,1,1,17.0],
+        initial_states = np.array([[5000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0],       [500.0,3.0,np.log(2)/30,np.log(2)/90,1,1,17.0],
                                    [15000.0,2.0,np.log(2)/30,np.log(2)/90,-0.5,0.2,7.0], [500.0,5.0,np.log(2)/30,np.log(2)/90,0.5,0.4,25.0],
-                                   [7000.0,3.5,np.log(2)/30,np.log(2)/90,1.4,-0.25,20.0],[19000.0,1.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
-                                   [1000.0,5.5,np.log(2)/30,np.log(2)/90,1,1,15.0],      [50.0,1.0,np.log(2)/30,np.log(2)/90,0.2,0.8,15.0]])
+                                   [7000.0,3.5,np.log(2)/30,np.log(2)/90,1.2,-0.25,20.0],[19000.0,1.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
+                                   [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,1.0,np.log(2)/30,np.log(2)/90,0.2,0.8,15.0]])
 
         number_of_iterations = 10000
 
