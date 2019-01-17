@@ -355,10 +355,10 @@ class TestInference(unittest.TestCase):
                                    [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
                                    [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.1,15.0]])
 
-        number_of_iterations = 10000
+        number_of_iterations = 250000
 
         number_of_cpus       = mp.cpu_count()
-        pool_of_processes = mp.Pool(processes = number_of_cpus)
+        pool_of_processes = mp.Pool(processes = number_of_cpus, maxtasksperchild = 20000)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
                                                           args=(number_of_iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state))
                             for initial_state in initial_states ]
