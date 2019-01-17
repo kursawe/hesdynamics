@@ -625,6 +625,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     random_walk = np.zeros((iterations,7))
     random_walk[0,:] = current_state
+    reparameterised_current_state = np.copy(current_state)
+    reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
+    current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
     acceptance_count = 0
 
     # if user chooses adaptive mcmc, the following will execute.
@@ -676,7 +679,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             #new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
             new_state = current_state + acceptance_tuner*parameter_deviation.dot(multivariate_normal.rvs(size=7))
-            if np.mod(i,500) == 0:
+            if np.mod(i,1) == 0:
                 print('iteration number:',i)
                 print('current state:\n',current_state)
 
@@ -697,8 +700,8 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 except ValueError:
                     new_log_likelihood = -np.inf
 
-                current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
-                if np.mod(i,500) == 0:
+                #current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
+                if np.mod(i,1) == 0:
                     print('new log lik:', new_log_likelihood)
                     print('cur log lik:', current_log_likelihood)
 
@@ -709,6 +712,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
                 if np.random.uniform() < acceptance_ratio:
                     current_state = new_state
+                    current_log_likelihood = new_log_likelihood
                     acceptance_count += 1
 
             random_walk[i,:] = current_state

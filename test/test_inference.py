@@ -257,7 +257,7 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 50
+        iterations = 500
         #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
         #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
         #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
@@ -355,10 +355,10 @@ class TestInference(unittest.TestCase):
                                    [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
                                    [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.1,15.0]])
 
-        number_of_iterations = 250000
+        number_of_iterations = 200000
 
         number_of_cpus       = mp.cpu_count()
-        pool_of_processes = mp.Pool(processes = number_of_cpus, maxtasksperchild = 20000)
+        pool_of_processes = mp.Pool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
                                                           args=(number_of_iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state))
                             for initial_state in initial_states ]
