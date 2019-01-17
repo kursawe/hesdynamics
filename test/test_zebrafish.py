@@ -11,6 +11,8 @@ import numpy as np
 import scipy.optimize
 import pandas as pd
 import seaborn as sns
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import Matern, RBF, ConstantKernel
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
@@ -74,10 +76,10 @@ class TestZebrafish(unittest.TestCase):
         
         difference = -(mean_protein_before_increase - mean_protein_after_increase)/mean_protein_before_increase
         
-        print 'these parameters are'
-        print parameter_array
-        print 'this difference is'
-        print difference
+        print('these parameters are')
+        print(parameter_array)
+        print('this difference is')
+        print(difference)
         
         return difference
     
@@ -342,7 +344,7 @@ class TestZebrafish(unittest.TestCase):
 #         plt.hist(histogram[::-1], np.log(2)/bin_edges[::-1] )
 
         half_lifes = np.log(2)/data_frame['mRNA degradation']
-        print half_lifes
+        print(half_lifes)
         half_life_bins = np.linspace(1,15,20)
 #         half_life_histogram, _ = np.histogram(half_lifes, half_life_bins, density = True)
 #         print(half_life_histogram)
@@ -655,7 +657,7 @@ class TestZebrafish(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_examples.pdf'))
 
-    def test_plot_smfish_results(self):
+    def xest_plot_smfish_results(self):
         root = os.path.join('/home','y91198jk','hdd','smfishdata','231118deconvoluted','Experiment_2','repeat_1')
         items_in_root = os.listdir(root)
         view_folders = [ item for item in items_in_root if item.startswith('view')]
@@ -671,7 +673,7 @@ class TestZebrafish(unittest.TestCase):
                     break
             this_results_file = os.path.join(this_results_folder, this_results_file_name)
             data_files[view] = this_results_file
-        print data_files
+        print(data_files)
         
         ## READ DATA
         nuclear_dots = dict()
@@ -722,3 +724,239 @@ class TestZebrafish(unittest.TestCase):
                 plt.tight_layout()
                 plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                          'smfish_' + view + '_' + type + '.pdf'))
+
+    def xest_play_with_Gaussian_Processes(self):
+        
+        np.random.seed(1)
+        
+        
+        # the function to predict
+        f = lambda x : x*np.sin(x)
+        
+        # ----------------------------------------------------------------------
+        #  First the noiseless case
+        X = np.atleast_2d([1., 3., 5., 6., 7., 8.]).T
+        print(X)
+        
+        # Observations
+        y = f(X).ravel()
+        print(y)
+        
+        # Mesh the input space for evaluations of the real function, the prediction and
+        # its MSE
+        x = np.atleast_2d(np.linspace(0, 10, 1000)).T
+        
+        # Instantiate a Gaussian Process model
+        my_kernel = ConstantKernel(1.0, (1e-3, 1e3)) * RBF(10, (1e-2, 1e2))
+        my_gp_regressor = GaussianProcessRegressor(kernel=my_kernel, n_restarts_optimizer=9)
+        
+        # Fit to data using Maximum Likelihood Estimation of the parameters
+        my_gp_regressor.fit(X, y)
+        
+        # Make the prediction on the meshed x-axis (ask for MSE as well)
+        y_pred, sigma = my_gp_regressor.predict(x, return_std=True)
+        
+        # Plot the function, the prediction and the 95% confidence interval based on
+        # the MSE
+        plt.figure()
+        plt.plot(x, f(x), 'r:', label=u'$f(x) = x\,\sin(x)$')
+        plt.plot(X, y, 'r.', markersize=10, label=u'Observations')
+        plt.plot(x, y_pred, 'b-', label=u'Prediction')
+        plt.fill(np.concatenate([x, x[::-1]]),
+                 np.concatenate([y_pred - 1.9600 * sigma,
+                                (y_pred + 1.9600 * sigma)[::-1]]),
+                 alpha=.5, fc='b', ec='None', label='95% confidence interval')
+        plt.xlabel('$x$')
+        plt.ylabel('$f(x)$')
+        plt.ylim(-10, 20)
+        plt.legend(loc='upper left')
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'gp_example_1.pdf'))
+        
+        # ----------------------------------------------------------------------
+        # now the noisy case
+        X = np.linspace(0.1, 9.9, 20)
+        X = np.atleast_2d(X).T
+        
+        # Observations and noise
+        y = f(X).ravel()
+        dy = 0.5 + 1.0 * np.random.random(y.shape)
+        noise = np.random.normal(0, dy)
+        y += noise
+        
+        # Instantiate a Gaussian Process model
+        my_gp_regressor = GaussianProcessRegressor(kernel=my_kernel, alpha=dy ** 2,
+                                      n_restarts_optimizer=10)
+        
+        # Fit to data using Maximum Likelihood Estimation of the parameters
+        my_gp_regressor.fit(X, y)
+        
+        # Make the prediction on the meshed x-axis (ask for MSE as well)
+        y_pred, sigma = my_gp_regressor.predict(x, return_std=True)
+        
+        # Plot the function, the prediction and the 95% confidence interval based on
+        # the MSE
+        plt.figure()
+        plt.plot(x, f(x), 'r:', label=u'$f(x) = x\,\sin(x)$')
+        plt.errorbar(X.ravel(), y, dy, fmt='r.', markersize=10, label=u'Observations')
+        plt.plot(x, y_pred, 'b-', label=u'Prediction')
+        plt.fill(np.concatenate([x, x[::-1]]),
+                 np.concatenate([y_pred - 1.9600 * sigma,
+                                (y_pred + 1.9600 * sigma)[::-1]]),
+                 alpha=.5, fc='b', ec='None', label='95% confidence interval')
+        plt.xlabel('$x$')
+        plt.ylabel('$f(x)$')
+        plt.ylim(-10, 20)
+        plt.legend(loc='upper left')
+        
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'gp_example_2.pdf'))
+        
+    def xest_try_OU_process_for_lengthscale(self):
+        #generate a trace
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        example_parameter_index = 100
+        example_parameter = my_posterior_samples[example_parameter_index]
+        
+        example_trace = hes5.generate_langevin_trajectory( 720, #duration 
+                                                                  example_parameter[2], #repression_threshold, 
+                                                                  example_parameter[4], #hill_coefficient,
+                                                                  example_parameter[5], #mRNA_degradation_rate, 
+                                                                  example_parameter[6], #protein_degradation_rate, 
+                                                                  example_parameter[0], #basal_transcription_rate, 
+                                                                  example_parameter[1], #translation_rate,
+                                                                  example_parameter[3], #transcription_delay, 
+                                                                  10, #initial_mRNA
+                                                                  example_parameter[2], #initial_protein,
+                                                                  2000)
+        
+        times = example_trace[:,0]
+        times = times[:,np.newaxis]
+        times = times/60.0
+        protein_trace = example_trace[:,2] - np.mean(example_trace[:,2])
+        
+        ornstein_kernel = ConstantKernel(1.0, (1e-3, 1e3))*Matern(length_scale=0.1, length_scale_bounds=(1e-03, 100), nu=0.5)
+        my_gp_regressor = GaussianProcessRegressor(kernel=ornstein_kernel, n_restarts_optimizer=10)
+        my_fit = my_gp_regressor.fit(times, protein_trace)
+        print(my_fit)
+        print(my_fit.kernel_)
+        my_parameters = my_gp_regressor.get_params()
+        print(my_parameters)
+    
+        protein_predicted, sigma_predicted = my_gp_regressor.predict(times, return_std=True)
+
+        plt.figure(figsize = (6.5, 2.5))
+        plt.plot(example_trace[:,0],
+                 example_trace[:,2])
+        plt.plot(example_trace[:,0],
+                 protein_predicted,
+                 )
+        plt.fill(np.concatenate([times, times[::-1]])*60,
+                 np.concatenate([protein_predicted - 1.9600 * sigma_predicted,
+                                (protein_predicted + 1.9600 * sigma_predicted)[::-1]]),
+                 alpha=.5, fc='b', ec='None', label='95% confidence interval')
+        plt.ylabel('Hes expression')
+        plt.xlabel('Time')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','gp_example.pdf'))
+
+    def xest_do_gpy_example(self):
+        import GPy
+        X = np.random.uniform(-3.,3.,(20,1))
+        Y = np.sin(X) + np.random.randn(20,1)*0.05
+
+        kernel = GPy.kern.RBF(input_dim=1, variance=1., lengthscale=1.)
+        m = GPy.models.GPRegression(X,Y,kernel)
+        print(m)
+        fig = m.plot()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','gpy_example.pdf'))
+
+        m.optimize(messages=True)
+        m.optimize_restarts(num_restarts = 10)
+        fig = m.plot()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','gpy_example2.pdf'))
+
+    def test_do_gpflow_example(self):
+        import gpflow
+        N = 12
+        X = np.random.rand(N,1)
+        Y = np.sin(12*X) + 0.66*np.cos(25*X) + np.random.randn(N,1)*0.1 + 3
+        plt.figure()
+        plt.plot(X, Y, 'kx', mew=2)
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','gpflow_example.pdf'))
+
+        k = gpflow.kernels.Matern52(1, lengthscales=0.3)
+        m = gpflow.models.GPR(X, Y, kern=k)
+        m.likelihood.variance = 0.01
+
+        xx = np.linspace(-0.1, 1.1, 100).reshape(100, 1)
+
+        plt.figure()
+        mean, var = m.predict_y(xx)
+        plt.figure(figsize=(12, 6))
+        plt.plot(X, Y, 'kx', mew=2)
+        plt.plot(xx, mean, 'C0', lw=2)
+        plt.fill_between(xx[:,0],
+                     mean[:,0] - 2*np.sqrt(var[:,0]),
+                     mean[:,0] + 2*np.sqrt(var[:,0]),
+                     color='C0', alpha=0.2)
+        plt.xlim(-0.1, 1.1)
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','gpflow_example1.pdf'))
+
+        k = gpflow.kernels.Matern52(1, lengthscales=0.3)
+        meanf = gpflow.mean_functions.Linear(1.0, 0.0)
+        m = gpflow.models.GPR(X, Y, k, meanf)
+        m.likelihood.variance = 0.01
+        print(m.as_pandas_table())
+        gpflow.train.ScipyOptimizer().minimize(m)
+        plt.figure()
+        mean, var = m.predict_y(xx)
+        plt.figure(figsize=(12, 6))
+        plt.plot(X, Y, 'kx', mew=2)
+        plt.plot(xx, mean, 'C0', lw=2)
+        plt.fill_between(xx[:,0],
+                     mean[:,0] - 2*np.sqrt(var[:,0]),
+                     mean[:,0] + 2*np.sqrt(var[:,0]),
+                     color='C0', alpha=0.2)
+        plt.xlim(-0.1, 1.1)
+        print(m.as_pandas_table())
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','gpflow_example2.pdf'))
+
+#         k = GPflow.kernels.Matern32(1, variance=1, lengthscales=1.2)
+#         m = GPflow.gpr.GPR(X, Y, kern=k)
+#         print(m)
+#         m.likelihood.variance = 0.01
+#         m.optimize()
+#         m.kern.variance.prior = GPflow.priors.Gamma(1,0.1)
+#         m.kern.lengthscales.prior = GPflow.priors.Gamma(1,0.1)
+#         m.likelihood.variance = 0.1
+#         m.likelihood.variance.fixed = True
+#         m.optimize()
+# 
+#         print(m)
+#         plt.figure(figsize = (6.5, 2.5))
+#         plt.plot(example_trace[:,0],
+#                  example_trace[:,2])
+#         plt.plot(example_trace[:,0],
+#                  protein_predicted,
+#                  )
+#         plt.fill(np.concatenate([times, times[::-1]])*60,
+#                  np.concatenate([protein_predicted - 1.9600 * sigma_predicted,
+#                                 (protein_predicted + 1.9600 * sigma_predicted)[::-1]]),
+#                  alpha=.5, fc='b', ec='None', label='95% confidence interval')
+#         plt.ylabel('Hes expression')
+#         plt.xlabel('Time')
+#         plt.tight_layout()
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','gp_example.pdf'))
+
