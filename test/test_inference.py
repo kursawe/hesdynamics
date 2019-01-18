@@ -244,27 +244,27 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def xest_kalman_random_walk(self):
+    def test_kalman_random_walk(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        previous_run            = np.load(saving_path + 'random_walk_500.npy')
+        #previous_run            = np.load(saving_path + 'random_walk_500.npy')
 
-        previous_random_walk = previous_run[100000:,]
+        #previous_random_walk = previous_run[100000:,]
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
         hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 500
+        iterations = 500000
         #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
         #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
         #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                          np.mean(previous_random_walk[:,6])])
         #covariance    = np.cov(previous_random_walk.T)
         initial_state = np.array([500.0,3.0,np.log(2)/30,np.log(2)/90,0.5,0.5,17.0])
-        covariance    = np.diag(np.array([25000000.0,0.1,0.000005,0.000005,0.034,0.034,1.5]))
+        covariance    = np.diag(np.array([25000000.0,0.1,0,0,0.034,0.034,1.5]))
 
         random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state)
         print('acceptance rate was', acceptance_rate)
@@ -329,7 +329,7 @@ class TestInference(unittest.TestCase):
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters.npy'),likelihood_at_multiple_parameters)
 
-    def test_multiple_random_walk_traces_in_parallel(self):
+    def xest_multiple_random_walk_traces_in_parallel(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
         previous_run            = np.load(saving_path + 'random_walk_500.npy')
