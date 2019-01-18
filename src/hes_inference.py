@@ -3,7 +3,8 @@ import numpy as np
 import hes5
 from numpy import number
 from numba import jit, autojit
-from pandas.util.testing import all_index_generator
+from scipy.stats import gamma, multivariate_normal, uniform
+import multiprocessing as mp
 
 #discretisation_time_step=1.0
 # @jit(nopython=True)
@@ -611,7 +612,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     if len(unknown_kwargs):
         raise TypeError("Did not understand the following kwargs:" " %s" % unknown_kwargs)
 
-    from scipy.stats import gamma, multivariate_normal, uniform
 
     zero_row = np.zeros(7)
     identity = np.identity(7)
@@ -623,11 +623,16 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     scale = hyper_parameters[1:number_of_hyper_parameters:2]
     current_state = initial_state
 
+    # We perform likelihood calculations in a separate process which is managed by a process pool
+    # this is necessary to prevent memory overflow due to memory fragmentation
+    likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
+
     random_walk = np.zeros((iterations,7))
     random_walk[0,:] = current_state
     reparameterised_current_state = np.copy(current_state)
     reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
     current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
+    current_log_prior      = np.sum(uniform.logpdf(current_state,loc=shape,scale=scale))
     acceptance_count = 0
 
     # if user chooses adaptive mcmc, the following will execute.
@@ -687,7 +692,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             if all(item > 0 for item in positive_new_parameters) == True:
                 new_log_prior          = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
-                current_log_prior      = np.sum(uniform.logpdf(current_state,loc=shape,scale=scale))
 
                 # reparameterise
                 reparameterised_new_state            = np.copy(new_state)
@@ -696,7 +700,15 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
 
                 try:
-                    new_log_likelihood     = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_new_state,measurement_variance)
+                    # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
+                    # but which can be interrogated about the status of the calculation and so on
+                    new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point, 
+                                                                              args = (protein_at_observations, 
+                                                                                      reparameterised_new_state, 
+                                                                                      measurement_variance))
+
+                    # ask the async result from above to return the new likelihood when it is ready
+                    new_log_likelihood = new_likelihood_result.get()
                 except ValueError:
                     new_log_likelihood = -np.inf
 
@@ -713,6 +725,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 if np.random.uniform() < acceptance_ratio:
                     current_state = new_state
                     current_log_likelihood = new_log_likelihood
+                    current_log_prior = new_log_prior
                     acceptance_count += 1
 
             random_walk[i,:] = current_state

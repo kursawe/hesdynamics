@@ -6,14 +6,12 @@ import scipy.interpolate
 import multiprocessing as mp
 # import collections
 from numba import jit, autojit
-from numpy import ndarray, number
 import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import socket
-import jitcdde
 
 domain_name = socket.getfqdn()
 if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
