@@ -5,6 +5,7 @@ from numpy import number
 from numba import jit, autojit
 from scipy.stats import gamma, multivariate_normal, uniform
 import multiprocessing as mp
+from tqdm import tqdm
 
 #discretisation_time_step=1.0
 # @jit(nopython=True)
@@ -671,7 +672,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         acceptance_rate = acceptance_count/iterations
 #####################################################################################################################
     else:
-        for i in range(1,iterations):
+        for i in tqdm(range(1,iterations)):
             # # tune the acceptance parameter so acceptance rate is optimised
             # if np.mod(i,500) == 0:
             #     print('before:',acceptance_tuner)
