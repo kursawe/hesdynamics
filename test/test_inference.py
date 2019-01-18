@@ -245,7 +245,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def test_kalman_random_walk(self):
+    def xest_kalman_random_walk(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
@@ -255,7 +255,7 @@ class TestInference(unittest.TestCase):
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
-        hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
+        hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
 
         measurement_variance = 10000.0
         iterations = 500000
@@ -313,13 +313,13 @@ class TestInference(unittest.TestCase):
         mRNA_degradation_rate    = np.log(2)/30
         protein_degradation_rate = np.log(2)/90
 
-        # hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),1+np.log10(65),np.log10(0.1),1+np.log10(45),4,36])
+        # hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),1+np.log10(65),np.log10(0.1),1+np.log10(45),4,36])
 
-        for repression_index, repression_threshold in enumerate(np.arange(1,20001,2000)):
+        for repression_index, repression_threshold in enumerate(np.arange(100,20100,2000)):
             for hill_index, hill_coefficient in enumerate(np.arange(2,6,0.4)):
                 for basal_index, basal_transcription_rate in enumerate(np.linspace(-1,np.log10(60),10)):
                     for translation_index, translation_rate in enumerate(np.linspace(-1,np.log10(40),10)):
-                        for transcription_index, transcription_delay in enumerate(np.arange(5,40,3.5)):
+                        for transcription_index, transcription_delay in enumerate(np.arange(5,40,4.5)):
                             likelihood_at_multiple_parameters[repression_index,hill_index,basal_index,translation_index,transcription_index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
                                                                                                                                                 model_parameters=np.array([repression_threshold,
                                                                                                                                                                            hill_coefficient,
@@ -341,7 +341,7 @@ class TestInference(unittest.TestCase):
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
-        hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
+        hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
         #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
