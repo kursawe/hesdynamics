@@ -702,9 +702,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 try:
                     # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
                     # but which can be interrogated about the status of the calculation and so on
-                    new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point, 
-                                                                              args = (protein_at_observations, 
-                                                                                      reparameterised_new_state, 
+                    new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point,
+                                                                              args = (protein_at_observations,
+                                                                                      reparameterised_new_state,
                                                                                       measurement_variance))
 
                     # ask the async result from above to return the new likelihood when it is ready
@@ -730,4 +730,5 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             random_walk[i,:] = current_state
         acceptance_rate = float(acceptance_count)/iterations
+        likelihood_calculations_pool.close()
     return random_walk, acceptance_rate
