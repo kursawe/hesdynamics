@@ -245,7 +245,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def xest_kalman_random_walk(self):
+    def test_kalman_random_walk(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
