@@ -71,8 +71,8 @@ class TestInference(unittest.TestCase):
                     true_data)
 
         ## the F constant matrix is left out for now
-        protein_at_observations = true_data[0:900:10,(0,2)]
-        protein_at_observations[:,1] += np.random.randn(90)*100
+        protein_at_observations = true_data[0:900:5,(0,2)]
+        protein_at_observations[:,1] += np.random.randn(180)*100
         protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
         np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_trace_observations.npy'),
                     protein_at_observations)
@@ -257,16 +257,16 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([0,20000,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 500000
+        iterations = 10000
         #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
         #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
         #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                          np.mean(previous_random_walk[:,6])])
         #covariance    = np.cov(previous_random_walk.T)
         initial_state = np.array([500.0,3.0,np.log(2)/30,np.log(2)/90,0.5,0.5,17.0])
-        covariance    = np.diag(np.array([25000000.0,0.1,0,0,0.034,0.034,1.5]))
+        covariance    = np.diag(np.array([25000000.0,0.1,0,0,0.034,0.034,5.5]))
 
-        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state)
+        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
         print('acceptance rate was', acceptance_rate)
         np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk.npy'),random_walk)
 
