@@ -52,6 +52,41 @@ class TestSwitching(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','switching_trajectory.pdf'))
 
+    def xest_generate_single_ode_switching_trajectory(self):
+        my_trajectory = switching.generate_ode_switching_trajectory( duration = 1500,
+                                                         repression_threshold = 10000,
+                                                         mRNA_degradation_rate = np.log(2)/30,
+                                                         protein_degradation_rate = np.log(2)/90,
+                                                         transcription_delay = 19,
+                                                         initial_mRNA = 3,
+                                                         initial_protein = 100,
+                                                         basal_transcription_rate = 1.0,
+                                                         translation_rate = 4.0,
+                                                         equilibration_time = 1000,
+                                                         switching_rate = 0.1)
+
+        #Second, plot the model
+        figuresize = (4,4)
+        my_figure = plt.figure(figsize=figuresize)
+        plt.subplot(211)
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1], label = 'mRNA', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2]*0.03, label = 'Hes protein', color = 'black', ls = '--')
+        plt.xlabel('Time')
+        plt.ylabel('Scaled expression')
+        plt.ylim(0,600)
+        plt.legend(ncol=2)
+        plt.subplot(212)
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,3], label = 'environment', color = 'black')
+        plt.xlabel('Time')
+        plt.ylabel('environmental state')
+        plt.ylim(-0.2, 1.2)
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','ode_switching_trajectory.pdf'))
+
     def xest_generate_single_langevin_trajectory(self):
         my_trajectory = switching.generate_switching_langevin_trajectory( duration = 1500,
                                                          repression_threshold = 10000,
@@ -366,6 +401,59 @@ class TestSwitching(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','switching_lambda_dependence_langevin.pdf'))
 
+    def xest_validate_stochastic_ode_implementation(self):
+        mRNA_trajectories, protein_trajectories = switching.generate_multiple_switching_ode_trajectories( number_of_trajectories = 10,
+                                                                     duration = 720,
+                                                                     repression_threshold = 100000.0,
+                                                                     mRNA_degradation_rate = 0.03,
+                                                                     protein_degradation_rate = 0.03,
+                                                                     transcription_delay = 19,
+                                                                     basal_transcription_rate = 1000.0,
+                                                                     translation_rate = 1.0,
+                                                                     initial_mRNA = 3000,
+                                                                     initial_protein = 100000,
+                                                                     switching_rate = 100.0,
+                                                                     discretisation_time_step = 0.0001,
+                                                                     initial_environment_on = False)
+        
+        mean_protein_trajectory = np.mean(protein_trajectories[:,1:], axis = 1)
+        protein_deviation = np.std(mRNA_trajectories[:,1:])
+        mean_mRNA_trajectory = np.mean(mRNA_trajectories[:,1:], axis = 1)
+        mRNA_deviation = np.std(mRNA_trajectories[:,1:])
+        
+        deterministic_trajectory = hes5.generate_deterministic_trajectory( duration = 720,
+                                                                           repression_threshold = 100000,
+                                                                           mRNA_degradation_rate = 0.03,
+                                                                           protein_degradation_rate = 0.03,
+                                                                           transcription_delay = 19,
+                                                                           basal_transcription_rate = 1000.0,
+                                                                           translation_rate = 1.0,
+                                                                           initial_mRNA = 3000,
+                                                                           initial_protein = 100000,
+                                                                           for_negative_times = 'no_negative' )
+
+        figuresize = (4,2.75)
+        my_figure = plt.figure()
+        # want to plot: protein and mRNA for stochastic and deterministic system,
+        # example stochastic system
+        plt.plot( mRNA_trajectories[:,0],
+                  mRNA_trajectories[:,1]/1000., label = 'mRNA example', color = 'black' )
+        plt.plot( protein_trajectories[:,0],
+                  protein_trajectories[:,1]/10000., label = 'Protein example', color = 'black', ls = '--' )
+        plt.plot( mRNA_trajectories[:,0],
+                mean_mRNA_trajectory/1000., label = 'Mean mRNA', color = 'blue' )
+        plt.plot( protein_trajectories[:,0],
+                mean_protein_trajectory/10000., label = 'Mean protein', color = 'blue', ls = '--' )
+        plt.plot( deterministic_trajectory[:,0],
+                  deterministic_trajectory[:,1]/1000., label = 'Deterministic mRNA', color = 'green' )
+        plt.plot( deterministic_trajectory[:,0],
+                  deterministic_trajectory[:,2]/10000., label = 'Deterministic Protein', color = 'green', ls = '--' )
+        plt.xlabel('Time')
+        plt.ylabel('Scaled expression')
+        plt.legend()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','switching_ode_model_validation.pdf'))
+
     def xest_difference_langevin_gillespie(self):
         system_size = 1000
 
@@ -482,7 +570,7 @@ class TestSwitching(unittest.TestCase):
 #                                        'output','switching_lambda_dependence.pdf'))
 # 
 
-    def test_measure_time_average(self):
+    def xest_measure_time_average(self):
         
         # define a set of timesteps 
         timestep = 0.1
@@ -521,3 +609,64 @@ class TestSwitching(unittest.TestCase):
         plt.ylabel('time average')
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                         'output','time_average_distribution.pdf'))
+        
+    
+    def test_generate_power_spectrum(self):
+        number_of_traces = 200
+        _, these_real_traces = switching.generate_multiple_switching_ode_trajectories(number_of_trajectories = number_of_traces,
+                                                         duration = 1500*5,
+                                                         repression_threshold = 10,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.7,
+                                                         initial_mRNA = 1,
+                                                         initial_protein = 10,
+                                                         basal_transcription_rate = 1.0,
+                                                         translation_rate = 1.0,
+                                                         hill_coefficient = 4.1,
+                                                         equilibration_time = 1000,
+                                                         switching_rate = 12.5)
+
+        _, these_langevin_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
+                                                         duration = 1500*5,
+                                                         repression_threshold = 10,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.7,
+                                                         initial_mRNA = 1,
+                                                         initial_protein = 10,
+                                                         basal_transcription_rate = 1.0,
+                                                         translation_rate = 1.0,
+                                                         hill_coefficient = 4.1,
+                                                         equilibration_time = 1000,
+                                                         switching_rate = 12.5,
+                                                         model = 'switching_only')
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'),
+                    these_real_traces)
+        
+        np.save(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'),
+                    these_langevin_traces)
+
+        real_standard_deviation = np.std(these_real_traces[:,1:])
+        langevin_standard_deviation = np.std(these_langevin_traces[:,1:])
+        print(real_standard_deviation)
+        print(langevin_standard_deviation)
+
+        real_mean = np.mean(these_real_traces[:,1:])
+        langevin_mean = np.mean(these_langevin_traces[:,1:])
+        print(real_mean)
+        print(langevin_mean)
+
+        this_real_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_real_traces)
+        this_langevin_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_langevin_traces)
+        
+        plt.figure()
+        plt.plot(this_real_power_spectrum[:,0], this_real_power_spectrum[:,1], lw = 1)
+        plt.plot(this_langevin_power_spectrum[:,0], this_langevin_power_spectrum[:,1], lw = 1)
+        plt.xlim(0.004,0.01)
+        plt.xlabel('frequency')
+        plt.ylabel('power')
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                        'output','power_spectrum_validation.pdf'))
+ 
