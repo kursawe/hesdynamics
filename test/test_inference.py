@@ -245,7 +245,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def test_kalman_random_walk(self):
+    def xest_kalman_random_walk(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
@@ -304,7 +304,7 @@ class TestInference(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','random_walk.pdf'))
 
-    def xest_compute_likelihood_at_multiple_parameters(self):
+    def test_compute_likelihood_at_multiple_parameters(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         protein_at_observations = np.load(saving_path + '_observations.npy')
@@ -315,11 +315,11 @@ class TestInference(unittest.TestCase):
 
         # hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),1+np.log10(65),np.log10(0.1),1+np.log10(45),4,36])
 
-        for repression_index, repression_threshold in enumerate(np.arange(100,20100,2000)):
-            for hill_index, hill_coefficient in enumerate(np.arange(2,6,0.4)):
+        for repression_index, repression_threshold in enumerate(np.linspace(100,20100,10)):
+            for hill_index, hill_coefficient in enumerate(np.linspace(2,6,10)):
                 for basal_index, basal_transcription_rate in enumerate(np.linspace(-1,np.log10(60),10)):
                     for translation_index, translation_rate in enumerate(np.linspace(-1,np.log10(40),10)):
-                        for transcription_index, transcription_delay in enumerate(np.arange(5,40,4.5)):
+                        for transcription_index, transcription_delay in enumerate(np.linspace(5,40,10)):
                             likelihood_at_multiple_parameters[repression_index,hill_index,basal_index,translation_index,transcription_index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
                                                                                                                                                 model_parameters=np.array([repression_threshold,
                                                                                                                                                                            hill_coefficient,
