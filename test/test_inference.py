@@ -304,7 +304,7 @@ class TestInference(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','random_walk.pdf'))
 
-    def test_compute_likelihood_at_multiple_parameters(self):
+    def xest_compute_likelihood_at_multiple_parameters(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         protein_at_observations = np.load(saving_path + '_observations.npy')
@@ -332,16 +332,16 @@ class TestInference(unittest.TestCase):
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters.npy'),likelihood_at_multiple_parameters)
 
-    def xest_multiple_random_walk_traces_in_parallel(self):
+    def test_multiple_random_walk_traces_in_parallel(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        previous_run            = np.load(saving_path + 'random_walk_500.npy')
+        previous_run            = np.load(saving_path + 'random_walk_500_5.npy')
 
         previous_random_walk = previous_run[100000:,]
 
         #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
         #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
-        hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(65),np.log10(0.1),np.log10(45),4,36]) # uniform
+        hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
 
         measurement_variance = 10000.0
         #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
@@ -358,7 +358,7 @@ class TestInference(unittest.TestCase):
                                    [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
                                    [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.1,15.0]])
 
-        number_of_iterations = 500
+        number_of_iterations = 2000000
 
         number_of_cpus       = mp.cpu_count()
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
