@@ -13,6 +13,7 @@ import pandas as pd
 import seaborn as sns
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern, RBF, ConstantKernel
+import gpflow
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
@@ -887,8 +888,9 @@ class TestZebrafish(unittest.TestCase):
         fig = m.plot()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','gpy_example2.pdf'))
 
-    def test_do_gpflow_example(self):
-        import gpflow
+    def xest_do_gpflow_example(self):
+        # websites for this include: https://blog.dominodatalab.com/fitting-gaussian-process-models-python/
+        # and https://gpflow.readthedocs.io/en/master/notebooks/regression.html
         N = 12
         X = np.random.rand(N,1)
         Y = np.sin(12*X) + 0.66*np.cos(25*X) + np.random.randn(N,1)*0.1 + 3
@@ -933,30 +935,62 @@ class TestZebrafish(unittest.TestCase):
         print(m.as_pandas_table())
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','gpflow_example2.pdf'))
 
-#         k = GPflow.kernels.Matern32(1, variance=1, lengthscales=1.2)
-#         m = GPflow.gpr.GPR(X, Y, kern=k)
-#         print(m)
-#         m.likelihood.variance = 0.01
-#         m.optimize()
-#         m.kern.variance.prior = GPflow.priors.Gamma(1,0.1)
-#         m.kern.lengthscales.prior = GPflow.priors.Gamma(1,0.1)
-#         m.likelihood.variance = 0.1
-#         m.likelihood.variance.fixed = True
-#         m.optimize()
-# 
-#         print(m)
-#         plt.figure(figsize = (6.5, 2.5))
-#         plt.plot(example_trace[:,0],
-#                  example_trace[:,2])
-#         plt.plot(example_trace[:,0],
-#                  protein_predicted,
-#                  )
-#         plt.fill(np.concatenate([times, times[::-1]])*60,
-#                  np.concatenate([protein_predicted - 1.9600 * sigma_predicted,
-#                                 (protein_predicted + 1.9600 * sigma_predicted)[::-1]]),
-#                  alpha=.5, fc='b', ec='None', label='95% confidence interval')
-#         plt.ylabel('Hes expression')
-#         plt.xlabel('Time')
-#         plt.tight_layout()
-#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','gp_example.pdf'))
+    def test_try_OU_process_for_lengthscale_with_gpflow(self):
+        #generate a trace
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
 
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        example_parameter_index = 100
+        example_parameter = my_posterior_samples[example_parameter_index]
+        
+        example_trace = hes5.generate_langevin_trajectory( 720, #duration 
+                                                                  example_parameter[2], #repression_threshold, 
+                                                                  example_parameter[4], #hill_coefficient,
+                                                                  example_parameter[5], #mRNA_degradation_rate, 
+                                                                  example_parameter[6], #protein_degradation_rate, 
+                                                                  example_parameter[0], #basal_transcription_rate, 
+                                                                  example_parameter[1], #translation_rate,
+                                                                  example_parameter[3], #transcription_delay, 
+                                                                  10, #initial_mRNA
+                                                                  example_parameter[2], #initial_protein,
+                                                                  2000)
+        
+        times = example_trace[:,0]
+        times = times[:,np.newaxis]
+        times = times/60.0
+        protein_trace = example_trace[:,2] - np.mean(example_trace[:,2])
+        protein_trace = protein_trace[:,np.newaxis]
+        
+#         ornstein_kernel = ConstantKernel(1.0, (1e-3, 1e3))*Matern(length_scale=0.1, length_scale_bounds=(1e-03, 100), nu=0.5)
+        ornstein_kernel = gpflow.kernels.Matern12(1, lengthscales=0.3)
+
+        my_regression_model = gpflow.models.GPR(times, protein_trace, kern=ornstein_kernel)
+        
+        gpflow.train.ScipyOptimizer().minimize(my_regression_model)
+        print(my_regression_model.as_pandas_table())
+    
+#         protein_predicted, sigma_predicted = my_gp_regressor.predict(times, return_std=True)
+        predicted_mean, predicted_variance = my_regression_model.predict_y(times)
+        plt.figure(figsize = (6.5, 2.5))
+        plt.plot(example_trace[:,0],
+                 example_trace[:,2])
+        plt.plot(example_trace[:,0],
+                 predicted_mean,
+                 )
+        plt.fill_between(times[:,0]*60,
+                         predicted_mean[:,0] - 1.9600 * np.sqrt(predicted_variance)[:,0],
+                         predicted_mean[:,0] + 1.9600 * np.sqrt(predicted_variance)[:,0],
+                 alpha=.5, color='blue', label='95% confidence interval')
+        plt.ylabel('Hes expression')
+        plt.xlabel('Time')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','gp_example_gpflow.pdf'))
