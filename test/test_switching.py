@@ -612,41 +612,46 @@ class TestSwitching(unittest.TestCase):
         
     
     def test_generate_power_spectrum(self):
-        number_of_traces = 200
-        _, these_real_traces = switching.generate_multiple_switching_ode_trajectories(number_of_trajectories = number_of_traces,
-                                                         duration = 1500*5,
-                                                         repression_threshold = 10,
-                                                         mRNA_degradation_rate = 0.03,
-                                                         protein_degradation_rate = 0.03,
-                                                         transcription_delay = 18.7,
-                                                         initial_mRNA = 1,
-                                                         initial_protein = 10,
-                                                         basal_transcription_rate = 1.0,
-                                                         translation_rate = 1.0,
-                                                         hill_coefficient = 4.1,
-                                                         equilibration_time = 1000,
-                                                         switching_rate = 12.5)
+        number_of_traces = 100
+#         _, these_real_traces = switching.generate_multiple_switching_ode_trajectories(number_of_trajectories = number_of_traces,
+#                                                          duration = 1500*50,
+#                                                          repression_threshold = 10,
+#                                                          mRNA_degradation_rate = 0.03,
+#                                                          protein_degradation_rate = 0.03,
+#                                                          transcription_delay = 18.7,
+#                                                          initial_mRNA = 1,
+#                                                          initial_protein = 10,
+#                                                          basal_transcription_rate = 1.0,
+#                                                          translation_rate = 1.0,
+#                                                          hill_coefficient = 4.1,
+#                                                          equilibration_time = 5000,
+#                                                          switching_rate = 12.5)
+# 
+#         _, these_langevin_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
+#                                                          duration = 1500*50,
+#                                                          repression_threshold = 10,
+#                                                          mRNA_degradation_rate = 0.03,
+#                                                          protein_degradation_rate = 0.03,
+#                                                          transcription_delay = 18.7,
+#                                                          initial_mRNA = 1,
+#                                                          initial_protein = 10,
+#                                                          basal_transcription_rate = 1.0,
+#                                                          translation_rate = 1.0,
+#                                                          hill_coefficient = 4.1,
+#                                                          equilibration_time = 5000,
+#                                                          switching_rate = 12.5,
+#                                                          model = 'switching_only')
+# 
+#         np.save(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'),
+#                     these_real_traces)
+#         
+#         np.save(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'),
+#                     these_langevin_traces)
 
-        _, these_langevin_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
-                                                         duration = 1500*5,
-                                                         repression_threshold = 10,
-                                                         mRNA_degradation_rate = 0.03,
-                                                         protein_degradation_rate = 0.03,
-                                                         transcription_delay = 18.7,
-                                                         initial_mRNA = 1,
-                                                         initial_protein = 10,
-                                                         basal_transcription_rate = 1.0,
-                                                         translation_rate = 1.0,
-                                                         hill_coefficient = 4.1,
-                                                         equilibration_time = 1000,
-                                                         switching_rate = 12.5,
-                                                         model = 'switching_only')
-
-        np.save(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'),
-                    these_real_traces)
+        these_real_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'))
         
-        np.save(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'),
-                    these_langevin_traces)
+        these_langevin_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'))
+
 
         real_standard_deviation = np.std(these_real_traces[:,1:])
         langevin_standard_deviation = np.std(these_langevin_traces[:,1:])
@@ -664,9 +669,25 @@ class TestSwitching(unittest.TestCase):
         plt.figure()
         plt.plot(this_real_power_spectrum[:,0], this_real_power_spectrum[:,1], lw = 1)
         plt.plot(this_langevin_power_spectrum[:,0], this_langevin_power_spectrum[:,1], lw = 1)
+        # times = these_real_traces[:,0]
+        # all_power_spectra = np.zeros((this_real_power_spectrum.shape[0], these_real_traces.shape[1] - 1))
+        # frequency_values = this_real_power_spectrum[:,0]
+        # trajectory_index = 0
+        # for trajectory in these_real_traces[:,1:].transpose():
+        #     this_compound_trajectory = np.vstack((times, trajectory)).transpose()
+        #     this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectory(this_compound_trajectory,
+        #                                                                           normalize = False)
+        #     all_power_spectra[:,trajectory_index] = this_power_spectrum[:,1]
+        #     # plt.plot(this_power_spectrum[:,0], this_power_spectrum[:,1], lw = 1, color = 'grey', alpha = 0.1)
+        #     trajectory_index+=1
+        # mean_power_spectrum_without_frequencies = np.mean(all_power_spectra, axis = 1)
+        # mean_power_spectrum = np.vstack((frequency_values, mean_power_spectrum_without_frequencies)).transpose()
+        # power_integral = np.trapz(mean_power_spectrum[:,1], mean_power_spectrum[:,0])
+        # mean_power_spectrum[:,1]/=power_integral
+        # plt.plot(mean_power_spectrum[:,0], mean_power_spectrum[:,1], lw = 1)
         plt.xlim(0.004,0.01)
         plt.xlabel('frequency')
         plt.ylabel('power')
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                         'output','power_spectrum_validation.pdf'))
- 
+

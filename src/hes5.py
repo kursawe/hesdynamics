@@ -1138,7 +1138,7 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
         times = trajectories[:,0]
         #calculate the first power spectrum separately to get the extracted frequency values
         first_compound_trajectory = np.vstack((times, trajectories[:,1])).transpose()
-        first_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(first_compound_trajectory)
+        first_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(first_compound_trajectory, normalize = False)
         frequency_values = first_power_spectrum[:,0]
         all_power_spectra = np.zeros((first_power_spectrum.shape[0], trajectories.shape[1] - 1))
         all_power_spectra[:,0] = first_power_spectrum[:,1]
