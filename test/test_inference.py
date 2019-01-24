@@ -12,7 +12,6 @@ import multiprocessing as mp
 import multiprocessing.pool as mp_pool
 from jitcdde import jitcdde,y,t
 import time
-from joblib import Parallel, delayed
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
@@ -432,30 +431,22 @@ class TestInference(unittest.TestCase):
         mRNA_degradation_rate    = np.log(2)/30
         protein_degradation_rate = np.log(2)/90
 
-        # # hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),1+np.log10(65),np.log10(0.1),1+np.log10(45),4,36])
-        # for repression_index, repression_threshold in enumerate(np.linspace(100,20100,10)):
-        #     for hill_index, hill_coefficient in enumerate(np.linspace(2,6,10)):
-        #         for basal_index, basal_transcription_rate in enumerate(np.linspace(-1,np.log10(60),10)):
-        #             for translation_index, translation_rate in enumerate(np.linspace(-1,np.log10(40),10)):
-        #                 for transcription_index, transcription_delay in enumerate(np.linspace(5,40,10)):
-        #                     likelihood_at_multiple_parameters[repression_index,hill_index,basal_index,translation_index,transcription_index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
-        #                                                                                                                                         model_parameters=np.array([repression_threshold,
-        #                                                                                                                                                                    hill_coefficient,
-        #                                                                                                                                                                    mRNA_degradation_rate,
-        #                                                                                                                                                                    protein_degradation_rate,
-        #                                                                                                                                                                    np.power(10,basal_transcription_rate),
-        #                                                                                                                                                                    np.power(10,translation_rate),
-        #                                                                                                                                                                    transcription_delay]),
-        #                                                                                                                                         measurement_variance = 10000)
-        #
-        likelihood_at_multiple_parameters = Parallel(n_jobs=-1)(delayed(hes_inference.calculate_log_likelihood_at_parameter_point)(protein_at_observations,model_parameters=np.array([repression_threshold,
-                                                                                                                                                 hill_coefficient,
-                                                                                                                                                 mRNA_degradation_rate,
-                                                                                                                                                 protein_degradation_rate,
-                                                                                                                                                 np.power(10,basal_transcription_rate),
-                                                                                                                                                 np.power(10,translation_rate),
-                                                                                                                                                 transcription_delay]),
-                                                                                                                      measurement_variance = 10000) for repression_threshold in np.linspace(100,20100,4) for hill_coefficient in np.linspace(2,6,4) for basal_transcription_rate in np.linspace(-1,np.log10(60),4) for translation_rate in np.linspace(-1,np.log10(40),4) for transcription_delay in np.linspace(5,40,4))
+        # hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),1+np.log10(65),np.log10(0.1),1+np.log10(45),4,36])
+        for repression_index, repression_threshold in enumerate(np.linspace(100,20100,10)):
+            for hill_index, hill_coefficient in enumerate(np.linspace(2,6,10)):
+                for basal_index, basal_transcription_rate in enumerate(np.linspace(-1,np.log10(60),10)):
+                    for translation_index, translation_rate in enumerate(np.linspace(-1,np.log10(40),10)):
+                        for transcription_index, transcription_delay in enumerate(np.linspace(5,40,10)):
+                            likelihood_at_multiple_parameters[repression_index,hill_index,basal_index,translation_index,transcription_index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
+                                                                                                                                                model_parameters=np.array([repression_threshold,
+                                                                                                                                                                           hill_coefficient,
+                                                                                                                                                                           mRNA_degradation_rate,
+                                                                                                                                                                           protein_degradation_rate,
+                                                                                                                                                                           np.power(10,basal_transcription_rate),
+                                                                                                                                                                           np.power(10,translation_rate),
+                                                                                                                                                                           transcription_delay]),
+                                                                                                                                                measurement_variance = 10000)
+
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters_test.npy'),likelihood_at_multiple_parameters)
 
     def xest_multiple_random_walk_traces_in_parallel(self):
