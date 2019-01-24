@@ -64,6 +64,82 @@ class TestInference(unittest.TestCase):
 #         my_figure.savefig(os.path.join(os.path.dirname(__file__),
 #                                        'output','kalman_check.pdf'))
 
+    def xest_generate_multiple_protein_observations(self):
+
+        observation_duration  = 900
+        observation_frequency = 5
+        no_of_observations    = np.int(observation_duration/observation_frequency)
+
+        true_data = hes5.generate_langevin_trajectory(duration = observation_duration,
+                                                      repression_threshold = 10000,
+                                                      hill_coefficient = 3,
+                                                      mRNA_degradation_rate = np.log(2)/30,
+                                                      protein_degradation_rate = np.log(2)/90,
+                                                      basal_transcription_rate = 1,
+                                                      translation_rate = 2,
+                                                      transcription_delay = 10,
+                                                      equilibration_time = 1000)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_trace_true_data_test.npy'),
+                    true_data)
+
+        ## the F constant matrix is left out for now
+        protein_at_observations = true_data[0:observation_duration:observation_frequency,(0,2)]
+        protein_at_observations[:,1] += np.random.randn(no_of_observations)*100
+        protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_trace_observations_test.npy'),
+                    protein_at_observations)
+
+        parameters = [10000.0,3.0,np.log(2)/30, np.log(2)/90, 1.0, 2.0, 10.0]
+
+        ## apply kalman filter to the data
+        state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(protein_at_observations,parameters,
+                                                                                                                  measurement_variance=10000)
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_filter_mean.npy'),state_space_mean)
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_filter_variance.npy'),state_space_variance)
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_filter_distributions.npy'),predicted_observation_distributions)
+        #
+        # # check dimensionality of state_space_mean and the state_space_variance
+        # self.assertEqual(state_space_mean.shape[0],920)
+        # self.assertEqual(state_space_mean.shape[1],3)
+        # self.assertEqual(state_space_variance.shape[0],1840)
+        # self.assertEqual(state_space_variance.shape[1],1840)
+        #
+        # # variance needs to be positive definite and symmetric, maybe include quantitative check
+        # np.testing.assert_almost_equal(state_space_variance,state_space_variance.transpose())
+        # # this tests that the diagonal entries (variances) are all positive
+        # self.assertEqual(np.sum(np.diag(state_space_variance)>0),1840)
+        # ##plot data together with state-space distribution
+        number_of_states = state_space_mean.shape[0]
+
+        protein_covariance_matrix = state_space_variance[number_of_states:,number_of_states:]
+        protein_variance = np.diagonal(protein_covariance_matrix)
+        protein_error = np.sqrt(protein_variance)*2
+
+        mRNA_covariance_matrix = state_space_variance[:number_of_states,:number_of_states]
+        mRNA_variance = np.diagonal(mRNA_covariance_matrix)
+        mRNA_error = np.sqrt(mRNA_variance)*2
+
+        # two plots, first is only protein observations, second is true protein and predicted protein
+        # with 95% confidence intervals
+        my_figure = plt.figure()
+        plt.subplot(2,1,1)
+        plt.scatter(np.arange(0,observation_duration,observation_frequency),protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations')
+        plt.title('Protein Observations')
+        plt.xlabel('Time')
+        plt.ylabel('Protein Copy Numbers')
+
+        plt.subplot(2,1,2)
+        plt.scatter(np.arange(0,observation_duration,observation_frequency),protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
+        plt.plot(true_data[:,0],true_data[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
+        plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
+        plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
+        plt.legend(fontsize='x-small')
+        plt.title('Predicted Protein')
+        plt.xlabel('Time')
+        plt.ylabel('Protein Copy Numbers')
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','kalman_test_protein_test.pdf'))
 
     def xest_kalman_filter(self):
         ## run a sample simulation to generate example protein data
@@ -72,8 +148,8 @@ class TestInference(unittest.TestCase):
                     true_data)
 
         ## the F constant matrix is left out for now
-        protein_at_observations = true_data[0:900:5,(0,2)]
-        protein_at_observations[:,1] += np.random.randn(180)*100
+        protein_at_observations = true_data[0:900:10,(0,2)]
+        protein_at_observations[:,1] += np.random.randn(90)*100
         protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
         np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_trace_observations.npy'),
                     protein_at_observations)
@@ -334,7 +410,7 @@ class TestInference(unittest.TestCase):
 
     def test_multiple_random_walk_traces_in_parallel(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
+        protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations_test.npy')
         previous_run            = np.load(saving_path + 'random_walk_500_5.npy')
 
         previous_random_walk = previous_run[100000:,]
@@ -358,7 +434,7 @@ class TestInference(unittest.TestCase):
                                    [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
                                    [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.1,15.0]])
 
-        number_of_iterations = 2000000
+        number_of_iterations = 150000
 
         number_of_cpus       = mp.cpu_count()
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
@@ -378,8 +454,40 @@ class TestInference(unittest.TestCase):
         print(list_of_acceptance_rates)
 
         for i in range(len(initial_states)):
-            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk_{cap}.npy').format(cap=i),list_of_random_walks[i])
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk_test_{cap}.npy').format(cap=i),list_of_random_walks[i])
 
         #array_of_random_walks = np.array(list_of_random_walks)
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
+
+    def xest_kalman_filter_gif(self):
+
+        # load in some saved observations and correct kalman filter predictions
+        saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
+        true_data                            = np.load(saving_path + '_true_data.npy')
+        protein_at_observations              = np.load(saving_path + '_observations.npy')
+        prediction_mean                      = np.load(saving_path + '_prediction_mean.npy')
+        prediction_variance                  = np.load(saving_path + '_prediction_variance.npy')
+        prediction_distributions             = np.load(saving_path + '_prediction_distributions.npy')
+
+        # run the current kalman filter using the same parameters and observations, then compare
+        # parameters = [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
+        #
+        # state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(fixed_protein_observations,
+        #                                                                                                           parameters,measurement_variance=10000)
+
+        my_figure = plt.figure()
+        plt.scatter(np.arange(0,900,10),protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
+        plt.plot(true_data[:,0],true_data[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
+        plt.legend(fontsize='x-small')
+        plt.title('Predicted Protein')
+        plt.xlabel('Time')
+        plt.ylabel('Protein Copy Numbers')
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','kalman_test_gif_0.png'))
+
+        for i in range(900):
+            plt.scatter(i,prediction_mean[i+29,2])
+            my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                           'output','kalman_test_gif_' + str(i) + '.png'))
