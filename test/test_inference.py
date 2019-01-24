@@ -382,7 +382,7 @@ class TestInference(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','random_walk.pdf'))
 
-    def test_compute_likelihood_in_parallel(self):
+    def xest_compute_likelihood_in_parallel(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         protein_at_observations = np.load(saving_path + '_observations.npy')
@@ -449,9 +449,9 @@ class TestInference(unittest.TestCase):
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters_test.npy'),likelihood_at_multiple_parameters)
 
-    def xest_multiple_random_walk_traces_in_parallel(self):
+    def test_multiple_random_walk_traces_in_parallel(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_at_observations = np.load(saving_path + 'kalman_trace_observations_test.npy')
+        protein_at_observations = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
         previous_run            = np.load(saving_path + 'random_walk_500_5.npy')
 
         previous_random_walk = previous_run[100000:,]
@@ -475,11 +475,11 @@ class TestInference(unittest.TestCase):
                                    [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
                                    [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.1,15.0]])
 
-        number_of_iterations = 150000
+        number_of_iterations = 300000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(number_of_iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state))
+                                                          args=(number_of_iterations,protein_at_observations,hyper_parameters,measurement_variance,0.15,covariance,initial_state))
                             for initial_state in initial_states ]
         ## Let the pool know that these are all so that the pool will exit afterwards
         # this is necessary to prevent memory overflows.
@@ -494,7 +494,7 @@ class TestInference(unittest.TestCase):
         print(list_of_acceptance_rates)
 
         for i in range(len(initial_states)):
-            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk_test_{cap}.npy').format(cap=i),list_of_random_walks[i])
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk__180_ps2_ds1_{cap}.npy').format(cap=i),list_of_random_walks[i])
 
         #array_of_random_walks = np.array(list_of_random_walks)
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
