@@ -410,7 +410,7 @@ class TestInference(unittest.TestCase):
 
     def test_multiple_random_walk_traces_in_parallel(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations_test.npy')
+        protein_at_observations = np.load(saving_path + 'kalman_trace_observations_test.npy')
         previous_run            = np.load(saving_path + 'random_walk_500_5.npy')
 
         previous_random_walk = previous_run[100000:,]
