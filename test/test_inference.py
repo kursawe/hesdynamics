@@ -387,7 +387,7 @@ class TestInference(unittest.TestCase):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         protein_at_observations = np.load(saving_path + '_observations.npy')
-        likelihood_at_multiple_parameters = np.zeros((10,10,10,10,10))
+        likelihood_at_multiple_parameters = np.zeros((10,100,10,10,30))
 
         mRNA_degradation_rate    = np.log(2)/30
         protein_degradation_rate = np.log(2)/90
@@ -396,10 +396,10 @@ class TestInference(unittest.TestCase):
         process_list = []
         # hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),1+np.log10(65),np.log10(0.1),1+np.log10(45),4,36])
         for repression_index, repression_threshold in enumerate(np.linspace(100,20100,10)):
-            for hill_index, hill_coefficient in enumerate(np.linspace(2,6,10)):
+            for hill_index, hill_coefficient in enumerate(np.linspace(2,6,100)):
                 for basal_index, basal_transcription_rate in enumerate(np.linspace(-1,np.log10(60),10)):
                     for translation_index, translation_rate in enumerate(np.linspace(-1,np.log10(40),10)):
-                        for transcription_index, transcription_delay in enumerate(np.linspace(5,40,10)):
+                        for transcription_index, transcription_delay in enumerate(np.linspace(5,40,30)):
                             process_list.append(pool_of_processes.apply_async(hes_inference.calculate_log_likelihood_at_parameter_point,
                                                                               args=(protein_at_observations,
                                                                                     np.array([repression_threshold,
@@ -413,10 +413,10 @@ class TestInference(unittest.TestCase):
         # hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),1+np.log10(65),np.log10(0.1),1+np.log10(45),4,36])
         process_index = 0
         for repression_index, repression_threshold in enumerate(np.linspace(100,20100,10)):
-            for hill_index, hill_coefficient in enumerate(np.linspace(2,6,10)):
+            for hill_index, hill_coefficient in enumerate(np.linspace(2,6,100)):
                 for basal_index, basal_transcription_rate in enumerate(np.linspace(-1,np.log10(60),10)):
                     for translation_index, translation_rate in enumerate(np.linspace(-1,np.log10(40),10)):
-                        for transcription_index, transcription_delay in enumerate(np.linspace(5,40,10)):
+                        for transcription_index, transcription_delay in enumerate(np.linspace(5,40,30)):
                             likelihood_at_multiple_parameters[repression_index,hill_index,basal_index,translation_index,transcription_index] = process_list[process_index].get()
                             process_index +=1
 
