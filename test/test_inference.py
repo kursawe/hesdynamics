@@ -19,6 +19,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
 import hes5
 import hes_inference
 
+number_of_cpus = mp.cpu_count()
+
 class TestInference(unittest.TestCase):
 
     def xest_check_kalman_filter_not_broken(self):
@@ -72,13 +74,13 @@ class TestInference(unittest.TestCase):
         no_of_observations    = np.int(observation_duration/observation_frequency)
 
         true_data = hes5.generate_langevin_trajectory(duration = observation_duration,
-                                                      repression_threshold = 10000,
-                                                      hill_coefficient = 3,
+                                                      repression_threshold = 3408,
+                                                      hill_coefficient = 5.17,
                                                       mRNA_degradation_rate = np.log(2)/30,
                                                       protein_degradation_rate = np.log(2)/90,
-                                                      basal_transcription_rate = 1,
-                                                      translation_rate = 2,
-                                                      transcription_delay = 10,
+                                                      basal_transcription_rate = 15.85,
+                                                      translation_rate = 1.27,
+                                                      transcription_delay = 30,
                                                       equilibration_time = 1000)
         np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_trace_true_data_test.npy'),
                     true_data)
@@ -90,7 +92,7 @@ class TestInference(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_trace_observations_test.npy'),
                     protein_at_observations)
 
-        parameters = [10000.0,3.0,np.log(2)/30, np.log(2)/90, 1.0, 2.0, 10.0]
+        parameters = [3408.0,5.17,np.log(2)/30, np.log(2)/90, 15.85, 1.27, 30.0]
 
         ## apply kalman filter to the data
         state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(protein_at_observations,parameters,
@@ -398,16 +400,16 @@ class TestInference(unittest.TestCase):
                 for basal_index, basal_transcription_rate in enumerate(np.linspace(-1,np.log10(60),10)):
                     for translation_index, translation_rate in enumerate(np.linspace(-1,np.log10(40),10)):
                         for transcription_index, transcription_delay in enumerate(np.linspace(5,40,10)):
-                            process_list.append(pool_of_processes.apply_async(calculate_likelihood_at_parameter_point,
+                            process_list.append(pool_of_processes.apply_async(hes_inference.calculate_log_likelihood_at_parameter_point,
                                                                               args=(protein_at_observations,
-                                                                                    model_parameters=np.array([repression_threshold,
-                                                                                    hill_coefficient,
-                                                                                    mRNA_degradation_rate,
-                                                                                    protein_degradation_rate,
-                                                                                    np.power(10,basal_transcription_rate),
-                                                                                    np.power(10,translation_rate),
-                                                                                    transcription_delay]),
-                                                                                    10000))
+                                                                                    np.array([repression_threshold,
+                                                                                              hill_coefficient,
+                                                                                              mRNA_degradation_rate,
+                                                                                              protein_degradation_rate,
+                                                                                              np.power(10,basal_transcription_rate),
+                                                                                              np.power(10,translation_rate),
+                                                                                              transcription_delay]),
+                                                                                    10000)))
         # hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),1+np.log10(65),np.log10(0.1),1+np.log10(45),4,36])
         process_index = 0
         for repression_index, repression_threshold in enumerate(np.linspace(100,20100,10)):
@@ -421,7 +423,7 @@ class TestInference(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters_test.npy'),likelihood_at_multiple_parameters)
         pool_of_processes.close()
 
-    def test_compute_likelihood_at_multiple_parameters(self):
+    def xest_compute_likelihood_at_multiple_parameters(self):
 
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         protein_at_observations = np.load(saving_path + '_observations.npy')
@@ -484,7 +486,6 @@ class TestInference(unittest.TestCase):
 
         number_of_iterations = 150000
 
-        number_of_cpus       = mp.cpu_count()
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
                                                           args=(number_of_iterations,protein_at_observations,hyper_parameters,measurement_variance,0.08,covariance,initial_state))
@@ -540,18 +541,18 @@ class TestInference(unittest.TestCase):
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                            'output','kalman_test_gif_' + str(i) + '.png'))
 
-    def test_identify_oscillatory_parameters(self):
+    def xest_identify_oscillatory_parameters(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        coherence_band = [0.3,0.4]
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                    np.logical_and(model_results[:,0]<65000, #protein_number
+        coherence_band = [0.4,0.5]
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>5000, #protein number
+                                    np.logical_and(model_results[:,0]<10000, #protein_number
                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
                                     np.logical_and(model_results[:,3]>coherence_band[0], #standard deviation
-                                                   model_results[:,3]>coherence_band[1])))))#coherence
+                                                   model_results[:,3]<coherence_band[1])))))#coherence
 
         my_posterior_samples = prior_samples[accepted_indices]
         my_model_results = model_results[accepted_indices]
@@ -584,29 +585,9 @@ class TestInference(unittest.TestCase):
                                                  equilibration_time = 1000)
 
         my_figure = plt.figure(figsize= (2.5,1.9))
-        plt.plot(this_trace[:,0], this_trace[:,2]/1e4, lw = 1)
+        plt.plot(this_trace[:,0], this_trace[:,2], lw = 1)
         plt.xlabel("Time [min]")
-        plt.ylabel("Hes expression [1e4]")
-        plt.gca().locator_params(axis='x', tight = True, nbins=5)
-
-        plt.tight_layout()
-        this_trace = hes5.generate_langevin_trajectory(
-                                                 duration = 1500,
-                                                 repression_threshold = this_parameter[2],
-                                                 mRNA_degradation_rate = np.log(2)/30.0,
-                                                 protein_degradation_rate = np.log(2)/90,
-                                                 transcription_delay = this_parameter[3],
-                                                 basal_transcription_rate = this_parameter[0],
-                                                 translation_rate = this_parameter[1],
-                                                 initial_mRNA = 10,
-                                                 hill_coefficient = this_parameter[4],
-                                                 initial_protein = this_parameter[2],
-                                                 equilibration_time = 1000)
-
-        my_figure = plt.figure(figsize= (2.5,1.9))
-        plt.plot(this_trace[:,0], this_trace[:,2]/1e4, lw = 1)
-        plt.xlabel("Time [min]")
-        plt.ylabel("Hes expression [1e4]")
+        plt.ylabel("Hes expression")
         plt.gca().locator_params(axis='x', tight = True, nbins=5)
 
         plt.tight_layout()
