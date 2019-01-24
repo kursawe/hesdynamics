@@ -408,7 +408,7 @@ class TestInference(unittest.TestCase):
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters.npy'),likelihood_at_multiple_parameters)
 
-    def test_multiple_random_walk_traces_in_parallel(self):
+    def xest_multiple_random_walk_traces_in_parallel(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_trace_observations_test.npy')
         previous_run            = np.load(saving_path + 'random_walk_500_5.npy')
@@ -491,3 +491,78 @@ class TestInference(unittest.TestCase):
             plt.scatter(i,prediction_mean[i+29,2])
             my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                            'output','kalman_test_gif_' + str(i) + '.png'))
+
+    def test_identify_oscillatory_parameters(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+ 
+        coherence_band = [0.3,0.4]
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                    np.logical_and(model_results[:,1]>0.05,  #standard deviation
+                                    np.logical_and(model_results[:,3]>coherence_band[0], #standard deviation
+                                                   model_results[:,3]>coherence_band[1])))))#coherence 
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_model_results = model_results[accepted_indices]
+
+        this_parameter = my_posterior_samples[3]
+        this_results = my_model_results[3]
+            
+        print('this basal transcription rate')
+        print(this_parameter[0])
+        print('this translation rate')
+        print(this_parameter[1])
+        print('this repression threshold')
+        print(this_parameter[2])
+        print('this transcription_delay')
+        print(this_parameter[3])
+        print('this hill coefficient')
+        print(this_parameter[4])
+
+        this_trace = hes5.generate_langevin_trajectory(
+                                                 duration = 1500,
+                                                 repression_threshold = this_parameter[2],
+                                                 mRNA_degradation_rate = np.log(2)/30.0,
+                                                 protein_degradation_rate = np.log(2)/90,
+                                                 transcription_delay = this_parameter[3],
+                                                 basal_transcription_rate = this_parameter[0],
+                                                 translation_rate = this_parameter[1],
+                                                 initial_mRNA = 10,
+                                                 hill_coefficient = this_parameter[4],
+                                                 initial_protein = this_parameter[2],
+                                                 equilibration_time = 1000)
+
+        my_figure = plt.figure(figsize= (2.5,1.9))
+        plt.plot(this_trace[:,0], this_trace[:,2]/1e4, lw = 1)
+        plt.xlabel("Time [min]")
+        plt.ylabel("Hes expression [1e4]")
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+
+        plt.tight_layout()
+        this_trace = hes5.generate_langevin_trajectory(
+                                                 duration = 1500,
+                                                 repression_threshold = this_parameter[2],
+                                                 mRNA_degradation_rate = np.log(2)/30.0,
+                                                 protein_degradation_rate = np.log(2)/90,
+                                                 transcription_delay = this_parameter[3],
+                                                 basal_transcription_rate = this_parameter[0],
+                                                 translation_rate = this_parameter[1],
+                                                 initial_mRNA = 10,
+                                                 hill_coefficient = this_parameter[4],
+                                                 initial_protein = this_parameter[2],
+                                                 equilibration_time = 1000)
+
+        my_figure = plt.figure(figsize= (2.5,1.9))
+        plt.plot(this_trace[:,0], this_trace[:,2]/1e4, lw = 1)
+        plt.xlabel("Time [min]")
+        plt.ylabel("Hes expression [1e4]")
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+
+        plt.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__), 'output',
+                                   'example_oscillatory_trace_for_data')
+        plt.savefig(file_name + '.pdf')
+        
