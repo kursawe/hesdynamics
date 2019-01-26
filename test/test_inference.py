@@ -466,8 +466,8 @@ class TestInference(unittest.TestCase):
         #covariance    = np.cov(previous_random_walk.T)
         covariance     = np.diag(np.array([np.var(previous_random_walk[:,0]),np.var(previous_random_walk[:,1]),
                                            0,                                0,
-                                           np.var(previous_random_walk[:,4]),np.var(previous_random_walk[:,5]),
-                                           np.var(previous_random_walk[:,6])]))
+                                           np.var(previous_random_walk[:,2]),np.var(previous_random_walk[:,3]),
+                                           np.var(previous_random_walk[:,4])]))
         initial_states = np.array([[5000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0],       [500.0,3.0,np.log(2)/30,np.log(2)/90,0.5,0.5,17.0],
                                    [15000.0,2.0,np.log(2)/30,np.log(2)/90,-0.1,0.2,7.0], [500.0,5.0,np.log(2)/30,np.log(2)/90,0.5,0.4,25.0],
                                    [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
@@ -498,7 +498,7 @@ class TestInference(unittest.TestCase):
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
 
-    def test_kalman_filter_gif(self):
+    def xest_kalman_filter_gif(self):
 
         # load in some saved observations and correct kalman filter predictions
         saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
