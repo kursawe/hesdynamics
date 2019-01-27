@@ -937,6 +937,8 @@ class TestZebrafish(unittest.TestCase):
 
     def test_try_OU_process_for_lengthscale_with_gpflow(self):
         #generate a trace
+        # trying to simulate what covOU does in here:
+        # http://www.gaussianprocess.org/gpml/code/matlab/cov/
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -977,6 +979,11 @@ class TestZebrafish(unittest.TestCase):
         
         gpflow.train.ScipyOptimizer().minimize(my_regression_model)
         print(my_regression_model.as_pandas_table())
+#         import pdb; pdb.set_trace()
+        regression_values = my_regression_model.kern.read_values()
+        this_lengthscale = regression_values['GPR/kern/lengthscales']
+        print('this lengthscale is')
+        print(this_lengthscale)
     
 #         protein_predicted, sigma_predicted = my_gp_regressor.predict(times, return_std=True)
         predicted_mean, predicted_variance = my_regression_model.predict_y(times)
