@@ -182,8 +182,9 @@ class TestZebrafish(unittest.TestCase):
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 7))
         
-    def xest_plot_zebrafish_inference(self):
+    def test_plot_zebrafish_inference(self):
         option = 'prior'
+#         option = 'mean_period_and_coherence'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
@@ -240,14 +241,14 @@ class TestZebrafish(unittest.TestCase):
         data_frame = pd.DataFrame( data = my_posterior_samples[:,:6],
                                    columns= ['Transcription rate', 
                                              'Translation rate', 
-                                             'Repression threshold/1e4', 
+                                             'Repression threshold/1e3', 
                                              'Transcription delay',
                                              'Hill coefficient',
                                              'mRNA degradation'])
 
-        sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
-        font = {'size'   : 28}
-        plt.rc('font', **font)
+        sns.set(font_scale = 1.1, rc = {'ytick.labelsize': 6})
+#         font = {'size'   : 28}
+#         plt.rc('font', **font)
         my_figure = plt.figure(figsize= (11,3))
 
         my_figure.add_subplot(161)
@@ -259,7 +260,8 @@ class TestZebrafish(unittest.TestCase):
                     kde = False,
                     rug = False,
                     norm_hist = True,
-                    hist_kws = {'edgecolor' : 'black'},
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
                     bins = transcription_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(0.1,100)
@@ -267,7 +269,7 @@ class TestZebrafish(unittest.TestCase):
         plt.ylabel("Probability", labelpad = 20)
         plt.xlabel("Transcription rate \n [1/min]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
-        plt.gca().set_ylim(0,6)
+        plt.gca().set_ylim(0,1)
 #         plt.gca().set_ylim(0,1)
         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
 #         plt.yticks([])
@@ -279,7 +281,8 @@ class TestZebrafish(unittest.TestCase):
                      kde = False,
                      rug = False,
                      norm_hist = True,
-                     hist_kws = {'edgecolor' : 'black'},
+                     hist_kws = {'edgecolor' : 'black',
+                                 'alpha' : None},
                      bins = translation_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(1,200)
@@ -287,20 +290,21 @@ class TestZebrafish(unittest.TestCase):
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
         plt.xticks([-1,0], [r'$10^{-1}$',r'$10^0$'])
         plt.xlabel("Translation rate \n [1/min]")
-        plt.gca().set_ylim(0,4.0)
+        plt.gca().set_ylim(0,3.8)
 #         plt.gca().set_ylim(0,1.0)
 #         plt.yticks([])
  
         my_figure.add_subplot(163)
-        sns.distplot(data_frame['Repression threshold/1e4'],
+        sns.distplot(data_frame['Repression threshold/1e3'],
                      kde = False,
                      norm_hist = True,
-                     hist_kws = {'edgecolor' : 'black'},
+                     hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
                      rug = False,
                      bins = 20)
 #         plt.gca().set_xlim(1,200)
-        plt.xlabel("Repression threshold \n [1e4]")
-        plt.gca().set_ylim(0,0.3)
+        plt.xlabel("Repression threshold \n [1e3]")
+        plt.gca().set_ylim(0,0.27)
         plt.gca().set_xlim(0,12)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
@@ -313,11 +317,12 @@ class TestZebrafish(unittest.TestCase):
                      kde = False,
                      rug = False,
                     norm_hist = True,
-                    hist_kws = {'edgecolor' : 'black'},
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
                      bins = time_delay_bins)
         plt.gca().set_xlim(5,40)
-#         plt.gca().set_ylim(0,0.035)
-        plt.gca().set_ylim(0,0.04)
+        plt.gca().set_ylim(0,0.07)
+#         plt.gca().set_ylim(0,0.04)
         plt.gca().locator_params(axis='x', tight = True, nbins=5)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
         plt.xlabel(" Transcription delay \n [min]")
@@ -327,11 +332,12 @@ class TestZebrafish(unittest.TestCase):
         sns.distplot(data_frame['Hill coefficient'],
                      kde = False,
                      norm_hist = True,
-                    hist_kws = {'edgecolor' : 'black'},
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
                      rug = False,
                      bins = 20)
 #         plt.gca().set_xlim(1,200)
-        plt.gca().set_ylim(0,0.35)
+        plt.gca().set_ylim(0,0.4)
         plt.gca().set_xlim(2,6)
         plt.gca().locator_params(axis='x', tight = True, nbins=3)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
@@ -361,7 +367,8 @@ class TestZebrafish(unittest.TestCase):
                     kde = False,
                     rug = False,
                     norm_hist = True,
-                    hist_kws = {'edgecolor' : 'black'},
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
                     bins = half_life_bins)
 #
 #         sns.distplot(data_frame['mRNA degradation'],
@@ -935,7 +942,7 @@ class TestZebrafish(unittest.TestCase):
         print(m.as_pandas_table())
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','gpflow_example2.pdf'))
 
-    def test_try_OU_process_for_lengthscale_with_gpflow(self):
+    def xest_try_OU_process_for_lengthscale_with_gpflow(self):
         #generate a trace
         # trying to simulate what covOU does in here:
         # http://www.gaussianprocess.org/gpml/code/matlab/cov/
@@ -1001,3 +1008,40 @@ class TestZebrafish(unittest.TestCase):
         plt.xlabel('Time')
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','gp_example_gpflow.pdf'))
+        
+    def xest_get_OU_lengthscale_from_single_trace(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        example_parameter_index = 100
+        example_parameter = my_posterior_samples[example_parameter_index]
+        
+        example_trace = hes5.generate_langevin_trajectory( 720, #duration 
+                                                                  example_parameter[2], #repression_threshold, 
+                                                                  example_parameter[4], #hill_coefficient,
+                                                                  example_parameter[5], #mRNA_degradation_rate, 
+                                                                  example_parameter[6], #protein_degradation_rate, 
+                                                                  example_parameter[0], #basal_transcription_rate, 
+                                                                  example_parameter[1], #translation_rate,
+                                                                  example_parameter[3], #transcription_delay, 
+                                                                  10, #initial_mRNA
+                                                                  example_parameter[2], #initial_protein,
+                                                                  2000)
+ 
+        protein_trace = np.vstack((example_trace[:,0],example_trace[:,1])).transpose()
+        
+        this_fluctuation_rate = hes5.measure_fluctuation_rate_of_single_trace(protein_trace)
+        
+        print('this fluctuation_rate is')
+        print(this_fluctuation_rate)
+        print(this_fluctuation_rate*60)
+

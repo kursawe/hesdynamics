@@ -14,6 +14,7 @@ import seaborn.apionly as sns
 import pandas as pd
 import socket
 import jitcdde
+import gpflow
 
 domain_name = socket.getfqdn()
 if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
@@ -3790,3 +3791,40 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     # repack results into output array
  
     return sweep_results
+
+def measure_fluctuation_rate_of_single_trace(trace):
+    '''Calculate the length scale of a trace. Will fit an Ornstein-Uhlenbeck Gaussian process
+    to a time series and estimate the lengthscale parameter, alpha. Specifically, we estimate the parameter 
+    alpha = 1/rho
+    in the matern kernel with parameter nu=1/2:
+    https://en.wikipedia.org/wiki/Mat%C3%A9rn_covariance_function
+    https://gpflow.readthedocs.io/en/stable/_modules/gpflow/kernels.html
+    
+    Parameters:
+    ---------- 
+    
+    trace : ndarray
+        2D array. First column is time, second column contains the signal that is aimed to be analysed.
+        
+    Result:
+    ------
+    
+    fluctuation_rate : float
+        fluctuation rate of trace
+    '''
+    
+    times = trace[:,0]
+    times = times[:,np.newaxis]
+    trace_around_mean = trace[:,1] - np.mean(trace[:,1])
+    trace_around_mean = trace_around_mean[:,np.newaxis]
+
+    ornstein_kernel = gpflow.kernels.Matern12(input_dim = 1)
+
+    regression_model = gpflow.models.GPR(times, trace_around_mean, kern=ornstein_kernel)
+    gpflow.train.ScipyOptimizer().minimize(regression_model)
+
+    regression_values = regression_model.kern.read_values()
+    this_lengthscale = regression_values['GPR/kern/lengthscales']
+    this_fluctuation_rate = 1.0/this_lengthscale
+    
+    return this_fluctuation_rate
