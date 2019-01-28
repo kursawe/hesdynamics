@@ -730,6 +730,11 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     acceptance_count += 1
 
             random_walk[i,:] = current_state
+        print('finished loop')
         acceptance_rate = float(acceptance_count)/iterations
+        print('printed acceptance rate')
         likelihood_calculations_pool.close()
+        print('closed pool')
+        likelihood_calculations_pool.join()
+        print('joined pool')
     return random_walk, acceptance_rate
