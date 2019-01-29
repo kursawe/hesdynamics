@@ -709,11 +709,12 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                       measurement_variance))
 
                     # ask the async result from above to return the new likelihood when it is ready
-                    new_log_likelihood = new_likelihood_result.get()
+                    new_log_likelihood = new_likelihood_result.get([60])
                 except ValueError:
                     new_log_likelihood = -np.inf
+                except mp.TimeoutError:
+                    import pdb; pdb.set_trace()
 
-                #current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
                 if np.mod(i,500) == 0:
                     print('new log lik:', new_log_likelihood)
                     print('cur log lik:', current_log_likelihood)
@@ -732,7 +733,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             random_walk[i,:] = current_state
         print('finished loop')
         acceptance_rate = float(acceptance_count)/iterations
-        print('printed acceptance rate')
+        print('calculated acceptance rate')
         likelihood_calculations_pool.close()
         print('closed pool')
         likelihood_calculations_pool.join()

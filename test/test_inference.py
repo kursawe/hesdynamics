@@ -445,7 +445,6 @@ class TestInference(unittest.TestCase):
         ## Let the pool know that these are all so that the pool will exit afterwards
         # this is necessary to prevent memory overflows.
         pool_of_processes.close()
-        pool_of_processes.join()
 
         list_of_random_walks = []
         list_of_acceptance_rates = []
@@ -456,6 +455,7 @@ class TestInference(unittest.TestCase):
             list_of_random_walks.append(this_random_walk)
             list_of_acceptance_rates.append(this_acceptance_rate)
             chain_counter += 1
+        pool_of_processes.join()
         print(list_of_acceptance_rates)
 
         for i in range(len(initial_states)):
