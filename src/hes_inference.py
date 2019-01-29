@@ -672,7 +672,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         acceptance_rate = acceptance_count/iterations
 #####################################################################################################################
     else:
-        for i in tqdm(range(1,iterations)):
+        for step_index in range(1,iterations):
             # # tune the acceptance parameter so acceptance rate is optimised
             # if np.mod(i,500) == 0:
             #     print('before:',acceptance_tuner)
@@ -685,8 +685,8 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             #new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
             new_state = current_state + acceptance_tuner*parameter_deviation.dot(multivariate_normal.rvs(size=7))
-            if np.mod(i,500) == 0:
-                print('iteration number:',i)
+            if np.mod(step_index,5000) == 0:
+                print('iteration number:',step_index)
                 print('current state:\n',current_state)
 
             positive_new_parameters = new_state[[0,1,2,3,6]]
@@ -709,20 +709,20 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                       measurement_variance))
 
                     # ask the async result from above to return the new likelihood when it is ready
-                    new_log_likelihood = new_likelihood_result.get([60])
+                    new_log_likelihood = new_likelihood_result.get(60)
                 except ValueError:
                     new_log_likelihood = -np.inf
                 except mp.TimeoutError:
                     import pdb; pdb.set_trace()
 
-                if np.mod(i,500) == 0:
+                if np.mod(step_index,5000) == 0:
                     print('new log lik:', new_log_likelihood)
                     print('cur log lik:', current_log_likelihood)
 
                 acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
 
                 if np.mod(i,500) == 0:
-                    print(float(acceptance_count)/i)
+                    print(float(acceptance_count)/step_index)
 
                 if np.random.uniform() < acceptance_ratio:
                     current_state = new_state
@@ -730,7 +730,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     current_log_prior = new_log_prior
                     acceptance_count += 1
 
-            random_walk[i,:] = current_state
+            random_walk[step_index,:] = current_state
         print('finished loop')
         acceptance_rate = float(acceptance_count)/iterations
         print('calculated acceptance rate')
