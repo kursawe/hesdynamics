@@ -436,7 +436,7 @@ class TestInference(unittest.TestCase):
                                    [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
                                    [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.1,15.0]])
 
-        number_of_iterations = 100000
+        number_of_iterations = 10000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
@@ -449,10 +449,13 @@ class TestInference(unittest.TestCase):
 
         list_of_random_walks = []
         list_of_acceptance_rates = []
+        chain_counter = 0
         for process_result in process_results:
             this_random_walk, this_acceptance_rate = process_result.get()
+            print('successful get ', chain_counter)
             list_of_random_walks.append(this_random_walk)
             list_of_acceptance_rates.append(this_acceptance_rate)
+            chain_counter += 1
         print(list_of_acceptance_rates)
 
         for i in range(len(initial_states)):
