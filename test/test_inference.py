@@ -412,7 +412,7 @@ class TestInference(unittest.TestCase):
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters_test.npy'),likelihood_at_multiple_parameters)
 
-    def test_multiple_random_walk_traces_in_parallel(self):
+    def xest_multiple_random_walk_traces_in_parallel(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
         previous_random_walk    = np.load(saving_path + 'full_random_walk_180_ps2_ds1.npy')
@@ -436,7 +436,7 @@ class TestInference(unittest.TestCase):
                                    [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
                                    [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.1,15.0]])
 
-        number_of_iterations = 10000
+        number_of_iterations = 25000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
@@ -550,3 +550,12 @@ class TestInference(unittest.TestCase):
         file_name = os.path.join(os.path.dirname(__file__), 'output',
                                    'example_oscillatory_trace_for_data')
         plt.savefig(file_name + '.pdf')
+
+    def test_log_likelihood_deadlock(self):
+        deadlock_state = np.load('deadlock_state.npy')
+        saving_path    = os.path.join(os.path.dirname(__file__), 'data','')
+        protein        = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
+
+        log_likelihood = hes_inference.calculate_log_likelihood_at_parameter_point(protein,deadlock_state,measurement_variance=10000)
+        print(log_likelihood)
+        print(np.exp(log_likelihood))
