@@ -685,7 +685,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             #new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
             new_state = current_state + acceptance_tuner*parameter_deviation.dot(multivariate_normal.rvs(size=7))
-            if np.mod(step_index,5000) == 0:
+            if np.mod(step_index,100) == 0:
                 print('iteration number:',step_index)
                 print('current state:\n',current_state)
 
@@ -715,13 +715,13 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 except mp.TimeoutError:
                     import pdb; pdb.set_trace()
 
-                if np.mod(step_index,5000) == 0:
+                if np.mod(step_index,100) == 0:
                     print('new log lik:', new_log_likelihood)
                     print('cur log lik:', current_log_likelihood)
 
                 acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
 
-                if np.mod(i,500) == 0:
+                if np.mod(step_index,100) == 0:
                     print(float(acceptance_count)/step_index)
 
                 if np.random.uniform() < acceptance_ratio:

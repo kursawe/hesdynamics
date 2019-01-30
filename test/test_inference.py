@@ -384,6 +384,7 @@ class TestInference(unittest.TestCase):
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_at_multiple_parameters_test.npy'),likelihood_at_multiple_parameters)
         pool_of_processes.close()
+        pool_of_processes.join()
 
     def xest_compute_likelihood_at_multiple_parameters(self):
 
@@ -417,25 +418,20 @@ class TestInference(unittest.TestCase):
         protein_at_observations = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
         previous_random_walk    = np.load(saving_path + 'full_random_walk_180_ps2_ds1.npy')
 
-        #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
-        #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
         hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
-
         measurement_variance = 10000.0
-        #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
-        #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
-        #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
-        #                          np.mean(previous_random_walk[:,6])])
-        #covariance    = np.cov(previous_random_walk.T)
+
         covariance     = np.diag(np.array([np.var(previous_random_walk[:,0]),np.var(previous_random_walk[:,1]),
                                            0,                                0,
                                            np.var(previous_random_walk[:,2]),np.var(previous_random_walk[:,3]),
                                            np.var(previous_random_walk[:,4])]))
-        print(covariance)
-        initial_states = np.array([[5000.0,2.0,np.log(2)/30,np.log(2)/90,0,0,4.0],       [500.0,3.0,np.log(2)/30,np.log(2)/90,0.5,0.5,17.0],
-                                   [15000.0,2.0,np.log(2)/30,np.log(2)/90,-0.1,0.2,7.0], [500.0,5.0,np.log(2)/30,np.log(2)/90,0.5,0.4,25.0],
-                                   [7000.0,3.5,np.log(2)/30,np.log(2)/90,0.2,-0.25,20.0],[19000.0,2.3,np.log(2)/30,np.log(2)/90,0,0,10.0],
-                                   [1000.0,4.5,np.log(2)/30,np.log(2)/90,0.5,0.5,15.0],  [2000.0,2.0,np.log(2)/30,np.log(2)/90,0.2,0.1,15.0]])
+        # draw 8 random initial states for the parallel random walk
+        from scipy.stats import uniform
+        initial_states          = np.zeros((8,7))
+        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+        for initial_state_index in initial_states:
+            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([100,2,np.log10(0.1),np.log10(0.1),5]),
+                        np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         number_of_iterations = 25000
 
@@ -552,11 +548,80 @@ class TestInference(unittest.TestCase):
                                    'example_oscillatory_trace_for_data')
         plt.savefig(file_name + '.pdf')
 
-    def test_log_likelihood_deadlock(self):
-        deadlock_state = np.load('deadlock_state.npy')
-        saving_path    = os.path.join(os.path.dirname(__file__), 'data','')
-        protein        = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
+    def test_infer_parameters_from_data_set(self):
+        saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
+        protein_observations    = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
+        # define parameters for uniform prior distributions
+        hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
+        measurement_variance = 10000.0
+        # draw 8 random initial states for the parallel random walk
+        from scipy.stats import uniform
+        initial_states          = np.zeros((8,7))
+        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+        for initial_state_index in range(initial_states.shape[0]):
+            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([100,2,np.log10(0.1),np.log10(0.1),5]),
+                        np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
-        log_likelihood = hes_inference.calculate_log_likelihood_at_parameter_point(protein,deadlock_state,measurement_variance=10000)
-        print(log_likelihood)
-        print(np.exp(log_likelihood))
+        # initial covariance based on prior assumptions about the data
+        initial_covariance = (2.38**2)*0.2*np.diag(np.array([10000,1,0,0,0.1,0.1,2]))
+        initial_number_of_iterations = 500
+
+        pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
+        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
+                                                          args=(initial_number_of_iterations,protein_observations,hyper_parameters,measurement_variance,1.0,initial_covariance,initial_state))
+                            for initial_state in initial_states ]
+        ## Let the pool know that these are all so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
+        list_of_random_walks = []
+        list_of_acceptance_rates = []
+        chain_counter = 0
+        for process_result in process_results:
+            this_random_walk, this_acceptance_rate = process_result.get()
+            print('successful get ', chain_counter)
+            list_of_random_walks.append(this_random_walk)
+            list_of_acceptance_rates.append(this_acceptance_rate)
+            chain_counter += 1
+        pool_of_processes.join()
+        print(list_of_acceptance_rates)
+
+        # discard first 10000 samples then pool the rest together to approximate variance
+        for i in range(len(list_of_random_walks)):
+            list_of_random_walks[i] = list_of_random_walks[i][100:,:]
+        intial_samples = np.concatenate(list_of_random_walks)
+
+        # now we have better sample variances, we can do a proper run.
+        # first, simulate new initial states
+        for initial_state_index in range(initial_states.shape[0]):
+            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([100,2,np.log10(0.1),np.log10(0.1),5]),
+                        np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
+
+        # covariance now based on initial random walk
+        covariance = (2.38**2)*0.2*np.diag(np.array([np.var(initial_samples[:,0]),np.var(initial_samples[:,1]),
+                                                     0,0,
+                                                     np.var(initial_samples[:,4]),np.var(initial_samples[:,5]),
+                                                     np.var(initial_samples[:,6])]))
+        number_of_iterations = 2000
+
+        pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
+        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
+                                                          args=(number_of_iterations,protein_observations,hyper_parameters,measurement_variance,1.0,covariance,initial_state))
+                            for initial_state in initial_states ]
+        ## Let the pool know that these are all so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
+
+        list_of_random_walks = []
+        list_of_acceptance_rates = []
+        chain_counter = 0
+        for process_result in process_results:
+            this_random_walk, this_acceptance_rate = process_result.get()
+            print('successful get ', chain_counter)
+            list_of_random_walks.append(this_random_walk)
+            list_of_acceptance_rates.append(this_acceptance_rate)
+            chain_counter += 1
+        pool_of_processes.join()
+        print(list_of_acceptance_rates)
+
+        for i in range(len(initial_states)):
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk_180_ps2_ds1_{cap}.npy').format(cap=i),list_of_random_walks[i])
