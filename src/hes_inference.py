@@ -714,6 +714,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     new_log_likelihood = -np.inf
                 except mp.TimeoutError:
                     import pdb; pdb.set_trace()
+                    likelihood_calculations_pool.close()
+                    likelihood_calculations_pool.terminate()
+                    likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
 
                 if np.mod(step_index,100) == 0:
                     print('new log lik:', new_log_likelihood)
