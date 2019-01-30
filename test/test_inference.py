@@ -588,7 +588,7 @@ class TestInference(unittest.TestCase):
         # discard first 10000 samples then pool the rest together to approximate variance
         for i in range(len(list_of_random_walks)):
             list_of_random_walks[i] = list_of_random_walks[i][100:,:]
-        intial_samples = np.concatenate(list_of_random_walks)
+        initial_samples = np.concatenate(list_of_random_walks)
 
         # now we have better sample variances, we can do a proper run.
         # first, simulate new initial states
