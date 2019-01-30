@@ -644,7 +644,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     if kwargs.get("adaptive") == "true":
         for step_index in range(1,iterations):
             # tune the acceptance parameter so acceptance rate is optimised
-            if np.mod(step_index,500) == 0:
+            if (np.mod(step_index,500) == 0 and step_index < 10000):
                 print('before:',acceptance_tuner)
                 print(float(acceptance_count)/float(step_index))
                 if float(acceptance_count)/float(step_index) < 0.1:

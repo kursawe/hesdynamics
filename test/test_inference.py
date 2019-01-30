@@ -563,7 +563,7 @@ class TestInference(unittest.TestCase):
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # initial covariance based on prior assumptions about the data
-        initial_covariance = np.diag(np.array([500,0.05,0,0,0.01,0.01,0.5]))
+        initial_covariance = np.diag(np.array([500000.0,0.1,0,0,0.05,0.05,1.5]))
         initial_number_of_iterations = 10000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
@@ -602,7 +602,7 @@ class TestInference(unittest.TestCase):
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # covariance now based on initial random walk
-        covariance = (2.38**2)*0.2*np.diag(np.array([np.var(initial_samples[:,0]),np.var(initial_samples[:,1]),
+        covariance = (2.38**2)*0.14*np.diag(np.array([np.var(initial_samples[:,0]),np.var(initial_samples[:,1]),
                                                      0,0,
                                                      np.var(initial_samples[:,4]),np.var(initial_samples[:,5]),
                                                      np.var(initial_samples[:,6])]))
@@ -610,7 +610,8 @@ class TestInference(unittest.TestCase):
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(number_of_iterations,protein_observations,hyper_parameters,measurement_variance,acceptance_tuner,covariance,initial_state))
+                                                          args=(number_of_iterations,protein_observations,hyper_parameters,measurement_variance,acceptance_tuner,covariance,initial_state),
+                                                          kwds=dict(adaptive='true'))
                             for initial_state in initial_states ]
         ## Let the pool know that these are all so that the pool will exit afterwards
         # this is necessary to prevent memory overflows.
