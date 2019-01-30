@@ -648,13 +648,13 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 print('before:',acceptance_tuner)
                 print(float(acceptance_count)/float(step_index))
                 if float(acceptance_count)/float(step_index) < 0.1:
-                    acceptance_tuner *= 0.9
+                    acceptance_tuner *= 0.8
                 elif float(acceptance_count)/float(step_index) < 0.2:
-                    acceptance_tuner *= 0.95
+                    acceptance_tuner *= 0.9
                 elif float(acceptance_count)/float(step_index) > 0.3:
-                    acceptance_tuner *= 1.05
-                elif float(acceptance_count)/float(step_index) > 0.4:
                     acceptance_tuner *= 1.1
+                elif float(acceptance_count)/float(step_index) > 0.4:
+                    acceptance_tuner *= 1.2
                 print('after:',acceptance_tuner)
             # every 5000 iterations, update the covariance matrix
             # if i >= 5000:
