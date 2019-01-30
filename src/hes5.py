@@ -16,6 +16,8 @@ import socket
 import jitcdde
 import gpflow
 import sklearn.gaussian_process as gp
+import GPy
+import george
 
 domain_name = socket.getfqdn()
 if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
@@ -3831,12 +3833,40 @@ def measure_fluctuation_rate_of_single_trace(trace, method = 'gpflow'):
         regression_values = regression_model.kern.read_values()
         this_lengthscale = regression_values['GPR/kern/lengthscales']
     elif method == 'sklearn':
-        ornstein_kernel = ( gp.kernels.ConstantKernel(1.0, (1e-3, 1e3))*
-                            gp.kernels.Matern(length_scale=0.1, length_scale_bounds=(1e-03, 100), nu=0.5))
+        ornstein_kernel = ( gp.kernels.ConstantKernel(constant_value=1.0, constant_value_bounds=(1e-5, 2.0*np.var(trace_around_mean)))*
+                            gp.kernels.Matern(nu=0.5))
         my_gp_regressor = gp.GaussianProcessRegressor(kernel=ornstein_kernel, n_restarts_optimizer=10)
         my_fit = my_gp_regressor.fit(times, trace_around_mean)
-        my_parameters = my_gp_regressor.get_params()
-        this_lengthscale = my_parameters['kernel__k2__length_scale']
+        this_lengthscale = my_gp_regressor.kernel_.get_params()['k2__length_scale']
+    elif method == 'gpy':
+        ornstein_kernel = GPy.kern.OU(input_dim=1)
+        my_regressor = GPy.models.GPRegression(times,trace_around_mean,ornstein_kernel)
+        my_regressor.optimize_restarts(num_restarts = 1)
+        this_lengthscale = my_regressor.parameters[0].lengthscale.values[0]
+    elif method == 'george':
+        kernel = george.kernels.Product(george.kernels.ConstantKernel(log_constant = 0.0),
+                                        george.kernels.ExpKernel(metric = 1.0))
+        gaussian_process = george.GP(kernel)
+        gaussian_process.compute(times[:,0])
+
+        def objective_function(hyper_parameter):
+            gaussian_process.set_parameter_vector(hyper_parameter)
+            log_likelihood = gaussian_process.log_likelihood(trace_around_mean[:,0], quiet=True)
+            return -log_likelihood if np.isfinite(log_likelihood) else 1e25
+        
+        def gradient_of_objective_function(hyper_parameter):
+            gaussian_process.set_parameter_vector(hyper_parameter)
+            return -gaussian_process.grad_log_likelihood(trace_around_mean[:,0], quiet=True)
+
+        initial_value = gaussian_process.get_parameter_vector()
+
+        results = scipy.optimize.minimize(objective_function, 
+                                          initial_value, 
+                                          jac=gradient_of_objective_function, 
+                                          method="L-BFGS-B")
+        this_log_lengthscale_square = results.x[1]
+        this_lengthscale_square = np.exp(this_log_lengthscale_square)
+        this_lengthscale = np.sqrt(this_lengthscale_square)
     else:
         raise ValueError('cannot interpret method' + str(method))
 

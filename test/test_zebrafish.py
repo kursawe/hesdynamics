@@ -1013,7 +1013,7 @@ class TestZebrafish(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','gp_example_gpflow.pdf'))
         
-    def xest_get_OU_lengthscale_from_single_trace(self):
+    def test_get_OU_lengthscale_from_single_trace(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -1043,12 +1043,40 @@ class TestZebrafish(unittest.TestCase):
  
         protein_trace = np.vstack((example_trace[:,0],example_trace[:,2])).transpose()
         
-        this_fluctuation_rate = hes5.measure_fluctuation_rate_of_single_trace(protein_trace)
-        
-        print('this fluctuation_rate is')
+        this_fluctuation_rate = hes5.measure_fluctuation_rate_of_single_trace(protein_trace, method = 'gpflow')
+         
+        print('this gpflow fluctuation_rate is')
         print(this_fluctuation_rate)
         print(this_fluctuation_rate*60)
+         
+         
+        this_fluctuation_rate = hes5.measure_fluctuation_rate_of_single_trace(protein_trace, method = 'sklearn')
+         
+        print('this sklearn fluctuation_rate is')
+        print(this_fluctuation_rate)
+        print(this_fluctuation_rate*60)
+         
+        this_fluctuation_rate = hes5.measure_fluctuation_rate_of_single_trace(protein_trace, method = 'gpy')
+         
+        print('this gpflow fluctuation_rate is')
+        print(this_fluctuation_rate)
+        print(this_fluctuation_rate*60)
+ 
+        this_fluctuation_rate = hes5.measure_fluctuation_rate_of_single_trace(protein_trace, method = 'george')
         
+        print('this george fluctuation_rate is')
+        print(this_fluctuation_rate)
+        print(this_fluctuation_rate*60)
+ 
+    def xest_get_fluctuation_rate_from_example_traces(self):
+        periods = dict()
+        times_values = dict()
+        y_values = dict()
+        periods['short'] = 0.2
+        periods['medium'] = 2.0
+        periods['long'] = 20.0
+        periods['ten'] = 10.0
+        periods['one'] = 1.0
     def xest_get_fluctuation_rate_from_example_traces(self):
         periods = dict()
         times_values = dict()
@@ -1094,7 +1122,7 @@ class TestZebrafish(unittest.TestCase):
             plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                      'lengthscale_visualisation_' + abbreviation + '.pdf'))
             
-    def test_get_fluctuation_rates_from_multiple_traces(self):
+    def xest_get_fluctuation_rates_from_multiple_traces(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -1123,7 +1151,7 @@ class TestZebrafish(unittest.TestCase):
                                                                                     example_parameter[2], #initial_protein,
                                                                                     2000)
 #  
-        these_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(protein_traces, method = 'sklearn')
+        these_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(protein_traces, method = 'gpflow')
 
 #         np.save(os.path.join(os.path.dirname(__file__),'output',
 #                 'fluctuation_rates.npy'), these_fluctuation_rates)
