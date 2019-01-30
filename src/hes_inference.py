@@ -604,7 +604,11 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         An array with dimensions (iterations x 7). Each column contains the random walk for each parameter.
 
     acceptance_rate : float.
-        An integer between 0 and 1 which tells us the proportion of accepted proposal parameters. This is 0.234.
+        A real number between 0 and 1 which tells us the proportion of accepted proposal parameters. Optimal theoretical
+        value is 0.234.
+
+    acceptance_tuner : float.
+        A positive real number which determines the length of our step size in the random walk.
     """
     np.random.seed()
     # define set of valid optional inputs, and raise error if not valid
@@ -638,38 +642,83 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     # if user chooses adaptive mcmc, the following will execute.
     if kwargs.get("adaptive") == "true":
-        for i in range(1,iterations):
+        for step_index in range(1,iterations):
             # tune the acceptance parameter so acceptance rate is optimised
-            # if np.mod(i,500) == 0:
-            #     print('before:',acceptance_tuner)
-            #     print(float(acceptance_count)/float(i))
-            #     if float(acceptance_count)/float(i) < 0.234:
-            #         acceptance_tuner = 0.8*acceptance_tuner
-            #     else:
-            #         acceptance_tuner = 1.2*acceptance_tuner
-            #     print('after:',acceptance_tuner)
+            if np.mod(step_index,500) == 0:
+                print('before:',acceptance_tuner)
+                print(float(acceptance_count)/float(step_index))
+                if float(acceptance_count)/float(step_index) < 0.1:
+                    acceptance_tuner *= 0.9
+                elif float(acceptance_count)/float(step_index) < 0.2:
+                    acceptance_tuner *= 0.95
+                elif float(acceptance_count)/float(step_index) > 0.3:
+                    acceptance_tuner *= 1.05
+                elif float(acceptance_count)/float(step_index) > 0.4:
+                    acceptance_tuner *= 1.1
+                print('after:',acceptance_tuner)
             # every 5000 iterations, update the covariance matrix
-            if i >= 5000:
-                if np.mod(i,3000) == 0:
-                    parameter_covariance = np.cov(random_walk[4000:i,].T) + 0.0000000001*identity
-                    cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
+            # if i >= 5000:
+            #     if np.mod(i,3000) == 0:
+            #         parameter_covariance = np.cov(random_walk[4000:i,].T) + 0.0000000001*identity
+            #         cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
 
-            new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
-            print('iteration number:',i)
+            new_state = current_state + acceptance_tuner*parameter_deviation.dot(multivariate_normal.rvs(size=7))
+            if np.mod(step_index,100) == 0:
+                print('iteration number:',step_index)
+                print('current state:\n',current_state)
 
-            if all(item > 0 for item in new_state) == True:
-                new_log_prior = np.sum(gamma.logpdf(new_state,a=shape,scale=scale))
-                current_log_prior = np.sum(gamma.logpdf(current_state,a=shape,scale=scale))
-                new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,new_state,measurement_variance)
-                current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,current_state,measurement_variance)
+            positive_new_parameters = new_state[[0,1,2,3,6]]
+
+            if all(item > 0 for item in positive_new_parameters) == True:
+                new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
+
+                # reparameterise
+                reparameterised_new_state            = np.copy(new_state)
+                reparameterised_current_state        = np.copy(current_state)
+                reparameterised_new_state[[4,5]]     = np.power(10,new_state[[4,5]])
+                reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
+
+                try:
+                    # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
+                    # but which can be interrogated about the status of the calculation and so on
+                    new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point,
+                                                                              args = (protein_at_observations,
+                                                                                      reparameterised_new_state,
+                                                                                      measurement_variance))
+
+                    # ask the async result from above to return the new likelihood when it is ready
+                    new_log_likelihood = new_likelihood_result.get(60)
+                except ValueError:
+                    new_log_likelihood = -np.inf
+                except mp.TimeoutError:
+                    import pdb; pdb.set_trace()
+                    likelihood_calculations_pool.close()
+                    likelihood_calculations_pool.terminate()
+                    likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
+
+                if np.mod(step_index,100) == 0:
+                    print('new log lik:', new_log_likelihood)
+                    print('cur log lik:', current_log_likelihood)
+
                 acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
+
+                if np.mod(step_index,100) == 0:
+                    print(float(acceptance_count)/step_index)
 
                 if np.random.uniform() < acceptance_ratio:
                     current_state = new_state
+                    current_log_likelihood = new_log_likelihood
+                    current_log_prior = new_log_prior
                     acceptance_count += 1
 
-            random_walk[i,:] = current_state
-        acceptance_rate = acceptance_count/iterations
+            random_walk[step_index,:] = current_state
+        print('finished loop')
+        acceptance_rate = float(acceptance_count)/iterations
+        print('calculated acceptance rate')
+        likelihood_calculations_pool.close()
+        print('closed pool')
+        likelihood_calculations_pool.join()
+        print('joined pool')
 #####################################################################################################################
     else:
         for step_index in range(1,iterations):
@@ -741,4 +790,4 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         print('closed pool')
         likelihood_calculations_pool.join()
         print('joined pool')
-    return random_walk, acceptance_rate
+    return random_walk, acceptance_rate, acceptance_tuner

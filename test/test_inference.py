@@ -563,33 +563,37 @@ class TestInference(unittest.TestCase):
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # initial covariance based on prior assumptions about the data
-        initial_covariance = (2.38**2)*0.2*np.diag(np.array([1000,0.05,0,0,0.01,0.01,0.5]))
+        initial_covariance = np.diag(np.array([500,0.05,0,0,0.01,0.01,0.5]))
         initial_number_of_iterations = 10000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(initial_number_of_iterations,protein_observations,hyper_parameters,measurement_variance,1.0,initial_covariance,initial_state))
+                                                          args=(initial_number_of_iterations,protein_observations,hyper_parameters,measurement_variance,1.0,initial_covariance,initial_state, adaptive="true"))
                             for initial_state in initial_states ]
         ## Let the pool know that these are all so that the pool will exit afterwards
         # this is necessary to prevent memory overflows.
         pool_of_processes.close()
-        list_of_random_walks = []
-        list_of_acceptance_rates = []
+        list_of_random_walks      = []
+        list_of_acceptance_rates  = []
+        list_of_acceptance_tuners = []
         chain_counter = 0
         for process_result in process_results:
-            this_random_walk, this_acceptance_rate = process_result.get()
+            this_random_walk, this_acceptance_rate, this_acceptance_tuner = process_result.get()
             print('successful get ', chain_counter)
             list_of_random_walks.append(this_random_walk)
             list_of_acceptance_rates.append(this_acceptance_rate)
+            list_of_acceptance_tuners.append(this_acceptance_tuner)
             chain_counter += 1
         pool_of_processes.join()
         print(list_of_acceptance_rates)
+        print(list_of_acceptance_tuners)
 
         # discard first 10000 samples then pool the rest together to approximate variance
         for i in range(len(list_of_random_walks)):
             list_of_random_walks[i] = list_of_random_walks[i][2000:,:]
         initial_samples = np.concatenate(list_of_random_walks)
 
+        acceptance_tuner = np.mean(list_of_acceptance_tuners)
         # now we have better sample variances, we can do a proper run.
         # first, simulate new initial states
         for initial_state_index in range(initial_states.shape[0]):
@@ -605,23 +609,26 @@ class TestInference(unittest.TestCase):
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(number_of_iterations,protein_observations,hyper_parameters,measurement_variance,1.0,covariance,initial_state))
+                                                          args=(number_of_iterations,protein_observations,hyper_parameters,measurement_variance,acceptance_tuner,covariance,initial_state))
                             for initial_state in initial_states ]
         ## Let the pool know that these are all so that the pool will exit afterwards
         # this is necessary to prevent memory overflows.
         pool_of_processes.close()
 
-        list_of_random_walks = []
-        list_of_acceptance_rates = []
+        list_of_random_walks      = []
+        list_of_acceptance_rates  = []
+        list_of_acceptance_tuners = []
         chain_counter = 0
         for process_result in process_results:
-            this_random_walk, this_acceptance_rate = process_result.get()
+            this_random_walk, this_acceptance_rate, this_acceptance_tuner = process_result.get()
             print('successful get ', chain_counter)
             list_of_random_walks.append(this_random_walk)
             list_of_acceptance_rates.append(this_acceptance_rate)
+            list_of_acceptance_tuners.append(this_acceptance_tuner)
             chain_counter += 1
         pool_of_processes.join()
         print(list_of_acceptance_rates)
+        print(list_of_acceptance_tuners)
 
         for i in range(len(initial_states)):
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk_180_ps2_ds1_{cap}.npy').format(cap=i),list_of_random_walks[i])
