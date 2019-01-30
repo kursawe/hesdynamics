@@ -563,8 +563,8 @@ class TestInference(unittest.TestCase):
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # initial covariance based on prior assumptions about the data
-        initial_covariance = (2.38**2)*0.2*np.diag(np.array([10000,1,0,0,0.1,0.1,2]))
-        initial_number_of_iterations = 500
+        initial_covariance = (2.38**2)*0.2*np.diag(np.array([100000,0.5,0,0,0.5,0.5,5]))
+        initial_number_of_iterations = 10000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
@@ -587,7 +587,7 @@ class TestInference(unittest.TestCase):
 
         # discard first 10000 samples then pool the rest together to approximate variance
         for i in range(len(list_of_random_walks)):
-            list_of_random_walks[i] = list_of_random_walks[i][100:,:]
+            list_of_random_walks[i] = list_of_random_walks[i][2000:,:]
         initial_samples = np.concatenate(list_of_random_walks)
 
         # now we have better sample variances, we can do a proper run.
@@ -601,7 +601,7 @@ class TestInference(unittest.TestCase):
                                                      0,0,
                                                      np.var(initial_samples[:,4]),np.var(initial_samples[:,5]),
                                                      np.var(initial_samples[:,6])]))
-        number_of_iterations = 2000
+        number_of_iterations = 40000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
