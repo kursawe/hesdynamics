@@ -568,7 +568,8 @@ class TestInference(unittest.TestCase):
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(initial_number_of_iterations,protein_observations,hyper_parameters,measurement_variance,1.0,initial_covariance,initial_state, adaptive="true"))
+                                                          args=(initial_number_of_iterations,protein_observations,hyper_parameters,measurement_variance,1.0,initial_covariance,initial_state),
+                                                          kwargs=(adaptive='true'))
                             for initial_state in initial_states ]
         ## Let the pool know that these are all so that the pool will exit afterwards
         # this is necessary to prevent memory overflows.
