@@ -15,6 +15,7 @@ import pandas as pd
 import socket
 import jitcdde
 import gpflow
+import sklearn.gaussian_process as gp
 
 domain_name = socket.getfqdn()
 if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
@@ -3792,8 +3793,8 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
  
     return sweep_results
 
-def measure_fluctuation_rate_of_single_trace(trace):
-    '''Calculate the length scale of a trace. Will fit an Ornstein-Uhlenbeck Gaussian process
+def measure_fluctuation_rate_of_single_trace(trace, method = 'gpflow'):
+    '''Calculate the fluctation rate of a trace. Will fit an Ornstein-Uhlenbeck Gaussian process
     to a time series and estimate the lengthscale parameter, alpha. Specifically, we estimate the parameter 
     alpha = 1/rho
     in the matern kernel with parameter nu=1/2:
@@ -3805,6 +3806,9 @@ def measure_fluctuation_rate_of_single_trace(trace):
     
     trace : ndarray
         2D array. First column is time, second column contains the signal that is aimed to be analysed.
+        
+    method : string
+        'gpflow' or 'sklearn' are possible
         
     Result:
     ------
@@ -3818,13 +3822,51 @@ def measure_fluctuation_rate_of_single_trace(trace):
     trace_around_mean = trace[:,1] - np.mean(trace[:,1])
     trace_around_mean = trace_around_mean[:,np.newaxis]
 
-    ornstein_kernel = gpflow.kernels.Matern12(input_dim = 1)
+    if method == 'gpflow':
+        ornstein_kernel = gpflow.kernels.Matern12(input_dim = 1)
 
-    regression_model = gpflow.models.GPR(times, trace_around_mean, kern=ornstein_kernel)
-    gpflow.train.ScipyOptimizer().minimize(regression_model)
+        regression_model = gpflow.models.GPR(times, trace_around_mean, kern=ornstein_kernel)
+        gpflow.train.ScipyOptimizer().minimize(regression_model)
 
-    regression_values = regression_model.kern.read_values()
-    this_lengthscale = regression_values['GPR/kern/lengthscales']
+        regression_values = regression_model.kern.read_values()
+        this_lengthscale = regression_values['GPR/kern/lengthscales']
+    elif method == 'sklearn':
+        ornstein_kernel = ( gp.kernels.ConstantKernel(1.0, (1e-3, 1e3))*
+                            gp.kernels.Matern(length_scale=0.1, length_scale_bounds=(1e-03, 100), nu=0.5))
+        my_gp_regressor = gp.GaussianProcessRegressor(kernel=ornstein_kernel, n_restarts_optimizer=10)
+        my_fit = my_gp_regressor.fit(times, trace_around_mean)
+        my_parameters = my_gp_regressor.get_params()
+        this_lengthscale = my_parameters['kernel__k2__length_scale']
+    else:
+        raise ValueError('cannot interpret method' + str(method))
+
     this_fluctuation_rate = 1.0/this_lengthscale
     
     return this_fluctuation_rate
+
+def measure_fluctuation_rates_of_traces(traces, method = 'gpflow'):
+    '''Convenience function to return the fluctuation rates of multiple traces.
+    See measure_fluctuation_rate_of_single_trace for details of the implementation.
+    
+    Parameters:
+    -----------
+    
+    traces : ndarray
+        2d array. First column is time. Each further column is a signal trace at the corresponding times in the first columns.
+        
+    method : string
+        'gpflow' or 'sklearn' are possible
+
+    Returns:
+    --------
+    
+    fluctuation_rates : ndarray
+        1 dimensional array. The length is the number of signal traces that have been passed in traces.
+    '''
+    fluctuation_rates = np.zeros(traces.shape[1]-1) 
+    times = traces[:,0]
+    for signal_index, signal_trace in enumerate(traces[:,1:].transpose()):
+        this_compound_trace = np.vstack((times, signal_trace)).transpose()
+        fluctuation_rates[signal_index] = measure_fluctuation_rate_of_single_trace(this_compound_trace, method)
+        
+    return fluctuation_rates
