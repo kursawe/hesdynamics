@@ -606,7 +606,7 @@ class TestInference(unittest.TestCase):
                                                      0,0,
                                                      np.var(initial_samples[:,4]),np.var(initial_samples[:,5]),
                                                      np.var(initial_samples[:,6])]))
-        number_of_iterations = 200000
+        number_of_iterations = 20000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
