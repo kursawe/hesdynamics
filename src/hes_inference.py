@@ -664,6 +664,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + (0.95*acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5)) +
             (0.05*0.1*0.2)*multivariate_normal.rvs(size=5))
+            print(current_state)
 
             if np.mod(step_index,100) == 0:
                 print('iteration number:',step_index)
