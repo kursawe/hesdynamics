@@ -714,7 +714,8 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     current_log_likelihood = new_log_likelihood
                     current_log_prior = new_log_prior
                     acceptance_count += 1
-                print(current_log_prior)
+                print(current_log_prior,' is the current prior')
+                print(new_log_prior,' is the new prior')
 
             random_walk[step_index,:] = current_state
         print('finished loop')
