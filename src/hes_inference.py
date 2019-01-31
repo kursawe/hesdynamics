@@ -619,7 +619,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     identity = np.identity(5)
     cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.000001*identity)
-    print(cholesky_covariance)
 
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
@@ -674,12 +673,14 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             if all(item > 0 for item in positive_new_parameters) == True:
                 new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
+                print('new_log_prior',new_log_prior)
 
                 # reparameterise
                 reparameterised_new_state            = np.copy(new_state)
                 reparameterised_current_state        = np.copy(current_state)
                 reparameterised_new_state[[4,5]]     = np.power(10,new_state[[4,5]])
                 reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
+                print('reparam',reparameterised_new_state)
 
                 try:
                     # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
