@@ -619,6 +619,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     identity = np.identity(5)
     cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.000001*identity)
+    print(cholesky_covariance)
 
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
@@ -656,9 +657,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             #         acceptance_tuner *= 1.1
             #     print('after:',acceptance_tuner)
             # every 5000 iterations, update the covariance matrix
-            if step_index >= 2000:
+            if step_index >= 1000:
                 if np.mod(step_index,500) == 0:
-                    parameter_covariance = np.cov(random_walk[1000:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
+                    parameter_covariance = np.cov(random_walk[500:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
                     cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
 
             new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + (0.95*acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5)) +
@@ -688,18 +689,17 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                       measurement_variance))
 
                     # ask the async result from above to return the new likelihood when it is ready
-                    new_log_likelihood = new_likelihood_result.get(5)
+                    new_log_likelihood = new_likelihood_result.get(30)
                 except ValueError:
                     print('value error!')
                     new_log_likelihood = -np.inf
                 except mp.TimeoutError:
                     # import pdb; pdb.set_trace()
                     print('I have found a TimeoutError!')
-                    new_log_likelihood = new_likelihood_result.get(5)
+                    new_log_likelihood = new_likelihood_result.get(30)
                     likelihood_calculations_pool.close()
                     likelihood_calculations_pool.terminate()
                     likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
-                print('new log lik:', new_log_likelihood)
                 if np.mod(step_index,100) == 0:
                     print('new log lik:', new_log_likelihood)
                     print('cur log lik:', current_log_likelihood)
@@ -714,6 +714,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     current_log_likelihood = new_log_likelihood
                     current_log_prior = new_log_prior
                     acceptance_count += 1
+                print(current_log_prior)
 
             random_walk[step_index,:] = current_state
         print('finished loop')

@@ -553,11 +553,11 @@ class TestInference(unittest.TestCase):
         protein_observations    = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
         previous_run            = np.load(saving_path + 'random_walk_500_5.npy')
         # define parameters for uniform prior distributions
-        hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
+        hyper_parameters = np.array([100,19900,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
         measurement_variance = 10000.0
         # draw 8 random initial states for the parallel random walk
         from scipy.stats import uniform
-        initial_states          = np.zeros((8,7))
+        initial_states          = np.zeros((1,7))
         initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
         for initial_state_index in range(initial_states.shape[0]):
             initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([100,2,np.log10(0.1),np.log10(0.1),5]),
@@ -565,13 +565,13 @@ class TestInference(unittest.TestCase):
 
         # initial covariance based on prior assumptions about the data
         initial_covariance = np.diag(np.array([np.var(previous_run[5000:,0]),np.var(previous_run[5000:,1]),
-                                              np.var(previous_run[5000:,4]),np.var(previous_run[5000:,5]),
-                                              np.var(previous_run[5000:,6])]))
+                                               np.var(previous_run[5000:,4]),np.var(previous_run[5000:,5]),
+                                               np.var(previous_run[5000:,6])]))
         initial_number_of_iterations = 25000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(initial_number_of_iterations,protein_observations,hyper_parameters,measurement_variance,1.0,initial_covariance,initial_state),
+                                                          args=(initial_number_of_iterations,protein_observations,hyper_parameters,measurement_variance,(2.38**2)*0.2,initial_covariance,initial_state),
                                                           kwds=dict(adaptive='true'))
                             for initial_state in initial_states ]
         ## Let the pool know that these are all so that the pool will exit afterwards
