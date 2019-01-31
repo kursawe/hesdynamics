@@ -563,7 +563,7 @@ class TestInference(unittest.TestCase):
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # initial covariance based on prior assumptions about the data
-        initial_covariance = np.diag(np.array([10000,1,0,0,0.01,0.01,1]))
+        initial_covariance = np.diag(np.array([10000,1,0.01,0.01,1]))
         initial_number_of_iterations = 25000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
@@ -602,10 +602,7 @@ class TestInference(unittest.TestCase):
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # covariance now based on initial random walk
-        covariance = (2.38**2)*0.14*np.diag(np.array([np.var(initial_samples[:,0]),np.var(initial_samples[:,1]),
-                                                     0,0,
-                                                     np.var(initial_samples[:,4]),np.var(initial_samples[:,5]),
-                                                     np.var(initial_samples[:,6])]))
+        covariance = np.cov(initial_samples[:,(0,1,4,5,6)].T)
         number_of_iterations = 20000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)

@@ -617,11 +617,8 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     if len(unknown_kwargs):
         raise TypeError("Did not understand the following kwargs:" " %s" % unknown_kwargs)
 
-
-    zero_row = np.zeros(7)
-    identity = np.identity(7)
-    parameter_deviation = np.sqrt(parameter_covariance)
-    #cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.0001*identity)
+    identity = np.identity(5)
+    cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.000001*identity)
     #print(cholesky_covariance)
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
@@ -643,26 +640,29 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     # if user chooses adaptive mcmc, the following will execute.
     if kwargs.get("adaptive") == "true":
         for step_index in range(1,iterations):
-            # tune the acceptance parameter so acceptance rate is optimised
-            if (np.mod(step_index,500) == 0 and step_index < 10000):
-                print('before:',acceptance_tuner)
-                print(float(acceptance_count)/float(step_index))
-                if float(acceptance_count)/float(step_index) < 0.1:
-                    acceptance_tuner *= 0.9
-                elif float(acceptance_count)/float(step_index) < 0.2:
-                    acceptance_tuner *= 0.95
-                elif float(acceptance_count)/float(step_index) > 0.3:
-                    acceptance_tuner *= 1.05
-                elif float(acceptance_count)/float(step_index) > 0.4:
-                    acceptance_tuner *= 1.1
-                print('after:',acceptance_tuner)
+            # # tune the acceptance parameter so acceptance rate is optimised
+            # if (np.mod(step_index,500) == 0 and step_index < 10000):
+            #     print('before:',acceptance_tuner)
+            #     print(float(acceptance_count)/float(step_index))
+            #     if float(acceptance_count)/float(step_index) < 0.1:
+            #         acceptance_tuner *= 0.9
+            #     elif float(acceptance_count)/float(step_index) < 0.2:
+            #         acceptance_tuner *= 0.95
+            #     elif float(acceptance_count)/float(step_index) > 0.3:
+            #         acceptance_tuner *= 1.05
+            #     elif float(acceptance_count)/float(step_index) > 0.4:
+            #         acceptance_tuner *= 1.1
+            #     print('after:',acceptance_tuner)
             # every 5000 iterations, update the covariance matrix
-            # if i >= 5000:
-            #     if np.mod(i,3000) == 0:
-            #         parameter_covariance = np.cov(random_walk[4000:i,].T) + 0.0000000001*identity
-            #         cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
+            if i >= 500:
+                if np.mod(i,500) == 0:
+                    parameter_covariance = np.cov(random_walk[:i,(0,1,4,5,6)].T) + 0.0000000001*identity
+                    cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
+                    print(cholesky_covariance)
 
-            new_state = current_state + acceptance_tuner*parameter_deviation.dot(multivariate_normal.rvs(size=7))
+            new_state[(0,1,4,5,6)] = current_state[(0,1,4,5,6)] + (0.95*acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5)) +
+            (0.05*0.1*0.2)*multivariate_normal.rvs(size=5))
+
             if np.mod(step_index,100) == 0:
                 print('iteration number:',step_index)
                 print('current state:\n',current_state)
@@ -687,7 +687,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                       measurement_variance))
 
                     # ask the async result from above to return the new likelihood when it is ready
-                    new_log_likelihood = new_likelihood_result.get(60)
+                    new_log_likelihood = new_likelihood_result.get(5)
                 except ValueError:
                     new_log_likelihood = -np.inf
                 except mp.TimeoutError:
@@ -733,7 +733,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             #     print('after:',acceptance_tuner)
 
             #new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
-            new_state = current_state + acceptance_tuner*parameter_deviation.dot(multivariate_normal.rvs(size=7))
+            new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
             if np.mod(step_index,100) == 0:
                 print('iteration number:',step_index)
                 print('current state:\n',current_state)
@@ -758,7 +758,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                       measurement_variance))
 
                     # ask the async result from above to return the new likelihood when it is ready
-                    new_log_likelihood = new_likelihood_result.get(60)
+                    new_log_likelihood = new_likelihood_result.get(5)
                 except ValueError:
                     new_log_likelihood = -np.inf
                 except mp.TimeoutError:
