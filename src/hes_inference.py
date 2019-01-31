@@ -619,7 +619,8 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     identity = np.identity(5)
     cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.000001*identity)
-    #print(cholesky_covariance)
+    print(cholesky_covariance)
+
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
     scale = hyper_parameters[1:number_of_hyper_parameters:2]
@@ -636,6 +637,8 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
     current_log_prior      = np.sum(uniform.logpdf(current_state,loc=shape,scale=scale))
     acceptance_count = 0
+    new_state = np.zeros(7)
+    new_state[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
 
     # if user chooses adaptive mcmc, the following will execute.
     if kwargs.get("adaptive") == "true":
@@ -658,9 +661,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 if np.mod(step_index,500) == 0:
                     parameter_covariance = np.cov(random_walk[1000:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
                     cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
-                    print(cholesky_covariance)
 
-            new_state = np.zeros(7)
             new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + (0.95*acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5)) +
             (0.05*0.1*0.2)*multivariate_normal.rvs(size=5))
 
