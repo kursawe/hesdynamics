@@ -1380,7 +1380,8 @@ def get_period_measurements_from_signal(time_points, signal, smoothen = False):
     
     return period_values
 
-def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
+def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard', 
+                                             normalize = True):
     '''Calculate the power spectrum, coherence, and period of a set
     of trajectories. Works by applying discrete fourier transforms to the mean
     of the trajectories. We define the power spectrum as the square of the
@@ -1404,6 +1405,11 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
         the fft will be calculated on each trajectory, and the average of all
         power spectra will be calculated. If 'mean', then the power spectrum
         of the mean will be calculated.
+        
+    normalize : bool
+        If True the power spectrum will be normalised. Otherwise it won't.
+        Only applies if method is 'standard'. Will be ignored otherwise.
+        The zero-frequency entry will be removed from the power spectrum if normalize is true.
     
     Result:
     ------
@@ -1427,7 +1433,8 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
         times = trajectories[:,0]
         #calculate the first power spectrum separately to get the extracted frequency values
         first_compound_trajectory = np.vstack((times, trajectories[:,1])).transpose()
-        first_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(first_compound_trajectory)
+        first_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(first_compound_trajectory,
+                                                                          normalize = False)
         frequency_values = first_power_spectrum[:,0]
         all_power_spectra = np.zeros((first_power_spectrum.shape[0], trajectories.shape[1] - 1))
         all_power_spectra[:,0] = first_power_spectrum[:,1]
@@ -1439,12 +1446,15 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
             all_power_spectra[:,trajectory_index] = this_power_spectrum[:,1]
             trajectory_index += 1
         mean_power_spectrum_without_frequencies = np.mean(all_power_spectra, axis = 1)
-#         mean_power_spectrum_without_frequencies /= np.sum(mean_power_spectrum_without_frequencies)
         power_spectrum = np.vstack((frequency_values, mean_power_spectrum_without_frequencies)).transpose()
-        power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
-        power_spectrum[:,1]/=power_integral
-        smoothened_power_spectrum = smoothen_power_spectrum(power_spectrum)
+
+        power_integral = np.trapz(power_spectrum[1:,1], power_spectrum[1:,0])
+        normalized_power_spectrum = power_spectrum[1:].copy()
+        normalized_power_spectrum[:,1] = power_spectrum[1:,1]/power_integral
+        smoothened_power_spectrum = smoothen_power_spectrum(normalized_power_spectrum)
         coherence, period = calculate_coherence_and_period_of_power_spectrum(smoothened_power_spectrum)
+        if normalize:
+            power_spectrum = normalized_power_spectrum
     else:
         raise ValueError("This method of period extraction could not be resolved. Only the options 'mean' and 'standard' are accepted.")
     
@@ -1489,10 +1499,10 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     # Calculate power spectrum
     number_of_data_points = len(trajectory)
     interval_length = trajectory[-1,0]
-    fourier_transform = np.fft.fft(trajectory[:,1])/number_of_data_points
+    fourier_transform = np.fft.fft(trajectory[:,1], norm = 'ortho')
     fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
-                                                     1.0/(interval_length) )[1:]
-    power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[1:(number_of_data_points//2)]),2)
+                                                     1.0/(interval_length) )
+    power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[:(number_of_data_points//2)]),2)
     
     # this should really be a decision about the even/oddness of number of datapoints
     try:
@@ -1500,12 +1510,12 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     except ValueError:
         power_spectrum = np.vstack((fourier_frequencies[:-1], power_spectrum_without_frequencies)).transpose()
 
+    power_integral = np.trapz(power_spectrum[1:,1], power_spectrum[1:,0])
+    normalized_power_spectrum = power_spectrum[1:].copy()
+    normalized_power_spectrum[:,1] = power_spectrum[1:,1]/power_integral
+    coherence, period = calculate_coherence_and_period_of_power_spectrum(normalized_power_spectrum)
     if normalize:
-#         power_spectrum_without_frequencies /= np.sum(power_spectrum_without_frequencies)
-        power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
-        power_spectrum[:,1]/=power_integral
-
-    coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
+        power_spectrum = normalized_power_spectrum
 
     return power_spectrum, coherence, period
  
@@ -3810,7 +3820,8 @@ def measure_fluctuation_rate_of_single_trace(trace, method = 'gpflow'):
         2D array. First column is time, second column contains the signal that is aimed to be analysed.
         
     method : string
-        'gpflow' or 'sklearn' are possible
+        'gpflow', 'sklearn', 'gpy', and 'george' are possible. These are names of common libraries for
+        Gaussian processes.
         
     Result:
     ------
@@ -3835,7 +3846,7 @@ def measure_fluctuation_rate_of_single_trace(trace, method = 'gpflow'):
     elif method == 'sklearn':
         ornstein_kernel = ( gp.kernels.ConstantKernel(constant_value=1.0, constant_value_bounds=(1e-5, 2.0*np.var(trace_around_mean)))*
                             gp.kernels.Matern(nu=0.5))
-        my_gp_regressor = gp.GaussianProcessRegressor(kernel=ornstein_kernel, n_restarts_optimizer=10)
+        my_gp_regressor = gp.GaussianProcessRegressor(kernel=ornstein_kernel, n_restarts_optimizer=1)
         my_fit = my_gp_regressor.fit(times, trace_around_mean)
         this_lengthscale = my_gp_regressor.kernel_.get_params()['k2__length_scale']
     elif method == 'gpy':
@@ -3847,6 +3858,7 @@ def measure_fluctuation_rate_of_single_trace(trace, method = 'gpflow'):
         kernel = george.kernels.Product(george.kernels.ConstantKernel(log_constant = 0.0),
                                         george.kernels.ExpKernel(metric = 1.0))
         gaussian_process = george.GP(kernel)
+        #initialise the x-values of the process
         gaussian_process.compute(times[:,0])
 
         def objective_function(hyper_parameter):
@@ -3900,3 +3912,41 @@ def measure_fluctuation_rates_of_traces(traces, method = 'gpflow'):
         fluctuation_rates[signal_index] = measure_fluctuation_rate_of_single_trace(this_compound_trace, method)
         
     return fluctuation_rates
+
+def calculate_autocorrelation_from_power_spectrum(power_spectrum):
+    '''Calculate autocorrelation 
+    
+    K(tau) = <x(t)x(t+tau)>
+    
+    from the power spectrum by applying an inverse Fourier transform.
+    
+    Parameters:
+    -----------
+    
+    power_spectrum : ndarray
+        2D array. First column is frequency, second column is the value of the power spectrum at that frequency.
+        
+    Returns:
+    --------
+    
+    autocorrelation : ndarray
+        First column is time (tau in the definition above). Second column is the function value of K.
+    '''
+    length_of_power_spectrum = power_spectrum.shape[0]
+    number_of_time_samples = (length_of_power_spectrum)*2-1
+    full_power_spectrum_values = np.zeros(number_of_time_samples) 
+    full_power_spectrum_values[:number_of_time_samples//2+1] = power_spectrum[:,1]
+    full_power_spectrum_values[number_of_time_samples//2+1:] = power_spectrum[1:,1][::-1]
+    inverse_fourier_transform = np.fft.ifft(full_power_spectrum_values, norm = 'ortho' )
+
+    smallest_frequency = power_spectrum[1,0]
+    correlation_times = np.linspace(0,1.0/smallest_frequency,number_of_time_samples)
+    
+    complex_autocorrelation = np.vstack((correlation_times, inverse_fourier_transform)).transpose()
+    
+    autocorrelation = np.real(complex_autocorrelation)
+    autocorrelation[:,1] /= np.sqrt(number_of_time_samples) 
+    assert(np.sum(np.imag(complex_autocorrelation)) == 0.0)
+    
+    return autocorrelation
+    

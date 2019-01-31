@@ -16,6 +16,7 @@ from sklearn.gaussian_process.kernels import Matern, RBF, ConstantKernel
 import logging
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
 import gpflow
+from numba import jit, autojit
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
@@ -1013,7 +1014,7 @@ class TestZebrafish(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','gp_example_gpflow.pdf'))
         
-    def test_get_OU_lengthscale_from_single_trace(self):
+    def xest_get_OU_lengthscale_from_single_trace(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -1049,7 +1050,6 @@ class TestZebrafish(unittest.TestCase):
         print(this_fluctuation_rate)
         print(this_fluctuation_rate*60)
          
-         
         this_fluctuation_rate = hes5.measure_fluctuation_rate_of_single_trace(protein_trace, method = 'sklearn')
          
         print('this sklearn fluctuation_rate is')
@@ -1058,7 +1058,7 @@ class TestZebrafish(unittest.TestCase):
          
         this_fluctuation_rate = hes5.measure_fluctuation_rate_of_single_trace(protein_trace, method = 'gpy')
          
-        print('this gpflow fluctuation_rate is')
+        print('this gpy fluctuation_rate is')
         print(this_fluctuation_rate)
         print(this_fluctuation_rate*60)
  
@@ -1214,3 +1214,79 @@ class TestZebrafish(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                      'fluctuation_rate_distribution_double.pdf'))    
+        
+    def test_get_autocorrelation_function_from_power_spectrum(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        example_parameter_index = 100
+        example_parameter = my_posterior_samples[example_parameter_index]
+ 
+        number_of_traces = 10
+        mrna_traces, protein_traces = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                           1500*5, #duration 
+                                                                                           example_parameter[2], #repression_threshold, 
+                                                                                           example_parameter[4], #hill_coefficient,
+                                                                                           example_parameter[5], #mRNA_degradation_rate, 
+                                                                                           example_parameter[6], #protein_degradation_rate, 
+                                                                                           example_parameter[0], #basal_transcription_rate, 
+                                                                                           example_parameter[1], #translation_rate,
+                                                                                           example_parameter[3], #transcription_delay, 
+                                                                                           10, #initial_mRNA, 
+                                                                                           example_parameter[2], #initial_protein,
+                                                                                           1000)
+        
+        power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(protein_traces, normalize = False)
+        
+        auto_correlation_from_fourier = hes5.calculate_autocorrelation_from_power_spectrum(power_spectrum)
+        print(auto_correlation_from_fourier)
+#         all_auto_correlation = np.zeros(protein_traces.shape[0]/2)
+        @jit(nopython = True)
+        def calculate_autocorrelation(signal):
+            auto_correlation = np.zeros_like(signal)
+            auto_correlation[0] = np.sum(signal*signal)/len(signal)
+            for lag in range(1,len(signal)):
+                auto_correlation[lag] = np.sum(signal[:-lag]*signal[lag:])/len(signal[:-lag])
+            return auto_correlation
+
+        mean_auto_correlation = np.zeros_like(protein_traces[:,1])
+#         import pdb; pdb.set_trace()
+        plt.figure(figsize = (4.5,4.5))
+        plt.subplot(211)
+        plt.plot(power_spectrum[1:,0], power_spectrum[1:,1])
+        plt.xlabel('Frequency')
+        plt.xlim(0,0.02)
+        plt.xlabel('Power')
+        plt.subplot(212)
+        for trace in protein_traces[:,1:].transpose():
+            this_autocorrelation = calculate_autocorrelation(trace)
+            mean_auto_correlation += this_autocorrelation
+            plt.plot(protein_traces[:,0], this_autocorrelation, color = 'black', alpha = 0.1, lw = 0.5 )
+        mean_auto_correlation/= number_of_traces
+        plt.plot(protein_traces[:,0], mean_auto_correlation, color = 'black', lw = 0.5)
+#         corrected_auto_correlation = auto_correlation_from_fourier[:,1]/(np.sqrt(len(trace)))
+        corrected_auto_correlation = auto_correlation_from_fourier[:,1]
+        plt.plot(auto_correlation_from_fourier[:,0],
+                 corrected_auto_correlation, lw = 0.5, color = 'blue', ls = '--')
+        plt.xlim(0,1000)
+        plt.xlabel('Time')
+        plt.ylabel('Autocorrelation')
+#         plt.axhline(np.mean(auto_correlation_from_fourier)*2/(np.sqrt(len(trace))), color = 'purple', lw = 3)
+        plt.axhline(np.power(np.mean(protein_traces[:,1:]),2)+np.var(protein_traces[:,1:]), lw = 0.5)
+        plt.axhline(np.power(np.mean(protein_traces[:,1:]),2), lw = 0.5)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'autocorrelation_function_test.pdf'))    
+        
+
+        
+
