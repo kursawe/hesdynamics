@@ -663,7 +663,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + (0.95*acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5)) +
             (0.05*0.1*0.2)*multivariate_normal.rvs(size=5))
-            print(current_state)
 
             if np.mod(step_index,100) == 0:
                 print('iteration number:',step_index)
@@ -673,14 +672,12 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             if all(item > 0 for item in positive_new_parameters) == True:
                 new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
-                print('new_log_prior',new_log_prior)
 
                 # reparameterise
                 reparameterised_new_state            = np.copy(new_state)
                 reparameterised_current_state        = np.copy(current_state)
                 reparameterised_new_state[[4,5]]     = np.power(10,new_state[[4,5]])
                 reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
-                print('reparam',reparameterised_new_state)
 
                 try:
                     # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
@@ -693,6 +690,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     # ask the async result from above to return the new likelihood when it is ready
                     new_log_likelihood = new_likelihood_result.get(5)
                 except ValueError:
+                    print('value error!')
                     new_log_likelihood = -np.inf
                 except mp.TimeoutError:
                     # import pdb; pdb.set_trace()
