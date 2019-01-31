@@ -654,9 +654,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             #         acceptance_tuner *= 1.1
             #     print('after:',acceptance_tuner)
             # every 5000 iterations, update the covariance matrix
-            if step_index >= 500:
+            if step_index >= 2000:
                 if np.mod(step_index,500) == 0:
-                    parameter_covariance = np.cov(random_walk[:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
+                    parameter_covariance = np.cov(random_walk[1000:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
                     cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
                     print(cholesky_covariance)
 
