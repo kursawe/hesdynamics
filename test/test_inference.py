@@ -551,19 +551,22 @@ class TestInference(unittest.TestCase):
     def test_infer_parameters_from_data_set(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_observations    = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
+        previous_run            = np.load(saving_path + 'random_walk_500_5.npy')
         # define parameters for uniform prior distributions
         hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
         measurement_variance = 10000.0
         # draw 8 random initial states for the parallel random walk
         from scipy.stats import uniform
-        initial_states          = np.zeros((1,7))
+        initial_states          = np.zeros((8,7))
         initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
         for initial_state_index in range(initial_states.shape[0]):
             initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([100,2,np.log10(0.1),np.log10(0.1),5]),
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # initial covariance based on prior assumptions about the data
-        initial_covariance = np.diag(np.array([100,1,0.01,0.01,1]))
+        initial_covariance = np.diag(np.array([previous_run[5000:,0],previous_run[5000:,1],
+                                               previous_run[5000:,4],previous_run[5000:,5]
+                                               previous_run[5000:,6]))
         initial_number_of_iterations = 25000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
