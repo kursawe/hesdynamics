@@ -673,6 +673,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             if all(item > 0 for item in positive_new_parameters) == True:
                 new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
+                print(new_log_prior,' this is a test')
 
                 # reparameterise
                 reparameterised_new_state            = np.copy(new_state)
