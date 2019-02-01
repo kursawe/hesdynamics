@@ -557,14 +557,14 @@ class TestInference(unittest.TestCase):
         measurement_variance = 10000.0
         # draw 8 random initial states for the parallel random walk
         from scipy.stats import uniform
-        initial_states          = np.zeros((1,7))
+        initial_states          = np.zeros((8,7))
         initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
         for initial_state_index in range(initial_states.shape[0]):
             initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([100,2,np.log10(0.1),np.log10(0.1),5]),
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # initial covariance based on prior assumptions about the data
-        initial_covariance = 0.15*np.diag(np.array([np.var(previous_run[5000:,0]),np.var(previous_run[5000:,1]),
+        initial_covariance = 0.02*np.diag(np.array([np.var(previous_run[5000:,0]),np.var(previous_run[5000:,1]),
                                                     np.var(previous_run[5000:,2]),np.var(previous_run[5000:,3]),
                                                     np.var(previous_run[5000:,4])]))
         initial_number_of_iterations = 25000

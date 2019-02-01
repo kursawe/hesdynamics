@@ -619,7 +619,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     identity = np.identity(5)
     cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.000001*identity)
-    #print(cholesky_covariance)
+    print(cholesky_covariance)
 
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
@@ -664,7 +664,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + (0.95*acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5)) +
             (0.05*0.1*0.2)*multivariate_normal.rvs(size=5))
-            print('new state ',new_state)
 
             if np.mod(step_index,100) == 0:
                 print('iteration number:',step_index)
@@ -714,8 +713,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     current_log_likelihood = new_log_likelihood
                     current_log_prior = new_log_prior
                     acceptance_count += 1
-                print(current_log_prior,' is the current prior')
-                print(new_log_prior,' is the new prior')
 
             random_walk[step_index,:] = current_state
         print('finished loop')
