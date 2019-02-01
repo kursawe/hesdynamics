@@ -567,11 +567,11 @@ class TestInference(unittest.TestCase):
         initial_covariance = 0.007*np.diag(np.array([np.var(previous_run[50000:,0]),np.var(previous_run[50000:,1]),
                                                     np.var(previous_run[50000:,2]),np.var(previous_run[50000:,3]),
                                                     np.var(previous_run[50000:,4])]))
-        number_of_iterations = 260000
+        number_of_iterations = 350000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(number_of_iterations,protein_observations,hyper_parameters,measurement_variance,1.064,initial_covariance,initial_state),
+                                                          args=(number_of_iterations,protein_observations,hyper_parameters,measurement_variance,0.8,initial_covariance,initial_state),
                                                           kwds=dict(adaptive='true'))
                             for initial_state in initial_states ]
         ## Let the pool know that these are all so that the pool will exit afterwards
