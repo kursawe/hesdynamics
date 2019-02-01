@@ -551,7 +551,7 @@ class TestInference(unittest.TestCase):
     def test_infer_parameters_from_data_set(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_observations    = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
-        previous_run            = np.load(saving_path + 'random_walk_500_5.npy')
+        previous_run            = np.load(saving_path + 'full_random_walk_180_ps2_ds1.npy')
         # define parameters for uniform prior distributions
         hyper_parameters = np.array([100,19900,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
         measurement_variance = 10000.0
@@ -565,8 +565,8 @@ class TestInference(unittest.TestCase):
 
         # initial covariance based on prior assumptions about the data
         initial_covariance = 0.15*np.diag(np.array([np.var(previous_run[5000:,0]),np.var(previous_run[5000:,1]),
-                                               np.var(previous_run[5000:,4]),np.var(previous_run[5000:,5]),
-                                               np.var(previous_run[5000:,6])]))
+                                               np.var(previous_run[5000:,2]),np.var(previous_run[5000:,3]),
+                                               np.var(previous_run[5000:,4])]))
         initial_number_of_iterations = 25000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
