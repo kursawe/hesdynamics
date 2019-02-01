@@ -641,9 +641,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     # if user chooses adaptive mcmc, the following will execute.
     if kwargs.get("adaptive") == "true":
         for step_index in range(1,iterations):
-            if step_index >= 1000:
-                if np.mod(step_index,500) == 0:
-                    parameter_covariance = np.cov(random_walk[500:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
+            if step_index >= 20000:
+                if np.mod(step_index,1000) == 0:
+                    parameter_covariance = np.cov(random_walk[5000:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
                     cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
 
             new_state = np.zeros(7)

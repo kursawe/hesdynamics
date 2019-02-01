@@ -564,10 +564,10 @@ class TestInference(unittest.TestCase):
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # initial covariance based on prior assumptions about the data
-        initial_covariance = 0.008*np.diag(np.array([np.var(previous_run[50000:,0]),np.var(previous_run[50000:,1]),
+        initial_covariance = 0.007*np.diag(np.array([np.var(previous_run[50000:,0]),np.var(previous_run[50000:,1]),
                                                     np.var(previous_run[50000:,2]),np.var(previous_run[50000:,3]),
                                                     np.var(previous_run[50000:,4])]))
-        number_of_iterations = 20000
+        number_of_iterations = 260000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
