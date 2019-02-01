@@ -619,11 +619,13 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     identity = np.identity(5)
     cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.000001*identity)
-    print(cholesky_covariance)
+    #print(cholesky_covariance)
 
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
     scale = hyper_parameters[1:number_of_hyper_parameters:2]
+    print(shape)
+    print(scale)
     current_state = initial_state
 
     # We perform likelihood calculations in a separate process which is managed by a process pool
@@ -635,7 +637,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     reparameterised_current_state = np.copy(current_state)
     reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
     current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
-    current_log_prior      = np.sum(uniform.logpdf(current_state,loc=shape,scale=scale))
+    current_log_prior = np.sum(uniform.logpdf(current_state,loc=shape,scale=scale))
     acceptance_count = 0
     new_state = np.zeros(7)
     new_state[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
