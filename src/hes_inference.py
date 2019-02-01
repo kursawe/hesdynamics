@@ -619,7 +619,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
     identity = np.identity(5)
     cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.000001*identity)
-    print(cholesky_covariance)
+    #print(cholesky_covariance)
 
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
@@ -664,6 +664,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + (0.95*acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5)) +
             (0.05*0.1*0.2)*multivariate_normal.rvs(size=5))
+            print('new state ',new_state)
 
             if np.mod(step_index,100) == 0:
                 print('iteration number:',step_index)
@@ -673,7 +674,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             if all(item > 0 for item in positive_new_parameters) == True:
                 new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
-                print(new_log_prior,' this is a test')
 
                 # reparameterise
                 reparameterised_new_state            = np.copy(new_state)
@@ -701,14 +701,13 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     likelihood_calculations_pool.close()
                     likelihood_calculations_pool.terminate()
                     likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
+
                 if np.mod(step_index,100) == 0:
                     print('new log lik:', new_log_likelihood)
                     print('cur log lik:', current_log_likelihood)
+                    print(float(acceptance_count)/step_index)
 
                 acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
-
-                if np.mod(step_index,100) == 0:
-                    print(float(acceptance_count)/step_index)
 
                 if np.random.uniform() < acceptance_ratio:
                     current_state = new_state
