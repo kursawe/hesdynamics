@@ -435,7 +435,7 @@ class TestInference(unittest.TestCase):
 
         number_of_iterations = 25000
 
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
+        pool_of_processes = mp_pool.ThreadPool(processes = 8)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
                                                           args=(number_of_iterations,protein_at_observations,hyper_parameters,measurement_variance,0.15,covariance,initial_state))
                             for initial_state in initial_states ]
@@ -571,7 +571,7 @@ class TestInference(unittest.TestCase):
                                                     np.var(previous_run[50000:,4])]))
         number_of_iterations = 350000
 
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
+        pool_of_processes = mp_pool.ThreadPool(processes = 8)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
                                                           args=(number_of_iterations,protein_observations,hyper_parameters,measurement_variance,0.6,initial_covariance,initial_state),
                                                           kwds=dict(adaptive='true'))
