@@ -1215,7 +1215,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                      'fluctuation_rate_distribution_double.pdf'))    
         
-    def test_get_autocorrelation_function_from_power_spectrum(self):
+    def xest_get_autocorrelation_function_from_power_spectrum(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -1287,6 +1287,37 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'autocorrelation_function_test.pdf'))    
         
+    def test_plot_gamma_dependence_of_ou_osc(self):
 
-        
+        gamma = np.linspace(0,2,100)
+        power_spectrum_peak = np.sqrt(2*np.sqrt(np.power(gamma,4) + np.power(gamma,2)) -1 -np.power(gamma,2))
+        plt.figure(figsize = (4.5,4.5))
+        plt.plot(gamma, gamma)
+        plt.plot(gamma, power_spectrum_peak)
+        plt.xlabel(r'$\beta$/$\alpha$')
+        plt.ylabel(r'$\omega$/$\alpha$')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'gamma_dependency.pdf'))    
+ 
+        ornstein_kernel = gpflow.kernels.Matern12(1, lengthscales=1.0)*gpflow.kernels.Cosine(1,lengthscales = 1.0/0.9)
+        times = np.linspace(0,1000,10000)
+        times = times[:,np.newaxis]
+        mean_function = np.zeros_like(times)
+        my_regression_model = gpflow.models.GPR(times, mean_function, kern=ornstein_kernel)
+        sample = my_regression_model.predict_f_samples(times, 1)
+        plt.figure(figsize = (4.5,4.5))
+        plt.plot(times, sample[0])
+        plt.xlabel('Time')
+        plt.ylabel('process value')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'ou_osc_prediction.pdf'))    
+        print('expected_period is')
+        gamma=0.9
+        print(np.sqrt(2*np.sqrt(np.power(gamma,4) + np.power(gamma,2)) -1 -np.power(gamma,2)))
+        data = np.column_stack((times,sample[0]))
+        data_as_frame = pd.DataFrame(data)
+        data_as_frame.to_excel(os.path.join(os.path.dirname(__file__),'output',
+                               'ornstein_sample.xlsx'), index = False)
 
