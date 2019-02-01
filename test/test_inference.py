@@ -552,9 +552,11 @@ class TestInference(unittest.TestCase):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_observations    = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
         previous_run            = np.load(saving_path + 'full_random_walk_180_ps2_ds1.npy')
+
         # define parameters for uniform prior distributions
         hyper_parameters = np.array([100,19900,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
         measurement_variance = 10000.0
+
         # draw 8 random initial states for the parallel random walk
         from scipy.stats import uniform
         initial_states          = np.zeros((8,7))

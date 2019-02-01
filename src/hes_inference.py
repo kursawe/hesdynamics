@@ -641,6 +641,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     # if user chooses adaptive mcmc, the following will execute.
     if kwargs.get("adaptive") == "true":
         for step_index in range(1,iterations):
+            # after 50000 iterations, update the proposal covariance every 1000 iterations using previous samples
             if step_index >= 50000:
                 if np.mod(step_index,1000) == 0:
                     parameter_covariance = np.cov(random_walk[25000:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
@@ -650,10 +651,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             new_state[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
             new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + (0.95*acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5)) +
             (0.05*0.1*0.2)*multivariate_normal.rvs(size=5))
-
-            if np.mod(step_index,100) == 0:
-                print('iteration number:',step_index)
-                print('current state:\n',current_state)
 
             new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
             positive_new_parameters = new_state[[0,1,2,3,6]]
@@ -685,7 +682,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     likelihood_calculations_pool.terminate()
                     likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
 
-                if np.mod(step_index,100) == 0:
+                if np.mod(step_index,500) == 0:
+                    print('iteration number:',step_index)
+                    print('current state:\n',current_state)
                     print('new log lik:', new_log_likelihood)
                     print('cur log lik:', current_log_likelihood)
                     print(float(acceptance_count)/step_index)
@@ -699,36 +698,17 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     acceptance_count += 1
 
             random_walk[step_index,:] = current_state
-        print('finished loop')
         acceptance_rate = float(acceptance_count)/iterations
-        print('calculated acceptance rate')
-        likelihood_calculations_pool.close()
-        print('closed pool')
-        likelihood_calculations_pool.join()
-        print('joined pool')
 #####################################################################################################################
     else:
         for step_index in range(1,iterations):
-            # # tune the acceptance parameter so acceptance rate is optimised
-            # if np.mod(i,500) == 0:
-            #     print('before:',acceptance_tuner)
-            #     print(float(acceptance_count)/float(i))
-            #     if float(acceptance_count)/float(i) < 0.234:
-            #         acceptance_tuner = 0.8*acceptance_tuner
-            #     else:
-            #         acceptance_tuner = 1.2*acceptance_tuner
-            #     print('after:',acceptance_tuner)
-
-            #new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
-            new_state = current_state + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=7))
-            if np.mod(step_index,100) == 0:
-                print('iteration number:',step_index)
-                print('current state:\n',current_state)
+            new_state = np.zeros(7)
+            new_state[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
+            new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5))
 
             positive_new_parameters = new_state[[0,1,2,3,6]]
-
             if all(item > 0 for item in positive_new_parameters) == True:
-                new_log_prior          = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
+                new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
 
                 # reparameterise
                 reparameterised_new_state            = np.copy(new_state)
@@ -745,22 +725,21 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                       measurement_variance))
 
                     # ask the async result from above to return the new likelihood when it is ready
-                    new_log_likelihood = new_likelihood_result.get(5)
+                    new_log_likelihood = new_likelihood_result.get(30)
                 except ValueError:
                     new_log_likelihood = -np.inf
                 except mp.TimeoutError:
-                    import pdb; pdb.set_trace()
                     likelihood_calculations_pool.close()
                     likelihood_calculations_pool.terminate()
                     likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
 
-                if np.mod(step_index,100) == 0:
-                    print('new log lik:', new_log_likelihood)
-                    print('cur log lik:', current_log_likelihood)
-
                 acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
 
-                if np.mod(step_index,100) == 0:
+                if np.mod(step_index,500) == 0:
+                    print('iteration number:',step_index)
+                    print('current state:\n',current_state)
+                    print('new log lik:', new_log_likelihood)
+                    print('cur log lik:', current_log_likelihood)
                     print(float(acceptance_count)/step_index)
 
                 if np.random.uniform() < acceptance_ratio:
@@ -770,11 +749,5 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     acceptance_count += 1
 
             random_walk[step_index,:] = current_state
-        print('finished loop')
         acceptance_rate = float(acceptance_count)/iterations
-        print('calculated acceptance rate')
-        likelihood_calculations_pool.close()
-        print('closed pool')
-        likelihood_calculations_pool.join()
-        print('joined pool')
     return random_walk, acceptance_rate, acceptance_tuner
