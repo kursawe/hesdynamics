@@ -564,9 +564,9 @@ class TestInference(unittest.TestCase):
                         np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
 
         # initial covariance based on prior assumptions about the data
-        initial_covariance = np.diag(np.array([np.var(previous_run[5000:,0]),np.var(previous_run[5000:,1]),
-                                               np.var(previous_run[5000:,4]),np.var(previous_run[5000:,5]),
-                                               np.var(previous_run[5000:,6])]))
+        initial_covariance = np.diag(np.array([np.std(previous_run[5000:,0]),np.std(previous_run[5000:,1]),
+                                               np.std(previous_run[5000:,4]),np.std(previous_run[5000:,5]),
+                                               np.std(previous_run[5000:,6])]))
         initial_number_of_iterations = 25000
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_cpus)
