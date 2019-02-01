@@ -624,8 +624,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
     scale = hyper_parameters[1:number_of_hyper_parameters:2]
-    print(shape)
-    print(scale)
     current_state = initial_state
 
     # We perform likelihood calculations in a separate process which is managed by a process pool
