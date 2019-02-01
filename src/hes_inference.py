@@ -643,20 +643,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     # if user chooses adaptive mcmc, the following will execute.
     if kwargs.get("adaptive") == "true":
         for step_index in range(1,iterations):
-            # # tune the acceptance parameter so acceptance rate is optimised
-            # if (np.mod(step_index,500) == 0 and step_index < 10000):
-            #     print('before:',acceptance_tuner)
-            #     print(float(acceptance_count)/float(step_index))
-            #     if float(acceptance_count)/float(step_index) < 0.1:
-            #         acceptance_tuner *= 0.9
-            #     elif float(acceptance_count)/float(step_index) < 0.2:
-            #         acceptance_tuner *= 0.95
-            #     elif float(acceptance_count)/float(step_index) > 0.3:
-            #         acceptance_tuner *= 1.05
-            #     elif float(acceptance_count)/float(step_index) > 0.4:
-            #         acceptance_tuner *= 1.1
-            #     print('after:',acceptance_tuner)
-            # every 5000 iterations, update the covariance matrix
             if step_index >= 1000:
                 if np.mod(step_index,500) == 0:
                     parameter_covariance = np.cov(random_walk[500:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
@@ -670,13 +656,8 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 print('current state:\n',current_state)
 
             positive_new_parameters = new_state[[0,1,2,3,6]]
-
-            if all(item > 0 for item in positive_new_parameters) == True:
+            if all(item > 0 for item in positive_new_parameters) == True and not new_log_prior == -np.inf:
                 new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
-                # no point doing more calculation if propose outside of bounds
-                if new_log_prior == -np.inf:
-                    continue
-
                 # reparameterise
                 reparameterised_new_state            = np.copy(new_state)
                 reparameterised_current_state        = np.copy(current_state)
