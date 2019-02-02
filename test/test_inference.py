@@ -550,7 +550,7 @@ class TestInference(unittest.TestCase):
 
     def test_infer_parameters_from_data_set(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_observations    = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
+        protein_observations    = np.load(saving_path + 'kalman_trace_observations_180_ps3_ds2.npy')
         previous_run            = np.load(saving_path + 'full_random_walk_180_ps2_ds1.npy')
 
         # define parameters for uniform prior distributions
@@ -595,4 +595,4 @@ class TestInference(unittest.TestCase):
         print(list_of_acceptance_tuners)
 
         for i in range(len(initial_states)):
-            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk_180_ps2_ds1_{cap}.npy').format(cap=i),list_of_random_walks[i])
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk_180_ps3_ds2_{cap}.npy').format(cap=i),list_of_random_walks[i])
