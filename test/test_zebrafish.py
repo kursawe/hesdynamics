@@ -1287,21 +1287,23 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'autocorrelation_function_test.pdf'))    
         
-    def test_plot_gamma_dependence_of_ou_osc(self):
+    def xest_plot_gamma_dependence_of_ou_osc(self):
 
         gamma = np.linspace(0,2,100)
         power_spectrum_peak = np.sqrt(2*np.sqrt(np.power(gamma,4) + np.power(gamma,2)) -1 -np.power(gamma,2))
-        plt.figure(figsize = (4.5,4.5))
-        plt.plot(gamma, gamma)
+        power_spectrum_peak /= gamma
+        plt.figure(figsize = (4.5,2.5))
+#         plt.plot(gamma, gamma)
+        plt.axhline(1.0)
         plt.plot(gamma, power_spectrum_peak)
-        plt.xlabel(r'$\beta$/$\alpha$')
-        plt.ylabel(r'$\omega$/$\alpha$')
+        plt.xlabel(r'Oscillation quality $\beta$/$\alpha$')
+        plt.ylabel(r'Period ratio $\omega$/$\beta$')
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'gamma_dependency.pdf'))    
  
         ornstein_kernel = gpflow.kernels.Matern12(1, lengthscales=1.0)*gpflow.kernels.Cosine(1,lengthscales = 1.0/0.9)
-        times = np.linspace(0,1000,10000)
+        times = np.linspace(0,100,1000)
         times = times[:,np.newaxis]
         mean_function = np.zeros_like(times)
         my_regression_model = gpflow.models.GPR(times, mean_function, kern=ornstein_kernel)
@@ -1321,3 +1323,98 @@ class TestZebrafish(unittest.TestCase):
         data_as_frame.to_excel(os.path.join(os.path.dirname(__file__),'output',
                                'ornstein_sample.xlsx'), index = False)
 
+    def xest_compare_quality_and_coherence(self):
+        gamma_values = np.linspace(0.5,8,100)
+        theoretical_frequency_values = np.sqrt(2*np.sqrt(np.power(gamma_values,4) + np.power(gamma_values,2)) -1 -np.power(gamma_values,2))
+        
+        frequencies = np.linspace(0,80,10000)
+        coherence_values = np.zeros_like(gamma_values)
+        oscillation_frequency_values = np.zeros_like(gamma_values)
+        for gamma_index, gamma_value in enumerate(gamma_values):
+            power_spectrum = 1.0/(1+np.power(frequencies - gamma_value,2)) + 1.0/(1+np.power(frequencies + gamma_value,2))
+            full_power_spectrum = np.vstack((frequencies/(2*np.pi), power_spectrum)).transpose()
+            coherence, period = hes5.calculate_coherence_and_period_of_power_spectrum(full_power_spectrum)
+            coherence_values[gamma_index] = coherence
+            oscillation_frequency_values[gamma_index] = 2*np.pi/period
+
+        this_gamma = 2.0
+        power_spectrum = 1.0/(1+np.power(frequencies - this_gamma,2)) + 1.0/(1+np.power(frequencies + this_gamma,2))
+        plt.figure(figsize = (4.5,2.5))
+        plt.plot(frequencies, power_spectrum)
+        plt.xlabel(r'Frequency $\omega$')
+        plt.ylabel(r'Power')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'example_OUosc_power_spectrum.pdf'))    
+ 
+        plt.figure(figsize = (4.5,2.5))
+        plt.plot(gamma_values, oscillation_frequency_values/gamma_values)
+        plt.plot(gamma_values, theoretical_frequency_values/gamma_values)
+        plt.xlabel(r'Oscillation quality $\beta$/$\alpha$')
+        plt.ylabel(r'Frequency')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'period_validation_for_coherence_calculation_OUosc.pdf'))    
+
+        plt.figure(figsize = (4.5,2.5))
+        plt.plot(gamma_values, coherence_values)
+        plt.xlabel(r'Oscillation quality $\beta$/$\alpha$')
+        plt.ylabel(r'Coherence')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'coherence_vs_quality_OUosc.pdf'))    
+ 
+    def test_get_lengthscale_from_simulated_power_spectrum(self):
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+        example_parameter_index = 100
+        example_parameter = my_posterior_samples[example_parameter_index]
+ 
+        number_of_traces = 10
+        mrna_traces, protein_traces = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                    1500*5, #duration 
+                                                                                    example_parameter[2], #repression_threshold, 
+                                                                                    example_parameter[4], #hill_coefficient,
+                                                                                    example_parameter[5], #mRNA_degradation_rate, 
+                                                                                    example_parameter[6], #protein_degradation_rate, 
+                                                                                    example_parameter[0], #basal_transcription_rate, 
+                                                                                    example_parameter[1], #translation_rate,
+                                                                                    example_parameter[3], #transcription_delay, 
+                                                                                    10, #initial_mRNA, 
+                                                                                    example_parameter[2], #initial_protein,
+                                                                                    1000)
+        
+        power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(protein_traces, normalize = False)
+        
+        auto_correlation_from_fourier = hes5.calculate_autocorrelation_from_power_spectrum(power_spectrum)
+
+        this_fluctuation_rate, this_variance = hes5.estimate_fluctuation_rate_of_traces(protein_traces)
+        
+        print(this_fluctuation_rate)
+        
+        time_values = protein_traces[:,0]
+        fitted_auto_correlation_values = this_variance*np.exp(-this_fluctuation_rate*time_values)
+        
+        plt.figure(figsize = (4.5,2.5))
+        plt.plot(auto_correlation_from_fourier[:,0],
+                 auto_correlation_from_fourier[:,1], lw = 0.5, color = 'blue', ls = '-')
+        plt.plot(time_values,
+                 fitted_auto_correlation_values, lw = 0.5, color = 'orange', ls = '--')
+        plt.xlim(0,1000)
+        plt.xlabel('Time')
+        plt.ylabel('Autocorrelation')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'autocorrelation_function_fit.pdf'))    
+ 

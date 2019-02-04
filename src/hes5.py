@@ -1448,9 +1448,9 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard',
         mean_power_spectrum_without_frequencies = np.mean(all_power_spectra, axis = 1)
         power_spectrum = np.vstack((frequency_values, mean_power_spectrum_without_frequencies)).transpose()
 
-        power_integral = np.trapz(power_spectrum[1:,1], power_spectrum[1:,0])
-        normalized_power_spectrum = power_spectrum[1:].copy()
-        normalized_power_spectrum[:,1] = power_spectrum[1:,1]/power_integral
+        power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+        normalized_power_spectrum = power_spectrum.copy()
+        normalized_power_spectrum[:,1] = power_spectrum[:,1]/power_integral
         smoothened_power_spectrum = smoothen_power_spectrum(normalized_power_spectrum)
         coherence, period = calculate_coherence_and_period_of_power_spectrum(smoothened_power_spectrum)
         if normalize:
@@ -1499,7 +1499,8 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     # Calculate power spectrum
     number_of_data_points = len(trajectory)
     interval_length = trajectory[-1,0]
-    fourier_transform = np.fft.fft(trajectory[:,1], norm = 'ortho')
+    trajectory_to_transform = trajectory[:,1] - np.mean(trajectory[:,1])
+    fourier_transform = np.fft.fft(trajectory_to_transform, norm = 'ortho')
     fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
                                                      1.0/(interval_length) )
     power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[:(number_of_data_points//2)]),2)
@@ -3949,4 +3950,48 @@ def calculate_autocorrelation_from_power_spectrum(power_spectrum):
     assert(np.sum(np.imag(complex_autocorrelation)) == 0.0)
     
     return autocorrelation
+
+def estimate_fluctuation_rate_of_traces(traces):
+    '''Estimate the fluctuation rate of traces by (1) calculate the power spectrum,
+    (2) transform it into the autocorrelation function K1(t), (3) Fit the function
+    K2(t)=v*exp(-alpha*t) to K1(t). The best-fit alpha will be returned as the 
+    fluctuation rate. The variance v will also be returned.
+    
+    Parameters:
+    -----------
+    
+    traces : ndarray
+        2D array. First column is time, Each further trace is one time series of the process that we are
+        trying to fit.
+        
+    Returns:
+    --------
+    
+    fluctuation_rate : float
+        fluctuation rate that best fits the autocorellation function of the proposed traces
+        
+    variance : float
+        variance for best fit
+    '''
+    power_spectrum, _, _ = calculate_power_spectrum_of_trajectories(traces, normalize = False)
+    
+    full_auto_correlation = calculate_autocorrelation_from_power_spectrum(power_spectrum)
+    useful_number_of_timepoints = np.int(np.around(full_auto_correlation.shape[0]/2.0))
+    useful_auto_correlation = full_auto_correlation[1:useful_number_of_timepoints]
+    
+    def penalty_function(fluctuation_rate_and_variance):
+        fluctuation_rate = fluctuation_rate_and_variance[0]
+        variance = fluctuation_rate_and_variance[1]
+        mean_squared_errors = np.power(useful_auto_correlation[:,1] - 
+                                      variance*
+                                      np.exp(-fluctuation_rate*useful_auto_correlation[:,0]), 2)
+        mean_squared_error = np.sum(mean_squared_errors)
+        return mean_squared_error
+
+    results = scipy.optimize.minimize(penalty_function, x0 = [1.0, 1.0], method = 'Nelder-Mead') 
+
+    fluctuation_rate = results.x[0]
+    variance = results.x[1]
+
+    return fluctuation_rate, variance
     
