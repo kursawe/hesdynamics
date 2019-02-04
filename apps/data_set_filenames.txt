@@ -1,0 +1,12 @@
+protein_observations_90_ps1_ds1.npy
+protein_observations_180_ps1_ds2.npy
+protein_observations_180_ps1_ds3.npy
+protein_observations_360_ps1_ds4.npy
+protein_observations_90_ps2_ds1.npy
+protein_observations_180_ps2_ds2.npy
+protein_observations_180_ps2_ds3.npy
+protein_observations_360_ps2_ds4.npy
+protein_observations_90_ps3_ds1.npy
+protein_observations_180_ps3_ds2.npy
+protein_observations_180_ps3_ds3.npy
+protein_observations_360_ps3_ds4.npy
