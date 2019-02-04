@@ -445,13 +445,10 @@ class TestInference(unittest.TestCase):
 
         list_of_random_walks = []
         list_of_acceptance_rates = []
-        chain_counter = 0
         for process_result in process_results:
             this_random_walk, this_acceptance_rate = process_result.get()
-            print('successful get ', chain_counter)
             list_of_random_walks.append(this_random_walk)
             list_of_acceptance_rates.append(this_acceptance_rate)
-            chain_counter += 1
         pool_of_processes.join()
         print(list_of_acceptance_rates)
 
