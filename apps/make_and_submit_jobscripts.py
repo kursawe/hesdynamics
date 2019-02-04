@@ -25,14 +25,18 @@ def make_and_submit_jobscripts(joblist_path):
         job_script.write('\n#$ -V # Job inherits environment (settings from loaded modules etc)')
         job_script.write('\n#$ -pe smp.pe 24 # request intel nodes and find 24 core slot')
         job_script.write('\n#$ -l haswell # Use to specify specific node type')
+        # job_script.write('\n#$ -pe smp.pe 12 # request intel nodes and find 24 core slot')
+        # job_script.write('\n#$ -l short # Use to specify specific node type')
         job_script.write('\nexport OMP_NUM_THREADS=$NSLOTS # limits jobes to requested resources')
         job_script.write('\nCONDA_PREFIX=/opt/gridware/apps/binapps/anaconda/3/4.2.0')
         job_script.write('\nLD_PRELOAD=$CONDA_PREFIX/lib/libmkl_core.so:$CONDA_PREFIX/lib/libmkl_sequential.so ' + line)
         job_script.write('\n\n')
         job_script.write('wait\n')
         job_script.close()
-        job_submission_command = 'qsub -l short ' + jobscript_file_name
-#         subprocess.Popen(job_sub_command, shell=True)
+        job_submission_command = 'qsub ' + jobscript_file_name
+        print('submitting job with this command')
+        print(job_submission_command)
+        subprocess.Popen(job_sub_command, shell=True)
         job_index +=1
 
 if __name__ == "__main__":
@@ -46,7 +50,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.joblist is None:
-        print ' *** error: you need to specify a joblist'
+        print(' *** error: you need to specify a joblist')
         exit()
 
     dataset_file_name  = os.path.realpath(args.joblist)

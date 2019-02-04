@@ -50,10 +50,9 @@ def run_inference_on_file(dataset_file_name):
     initial_covariance = 0.04*np.diag(np.array([np.var(previous_run[50000:,0]),np.var(previous_run[50000:,1]),
                                                 np.var(previous_run[50000:,2]),np.var(previous_run[50000:,3]),
                                                 np.var(previous_run[50000:,4])]))
-#     number_of_iterations = 350000
-    number_of_iterations = 10
+    number_of_iterations = 350000
 
-    pool_of_processes = mp_pool.ThreadPool(processes = 8)
+    pool_of_processes = mp_pool.ThreadPool(processes = 24)
     process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
                                                       args=(number_of_iterations,protein_observations,hyper_parameters,measurement_variance,0.6,initial_covariance,initial_state),
                                                       kwds=dict(adaptive='true'))
@@ -91,7 +90,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.input_dataset is None:
-        print ' *** error: you need to specify a dataset'
+        print(' *** error: you need to specify a dataset')
         exit()
 
     dataset_file_name  = os.path.realpath(args.input_dataset)
