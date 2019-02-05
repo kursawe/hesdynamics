@@ -4,7 +4,6 @@ import scipy.signal
 import scipy.optimize
 import scipy.interpolate
 import multiprocessing as mp
-# import collections
 from numba import jit, autojit
 import os
 import matplotlib as mpl

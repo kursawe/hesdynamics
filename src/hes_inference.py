@@ -5,7 +5,6 @@ from numpy import number
 from numba import jit, autojit
 from scipy.stats import gamma, multivariate_normal, uniform
 import multiprocessing as mp
-from tqdm import tqdm
 
 #discretisation_time_step=1.0
 # @jit(nopython=True)

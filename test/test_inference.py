@@ -12,7 +12,6 @@ import multiprocessing as mp
 import multiprocessing.pool as mp_pool
 from jitcdde import jitcdde,y,t
 import time
-from pdb_clone import pdbhandler; pdbhandler.register()
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
@@ -547,7 +546,7 @@ class TestInference(unittest.TestCase):
 
     def test_infer_parameters_from_data_set(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_observations    = np.load(saving_path + 'kalman_trace_observations_180_ps3_ds2.npy')
+        protein_observations    = np.load(saving_path + 'protein_observations_180_ps3_ds2.npy')
         previous_run            = np.load(saving_path + 'full_random_walk_180_ps2_ds1.npy')
 
         # define parameters for uniform prior distributions
