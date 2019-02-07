@@ -2,6 +2,7 @@ import unittest
 import os.path
 import sys
 import matplotlib as mpl
+from mahotas.distance import distance
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
@@ -1123,41 +1124,41 @@ class TestZebrafish(unittest.TestCase):
                                      'lengthscale_visualisation_' + abbreviation + '.pdf'))
             
     def xest_get_fluctuation_rates_from_multiple_traces(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_zebrafish')
-        model_results = np.load(saving_path + '.npy' )
-        prior_samples = np.load(saving_path + '_parameters.npy')
-        
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                    np.logical_and(model_results[:,0]<8000,
-                                    np.logical_and(model_results[:,2]<100,
-                                                   model_results[:,3]>0.3))))  
-
-        my_posterior_samples = prior_samples[accepted_indices]
-
-        example_parameter_index = 100
-        example_parameter = my_posterior_samples[example_parameter_index]
- 
-        mrna_traces, protein_traces = hes5.generate_multiple_langevin_trajectories(10,
-                                                                                    720, #duration 
-                                                                                    example_parameter[2], #repression_threshold, 
-                                                                                    example_parameter[4], #hill_coefficient,
-                                                                                    example_parameter[5], #mRNA_degradation_rate, 
-                                                                                    example_parameter[6], #protein_degradation_rate, 
-                                                                                    example_parameter[0], #basal_transcription_rate, 
-                                                                                    example_parameter[1], #translation_rate,
-                                                                                    example_parameter[3], #transcription_delay, 
-                                                                                    10, #initial_mRNA
-                                                                                    example_parameter[2], #initial_protein,
-                                                                                    2000)
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output',
+#                                     'sampling_results_zebrafish')
+#         model_results = np.load(saving_path + '.npy' )
+#         prior_samples = np.load(saving_path + '_parameters.npy')
+#         
+#         accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+#                                     np.logical_and(model_results[:,0]<8000,
+#                                     np.logical_and(model_results[:,2]<100,
+#                                                    model_results[:,3]>0.3))))  
+# 
+#         my_posterior_samples = prior_samples[accepted_indices]
+# 
+#         example_parameter_index = 100
+#         example_parameter = my_posterior_samples[example_parameter_index]
 #  
-        these_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(protein_traces, method = 'gpflow')
-
+#         mrna_traces, protein_traces = hes5.generate_multiple_langevin_trajectories(10,
+#                                                                                     720, #duration 
+#                                                                                     example_parameter[2], #repression_threshold, 
+#                                                                                     example_parameter[4], #hill_coefficient,
+#                                                                                     example_parameter[5], #mRNA_degradation_rate, 
+#                                                                                     example_parameter[6], #protein_degradation_rate, 
+#                                                                                     example_parameter[0], #basal_transcription_rate, 
+#                                                                                     example_parameter[1], #translation_rate,
+#                                                                                     example_parameter[3], #transcription_delay, 
+#                                                                                     10, #initial_mRNA
+#                                                                                     example_parameter[2], #initial_protein,
+#                                                                                     2000)
+# #  
+#         these_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(protein_traces, method = 'gpflow')
+ 
 #         np.save(os.path.join(os.path.dirname(__file__),'output',
 #                 'fluctuation_rates.npy'), these_fluctuation_rates)
 
-#         these_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
-#                                           'fluctuation_rates.npy'))
+        these_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+                                        'fluctuation_rates.npy'))
         print(these_fluctuation_rates)
         plt.figure(figsize = (4.5,2.5))
         plt.hist(these_fluctuation_rates)
@@ -1224,11 +1225,11 @@ class TestZebrafish(unittest.TestCase):
         accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
                                     np.logical_and(model_results[:,0]<8000,
                                     np.logical_and(model_results[:,2]<100,
-                                                   model_results[:,3]>0.3))))  
+                                                   model_results[:,3]>0.2))))  
 
         my_posterior_samples = prior_samples[accepted_indices]
 
-        example_parameter_index = 100
+        example_parameter_index = 10
         example_parameter = my_posterior_samples[example_parameter_index]
  
         number_of_traces = 10
@@ -1251,7 +1252,8 @@ class TestZebrafish(unittest.TestCase):
         print(auto_correlation_from_fourier)
 #         all_auto_correlation = np.zeros(protein_traces.shape[0]/2)
         @jit(nopython = True)
-        def calculate_autocorrelation(signal):
+        def calculate_autocorrelation(full_signal):
+            signal = full_signal - np.mean(full_signal)
             auto_correlation = np.zeros_like(signal)
             auto_correlation[0] = np.sum(signal*signal)/len(signal)
             for lag in range(1,len(signal)):
@@ -1262,7 +1264,7 @@ class TestZebrafish(unittest.TestCase):
 #         import pdb; pdb.set_trace()
         plt.figure(figsize = (4.5,4.5))
         plt.subplot(211)
-        plt.plot(power_spectrum[1:,0], power_spectrum[1:,1])
+        plt.plot(power_spectrum[:,0], power_spectrum[:,1])
         plt.xlabel('Frequency')
         plt.xlim(0,0.02)
         plt.xlabel('Power')
@@ -1281,8 +1283,8 @@ class TestZebrafish(unittest.TestCase):
         plt.xlabel('Time')
         plt.ylabel('Autocorrelation')
 #         plt.axhline(np.mean(auto_correlation_from_fourier)*2/(np.sqrt(len(trace))), color = 'purple', lw = 3)
-        plt.axhline(np.power(np.mean(protein_traces[:,1:]),2)+np.var(protein_traces[:,1:]), lw = 0.5)
-        plt.axhline(np.power(np.mean(protein_traces[:,1:]),2), lw = 0.5)
+#         plt.axhline(np.power(np.mean(protein_traces[:,1:]),2)+np.var(protein_traces[:,1:]), lw = 0.5)
+#         plt.axhline(np.power(np.mean(protein_traces[:,1:]),2), lw = 0.5)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'autocorrelation_function_test.pdf'))    
@@ -1364,7 +1366,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'coherence_vs_quality_OUosc.pdf'))    
  
-    def test_get_lengthscale_from_simulated_power_spectrum(self):
+    def xest_get_lengthscale_from_simulated_power_spectrum(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
@@ -1381,7 +1383,7 @@ class TestZebrafish(unittest.TestCase):
         example_parameter_index = 100
         example_parameter = my_posterior_samples[example_parameter_index]
  
-        number_of_traces = 10
+        number_of_traces = 100
         mrna_traces, protein_traces = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
                                                                                     1500*5, #duration 
                                                                                     example_parameter[2], #repression_threshold, 
@@ -1399,18 +1401,33 @@ class TestZebrafish(unittest.TestCase):
         
         auto_correlation_from_fourier = hes5.calculate_autocorrelation_from_power_spectrum(power_spectrum)
 
-        this_fluctuation_rate, this_variance = hes5.estimate_fluctuation_rate_of_traces(protein_traces)
+#         this_fluctuation_rate, this_variance = hes5.estimate_fluctuation_rate_of_traces(protein_traces)
+#         this_fluctuation_rate, this_variance = hes5.estimate_fluctuation_rate_of_traces_by_matrices(protein_traces)
+        this_fluctuation_rate = 0.003580 
+        this_variance = np.var(protein_traces[:,1:])
         
         print(this_fluctuation_rate)
         
         time_values = protein_traces[:,0]
         fitted_auto_correlation_values = this_variance*np.exp(-this_fluctuation_rate*time_values)
-        
-        plt.figure(figsize = (4.5,2.5))
+        fitted_power_spectrum_values = this_variance*2*this_fluctuation_rate/(this_fluctuation_rate*this_fluctuation_rate
+                                                                              +4*np.pi*np.pi*power_spectrum[:,0]*power_spectrum[:,0])
+        fitted_power_spectrum = np.vstack((power_spectrum[:,0], fitted_power_spectrum_values)).transpose()       
+        test_correlation_function = hes5.calculate_autocorrelation_from_power_spectrum(fitted_power_spectrum)
+        plt.figure(figsize = (4.5,4.5))
+        plt.subplot(211)
+        plt.plot(power_spectrum[:,0], power_spectrum[:,1])
+        plt.plot(power_spectrum[:,0], fitted_power_spectrum_values)
+        plt.xlabel('Frequency')
+        plt.xlim(0,0.05)
+        plt.ylabel('Power')
+        plt.subplot(212)
         plt.plot(auto_correlation_from_fourier[:,0],
                  auto_correlation_from_fourier[:,1], lw = 0.5, color = 'blue', ls = '-')
         plt.plot(time_values,
                  fitted_auto_correlation_values, lw = 0.5, color = 'orange', ls = '--')
+        plt.plot(test_correlation_function[:,0],
+                 test_correlation_function[:,1], lw = 0.5, color = 'green', ls = '--', alpha =0.5)
         plt.xlim(0,1000)
         plt.xlabel('Time')
         plt.ylabel('Autocorrelation')
@@ -1418,3 +1435,190 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'autocorrelation_function_fit.pdf'))    
  
+    def xest_compare_direct_and_indirect_lengthscale_measurement(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+#         example_parameter_index = 10
+        example_parameter_index = 100
+        example_parameter = my_posterior_samples[example_parameter_index]
+ 
+        number_of_traces = 100
+        mrna_traces, protein_traces = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                    1500*5, #duration 
+                                                                                    example_parameter[2], #repression_threshold, 
+                                                                                    example_parameter[4], #hill_coefficient,
+                                                                                    example_parameter[5], #mRNA_degradation_rate, 
+                                                                                    example_parameter[6], #protein_degradation_rate, 
+                                                                                    example_parameter[0], #basal_transcription_rate, 
+                                                                                    example_parameter[1], #translation_rate,
+                                                                                    example_parameter[3], #transcription_delay, 
+                                                                                    10, #initial_mRNA, 
+                                                                                    example_parameter[2], #initial_protein,
+                                                                                    1000)
+
+        print('generated traces')
+        this_fluctuation_rate, this_variance = hes5.estimate_fluctuation_rate_of_traces_by_matrices(protein_traces)
+        print('estimated fluctuation rate')
+        
+        these_reduced_traces = protein_traces[:720]
+        these_extended_reduced_traces = protein_traces[:720*2]
+        
+#         these_reduced_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_reduced_traces)
+#         np.save(os.path.join(os.path.dirname(__file__),'output',
+#                 'fluctuation_rates_for_convergence_2.npy'), these_reduced_fluctuation_rates)
+        these_reduced_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+                                        'fluctuation_rates_for_convergence.npy'))
+        print('measured fluctuation rate short')
+
+#         these_extended_reduced_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_extended_reduced_traces)
+#         np.save(os.path.join(os.path.dirname(__file__),'output',
+#                 'fluctuation_rates_for_convergence_longer_2.npy'), these_extended_reduced_fluctuation_rates)
+        these_extended_reduced_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+                                                            'fluctuation_rates_for_convergence_longer.npy'))
+        print('measured fluctuation rate longer')
+        print(np.mean(these_reduced_fluctuation_rates)/this_fluctuation_rate)
+        print(np.mean(these_extended_reduced_fluctuation_rates)/this_fluctuation_rate)
+        print(this_fluctuation_rate)
+        
+        correction_factor = 1.0
+        plt.figure(figsize = (4.5,4.5))
+
+        plt.subplot(211)
+        plt.hist(these_reduced_fluctuation_rates, bins = 20, range = (0,0.015))
+#         plt.hist(these_reduced_fluctuation_rates, bins = 20, range = (0,0.007))
+#         plt.hist(these_reduced_fluctuation_rates, bins = 20)
+        plt.axvline(np.mean(these_reduced_fluctuation_rates), color = 'blue')
+        plt.axvline(np.median(these_reduced_fluctuation_rates), color = 'orange')
+#         plt.axvline(this_fluctuation_rate/np.sqrt(2.0), color = 'green')
+        plt.axvline(this_fluctuation_rate/correction_factor, color = 'green')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+
+        plt.subplot(212)
+#         plt.hist(these_extended_reduced_fluctuation_rates, bins = 20, range = (0,0.007))
+        plt.hist(these_extended_reduced_fluctuation_rates, bins = 20, range = (0,0.015))
+        plt.axvline(np.mean(these_extended_reduced_fluctuation_rates), color = 'blue')
+        plt.axvline(np.median(these_extended_reduced_fluctuation_rates), color = 'orange')
+        plt.axvline(this_fluctuation_rate/correction_factor, color = 'green')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'fluctuation_rate_convergence_2.pdf'))
+
+    def test_approximate_lengthscale_measurement(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples = prior_samples[accepted_indices]
+
+#         example_parameter_index = 10
+        example_parameter_index = 100
+        example_parameter = my_posterior_samples[example_parameter_index]
+ 
+        number_of_traces = 100
+        mrna_traces, protein_traces = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                    1500*5, #duration 
+                                                                                    example_parameter[2], #repression_threshold, 
+                                                                                    example_parameter[4], #hill_coefficient,
+                                                                                    example_parameter[5], #mRNA_degradation_rate, 
+                                                                                    example_parameter[6], #protein_degradation_rate, 
+                                                                                    example_parameter[0], #basal_transcription_rate, 
+                                                                                    example_parameter[1], #translation_rate,
+                                                                                    example_parameter[3], #transcription_delay, 
+                                                                                    10, #initial_mRNA, 
+                                                                                    example_parameter[2], #initial_protein,
+                                                                                    1000)
+
+        print('generated traces')
+        this_fluctuation_rate, this_variance = hes5.estimate_fluctuation_rate_of_traces_by_matrices(protein_traces)
+        
+#         these_reduced_traces = protein_traces[:720:10,:10]
+        these_reduced_traces = protein_traces[::10,:10]
+        these_extended_reduced_traces = protein_traces[:720*2]
+        
+#         these_reduced_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_reduced_traces)
+#         np.save(os.path.join(os.path.dirname(__file__),'output',
+#                 'fluctuation_rates_for_convergence_2.npy'), these_reduced_fluctuation_rates)
+        these_reduced_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+                                        'fluctuation_rates_for_convergence.npy'))
+        print('measured fluctuation rate short')
+#         these_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_reduced_traces, method = 'sklearn')
+#         this_fluctuation_rate = np.mean(these_fluctuation_rates)
+        print('estimated fluctuation rate')
+
+#         these_extended_reduced_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_extended_reduced_traces)
+#         np.save(os.path.join(os.path.dirname(__file__),'output',
+#                 'fluctuation_rates_for_convergence_longer_2.npy'), these_extended_reduced_fluctuation_rates)
+        these_extended_reduced_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+                                                            'fluctuation_rates_for_convergence_longer.npy'))
+        print('measured fluctuation rate longer')
+        print(np.mean(these_reduced_fluctuation_rates)/this_fluctuation_rate)
+        print(np.mean(these_extended_reduced_fluctuation_rates)/this_fluctuation_rate)
+        print(this_fluctuation_rate)
+        
+        correction_factor = 1.0
+        plt.figure(figsize = (4.5,4.5))
+
+        plt.subplot(211)
+        plt.hist(these_reduced_fluctuation_rates, bins = 20, range = (0,0.015))
+#         plt.hist(these_reduced_fluctuation_rates, bins = 20, range = (0,0.007))
+#         plt.hist(these_reduced_fluctuation_rates, bins = 20)
+        plt.axvline(np.mean(these_reduced_fluctuation_rates), color = 'blue')
+        plt.axvline(np.median(these_reduced_fluctuation_rates), color = 'orange')
+#         plt.axvline(this_fluctuation_rate/np.sqrt(2.0), color = 'green')
+        plt.axvline(this_fluctuation_rate/correction_factor, color = 'green')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+
+        plt.subplot(212)
+#         plt.hist(these_extended_reduced_fluctuation_rates, bins = 20, range = (0,0.007))
+        plt.hist(these_extended_reduced_fluctuation_rates, bins = 20, range = (0,0.015))
+        plt.axvline(np.mean(these_extended_reduced_fluctuation_rates), color = 'blue')
+        plt.axvline(np.median(these_extended_reduced_fluctuation_rates), color = 'orange')
+        plt.axvline(this_fluctuation_rate/correction_factor, color = 'green')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'fluctuation_rate_convergence_alternative.pdf'))
+
+    def xest_get_get_correlation_matrices(self):
+        times = np.linspace(0,10,100)
+        distance_vector = scipy.spatial.distance.pdist(times[:,np.newaxis]) 
+        distance_matrix = scipy.spatial.distance.squareform(distance_vector) 
+        covariance_matrix = np.exp(-distance_matrix)
+        print(distance_matrix)
+        print(covariance_matrix)
+        
+        # alternatively we can do
+        new_times = np.linspace(0,10,100)
+        correlation_function = np.exp(-new_times)
+        indices = np.arange(0,times.shape[0],1)
+        new_distance_vector = scipy.spatial.distance.pdist(indices[:,np.newaxis]).astype(np.int)
+        print(new_distance_vector)
+        new_distance_matrix = scipy.spatial.distance.squareform(new_distance_vector) 
+        print(new_distance_matrix)
+        new_covariance_matrix = correlation_function[new_distance_matrix]
+        print(new_covariance_matrix)
+        
+        
