@@ -3806,7 +3806,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
  
     return sweep_results
 
-def measure_fluctuation_rate_of_single_trace(trace, method = 'gpflow'):
+def measure_fluctuation_rate_of_single_trace(trace, method = 'sklearn'):
     '''Calculate the fluctation rate of a trace. Will fit an Ornstein-Uhlenbeck Gaussian process
     to a time series and estimate the lengthscale parameter, alpha. Specifically, we estimate the parameter 
     alpha = 1/rho
@@ -3837,16 +3837,17 @@ def measure_fluctuation_rate_of_single_trace(trace, method = 'gpflow'):
     trace_around_mean = trace_around_mean[:,np.newaxis]
 
     if method == 'gpflow':
-        ornstein_kernel = gpflow.kernels.Matern12(input_dim = 1)
-        ornstein_kernel.lengthscales.prior = gpflow.priors.Uniform(lower=0.01, upper = 1e3)
-        regression_model = gpflow.models.GPR(times, trace_around_mean, kern=ornstein_kernel)
+        with gpflow.defer_build():
+            ornstein_kernel = gpflow.kernels.Matern12(input_dim = 1)
+            regression_model = gpflow.models.GPR(times, trace_around_mean, kern=ornstein_kernel)
+            regression_model.kern.lengthscales.prior = gpflow.priors.Uniform(1e-2, 10000)
+        regression_model.compile()
         gpflow.train.ScipyOptimizer().minimize(regression_model)
-
         regression_values = regression_model.kern.read_values()
         this_lengthscale = regression_values['GPR/kern/lengthscales']
     elif method == 'sklearn':
         ornstein_kernel = ( gp.kernels.ConstantKernel(constant_value=1.0, constant_value_bounds=(1e-5, 2.0*np.var(trace_around_mean)))*
-                            gp.kernels.Matern(nu=0.5))
+                            gp.kernels.Matern(nu=0.5, length_scale_bounds = (1e-2,10000)))
         my_gp_regressor = gp.GaussianProcessRegressor(kernel=ornstein_kernel, n_restarts_optimizer=1)
         my_fit = my_gp_regressor.fit(times, trace_around_mean)
         this_lengthscale = my_gp_regressor.kernel_.get_params()['k2__length_scale']
@@ -3876,7 +3877,8 @@ def measure_fluctuation_rate_of_single_trace(trace, method = 'gpflow'):
         results = scipy.optimize.minimize(objective_function, 
                                           initial_value, 
                                           jac=gradient_of_objective_function, 
-                                          method="L-BFGS-B")
+                                          method="L-BFGS-B",
+                                          bounds = [(-9.21,18.42)])
         this_log_lengthscale_square = results.x[1]
         this_lengthscale_square = np.exp(this_log_lengthscale_square)
         this_lengthscale = np.sqrt(this_lengthscale_square)
@@ -3887,7 +3889,7 @@ def measure_fluctuation_rate_of_single_trace(trace, method = 'gpflow'):
     
     return this_fluctuation_rate
 
-def measure_fluctuation_rates_of_traces(traces, method = 'gpflow'):
+def measure_fluctuation_rates_of_traces(traces, method = 'sklearn'):
     '''Convenience function to return the fluctuation rates of multiple traces.
     See measure_fluctuation_rate_of_single_trace for details of the implementation.
     
@@ -4013,7 +4015,7 @@ def estimate_fluctuation_rate_of_traces(traces, fix_variance = False):
 
     return fluctuation_rate, variance
     
-def estimate_fluctuation_rate_of_traces_by_matrices(traces):
+def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interval = 1):
     '''Estimate the fluctuation rate of traces by (1) calculate the power spectrum,
     (2) transform it into the autocorrelation function K1(t), (3) Fit the function
     K2(t)=v*exp(-alpha*t) to K1(t). The best-fit alpha will be returned as the 
@@ -4026,14 +4028,15 @@ def estimate_fluctuation_rate_of_traces_by_matrices(traces):
         2D array. First column is time, Each further trace is one time series of the process that we are
         trying to fit.
         
+    sampling_interval : int
+        sampling_interval-1 values will be skipped between measurements in traces, i.e. traces
+        are downsampled by sampling_interval
+        
     Returns:
     --------
     
     fluctuation_rate : float
         fluctuation rate that best fits the autocorellation function of the proposed traces
-        
-    variance : float
-        variance for best fit
     '''
     power_spectrum, _, _ = calculate_power_spectrum_of_trajectories(traces, normalize = False)
     full_auto_correlation = calculate_autocorrelation_from_power_spectrum(power_spectrum)
@@ -4041,141 +4044,40 @@ def estimate_fluctuation_rate_of_traces_by_matrices(traces):
     signal_variance = np.var(traces[:,1:])
     full_auto_correlation[:,1]/=signal_variance
 
+    # only half the number of fourier inverse timepoints are useful at all
     useful_number_of_timepoints = np.int(np.around(full_auto_correlation.shape[0]/2.0))
-    useful_auto_correlation = full_auto_correlation[:useful_number_of_timepoints:10]
-#     useful_auto_correlation = full_auto_correlation[:useful_number_of_timepoints]
+    useful_auto_correlation = full_auto_correlation[:useful_number_of_timepoints:sampling_interval]
     all_indices = np.arange(0,useful_auto_correlation.shape[0],1)
     all_distances = scipy.spatial.distance.pdist(all_indices[:,np.newaxis]).astype(np.int)
     index_distance_matrix = scipy.spatial.distance.squareform(all_distances) 
     signal_covariance_matrix = useful_auto_correlation[:,1][index_distance_matrix]
     
     all_times = useful_auto_correlation[:,0]
-    print(all_times)
-    print(signal_covariance_matrix)
 
-#     def penalty_function(fluctuation_rate_and_variance):
-#         fluctuation_rate = fluctuation_rate_and_variance[0]
-#         variance = fluctuation_rate_and_variance[1]
-#         correlation_function = variance*np.exp(-fluctuation_rate*all_times)
-#         new_covariance_matrix = correlation_function[index_distance_matrix]
-#         sum_matrix = new_covariance_matrix + signal_covariance_matrix
-#         _, determinant_log = np.linalg.slogdet(sum_matrix)
-#         print('determinant is')
-#         print(determinant_log)
-#         print('fluct_and_var is')
-#         print(fluctuation_rate_and_variance)
-#         return determinant_log
-#     
-#     results = scipy.optimize.minimize(penalty_function, x0 = [0.01, np.var(traces[:,1:])], 
-#                                       bounds = [(0,None),(0,None)], method = 'Nelder-Mead', options = {'disp':True}) 
-
-#     variance = np.var(traces[:,1:])
-#     def penalty_function(fluctuation_rate):
-#         fluctuation_rate = fluctuation_rate[0]
-#         correlation_function = variance*np.exp(-fluctuation_rate*all_times)
-#         new_covariance_matrix = correlation_function[index_distance_matrix]
-#         sum_matrix = new_covariance_matrix + signal_covariance_matrix
-#         _, determinant_log = np.linalg.slogdet(sum_matrix)
-#         print('determinant is')
-#         print(determinant_log)
-#         print('fluct')
-#         print(fluctuation_rate)
-#         return determinant_log
-#      
-#     results = scipy.optimize.minimize(penalty_function, x0 = [0.01], 
-#                                     bounds = [(0,None)], options = {'disp':True}) 
-
-#     @jit(nopython=True)
+    # use this function to maximise KL divergence on both the fluctuation rate and variance
     def penalty_function(fluctuation_rate_and_variance):
         fluctuation_rate = fluctuation_rate_and_variance[0]
         variance = fluctuation_rate_and_variance[1]
-        print('fluct_and_var is')
-        print(fluctuation_rate_and_variance)
-#         correlation_function = variance*np.exp(-fluctuation_rate*all_times)
         correlation_function = np.exp(-fluctuation_rate*all_times)
-#         print('correlation_function')
-#         print(correlation_function)
-#         covariance_matrix_values = correlation_function[all_distances]
-#         new_covariance_matrix = np.zeros((correlation_function.shape[0],
-#                                         correlation_function.shape[0]))
-#         new_covariance_matrix = scipy.spatial.distance.squareform(covariance_matrix_values)
-#         vector_index = 0
-#         for first_index in range(correlation_function.shape[0]): 
-#             matrix_index = (first_index * correlation_function.shape[0]) + first_index + 1
-#             for third_index in range(first_index + 1, correlation_function.shape[0]): 
-#                 new_covariance_matrix.flat[matrix_index] = covariance_matrix_values[vector_index]
-#                 matrix_index +=1 
-#                 vector_index +=1
-#                 
-#         new_covariance_matrix += new_covariance_matrix.transpose()
-
-#         np.fill_diagonal(new_covariance_matrix, correlation_function[0])
         new_covariance_matrix = correlation_function[index_distance_matrix]
-        print(new_covariance_matrix)
         _, new_log_det = np.linalg.slogdet(new_covariance_matrix)
-#         _, signal_log_det = np.linalg.slogdet(signal_covariance_matrix)
-#         new_cholesky_matrix = np.linalg.cholesky(new_covariance_matrix)
-#         new_inverse_cholesky_matrix = np.linalg.inv(new_cholesky_matrix)
-#         new_inverse_matrix = new_inverse_cholesky_matrix.transpose().dot(new_inverse_cholesky_matrix)
         new_inverse_matrix = np.linalg.inv(new_covariance_matrix)
-#         penalty_value = ( np.trace(new_inverse_matrix.dot(signal_covariance_matrix))
-#                           + new_log_det - signal_log_det)
         penalty_value = ( 1.0/variance*np.trace(new_inverse_matrix.dot(signal_covariance_matrix))
                           + new_log_det + new_covariance_matrix.shape[0]*np.log(variance))
-#         sum_matrix = new_covariance_matrix + signal_covariance_matrix
-#         _, determinant_log = np.linalg.slogdet(sum_matrix)
-        print('penalty_value is')
-        print(penalty_value)
         return penalty_value
      
-    def penalty_function_jacobian(fluctuation_rate_and_variance):
-        fluctuation_rate = fluctuation_rate_and_variance[0]
-        variance = fluctuation_rate_and_variance[1]
-        correlation_function = np.exp(-fluctuation_rate*all_times)
-        derivative_correlation_function = -all_times*np.exp(-fluctuation_rate*all_times)
-        new_covariance_matrix = correlation_function[index_distance_matrix]
-        derivative_covariance_matrix = derivative_correlation_function[index_distance_matrix]
-        np.fill_diagonal(derivative_covariance_matrix, 0)
-        new_inverse_matrix = np.linalg.inv(new_covariance_matrix)
-        derivative_inverse_matrix = np.linalg.inv(derivative_covariance_matrix)
-        d_fluctuation_rate = ( 1.0/variance*np.trace(derivative_inverse_matrix.dot(signal_covariance_matrix))
-                               +np.trace(new_inverse_matrix.dot(derivative_covariance_matrix)) )
-        print('jacobian value')
-        print(d_fluctuation_rate)
-        d_variance = -1.0/variance*np.trace(new_inverse_matrix)
-        return np.array([d_fluctuation_rate, d_variance])
-#     results = scipy.optimize.minimize(penalty_function, x0 = [0.01, np.var(traces[:,1:])], 
-#                                       bounds = [(0,None),(0,None)], method = 'Nelder-Mead', options = {'disp':True}) 
-
-#     results = scipy.optimize.minimize(penalty_function, x0 = [0.01, np.var(traces[:,1:])], jac = penalty_function_jacobian,
-#                                     bounds = [(0.0001,None),(0,None)], options = {'disp':True}) 
-
-#     results = scipy.optimize.minimize(penalty_function, x0 = [0.01, np.var(traces[:,1:])], 
-#                                     bounds = [(0.0001,None),(0,None)], options = {'disp':True}) 
-
+    # This function only maximises alpha, since we know the variance will converge to the variance of the signal
     def alternative_penalty_function(fluctuation_rate):
         fluctuation_rate = fluctuation_rate[0]
         correlation_function = np.exp(-fluctuation_rate*all_times)
         new_covariance_matrix = correlation_function[index_distance_matrix]
-        print(new_covariance_matrix)
         _, new_log_det = np.linalg.slogdet(new_covariance_matrix)
-#         _, signal_log_det = np.linalg.slogdet(signal_covariance_matrix)
-#         new_cholesky_matrix = np.linalg.cholesky(new_covariance_matrix)
-#         new_inverse_cholesky_matrix = np.linalg.inv(new_cholesky_matrix)
-#         new_inverse_matrix = new_inverse_cholesky_matrix.transpose().dot(new_inverse_cholesky_matrix)
         new_inverse_matrix = np.linalg.inv(new_covariance_matrix)
-#         penalty_value = ( np.trace(new_inverse_matrix.dot(signal_covariance_matrix))
-#                           + new_log_det - signal_log_det)
         penalty_value = ( np.trace(new_inverse_matrix.dot(signal_covariance_matrix))
                           + new_log_det )
-#         sum_matrix = new_covariance_matrix + signal_covariance_matrix
-#         _, determinant_log = np.linalg.slogdet(sum_matrix)
-        print('fluctuation rate is')
-        print(fluctuation_rate)
-        print('penalty_value is')
-        print(penalty_value)
         return penalty_value
  
+    # This is the jacobian of this previous penalty function
     def alternative_penalty_function_jacobian(fluctuation_rate):
         fluctuation_rate = fluctuation_rate[0]
         correlation_function = np.exp(-fluctuation_rate*all_times)
@@ -4189,92 +4091,19 @@ def estimate_fluctuation_rate_of_traces_by_matrices(traces):
                                          new_inverse_matrix.dot(
                                          signal_covariance_matrix))))
                                +np.trace(new_inverse_matrix.dot(derivative_covariance_matrix)) )
-        print('derivative is')
-        print(d_fluctuation_rate)
         return np.array([d_fluctuation_rate])
 
 #     results = scipy.optimize.minimize(alternative_penalty_function, x0 = [0.01], jac = alternative_penalty_function_jacobian,
 #                                     bounds = [(0.0001,None)], options = {'disp':True}) 
-#     results = scipy.optimize.minimize(alternative_penalty_function, x0 = [0.01],bounds = [(0.0001,None)], options = {'disp':True}) 
     results = scipy.optimize.minimize(alternative_penalty_function, x0 = [0.01],bounds = [(0.0001,None)]) 
 
-    def root_function(fluctuation_rate):
-#         fluctuation_rate = fluctuation_rate[0]
-        correlation_function = np.exp(-fluctuation_rate*all_times)
-        new_covariance_matrix = correlation_function[index_distance_matrix]
-        root_function_value = np.trace(new_covariance_matrix.dot(signal_covariance_matrix) + np.eye(new_covariance_matrix.shape[0]))
-        return root_function_value
-    
-    def alternative_root_function_2(fluctuation_rate):
-        return alternative_penalty_function_jacobian([fluctuation_rate])
-    
-    def further_penalty_function(fluctuation_rate):
-        fluctuation_rate = fluctuation_rate[0]
-        correlation_function = np.exp(-fluctuation_rate*all_times)
-        new_covariance_matrix = correlation_function[index_distance_matrix]
-        print(new_covariance_matrix)
-        log_determinant =  np.linalg.det(new_covariance_matrix - signal_covariance_matrix) 
-        penalty_value = log_determinant
-        print('fluctuation rate is')
-        print(fluctuation_rate)
-        print('penalty_value is')
-        print(penalty_value)
-        return penalty_value
- 
-#     results = scipy.optimize.minimize(further_penalty_function, x0 = [0.001],bounds = [(0.0001,None)], options = {'disp':True}) 
-
+    # it's also possible to get the same result by finding the root of the jacobian
     def alternative_root_function(fluctuation_rate):
-        print(fluctuation_rate)
-        correlation_function = np.exp(-fluctuation_rate*all_times)
-        derivative_correlation_function = -all_times*np.exp(-fluctuation_rate*all_times)
-        new_covariance_matrix = correlation_function[index_distance_matrix]
-        derivative_covariance_matrix = derivative_correlation_function[index_distance_matrix]
-        np.fill_diagonal(derivative_covariance_matrix, 0)
-        inverse_derivative_covariance_matrix = np.linalg.inv(derivative_covariance_matrix)
-        new_inverse_matrix = np.linalg.inv(new_covariance_matrix)
-        root_matrix = ( inverse_derivative_covariance_matrix.dot(signal_covariance_matrix)
-                        + new_inverse_matrix.dot(derivative_covariance_matrix))
-        root_value = np.trace(root_matrix)
-        print(root_value)
-        return root_value
-    
-    def another_root_function(fluctuation_rate):
         return alternative_penalty_function_jacobian([fluctuation_rate])
-
-#     results = scipy.optimize.root_scalar(another_root_function, x0 = 0.004, bracket = [0.001,0.011]) 
+    
 #     results = scipy.optimize.root_scalar(alternative_root_function_2, x0 = 0.008, bracket = [0.004,0.011]) 
 
-    def another_alternative_penalty_function(fluctuation_rate):
-        fluctuation_rate = fluctuation_rate[0]
-        print(fluctuation_rate)
-        correlation_function = np.exp(-fluctuation_rate*all_times)
-        new_covariance_matrix = correlation_function[index_distance_matrix]
-        difference_matrix = new_covariance_matrix.dot(signal_covariance_matrix) + np.eye(new_covariance_matrix.shape[0])
-        _, new_log_det = np.linalg.slogdet(difference_matrix)
-        return new_log_det
-
-    def yet_another_penalty_function(fluctuation_rate_and_variance):
-        fluctuation_rate = fluctuation_rate_and_variance[0]
-        variance = fluctuation_rate_and_variance[1]
-        these_frequencies = power_spectrum[:,0]
-        these_powers = variance*2*fluctuation_rate/(fluctuation_rate*fluctuation_rate + 
-                                                    4*np.pi*np.pi*these_frequencies*these_frequencies)
-        this_squared_difference = np.sum(np.power(power_spectrum[:,1] - these_powers,2))
-        return this_squared_difference
-        
-#     results = scipy.optimize.minimize(yet_another_penalty_function, x0 = [0.01, np.var(traces[:,1:])], 
-#                                     bounds = [(0.0001,None),(0,None)], options = {'disp':True}) 
-#     results = scipy.optimize.minimize(yet_another_penalty_function, x0 = [0.01], 
-#                                     bounds = [(0.001,None)], options = {'disp':True}) 
-#     results = scipy.optimize.minimize(another_alternative_penalty_function, x0 = [0.01], 
-#                                     bounds = [(0.001,None)], options = {'disp':True}) 
-#     results = scipy.optimize.root_scalar(root_function, x0 = 0.01, bracket = [0.0001,None], options = {'disp':True}) 
-#     results = scipy.optimize.root_scalar(root_function, x0 = 0.01, bracket = [0.0001,1e5]) 
-
-#     fluctuation_rate = results.root
     fluctuation_rate = results.x[0]
-    variance = signal_variance
-#     variance = results.x[1]
 
-    return fluctuation_rate, variance
+    return fluctuation_rate
  

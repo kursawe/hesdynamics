@@ -1517,7 +1517,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'fluctuation_rate_convergence_2.pdf'))
 
-    def test_approximate_lengthscale_measurement(self):
+    def xest_approximate_lengthscale_measurement(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -1601,6 +1601,196 @@ class TestZebrafish(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'fluctuation_rate_convergence_alternative.pdf'))
+
+    def test_illustrate_lengthscale_measurements(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples_1 = prior_samples[accepted_indices]
+        example_parameter_index = 100
+        example_parameter_1 = my_posterior_samples_1[example_parameter_index]
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.2))))  
+        my_posterior_samples_2 = prior_samples[accepted_indices]
+#         example_parameter_index = 10
+        example_parameter_index = 10
+        example_parameter_2 = my_posterior_samples_2[example_parameter_index]
+ 
+        number_of_traces = 100
+        _, protein_traces_1 = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                            1500*5, #duration 
+                                                                            example_parameter_1[2], #repression_threshold, 
+                                                                            example_parameter_1[4], #hill_coefficient,
+                                                                            example_parameter_1[5], #mRNA_degradation_rate, 
+                                                                            example_parameter_1[6], #protein_degradation_rate, 
+                                                                            example_parameter_1[0], #basal_transcription_rate, 
+                                                                            example_parameter_1[1], #translation_rate,
+                                                                            example_parameter_1[3], #transcription_delay, 
+                                                                            10, #initial_mRNA, 
+                                                                            example_parameter_1[2], #initial_protein,
+                                                                            1000)
+        number_of_traces = 100
+        _, protein_traces_2 = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                            1500*5, #duration 
+                                                                            example_parameter_2[2], #repression_threshold, 
+                                                                            example_parameter_2[4], #hill_coefficient,
+                                                                            example_parameter_2[5], #mRNA_degradation_rate, 
+                                                                            example_parameter_2[6], #protein_degradation_rate, 
+                                                                            example_parameter_2[0], #basal_transcription_rate, 
+                                                                            example_parameter_2[1], #translation_rate,
+                                                                            example_parameter_2[3], #transcription_delay, 
+                                                                            10, #initial_mRNA,2
+                                                                            example_parameter_2[2], #initial_protein,
+                                                                            1000)
+
+        plt.figure(figsize = (6.5,10.5))
+        ## Row 1 - traces
+        plt.subplot(421)
+        this_trace = protein_traces_1[:,(0,1)]
+        plt.plot(this_trace[:,0], this_trace[:,1])
+        plt.xlim(0,1000)
+        plt.xlabel('Time [min]')
+        plt.ylabel('# Her6')
+        plt.subplot(422)
+        this_trace = protein_traces_2[:,(0,1)]
+        plt.plot(this_trace[:,0], this_trace[:,1])
+        plt.xlim(0,1000)
+        plt.xlabel('Time [min]')
+        plt.ylabel('# Her6')
+
+        ## Row 2 - histogram from 12 hours
+        plt.subplot(423)
+        these_shortened_traces_1 = protein_traces_1[:720]
+        these_measured_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_shortened_traces_1)
+        np.save(os.path.join(os.path.dirname(__file__),'output',
+                'fluctuation_rates_for_convergence_shortened_1.npy'), these_measured_fluctuation_rates)
+#         these_measured_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+#                                         'fluctuation_rates_for_convergence.npy'))
+        this_fluctuation_rate_1 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_1)
+        plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.008))
+        plt.axvline(np.mean(these_measured_fluctuation_rates), color = 'blue', label = 'Mean')
+        plt.axvline(this_fluctuation_rate_1, color = 'green', label = 'Theory')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+        plt.legend(ncol=1, loc = 'upper left', bbox_to_anchor = (-0.1,1.2), framealpha = 1.0)
+
+        plt.subplot(424)
+        these_shortened_traces_2 = protein_traces_2[:720]
+        these_measured_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_shortened_traces_2)
+        np.save(os.path.join(os.path.dirname(__file__),'output',
+                'fluctuation_rates_for_convergence_shortened_2.npy'), these_measured_fluctuation_rates)
+#         these_measured_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+#                                         'fluctuation_rates_for_convergence_2.npy'))
+        this_fluctuation_rate_2 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_2)
+        plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.015))
+        plt.axvline(np.mean(these_measured_fluctuation_rates), color = 'blue')
+        plt.axvline(this_fluctuation_rate_2, color = 'green')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+
+        ## Row 3 - histogram from 24 hours
+        plt.subplot(425)
+        these_shortened_traces_1 = protein_traces_1[:720*2]
+        these_measured_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_shortened_traces_1)
+        np.save(os.path.join(os.path.dirname(__file__),'output',
+                'fluctuation_rates_for_convergence_less_shortened_1.npy'), these_measured_fluctuation_rates)
+#         these_measured_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+#                                         'fluctuation_rates_for_convergence_longer.npy'))
+        plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.008))
+        plt.axvline(np.mean(these_measured_fluctuation_rates), color = 'blue')
+        plt.axvline(this_fluctuation_rate_1, color = 'green')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+
+        plt.subplot(426)
+        these_shortened_traces_2 = protein_traces_2[:720*2]
+        these_measured_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_shortened_traces_2)
+        np.save(os.path.join(os.path.dirname(__file__),'output',
+                'fluctuation_rates_for_convergence_less_shortened_2.npy'), these_measured_fluctuation_rates)
+#         these_measured_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+#                                         'fluctuation_rates_for_convergence_longer_2.npy'))
+        plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.015))
+        plt.axvline(np.mean(these_measured_fluctuation_rates), color = 'blue')
+        plt.axvline(this_fluctuation_rate_2, color = 'green')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+
+        ## Row 4 - histogram from 12 hours, lower sampling rate
+        plt.subplot(427)
+        these_short_downsampled_protein_traces_1 = protein_traces_1[:720:10]
+        these_measured_fluctuation_rates_1 = hes5.measure_fluctuation_rates_of_traces(these_short_downsampled_protein_traces_1)
+        np.save(os.path.join(os.path.dirname(__file__),'output',
+                'fluctuation_rates_for_convergence_downsampled_1.npy'), these_measured_fluctuation_rates_1)
+        this_estimated_fluctuation_rate_1 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_1,
+                                                                                                      sampling_interval = 10)
+        plt.hist(these_measured_fluctuation_rates_1, bins = 20)
+        plt.axvline(np.mean(these_measured_fluctuation_rates_1), color = 'blue')
+        plt.axvline(this_estimated_fluctuation_rate_1, color = 'green')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+
+        plt.subplot(428)
+        these_short_downsampled_protein_traces_2 = protein_traces_2[:720:10]
+        these_measured_fluctuation_rates_2 = hes5.measure_fluctuation_rates_of_traces(these_short_downsampled_protein_traces_2)
+        np.save(os.path.join(os.path.dirname(__file__),'output',
+                'fluctuation_rates_for_convergence_downsampled_2.npy'), these_measured_fluctuation_rates_2)
+        this_estimated_fluctuation_rate_2 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_2,
+                                                                                                      sampling_interval = 10)
+        plt.hist(these_measured_fluctuation_rates_2, bins = 20)
+        plt.axvline(np.mean(these_measured_fluctuation_rates_2), color = 'blue')
+        plt.axvline(this_estimated_fluctuation_rate_2, color = 'green')
+        plt.xlabel('Fluctuation rate')
+        plt.ylabel('Occurrence')
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'fluctuation_rate_illustration_panels.pdf'))
+        
+        ## make the second plot
+        this_halfway_sampling_rate_1 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_1,
+                                                                                                 sampling_interval = 6)
+
+        this_halfway_sampling_rate_2 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_2,
+                                                                                                 sampling_interval = 6)
+        
+        plt.figure(figsize = (6.5,4.5))
+        plt.subplot(221)
+        this_trace = protein_traces_1[:,(0,1)]
+        plt.plot(this_trace[:,0], this_trace[:,1], color = 'blue')
+        plt.xlabel('Time [min]')
+        plt.ylabel('# Her6')
+        plt.xlim(0,1000)
+
+        plt.subplot(222)
+        this_trace = protein_traces_2[:,(0,1)]
+        plt.plot(this_trace[:,0], this_trace[:,1], color = 'green')
+        plt.xlabel('Time [min]')
+        plt.ylabel('# Her6')
+        plt.xlim(0,1000)
+        plt.subplot(223)
+        plt.plot([1,6,10], 
+                 [this_fluctuation_rate_1, this_halfway_sampling_rate_1, this_estimated_fluctuation_rate_1],
+                 marker = 'o',
+                 color = 'blue')
+        plt.plot([1,6,10], 
+                 [this_fluctuation_rate_2, this_halfway_sampling_rate_2, this_estimated_fluctuation_rate_2],
+                 marker = 'o',
+                 color = 'green')
+        plt.xlabel('Sampling interval [min]')
+        plt.ylabel('Fluctuation rate [1/min]')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'fluctuation_rate_illustration_short.pdf'))
 
     def xest_get_get_correlation_matrices(self):
         times = np.linspace(0,10,100)
