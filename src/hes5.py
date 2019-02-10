@@ -842,7 +842,8 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
                                                             mRNA_degradation_rate = 0.03,
                                                             protein_degradation_rate = 0.03,
                                                             hill_coefficient = 5,
-                                                            normalise = True
+                                                            normalise = True,
+                                                            limits = [0,0.01]
                                                             ):
     '''Calculate the theoretical power spectrum of the protein of the Monk (2003) model
     at a parameter point using equation 32 in Galla (2009), PRE.
@@ -879,6 +880,10 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
 
     normalise : bool
         If True, normalise power spectrum to one.
+        
+    limits : list
+        two float entries denoting the frequency limits in between which the theoretical power
+        spectrum should be calculated.
        
     Returns
     -------
@@ -886,7 +891,7 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
     power_spectrum : ndarray
         two coloumns, first column contains frequencies, second column contains power spectrum values
     '''
-    actual_frequencies = np.linspace(0,0.01,1000)
+    actual_frequencies = np.linspace(limits[0],limits[1],1000)
     pi_frequencies = actual_frequencies*2*np.pi
     steady_state_mrna, steady_state_protein = calculate_steady_state_of_ode( repression_threshold = float(repression_threshold),
                                     hill_coefficient = hill_coefficient,
@@ -1393,6 +1398,8 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard',
     the mean of the signal. The power spectrum is normalised such that
     all entries add to one.
     
+    Warning: a correction factor may be needed if Deltat ne 1
+    
     Parameters:
     ---------- 
     
@@ -1501,6 +1508,7 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     interval_length = trajectory[-1,0]
     trajectory_to_transform = trajectory[:,1] - np.mean(trajectory[:,1])
     fourier_transform = np.fft.fft(trajectory_to_transform, norm = 'ortho')
+#     fourier_transform = np.fft.fft(trajectory_to_transform)
     fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
                                                      1.0/(interval_length) )
     power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[:(number_of_data_points//2)]),2)
@@ -2103,7 +2111,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         each row contains the summary statistics (mean, std, period, coherence, mean_mrna) for the corresponding
         parameter set in parameter_values
     '''
-    summary_statistics = np.zeros((parameter_values.shape[0], 10))
+    summary_statistics = np.zeros((parameter_values.shape[0], 12))
 
     pool_of_processes = mp.Pool(processes = number_of_cpus)
 
@@ -2252,8 +2260,8 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
 #     this_deterministic_trace = np.vstack((these_protein_traces[:,0],
 #                                           these_mrna_traces[:,1],
 #                                           these_protein_traces[:,1])).transpose()
-    summary_statistics = np.zeros(10)
-    _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
+    summary_statistics = np.zeros(12)
+    this_power_spectrum,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
     this_mean = np.mean(these_protein_traces[:,1:])
     this_std = np.std(these_protein_traces[:,1:])/this_mean
     this_mean_mRNA = np.mean(these_mrna_traces[:,1:])
@@ -2263,6 +2271,11 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 2000, 
                                             this_deterministic_trace[:,2])).transpose()
     _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
+    ##TODOO
+    this_fluctuation_rate = approximate_fluctuation_rate_of_traces_theoretically(these_protein_traces, 
+                                                                                 sampling_interval = 6, 
+                                                                                 power_spectrum = this_power_spectrum)
+    this_high_frequency_weight = calculate_noise_weight_from_power_spectrum(this_power_spectrum)
     summary_statistics[0] = this_mean
     summary_statistics[1] = this_std
     summary_statistics[2] = this_period
@@ -2273,6 +2286,8 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     summary_statistics[7] = this_deterministic_period
     summary_statistics[8] = this_deterministic_coherence
     summary_statistics[9] = this_deterministic_mean_mRNA
+    summary_statistics[10] = this_fluctuation_rate
+    summary_statistics[11] = this_high_frequency_weight
     
     return summary_statistics
 
@@ -3942,7 +3957,8 @@ def calculate_autocorrelation_from_power_spectrum(power_spectrum):
     full_power_spectrum_values = np.zeros(number_of_time_samples) 
     full_power_spectrum_values[:number_of_time_samples//2+1] = power_spectrum[:,1]
     full_power_spectrum_values[number_of_time_samples//2+1:] = power_spectrum[1:,1][::-1]
-    inverse_fourier_transform = np.fft.ifft(full_power_spectrum_values, norm = 'ortho' )
+#     inverse_fourier_transform = np.fft.ifft(full_power_spectrum_values, norm = 'ortho' )
+    inverse_fourier_transform = np.fft.ifft(full_power_spectrum_values )
 
     smallest_frequency = power_spectrum[1,0]
     correlation_times = np.linspace(0,1.0/smallest_frequency,number_of_time_samples)
@@ -3950,7 +3966,7 @@ def calculate_autocorrelation_from_power_spectrum(power_spectrum):
     complex_autocorrelation = np.vstack((correlation_times, inverse_fourier_transform)).transpose()
     
     autocorrelation = np.real(complex_autocorrelation)
-    autocorrelation[:,1] /= np.sqrt(number_of_time_samples) 
+#     autocorrelation[:,1] /= np.sqrt(number_of_time_samples) 
     assert(np.sum(np.imag(complex_autocorrelation)) == 0.0)
     
     return autocorrelation
@@ -4015,7 +4031,8 @@ def estimate_fluctuation_rate_of_traces(traces, fix_variance = False):
 
     return fluctuation_rate, variance
     
-def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interval = 1):
+def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interval = 1,
+                                                         power_spectrum = None):
     '''Estimate the fluctuation rate of traces by (1) calculate the power spectrum,
     (2) transform it into the autocorrelation function K1(t), (3) Fit the function
     K2(t)=v*exp(-alpha*t) to K1(t). The best-fit alpha will be returned as the 
@@ -4032,13 +4049,18 @@ def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interv
         sampling_interval-1 values will be skipped between measurements in traces, i.e. traces
         are downsampled by sampling_interval
         
+    power_spectrum : ndarray
+        precalculated power spectrum of traces. Has to be the exact power spectrum of the presented traces.
+        Added here as a command line argument to avoid recomputation for efficiency.
+        
     Returns:
     --------
     
     fluctuation_rate : float
         fluctuation rate that best fits the autocorellation function of the proposed traces
     '''
-    power_spectrum, _, _ = calculate_power_spectrum_of_trajectories(traces, normalize = False)
+    if power_spectrum is None:
+        power_spectrum, _, _ = calculate_power_spectrum_of_trajectories(traces, normalize = False)
     full_auto_correlation = calculate_autocorrelation_from_power_spectrum(power_spectrum)
 
     signal_variance = np.var(traces[:,1:])
@@ -4107,3 +4129,27 @@ def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interv
 
     return fluctuation_rate
  
+def calculate_noise_weight_from_power_spectrum(power_spectrum, frequency_cutoff = 1./30.):
+    '''Calculate the weight of the power spectrum that frequencies over 30 min contribute
+    
+    Parameters:
+    -----------
+    
+    power_spectrum : ndarray
+        two columns, first column contains frequencies, second column contains powers
+        
+    frequency_cutoff : float
+        threshold above which frequencies are considered to contribute to noise
+        
+    Returns:
+    -------
+    
+    noise_weight : float
+        the area under the power spectrum for frequencies larger than frequency_cutoff
+    '''
+    first_left_index = np.min(np.where(power_spectrum[:,0]>frequency_cutoff))
+    integration_axis = np.hstack(([frequency_cutoff], power_spectrum[first_left_index:,0]))
+    power_spectrum_interpolation = scipy.interpolate.interp1d(power_spectrum[:,0], power_spectrum[:,1])
+    interpolation_values = power_spectrum_interpolation(integration_axis)
+    noise_weight = np.trapz(interpolation_values, integration_axis)
+    return noise_weight

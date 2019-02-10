@@ -2,7 +2,6 @@ import unittest
 import os.path
 import sys
 import matplotlib as mpl
-from mahotas.distance import distance
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
@@ -158,7 +157,7 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def xest_make_abc_samples(self):
+    def test_make_abc_samples(self):
         ## generate posterior samples
         total_number_of_samples = 200000
 #         total_number_of_samples = 100
@@ -186,7 +185,7 @@ class TestZebrafish(unittest.TestCase):
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 7))
         
-    def xest_plot_zebrafish_inference(self):
+    def test_plot_zebrafish_inference(self):
         option = 'prior'
 #         option = 'mean_period_and_coherence'
 
@@ -505,7 +504,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','zebrafish_coherence_distribution.pdf'))
         
-    def xest_increase_mRNA_degradation(self):
+    def test_increase_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -530,7 +529,7 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old.npy', old_model_results)
         np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
         
-    def xest_decrease_mRNA_degradation(self):
+    def test_decrease_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -555,7 +554,7 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old.npy', old_model_results)
         np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
  
-    def xest_plot_mrna_change_results(self):
+    def test_plot_mrna_change_results(self):
         
         change = 'decreased'
 #         change = 'increased'
@@ -1423,11 +1422,11 @@ class TestZebrafish(unittest.TestCase):
         plt.ylabel('Power')
         plt.subplot(212)
         plt.plot(auto_correlation_from_fourier[:,0],
-                 auto_correlation_from_fourier[:,1], lw = 0.5, color = 'blue', ls = '-')
+                auto_correlation_from_fourier[:,1], lw = 0.5, color = 'blue', ls = '-')
         plt.plot(time_values,
-                 fitted_auto_correlation_values, lw = 0.5, color = 'orange', ls = '--')
+                fitted_auto_correlation_values, lw = 0.5, color = 'orange', ls = '--')
         plt.plot(test_correlation_function[:,0],
-                 test_correlation_function[:,1], lw = 0.5, color = 'green', ls = '--', alpha =0.5)
+                test_correlation_function[:,1], lw = 0.5, color = 'green', ls = '--', alpha =0.5)
         plt.xlim(0,1000)
         plt.xlabel('Time')
         plt.ylabel('Autocorrelation')
@@ -1549,27 +1548,28 @@ class TestZebrafish(unittest.TestCase):
                                                                                     1000)
 
         print('generated traces')
-        this_fluctuation_rate, this_variance = hes5.estimate_fluctuation_rate_of_traces_by_matrices(protein_traces)
+        this_fluctuation_rate = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces)
         
-#         these_reduced_traces = protein_traces[:720:10,:10]
-        these_reduced_traces = protein_traces[::10,:10]
-        these_extended_reduced_traces = protein_traces[:720*2]
+        these_reduced_traces = protein_traces[:720,:10]
         
-#         these_reduced_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_reduced_traces)
+#         these_reduced_traces = protein_traces[::10,:10]
+        these_extended_reduced_traces = protein_traces[:720*2,:10]
+        
+        these_reduced_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_reduced_traces)
 #         np.save(os.path.join(os.path.dirname(__file__),'output',
 #                 'fluctuation_rates_for_convergence_2.npy'), these_reduced_fluctuation_rates)
-        these_reduced_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
-                                        'fluctuation_rates_for_convergence.npy'))
+#         these_reduced_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+#                                         'fluctuation_rates_for_convergence.npy'))
         print('measured fluctuation rate short')
 #         these_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_reduced_traces, method = 'sklearn')
 #         this_fluctuation_rate = np.mean(these_fluctuation_rates)
         print('estimated fluctuation rate')
 
-#         these_extended_reduced_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_extended_reduced_traces)
+        these_extended_reduced_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_extended_reduced_traces)
 #         np.save(os.path.join(os.path.dirname(__file__),'output',
 #                 'fluctuation_rates_for_convergence_longer_2.npy'), these_extended_reduced_fluctuation_rates)
-        these_extended_reduced_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
-                                                            'fluctuation_rates_for_convergence_longer.npy'))
+#         these_extended_reduced_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
+#                                                             'fluctuation_rates_for_convergence_longer.npy'))
         print('measured fluctuation rate longer')
         print(np.mean(these_reduced_fluctuation_rates)/this_fluctuation_rate)
         print(np.mean(these_extended_reduced_fluctuation_rates)/this_fluctuation_rate)
@@ -1602,7 +1602,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'fluctuation_rate_convergence_alternative.pdf'))
 
-    def test_illustrate_lengthscale_measurements(self):
+    def xest_illustrate_lengthscale_measurements(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -1811,4 +1811,144 @@ class TestZebrafish(unittest.TestCase):
         new_covariance_matrix = correlation_function[new_distance_matrix]
         print(new_covariance_matrix)
         
+    def xest_calculate_high_frequency_weight_of_power_spectrum(self):
         
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples_1 = prior_samples[accepted_indices]
+        example_parameter_index = 100
+        example_parameter_1 = my_posterior_samples_1[example_parameter_index]
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.2))))  
+        my_posterior_samples_2 = prior_samples[accepted_indices]
+#         example_parameter_index = 10
+        example_parameter_index = 10
+        example_parameter_2 = my_posterior_samples_2[example_parameter_index]
+ 
+        number_of_traces = 100
+        _, protein_traces_1 = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                            1500*5, #duration 
+                                                                            example_parameter_1[2], #repression_threshold, 
+                                                                            example_parameter_1[4], #hill_coefficient,
+                                                                            example_parameter_1[5], #mRNA_degradation_rate, 
+                                                                            example_parameter_1[6], #protein_degradation_rate, 
+                                                                            example_parameter_1[0], #basal_transcription_rate, 
+                                                                            example_parameter_1[1], #translation_rate,
+                                                                            example_parameter_1[3], #transcription_delay, 
+                                                                            10, #initial_mRNA, 
+                                                                            example_parameter_1[2], #initial_protein,
+                                                                            1000)
+        number_of_traces = 100
+        _, protein_traces_2 = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                            1500*5, #duration 
+                                                                            example_parameter_2[2], #repression_threshold, 
+                                                                            example_parameter_2[4], #hill_coefficient,
+                                                                            example_parameter_2[5], #mRNA_degradation_rate, 
+                                                                            example_parameter_2[6], #protein_degradation_rate, 
+                                                                            example_parameter_2[0], #basal_transcription_rate, 
+                                                                            example_parameter_2[1], #translation_rate,
+                                                                            example_parameter_2[3], #transcription_delay, 
+                                                                            10, #initial_mRNA,2
+                                                                            example_parameter_2[2], #initial_protein,
+                                                                            1000)
+
+        power_spectrum_1,_,_ = hes5.calculate_power_spectrum_of_trajectories(protein_traces_1, normalize = False)
+        power_spectrum_2,_,_ = hes5.calculate_power_spectrum_of_trajectories(protein_traces_2, normalize = False)
+        
+        frequency_cutoff = 1.0/30
+        for power_spectrum_index, power_spectrum in enumerate([power_spectrum_1, power_spectrum_2]):
+            first_left_index = np.min(np.where(power_spectrum[:,0]>frequency_cutoff))
+            integration_axis = np.hstack(([frequency_cutoff], power_spectrum[first_left_index:,0]))
+            power_spectrum_interpolation = scipy.interpolate.interp1d(power_spectrum[:,0], power_spectrum[:,1])
+            interpolation_values = power_spectrum_interpolation(integration_axis)
+            noise_area = np.trapz(interpolation_values, integration_axis)
+            if power_spectrum_index == 0:
+                noise_weight_1 = noise_area
+            else:
+                noise_weight_2 = noise_area
+        noise_weight_1_by_function = hes5.calculate_noise_weight_from_power_spectrum(power_spectrum_1)
+        self.assertAlmostEqual(noise_weight_1, noise_weight_1_by_function)
+        noise_weight_2_by_function = hes5.calculate_noise_weight_from_power_spectrum(power_spectrum_2)
+        self.assertAlmostEqual(noise_weight_2, noise_weight_2_by_function)
+        plt.figure(figsize = (6.5,4.5))
+        plt.subplot(221)
+        this_trace = protein_traces_1[:,(0,1)]
+        plt.plot(this_trace[:,0], this_trace[:,1], color = 'blue')
+        plt.xlabel('Time [min]')
+        plt.ylabel('# Her6')
+        plt.xlim(0,1000)
+
+        plt.subplot(222)
+        this_trace = protein_traces_2[:,(0,1)]
+        plt.plot(this_trace[:,0], this_trace[:,1], color = 'blue')
+        plt.xlabel('Time [min]')
+        plt.ylabel('# Her6')
+        plt.xlim(0,1000)
+
+        plt.subplot(223)
+        plt.plot(power_spectrum_1[:,0], power_spectrum_1[:,1]/1e7, lw = 1)
+        first_left_index = np.min(np.where(power_spectrum_1[:,0]>frequency_cutoff))
+        plt.fill_between(power_spectrum_1[first_left_index:,0], 
+                         power_spectrum_1[first_left_index:,1]/1e7,
+                         0, color = 'green')
+        plt.xlabel('Frequency [1/min]')
+        plt.xlim(0,0.1)
+        plt.ylim(0,2)
+        plt.axvline(frequency_cutoff,ymin = 0)
+        plt.title('Noise weight is ' + '{:.2f}'.format(noise_weight_1) + '/min')
+        plt.ylabel('Power/1e7')
+        plt.title
+        
+        plt.subplot(224)
+        theoretical_power_spectrum_1 = hes5.calculate_theoretical_power_spectrum_at_parameter_point(
+                                                                basal_transcription_rate = example_parameter_2[0],
+                                                                translation_rate = example_parameter_2[1],
+                                                                repression_threshold = example_parameter_2[2],
+                                                                transcription_delay = example_parameter_2[3],
+                                                                mRNA_degradation_rate = example_parameter_2[5],
+                                                                protein_degradation_rate = example_parameter_2[6],
+                                                                hill_coefficient = example_parameter_2[4],
+                                                                normalise = False,
+                                                                limits = [0,0.1])
+        plt.plot(power_spectrum_2[:,0], power_spectrum_2[:,1]/1e7, lw = 1)
+#         plt.plot(theoretical_power_spectrum_1[:,0], theoretical_power_spectrum_1[:,1]/1e7)
+        first_left_index = np.min(np.where(power_spectrum_2[:,0]>frequency_cutoff))
+        plt.fill_between(power_spectrum_2[first_left_index:,0], 
+                         power_spectrum_2[first_left_index:,1]/1e7,
+                         0, color = 'green')
+        first_left_index_1 = np.min(np.where(power_spectrum_2[:,0]>0.01))
+        first_left_index_2 = np.min(np.where(theoretical_power_spectrum_1[:,0]>0.01))
+#         print(theoretical_power_spectrum_1[first_left_index_1,1]/power_spectrum_2[first_left_index_2,1])
+        print(power_spectrum_2.shape)
+        power_area_1 = np.trapz(power_spectrum_2[:,1], power_spectrum_2[:,0])
+        power_area = np.trapz(theoretical_power_spectrum_1[:,1], theoretical_power_spectrum_1[:,0])
+        ratio = power_area/power_area_1
+        print(power_area/power_area_1)
+        print(protein_traces_1.shape)
+        print(protein_traces_1.shape[0]*np.sqrt(protein_traces_1.shape[0])/ratio)
+        print(power_spectrum_2.shape[0]*np.sqrt(power_spectrum_2.shape[0])/ratio)
+        print(power_spectrum_2.shape[0]*np.sqrt(protein_traces_1.shape[0])/ratio)
+        print(protein_traces_1.shape[0]*np.sqrt(protein_traces_1.shape[0])/np.sqrt(2*np.pi)/ratio)
+        plt.axvline(frequency_cutoff,ymin = 0)
+        plt.xlim(0,0.1)
+#         plt.ylim(0,100)
+        plt.xlabel('Frequency [1/min]')
+        plt.title('Noise weight is ' + '{:.2f}'.format(noise_weight_2) + '/min')
+        plt.ylabel('Power/1e7')
+        plt.ylim(0,2)
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'noise_weight_illustration.pdf'))
+
