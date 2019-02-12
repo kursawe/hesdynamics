@@ -2111,7 +2111,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         each row contains the summary statistics (mean, std, period, coherence, mean_mrna) for the corresponding
         parameter set in parameter_values
     '''
-    summary_statistics = np.zeros((parameter_values.shape[0], 12))
+    summary_statistics = np.zeros((parameter_values.shape[0], 11))
 
     pool_of_processes = mp.Pool(processes = number_of_cpus)
 
@@ -2129,6 +2129,97 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         summary_statistics[ parameter_index ] = these_summary_statistics
     
     return summary_statistics
+
+def calculate_fluctuation_rates_at_parameters(parameter_values, number_of_traces_per_sample = 200,
+                                         number_of_cpus = number_of_available_cores,
+                                         sampling_duration = None):
+    '''Calculate the fluctuation rates at the given parameters.
+        
+    Parameters
+    ----------
+    
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    number_of_cpus : int
+        number of processes that should be used for calculating the samples, parallelisation happens
+        on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
+
+    sampling_duration : float
+        sampling duration that should be used to calculate the fluctuation rate. This value can safely be reduced
+        to 12*60 or 24*60 minutes without reducing the accuracy
+
+    Returns
+    -------
+    
+    fluctuation_rates : ndarray
+        each entry contains the fluctuation rate of the the corresponding
+        parameter set in parameter_values
+    '''
+    fluctuation_rates = np.zeros(parameter_values.shape[0])
+
+    pool_of_processes = mp.Pool(processes = number_of_cpus)
+
+    process_results = [ pool_of_processes.apply_async(calculate_fluctuation_rate_at_parameter_point, 
+                                                      args=(parameter_value, 
+                                                            number_of_traces_per_sample,
+                                                            sampling_duration))
+                        for parameter_value in parameter_values ]
+
+    ## Let the pool know that these are all so that the pool will exit afterwards
+    # this is necessary to prevent memory overflows.
+    pool_of_processes.close()
+
+    for parameter_index, process_result in enumerate(process_results):
+        this_fluctuation_rate = process_result.get()
+        fluctuation_rates[ parameter_index ] = this_fluctuation_rate
+    
+    return fluctuation_rates
+
+def calculate_fluctuation_rate_at_parameter_point(parameter_value, number_of_traces = 100, sampling_duration = None):
+    '''Calculate the fluctuation rate at a given parameter point. Will run the forward model and then
+    use the autocorrelation function for estimating the fluctuation rate. 
+
+    Parameters
+    ----------
+    
+    parameter_value : ndarray
+        contains one model parameter set 
+        
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    sampling_duration : float
+        sampling duration that should be used to calculate the fluctuation rate. This value can safely be reduced
+        to 12*60 or 24*60 minutes without reducing the accuracy
+
+    Returns
+    -------
+    
+    fluctuation_rate : float
+        the fluctuation rate at parameter_value
+        
+    '''
+    these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                       1500*5, #duration 
+                                                                                       parameter_value[2], #repression_threshold, 
+                                                                                       parameter_value[4], #hill_coefficient,
+                                                                                       parameter_value[5], #mRNA_degradation_rate, 
+                                                                                       parameter_value[6], #protein_degradation_rate, 
+                                                                                       parameter_value[0], #basal_transcription_rate, 
+                                                                                       parameter_value[1], #translation_rate,
+                                                                                       parameter_value[3], #transcription_delay, 
+                                                                                       10, #initial_mRNA, 
+                                                                                       parameter_value[2], #initial_protein,
+                                                                                       2000)
+    
+    fluctuation_rate = approximate_fluctuation_rate_of_traces_theoretically(these_protein_traces, sampling_interval = 6,
+                                                                            sampling_duration = sampling_duration)
+    
+    return fluctuation_rate
 
 def get_full_parameter_for_reduced_parameter(reduced_parameter):
     '''Transforms a parameter value of varying prior dimensions to 
@@ -2260,8 +2351,8 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
 #     this_deterministic_trace = np.vstack((these_protein_traces[:,0],
 #                                           these_mrna_traces[:,1],
 #                                           these_protein_traces[:,1])).transpose()
-    summary_statistics = np.zeros(12)
-    this_power_spectrum,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
+    summary_statistics = np.zeros(11)
+    this_power_spectrum,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces, normalize = False)
     this_mean = np.mean(these_protein_traces[:,1:])
     this_std = np.std(these_protein_traces[:,1:])/this_mean
     this_mean_mRNA = np.mean(these_mrna_traces[:,1:])
@@ -2271,10 +2362,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 2000, 
                                             this_deterministic_trace[:,2])).transpose()
     _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
-    ##TODOO
-    this_fluctuation_rate = approximate_fluctuation_rate_of_traces_theoretically(these_protein_traces, 
-                                                                                 sampling_interval = 6, 
-                                                                                 power_spectrum = this_power_spectrum)
+
     this_high_frequency_weight = calculate_noise_weight_from_power_spectrum(this_power_spectrum)
     summary_statistics[0] = this_mean
     summary_statistics[1] = this_std
@@ -2286,8 +2374,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     summary_statistics[7] = this_deterministic_period
     summary_statistics[8] = this_deterministic_coherence
     summary_statistics[9] = this_deterministic_mean_mRNA
-    summary_statistics[10] = this_fluctuation_rate
-    summary_statistics[11] = this_high_frequency_weight
+    summary_statistics[10] = this_high_frequency_weight
     
     return summary_statistics
 
@@ -3791,7 +3878,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                                                                         model = 'langevin')
     
     # unpack and wrap the results in the output format
-    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 10))
+    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 12))
     parameter_sample_index = 0
     if not relative:
         for sample_index, sample in enumerate(parameter_samples):
@@ -3893,7 +3980,7 @@ def measure_fluctuation_rate_of_single_trace(trace, method = 'sklearn'):
                                           initial_value, 
                                           jac=gradient_of_objective_function, 
                                           method="L-BFGS-B",
-                                          bounds = [(-9.21,18.42)])
+                                          bounds = [(0,np.inf),(-9.21,18.42)])
         this_log_lengthscale_square = results.x[1]
         this_lengthscale_square = np.exp(this_log_lengthscale_square)
         this_lengthscale = np.sqrt(this_lengthscale_square)
@@ -4032,6 +4119,7 @@ def estimate_fluctuation_rate_of_traces(traces, fix_variance = False):
     return fluctuation_rate, variance
     
 def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interval = 1,
+                                                         sampling_duration = None,
                                                          power_spectrum = None):
     '''Estimate the fluctuation rate of traces by (1) calculate the power spectrum,
     (2) transform it into the autocorrelation function K1(t), (3) Fit the function
@@ -4049,6 +4137,10 @@ def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interv
         sampling_interval-1 values will be skipped between measurements in traces, i.e. traces
         are downsampled by sampling_interval
         
+    sampling_duration : float
+        sampling duration that should be used to calculate the fluctuation rate. This value can safely be reduced
+        to 12*60 or 24*60 minutes without reducing the accuracy
+        
     power_spectrum : ndarray
         precalculated power spectrum of traces. Has to be the exact power spectrum of the presented traces.
         Added here as a command line argument to avoid recomputation for efficiency.
@@ -4062,13 +4154,18 @@ def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interv
     if power_spectrum is None:
         power_spectrum, _, _ = calculate_power_spectrum_of_trajectories(traces, normalize = False)
     full_auto_correlation = calculate_autocorrelation_from_power_spectrum(power_spectrum)
+    if sampling_duration is None:
+        sampling_duration = full_auto_correlation[-1,0]
 
+    timestep = full_auto_correlation[1,0] - full_auto_correlation[0,0]
     signal_variance = np.var(traces[:,1:])
     full_auto_correlation[:,1]/=signal_variance
 
     # only half the number of fourier inverse timepoints are useful at all
     useful_number_of_timepoints = np.int(np.around(full_auto_correlation.shape[0]/2.0))
-    useful_auto_correlation = full_auto_correlation[:useful_number_of_timepoints:sampling_interval]
+    sampled_number_of_timepoints = np.int(np.around(sampling_duration/timestep))
+    number_of_timepoints_to_use = np.min([useful_number_of_timepoints, sampled_number_of_timepoints])
+    useful_auto_correlation = full_auto_correlation[:number_of_timepoints_to_use:sampling_interval]
     all_indices = np.arange(0,useful_auto_correlation.shape[0],1)
     all_distances = scipy.spatial.distance.pdist(all_indices[:,np.newaxis]).astype(np.int)
     index_distance_matrix = scipy.spatial.distance.squareform(all_distances) 
