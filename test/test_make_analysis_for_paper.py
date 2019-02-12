@@ -19,7 +19,8 @@ import hes5
 
 class TestMakePaperAnalysis(unittest.TestCase):
                                  
-    def xest_make_abc_samples(self):
+    def xest_a_make_abc_samples(self):
+        print('making abc samples')
         ## generate posterior samples
         total_number_of_samples = 200000
         acceptance_ratio = 0.02
@@ -36,7 +37,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_extended',
+                                                                saving_name = 'sampling_results_repeated',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'hill',
                                                                 logarithmic = True )
@@ -149,12 +150,12 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','hes5_phase_space_analysis.pdf'))
 
-    def test_plot_posterior_distributions(self):
+    def xest_plot_posterior_distributions(self):
         
         option = 'deterministic'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_extended')
+                                   'sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -483,8 +484,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         kernel_density_function = scipy.stats.gaussian_kde(my_posterior_samples.transpose())
         minimizing_function = lambda x: -1*kernel_density_function(x)
         
-        print 'likelihood at typical value is'
-        print kernel_density_function([0,1.3,45000,30,4])
+        print('likelihood at typical value is')
+        print(kernel_density_function([0,1.3,45000,30,4]))
 #         
 #         optimize_result = scipy.optimize.minimize(minimizing_function, 
 #                                                               x0 = [0,1.3,45000,30,4],
@@ -503,8 +504,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         maximum_likelihood_estimate[0] = np.power(10, maximum_likelihood_estimate[0])
         maximum_likelihood_estimate[1] = np.power(10, maximum_likelihood_estimate[1])
         
-        print 'maximum_likelihood_estimate is'
-        print maximum_likelihood_estimate
+        print('maximum_likelihood_estimate is')
+        print(maximum_likelihood_estimate)
 
     def xest_plot_deterministic_posterior_distributions_with_KDE(self):
         
@@ -1038,8 +1039,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
             ValueError('could not identify posterior option')
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'so many posterior samples'
-        print len(my_posterior_samples)
+        print('so many posterior samples')
+        print(len(my_posterior_samples))
         my_model_results = model_results[accepted_indices]
 
         my_posterior_samples[:,2]/=10000
@@ -1054,9 +1055,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
 #                                     'Data' : np.array(real_data)*60})
         all_standard_deviations = my_model_results[:,1]
-        print 'maximal standard_deviation is'
+        print('maximal standard_deviation is')
         print(np.max(all_standard_deviations))
-        print 'number of samples above 0.15'
+        print('number of samples above 0.15')
         print(np.sum(all_standard_deviations>0.15))
         sns.distplot(all_standard_deviations,
                      kde = False,
@@ -1189,8 +1190,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
             ValueError('could not identify posterior option')
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'so many posterior samples'
-        print len(my_posterior_samples)
+        print('so many posterior samples')
+        print(len(my_posterior_samples))
         my_model_results = model_results[accepted_indices]
 
         my_posterior_samples[:,2]/=10000
@@ -1235,8 +1236,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Standard deviation/mean HES5")
         plt.axvline(np.mean(measured_data))
-        print 'maximal measured value'
-        print np.max(measured_data)
+        print('maximal measured value')
+        print(np.max(measured_data))
         plt.xlim(0,0.25)
 #         plt.ylim(0,0.5)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
@@ -1679,10 +1680,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
         period_histogram, bins = np.histogram(all_periods[all_periods<10], bins = 400) 
         maximum_index = np.argmax(period_histogram)
         print('max bin is')
-        print bins[maximum_index]
-        print bins[maximum_index+1]
-        print bins[maximum_index+2]
-        print bins[maximum_index-1]
+        print(bins[maximum_index])
+        print(bins[maximum_index+1])
+        print(bins[maximum_index+2])
+        print(bins[maximum_index-1])
         sns.distplot(all_periods[all_periods<10],
                      kde = False,
                      rug = False,
@@ -1804,8 +1805,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         weird_index = np.where(my_model_results[:,4]>200)
         weird_results = my_model_results[weird_index]
         weird_posterior = my_posterior_samples[weird_index]
-        print weird_results
-        print weird_posterior
+        print(weird_results)
+        print(weird_posterior)
         sns.set()
 #         sns.set(font_scale = 1.5)
 #         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
@@ -1824,10 +1825,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
         mrna_histogram, bins = np.histogram(all_mrna, bins = 400) 
         maximum_index = np.argmax(mrna_histogram)
         print('max bin is')
-        print bins[maximum_index]
-        print bins[maximum_index+1]
-        print bins[maximum_index+2]
-        print bins[maximum_index-1]
+        print(bins[maximum_index])
+        print(bins[maximum_index+1])
+        print(bins[maximum_index+2])
+        print(bins[maximum_index-1])
 
 #         sns.distplot(all_mrna[all_mrna<80],
         sns.distplot(all_mrna,
@@ -1973,7 +1974,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_mrna_distribution_for_paper.pdf'))
  
-    def xest_make_degradation_rate_sweep(self):
+    def test_make_degradation_rate_sweep(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -1981,7 +1982,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2000,8 +2002,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                           number_of_traces_per_parameter = number_of_trajectories,
                                           relative = False)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','extended_degradation_sweep.npy'),
+        np.save(os.path.join(os.path.dirname(__file__), 'output','repeated_degradation_sweep.npy'),
                     my_sweep_results)
+#         np.save(os.path.join(os.path.dirname(__file__), 'output','extended_degradation_sweep.npy'),
+#                     my_sweep_results)
 
     def xest_make_relative_delay_parameter_variation(self):
         number_of_parameter_points = 20
@@ -2033,14 +2037,15 @@ class TestMakePaperAnalysis(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + 'time_delay' + '.npy'),
                     my_parameter_sweep_results)
 
-    def xest_make_relative_parameter_variation(self):
+    def test_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
 #         number_of_trajectories = 2
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2059,7 +2064,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                                                      relative = True)
         
         for parameter_name in my_parameter_sweep_results:
-            np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + parameter_name + '.npy'),
+            np.save(os.path.join(os.path.dirname(__file__), 'output','repeated_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
     def xest_make_amplitude_plot(self):
@@ -2247,8 +2252,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         accepted_model_results = model_results[accepted_indices]
 
         number_of_absolute_samples = len(accepted_indices[0])
-        print 'base model accepted that many indices'
-        print number_of_absolute_samples
+        print('base model accepted that many indices')
+        print(number_of_absolute_samples)
         parameter_names = ['basal_transcription_rate',
                             'translation_rate',
                             'repression_threshold',
@@ -2270,16 +2275,16 @@ class TestMakePaperAnalysis(unittest.TestCase):
         increase_ratios = dict()
         bardata = []
         for parameter_name in parameter_names:
-            print 'investigating ' + parameter_name
+            print('investigating ' + parameter_name)
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                           'data',
                                                           'narrowed_relative_sweeps_' + 
                                                           parameter_name + '.npy'))
  
-            print 'these accepted base samples are'
+            print('these accepted base samples are')
             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
                                                                     my_parameter_sweep_results[:,9,4] < 0.1))[0])
-            print number_of_absolute_samples
+            print(number_of_absolute_samples)
             
             decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
@@ -2287,9 +2292,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                         my_parameter_sweep_results[:,4,4] > 0.1)))
 
             decrease_ratios[parameter_name] = len(decrease_indices[0])/float(number_of_absolute_samples)
-            print 'these decrease samples are'
+            print('these decrease samples are')
             number_of_decrease_samples = len(decrease_indices[0])
-            print number_of_decrease_samples
+            print(number_of_decrease_samples)
 
             increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
@@ -2297,9 +2302,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                         my_parameter_sweep_results[:,14,4] > 0.1)))
 
             increase_ratios[parameter_name] = len(increase_indices[0])/float(number_of_absolute_samples)
-            print 'these increase samples are'
+            print('these increase samples are')
             number_of_increase_samples = len(increase_indices[0])
-            print number_of_increase_samples
+            print(number_of_increase_samples)
                 
         increase_bars = [increase_ratios[parameter_name] for parameter_name
                          in parameter_names]
@@ -2431,16 +2436,16 @@ class TestMakePaperAnalysis(unittest.TestCase):
                             'hill_coefficient']
         
         for parameter_name in parameter_names:
-            print 'investigating ' + parameter_name
+            print('investigating ' + parameter_name)
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                           'data',
                                                           'narrowed_relative_sweeps_' + 
                                                           parameter_name + '.npy'))
  
-            print 'these accepted base samples are'
+            print('these accepted base samples are')
             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
                                                                     my_parameter_sweep_results[:,9,4] < 0.1))[0])
-            print number_of_absolute_samples
+            print(number_of_absolute_samples)
             
             decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
@@ -2457,8 +2462,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
             print('number of accepted samples is ' + str(len(decrease_indices[0])))
             print('number of accepted samples is ' + str(len(increase_indices[0])))
             print('these are the before parameters')
-            print decrease_parameters_before
-            print increase_parameters_before
+            print(decrease_parameters_before)
+            print(increase_parameters_before)
             
 #             if len(decrease_parameters_before) > 10:
 #                 decrease_parameters_before = decrease_parameters_before[:10]
@@ -2474,41 +2479,41 @@ class TestMakePaperAnalysis(unittest.TestCase):
             decrease_parameters_after[:,-1] = np.log(2.)/90.
             increase_parameters_after[:,-1] = np.log(2.)/90.
             
-            print 'these are the increase parameters after'
-            print increase_parameters_after
+            print('these are the increase parameters after')
+            print(increase_parameters_after)
             parameter_index = parameter_name_to_index_lookup[parameter_name]
             
             try:
-                print'hello1'
+                print('hello1')
                 reference_decrease_parameters = decrease_parameters_after[:,parameter_index]
-                print reference_decrease_parameters
+                print(reference_decrease_parameters)
                 decreased_parameters = reference_decrease_parameters*0.5
-                print'hello2'
+                print('hello2')
                 decrease_parameters_after[:,parameter_index] = decreased_parameters
-                print'hello3'
+                print('hello3')
                 decrease_spectra_before = hes5.calculate_power_spectra_at_parameter_points(decrease_parameters_before)
-                print'hello4'
+                print('hello4')
                 decrease_spectra_after = hes5.calculate_power_spectra_at_parameter_points(decrease_parameters_after)
-                print'hello5'
-            except Exception, e: 
-                print repr(e)
+                print('hello5')
+            except Exception as e: 
+                print(repr(e))
                 decrease_spectra_before = np.array([[0,0],[0,0]])
                 decrease_spectra_after = np.array([[0,0],[0,0]])
 
             try:   
-                print'hello1'
+                print('hello1')
                 reference_increase_parameters = increase_parameters_after[:,parameter_index]
-                print reference_increase_parameters
+                print(reference_increase_parameters)
                 increased_parameters = reference_increase_parameters*1.5
-                print'hello2'
+                print('hello2')
                 increase_parameters_after[:,parameter_index] = increased_parameters
-                print'hello3'
+                print('hello3')
                 increase_spectra_before = hes5.calculate_power_spectra_at_parameter_points(increase_parameters_before)
-                print'hello4'
+                print('hello4')
                 increase_spectra_after = hes5.calculate_power_spectra_at_parameter_points(increase_parameters_after)
-                print'hello5'
-            except Exception, e: 
-                print repr(e)
+                print('hello5')
+            except Exception as e: 
+                print(repr(e))
                 increase_spectra_before = np.array([[0,0],[0,0]])
                 increase_spectra_after = np.array([[0,0],[0,0]])
 
@@ -2768,9 +2773,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #                                                          initial_protein = 100)
 # #                                                          integrator = 'PyDDE',
 # #                                                          for_negative_times = 'no_negative' )
-        print 'experimental values for mrna and protein degradation are'
-        print np.log(2)/30
-        print np.log(2)/90
+        print('experimental values for mrna and protein degradation are')
+        print(np.log(2)/30)
+        print(np.log(2)/90)
         theoretical_power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( repression_threshold = sample[2], 
                                                                  hill_coefficient = sample[4], 
 #                                                                  mRNA_degradation_rate = np.log(2)/30, 
@@ -2782,9 +2787,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                                  transcription_delay = sample[3] )
         
         coherence, period = hes5.calculate_coherence_and_period_of_power_spectrum( theoretical_power_spectrum )
-        print 'theoretical coherence and period are'
-        print coherence
-        print period
+        print('theoretical coherence and period are')
+        print(coherence)
+        print(period)
 
         full_parameter_point = np.array([sample[0],
                                 sample[1],
@@ -2996,10 +3001,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
         error_ratios = theoretical_standard_deviation / posterior_results[:,1]
         relative_errors = np.abs(error_ratios - 1)
         number_of_poor_samples = np.sum(relative_errors>0.1)
-        print 'ratio of poor approximations is'
-        print number_of_poor_samples/float(len(posterior_samples))
-        print 'total  number is'
-        print number_of_poor_samples
+        print('ratio of poor approximations is')
+        print(number_of_poor_samples/float(len(posterior_samples)))
+        print('total  number is')
+        print(number_of_poor_samples)
         plt.figure(figsize = (4.5,2.5))
         plt.scatter(theoretical_standard_deviation, posterior_results[:,1], s = 0.5)
         plt.plot([0.0,0.25],1.1*np.array([0.0,0.25]), lw = 1, color = 'grey')
@@ -3016,13 +3021,13 @@ class TestMakePaperAnalysis(unittest.TestCase):
         outlier_samples = posterior_samples[outlier_mask]
         outlier_results = posterior_results[outlier_mask]
 
-        print 'outlier coherences are'
-        print outlier_results[:,3]
+        print('outlier coherences are')
+        print(outlier_results[:,3])
         outlier_samples[:,2]/=10000
-        print 'minimal outlier coherence is'
-        print np.min(outlier_results[:,3])
-        print 'posterior samples with coherence above 0.44'
-        print np.sum(posterior_results[:,3]>0.5)
+        print('minimal outlier coherence is')
+        print(np.min(outlier_results[:,3]))
+        print('posterior samples with coherence above 0.44')
+        print(np.sum(posterior_results[:,3]>0.5))
 
         data_frame = pd.DataFrame( data = outlier_samples,
                                    columns= ['Transcription rate', 
@@ -3133,13 +3138,13 @@ class TestMakePaperAnalysis(unittest.TestCase):
         outlier_samples = posterior_samples[outlier_mask]
         outlier_results = posterior_results[outlier_mask]
 
-        print 'outlier coherences are'
-        print outlier_results[:,3]
+        print('outlier coherences are')
+        print(outlier_results[:,3])
         outlier_samples[:,2]/=10000
-        print 'minimal outlier coherence is'
-        print np.min(outlier_results[:,3])
-        print 'posterior samples with coherence above 0.44'
-        print np.sum(posterior_results[:,3]>0.5)
+        print('minimal outlier coherence is')
+        print(np.min(outlier_results[:,3]))
+        print('posterior samples with coherence above 0.44')
+        print(np.sum(posterior_results[:,3]>0.5))
 
         data_frame = pd.DataFrame( data = outlier_samples,
                                    columns= ['Transcription rate', 
@@ -3317,10 +3322,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         relative_standard_deviation = np.sqrt(variance)/steady_state_protein
         
-        print 'variance over mean over real value'
-        print (power_spectrum_intercept/steady_state_protein)/sample_result[1]
-        print 'std over mean'
-        print (np.sqrt(power_spectrum_intercept)/steady_state_protein)/sample_result[1]
+        print('variance over mean over real value')
+        print((power_spectrum_intercept/steady_state_protein)/sample_result[1])
+        print('std over mean')
+        print((np.sqrt(power_spectrum_intercept)/steady_state_protein)/sample_result[1])
 
     def xest_get_period_values_from_signal(self):
         time_points = np.linspace(0,1000,100000)
@@ -3331,7 +3336,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         
         signal_values = np.sin(2*np.pi/1.42*time_points) + 10
         period_values = hes5.get_period_measurements_from_signal(time_points,signal_values)
-        print period_values
+        print(period_values)
         # in this case, for whatever weird boundary effect reason the hilbert won't give the right
         # response on the boundaries, let's check the mean instead
         self.assertAlmostEqual(np.mean(period_values), 1.42, 2)
@@ -3374,7 +3379,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
             these_periods = hes5.get_period_measurements_from_signal(these_protein_traces[:,0], trace)
             all_periods = np.hstack((all_periods, these_periods))
         
-        print all_periods 
+        print(all_periods)
         plt.figure(figsize = (6.5,2.5))
         plt.subplot(121)
         plt.plot(this_power_spectrum[:,0],this_power_spectrum[:,1])
@@ -3422,16 +3427,16 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         simulated_stdevs = posterior_results[:,1]
         
-        print experimental_periods
-        print experimental_stdevs
+        print(experimental_periods)
+        print(experimental_stdevs)
         
         period_stats = scipy.stats.ks_2samp(experimental_periods, real_simulated_periods/60)
-        print 'period kolmogorov-smirnov test is'
-        print scipy.stats.ks_2samp(experimental_periods, real_simulated_periods/60)
+        print('period kolmogorov-smirnov test is')
+        print(scipy.stats.ks_2samp(experimental_periods, real_simulated_periods/60))
         
         stdev_stats = scipy.stats.ks_2samp(experimental_stdevs, simulated_stdevs)
-        print 'stdev kolmogorov-smirnov test is'
-        print scipy.stats.ks_2samp(experimental_stdevs, simulated_stdevs)
+        print('stdev kolmogorov-smirnov test is')
+        print(scipy.stats.ks_2samp(experimental_stdevs, simulated_stdevs))
         
         plt.figure(figsize = [6.5,4.5])
         plt.subplot(221)
@@ -3455,17 +3460,17 @@ class TestMakePaperAnalysis(unittest.TestCase):
         real_simulated_periods.sort()
         experimental_periods.sort()
         
-        print 'number of experimental periods:'
+        print('number of experimental periods:')
         number_of_experimental_periods = len(experimental_periods)
-        print len(experimental_periods)
+        print(len(experimental_periods))
 
-        print 'number or real_simulated_periods'
+        print('number or real_simulated_periods')
         number_of_simulated_periods = len(real_simulated_periods)
-        print len(real_simulated_periods)
+        print(len(real_simulated_periods))
         
-        print 'product over sum'
-        print number_of_experimental_periods*number_of_simulated_periods/(number_of_experimental_periods+
-                                                                          number_of_simulated_periods)
+        print('product over sum')
+        print(number_of_experimental_periods*number_of_simulated_periods/(number_of_experimental_periods+
+                                                                          number_of_simulated_periods))
         
 #         plt.figure(figsize = [6.5,2.5])
         plt.subplot(223)
@@ -3516,8 +3521,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [h]')
 #         plt.ylim(0,1)
@@ -3554,8 +3559,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,13), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [h]')
 #         plt.ylim(0,1)
@@ -3595,8 +3600,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [h]')
 #         plt.ylim(0,1)
@@ -3607,8 +3612,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.pdf'))
 
     def xest_get_shortened_posterior_hilbert_period_distribution_one_sample(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_extended')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data',
+#                                    'sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -3624,18 +3631,18 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                                              per_cell = True,
                                                                              samples_per_parameter_point = 1)
         
-#         np.save(os.path.join(os.path.dirname(__file__), 'output',
-#                                     'shortened_posterior_hilbert_periods_per_cell_one_sample'), hilbert_periods)
+        np.save(os.path.join(os.path.dirname(__file__), 'output',
+                                    'repeated_shortened_posterior_hilbert_periods_per_cell_one_sample'), hilbert_periods)
         
-        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
-                                    'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
+#         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 
         plt.figure(figsize = (4.5,2.5))
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [h]')
 #         plt.ylim(0,1)
@@ -3646,8 +3653,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'shortened_posterior_hilbert_periods_per_cell_one_sample.pdf'))
 
     def xest_get_shortened_posterior_hilbert_period_distribution(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_extended')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data',
+#                                    'sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -3658,20 +3667,20 @@ class TestMakePaperAnalysis(unittest.TestCase):
         posterior_samples = prior_samples[accepted_indices]
         posterior_results = model_results[accepted_indices]
         
-#         hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, measurement_interval = 12*60)
+        hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, measurement_interval = 12*60)
         
-#         np.save(os.path.join(os.path.dirname(__file__), 'output',
-#                                     'shortened_posterior_hilbert_periods'), hilbert_periods)
+        np.save(os.path.join(os.path.dirname(__file__), 'output',
+                                    'shortened_repeated_posterior_hilbert_periods'), hilbert_periods)
         
-        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
-                                    'shortened_posterior_hilbert_periods.npy'))
+#         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+#                                     'shortened_posterior_hilbert_periods.npy'))
 
         plt.figure(figsize = (4.5,2.5))
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [h]')
 #         plt.ylim(0,1)
@@ -3682,8 +3691,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'shortened_posterior_hilbert_periods.pdf'))
 
     def xest_get_shortened_posterior_hilbert_period_distribution_per_cell(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_extended')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data',
+#                                    'sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -3698,7 +3709,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                                              per_cell = True)
         
         np.save(os.path.join(os.path.dirname(__file__), 'output',
-                                    'shortened_posterior_hilbert_periods_per_cell'), hilbert_periods)
+                                    'repeated_shortened_posterior_hilbert_periods_per_cell'), hilbert_periods)
         
 #         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
 #                                     'shortened_posterior_hilbert_periods.npy'))
@@ -3707,8 +3718,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [h]')
 #         plt.ylim(0,1)
@@ -3743,8 +3754,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [h]')
 #         plt.ylim(0,1)
@@ -3779,8 +3790,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [h]')
 #         plt.ylim(0,1)
@@ -3819,13 +3830,13 @@ class TestMakePaperAnalysis(unittest.TestCase):
         analytic_signal = scipy.signal.hilbert(signal_values - np.mean(signal_values))
 #         analytic_signal = scipy.signal.hilbert(signal_values)
         phase = np.angle(analytic_signal)
-        print np.signbit(phase).astype(int)
+        print(np.signbit(phase).astype(int))
         #this will find the index just before zero-crossings from plus to minus
         phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
         phase_reset_times = time_points[phase_reset_indices]
         extracted_periods = np.diff(phase_reset_times)
-        print extracted_periods
-        print np.mean(extracted_periods)
+        print(extracted_periods)
+        print(np.mean(extracted_periods))
         
         plt.figure(figsize = (4,2.5))
         plt.plot(time_points, signal_values, label = 'signal')
@@ -3847,8 +3858,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
         phase_reset_times = time_points[phase_reset_indices]
         extracted_periods = np.diff(phase_reset_times)
-        print extracted_periods
-        print np.mean(extracted_periods)
+        print(extracted_periods)
+        print(np.mean(extracted_periods))
         plt.plot(time_points, signal_values, label = 'signal', lw = 0.1)
         plt.plot(time_points, phase, label = 'phase', lw = .1)
         plt.vlines(phase_reset_times, -1,1, color = 'black', zorder = 10, lw = .1)
@@ -3896,8 +3907,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
         phase_reset_times = time_points[phase_reset_indices]
         extracted_periods = np.diff(phase_reset_times)
-        print extracted_periods
-        print np.mean(extracted_periods)
+        print(extracted_periods)
+        print(np.mean(extracted_periods))
         plt.plot(time_points, signal_values, label = 'signal', lw = 0.1)
         plt.vlines(phase_reset_times, 45000,55000, color = 'black', zorder = 10, lw = .5)
         plt.xlabel("Time [min]")
@@ -3927,8 +3938,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
         phase_reset_indices = np.where(np.diff(np.signbit(phase).astype(int))>0)
         phase_reset_times = time_points[phase_reset_indices]
         extracted_periods = np.diff(phase_reset_times)
-        print extracted_periods
-        print np.mean(extracted_periods)
+        print(extracted_periods)
+        print(np.mean(extracted_periods))
         plt.plot(time_points, smoothened_signal, label = 'signal', lw = 0.1)
         plt.vlines(phase_reset_times, 45000,55000, color = 'black', zorder = 10, lw = .5)
         plt.xlabel("Time [min]")
@@ -3947,5 +3958,60 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','initial_hilbert_on_data_smoothened.pdf'))
         
+    def xest_ngn_hes5_toy_model(self):
+        times = np.linspace(0,15,1000)
+        noise_1 = np.random.randn(len(times)) 
+        noise_2 = np.random.randn(len(times)) 
+#         noise_1 = 0
+#         noise_2 = 0
+        these_hes5_data = 2*np.sin(2*np.pi*times/4.0)-times + 15 + noise_1
+        these_ngn_data = times + noise_2
+        
+        plt.figure(figsize = (6.5,6.5))
+        plt.subplot(421)
+        plt.plot(times, these_hes5_data, label = 'Hes5')
+        plt.plot(times, these_ngn_data, label = 'Ngn')
+        plt.xlabel('Time')
+        plt.ylabel('Expression')
+        plt.legend(loc = 'upper left')
+        plt.subplot(422)
+        plt.plot(these_hes5_data, these_ngn_data)
+        plt.xlabel('Hes5 expression')
+        plt.ylabel('Ngn expression')
 
+        these_ngn_data = 2*np.sin(2*np.pi*times/4.0)+times + noise_2
+        plt.subplot(423)
+        plt.plot(times, these_hes5_data)
+        plt.plot(times, these_ngn_data)
+        plt.xlabel('Time')
+        plt.ylabel('Expression')
+        plt.subplot(424)
+        plt.plot(these_hes5_data, these_ngn_data)
+        plt.xlabel('Hes5 expression')
+        plt.ylabel('Ngn expression')
 
+        these_ngn_data = 2*np.sin(2*np.pi*times/4.0+np.pi)+times + noise_2
+        plt.subplot(425)
+        plt.plot(times, these_hes5_data)
+        plt.plot(times, these_ngn_data)
+        plt.xlabel('Time')
+        plt.ylabel('Expression')
+        plt.subplot(426)
+        plt.plot(these_hes5_data, these_ngn_data)
+        plt.xlabel('Hes5 expression')
+        plt.ylabel('Ngn expression')
+
+        these_ngn_data = np.sin(2*np.pi*times/4.0)*times/2 + times/2 + noise_2
+        plt.subplot(427)
+        plt.plot(times, these_hes5_data)
+        plt.plot(times, these_ngn_data)
+        plt.xlabel('Time')
+        plt.ylabel('Expression')
+        plt.subplot(428)
+        plt.plot(these_hes5_data, these_ngn_data)
+        plt.xlabel('Hes5 expression')
+        plt.ylabel('Ngn expression')
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','hes5_ngn_toy_model.pdf'))

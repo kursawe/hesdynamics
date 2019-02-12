@@ -157,9 +157,11 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def test_make_abc_samples(self):
+    def xest_a_make_abc_samples(self):
+        print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 200000
+#         total_number_of_samples = 5
 #         total_number_of_samples = 100
         acceptance_ratio = 0.02
 
@@ -185,9 +187,9 @@ class TestZebrafish(unittest.TestCase):
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 7))
         
-    def test_plot_zebrafish_inference(self):
-        option = 'prior'
-#         option = 'mean_period_and_coherence'
+    def xest_plot_zebrafish_inference(self):
+#         option = 'prior'
+        option = 'mean_period_and_coherence'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
@@ -504,7 +506,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','zebrafish_coherence_distribution.pdf'))
         
-    def test_increase_mRNA_degradation(self):
+    def xest_increase_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -517,17 +519,21 @@ class TestZebrafish(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
         old_model_results = model_results[accepted_indices]
-        my_posterior_samples_increased_degradation = np.copy(my_posterior_samples)
-        my_posterior_samples_increased_degradation[:,5]*=1.5
-        new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_increased_degradation, 
+        my_posterior_samples_changed_degradation = np.copy(my_posterior_samples)
+        my_posterior_samples_changed_degradation[:,5]*=1.5
+        new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_degradation, 
                                                                         number_of_traces_per_sample=200 )
+        old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
+        new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_degradation, sampling_duration = 12*60)  
 
         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_degradation')
 
         np.save(saving_path + '.npy', new_model_results)
-        np.save(saving_path + '_parameters.npy', my_posterior_samples_increased_degradation )
+        np.save(saving_path + '_parameters.npy', my_posterior_samples_changed_degradation )
         np.save(saving_path + '_old.npy', old_model_results)
         np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
+        np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
+        np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
         
     def test_decrease_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -542,19 +548,23 @@ class TestZebrafish(unittest.TestCase):
 
         my_posterior_samples = prior_samples[accepted_indices]
         old_model_results = model_results[accepted_indices]
-        my_posterior_samples_increased_degradation = np.copy(my_posterior_samples)
-        my_posterior_samples_increased_degradation[:,5]*=2.0/3.0
-        new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_increased_degradation, 
+        my_posterior_samples_changed_degradation = np.copy(my_posterior_samples)
+        my_posterior_samples_changed_degradation[:,5]*=2.0/3.0
+        new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_degradation, 
                                                                         number_of_traces_per_sample=200 )
+        old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
+        new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_degradation, sampling_duration = 12*60)  
 
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_decreased_degradation')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_decreased_degradationtest')
 
         np.save(saving_path + '.npy', new_model_results)
-        np.save(saving_path + '_parameters.npy', my_posterior_samples_increased_degradation )
+        np.save(saving_path + '_parameters.npy', my_posterior_samples_changed_degradation )
         np.save(saving_path + '_old.npy', old_model_results)
         np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
+        np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
+        np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
-    def test_plot_mrna_change_results(self):
+    def xest_plot_mrna_change_results(self):
         
         change = 'decreased'
 #         change = 'increased'
@@ -565,7 +575,7 @@ class TestZebrafish(unittest.TestCase):
         results_before_change = np.load(saving_path + '_old.npy')
         parameters_before_change = np.load(saving_path + '_parameters_old.npy')
     
-        this_figure, axes = plt.subplots(2,3,figsize = (6.5,4.5))
+        this_figure, axes = plt.subplots(3,3,figsize = (6.5,6.5))
 
         ## DEGRADATION
         this_data_frame = pd.DataFrame(np.column_stack((parameters_before_change[:,5],
@@ -614,6 +624,24 @@ class TestZebrafish(unittest.TestCase):
         this_axes = axes[1,2]
         this_data_frame.boxplot(ax = this_axes)
         this_axes.set_ylabel('mRNA number')
+
+        ## NOISE PROPORTION
+        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-1],
+                                                        results_after_change[:,-1])),
+                                        columns = ['before','after'])
+        this_axes = axes[2,0]
+        this_data_frame.boxplot(ax = this_axes)
+        this_axes.set_ylabel('Noise proportion')
+
+        ## NOISE 
+        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-1]*np.power(results_before_change[:,1]*
+                                                                                             results_before_change[:,0],2),
+                                                        results_after_change[:,-1]*np.power(results_after_change[:,1]*
+                                                                                            results_after_change[:,0],2))),
+                                        columns = ['before','after'])
+        this_axes = axes[2,1]
+        this_data_frame.boxplot(ax = this_axes)
+        this_axes.set_ylabel('Absolute noise')
 
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation.pdf'))
@@ -1077,15 +1105,6 @@ class TestZebrafish(unittest.TestCase):
         periods['long'] = 20.0
         periods['ten'] = 10.0
         periods['one'] = 1.0
-    def xest_get_fluctuation_rate_from_example_traces(self):
-        periods = dict()
-        times_values = dict()
-        y_values = dict()
-        periods['short'] = 0.2
-        periods['medium'] = 2.0
-        periods['long'] = 20.0
-        periods['ten'] = 10.0
-        periods['one'] = 1.0
 
         times_values['short'] = np.arange(0,10.0,0.01)
         times_values['medium'] = np.arange(0,20.0,0.1)
@@ -1325,7 +1344,7 @@ class TestZebrafish(unittest.TestCase):
                                'ornstein_sample.xlsx'), index = False)
 
     def xest_compare_quality_and_coherence(self):
-        gamma_values = np.linspace(0.5,8,100)
+        gamma_values = np.linspace(1.0/np.sqrt(3),8,1000)
         theoretical_frequency_values = np.sqrt(2*np.sqrt(np.power(gamma_values,4) + np.power(gamma_values,2)) -1 -np.power(gamma_values,2))
         
         frequencies = np.linspace(0,80,10000)
@@ -1352,7 +1371,7 @@ class TestZebrafish(unittest.TestCase):
         plt.plot(gamma_values, oscillation_frequency_values/gamma_values)
         plt.plot(gamma_values, theoretical_frequency_values/gamma_values)
         plt.xlabel(r'Oscillation quality $\beta$/$\alpha$')
-        plt.ylabel(r'Frequency')
+        plt.ylabel(r'Frequency ratio $\omega/\beta$')
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'period_validation_for_coherence_calculation_OUosc.pdf'))    
@@ -1906,8 +1925,8 @@ class TestZebrafish(unittest.TestCase):
         plt.xlim(0,0.1)
         plt.ylim(0,2)
         plt.axvline(frequency_cutoff,ymin = 0)
-        plt.title('Noise weight is ' + '{:.2f}'.format(noise_weight_1) + '/min')
-        plt.ylabel('Power/1e7')
+        plt.title('Noise weight is ' + '{:.2f}'.format(noise_weight_1))
+        plt.ylabel('Power [1e7min]')
         plt.title
         
         plt.subplot(224)
@@ -1944,11 +1963,10 @@ class TestZebrafish(unittest.TestCase):
         plt.xlim(0,0.1)
 #         plt.ylim(0,100)
         plt.xlabel('Frequency [1/min]')
-        plt.title('Noise weight is ' + '{:.2f}'.format(noise_weight_2) + '/min')
-        plt.ylabel('Power/1e7')
+        plt.title('Noise weight is ' + '{:.2f}'.format(noise_weight_2))
+        plt.ylabel('Power [1e7min]')
         plt.ylim(0,2)
 
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'noise_weight_illustration.pdf'))
-
