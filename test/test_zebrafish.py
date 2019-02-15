@@ -15,7 +15,10 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern, RBF, ConstantKernel
 import logging
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
-import gpflow
+try:
+    import gpflow
+except ImportError:
+    print('Could not import gpflow. This may affect GP regression tests.')
 from numba import jit, autojit
 
 # make sure we find the right python module
@@ -157,7 +160,7 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def xest_a_make_abc_samples(self):
+    def test_a_make_abc_samples(self):
         print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 200000
@@ -506,7 +509,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','zebrafish_coherence_distribution.pdf'))
         
-    def xest_increase_mRNA_degradation(self):
+    def test_increase_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
