@@ -2,6 +2,7 @@ import unittest
 import os.path
 import sys
 import matplotlib as mpl
+from skimage.color.rgb_colors import blue
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
@@ -157,7 +158,7 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def xest_a_make_abc_samples(self):
+    def test_a_make_abc_samples(self):
         print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 200000
@@ -168,8 +169,8 @@ class TestZebrafish(unittest.TestCase):
 #         total_number_of_samples = 10
 #         acceptance_ratio = 0.5
 
-        prior_bounds = {'basal_transcription_rate' : (0.01,60),
-                        'translation_rate' : (0.01,40),
+        prior_bounds = {'basal_transcription_rate' : (0.3,60),
+                        'translation_rate' : (1.0,40),
                         'repression_threshold' : (0,16000),
                         'time_delay' : (5,40),
                         'hill_coefficient' : (2,6),
@@ -189,7 +190,12 @@ class TestZebrafish(unittest.TestCase):
         
     def xest_plot_zebrafish_inference(self):
 #         option = 'prior'
-        option = 'mean_period_and_coherence'
+#         option = 'mean_period_and_coherence'
+#         option = 'mean_longer_periods_and_coherence'
+#         option = 'mean_and_std'
+        option = 'mean_std_period'
+#         option = 'mean_std_period_coherence'
+#         option = 'weird_decrease'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
@@ -221,6 +227,31 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,0]<8000,
                                         np.logical_and(model_results[:,2]<100,
                                                        model_results[:,3]>0.3))))  
+        elif option == 'mean_longer_periods_and_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,2]<150,
+                                        np.logical_and(model_results[:,3]>0.25,
+                                                       model_results[:,3]<0.4)))))
+        elif option == 'mean_and_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                                       model_results[:,1]>0.05))))
+        elif option == 'mean_std_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+        elif option == 'mean_std_period_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                        np.logical_and(model_results[:,3]>0.2,
+                                                       model_results[:,2]<150))))))
+#                                         np.logical_and(model_results[:,2]<150,
         elif option == 'amplitude_and_coherence':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
                                         np.logical_and(model_results[:,0]<4000, #protein_number
@@ -234,10 +265,28 @@ class TestZebrafish(unittest.TestCase):
                                          np.logical_and(model_results[:,9]>40,
                                          np.logical_and(model_results[:,9]<60, #mrna number
                                                         model_results[:,6]>0.05)))))  #standard deviation
+        elif option == 'weird_decrease':
+            change = 'decreased'
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradationtest')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+#             weird_indices = np.where(results_before_change[:,0]>results_after_change[:,0])
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
         else:
             ValueError('could not identify posterior option')
 #       
-        my_posterior_samples = prior_samples[accepted_indices]
+        if option != 'weird_decrease':
+            my_posterior_samples = prior_samples[accepted_indices]
+        else:
+            my_posterior_samples = weird_parameters_before
+
         print('Number of accepted samples is ')
         print(len(my_posterior_samples))
 
@@ -281,7 +330,7 @@ class TestZebrafish(unittest.TestCase):
  
         my_figure.add_subplot(162)
 #         translation_rate_bins = np.logspace(0,2.3,20)
-        translation_rate_bins = np.linspace(-2,0,20)
+        translation_rate_bins = np.linspace(-2,np.log10(40),20)
         sns.distplot(np.log10(data_frame['Translation rate']),
                      kde = False,
                      rug = False,
@@ -291,7 +340,7 @@ class TestZebrafish(unittest.TestCase):
                      bins = translation_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(1,200)
-        plt.gca().set_xlim(-2,0)
+        plt.gca().set_xlim(-2,1)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
         plt.xticks([-1,0], [r'$10^{-1}$',r'$10^0$'])
         plt.xlabel("Translation rate \n [1/min]")
@@ -405,7 +454,20 @@ class TestZebrafish(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        accepted_indices = np.where( model_results[:,3]>0.2)  #standard deviation
+        option = 'mean_std_period'
+        if option == 'mean_and_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                                       model_results[:,1]>0.05))))
+        elif option == 'mean_std_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+        else:
+            raise ValueError('option not recognised')
 
         my_posterior_samples = prior_samples[accepted_indices]
         my_model_results = model_results[accepted_indices]
@@ -460,7 +522,7 @@ class TestZebrafish(unittest.TestCase):
  
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','zebrafish_period_distribution.pdf'))
+                                 'output','zebrafish_period_distribution_' + option + '.pdf'))
  
     def xest_plot_zebrafish_coherence_distribution(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -468,8 +530,24 @@ class TestZebrafish(unittest.TestCase):
 #                                    'sampling_results_MCF7')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        my_posterior_samples = prior_samples
-        my_model_results = model_results
+
+        option = 'mean_std_period'
+        if option == 'mean_and_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                                       model_results[:,1]>0.05))))
+        elif option == 'mean_std_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+        else:
+            raise ValueError('option not recognised')
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_model_results = model_results[accepted_indices]
 
         sns.set()
         # sns.set(font_scale = 1.5)
@@ -492,7 +570,7 @@ class TestZebrafish(unittest.TestCase):
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Modelled coherence")
-        plt.xlim(0.2,)
+#         plt.xlim(0.2,)
         plt.ylim(0,5)
 #         plt.xlim(0,20)
 #         plt.ylim(0,0.8)
@@ -504,7 +582,7 @@ class TestZebrafish(unittest.TestCase):
  
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','zebrafish_coherence_distribution.pdf'))
+                                 'output','zebrafish_coherence_distribution_'+option+'.pdf'))
         
     def xest_increase_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -512,10 +590,20 @@ class TestZebrafish(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                    np.logical_and(model_results[:,0]<8000,
-                                    np.logical_and(model_results[:,2]<100,
-                                                   model_results[:,3]>0.3))))  
+        option = 'mean_std_period'
+        if option == 'mean_and_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                                       model_results[:,1]>0.05))))
+        elif option == 'mean_std_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+        else:
+            raise ValueError('option not recognised')
 
         my_posterior_samples = prior_samples[accepted_indices]
         old_model_results = model_results[accepted_indices]
@@ -541,21 +629,31 @@ class TestZebrafish(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                    np.logical_and(model_results[:,0]<8000,
-                                    np.logical_and(model_results[:,2]<100,
-                                                   model_results[:,3]>0.3))))  
+        option = 'mean_std_period'
+        if option == 'mean_and_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                                       model_results[:,1]>0.05))))
+        elif option == 'mean_std_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+        else:
+            raise ValueError('option not recognised')
 
         my_posterior_samples = prior_samples[accepted_indices]
         old_model_results = model_results[accepted_indices]
         my_posterior_samples_changed_degradation = np.copy(my_posterior_samples)
-        my_posterior_samples_changed_degradation[:,5]*=2.0/3.0
+        my_posterior_samples_changed_degradation[:,5]*=0.5
         new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_degradation, 
                                                                         number_of_traces_per_sample=200 )
         old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
         new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_degradation, sampling_duration = 12*60)  
 
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_decreased_degradationtest')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_decreased_degradation')
 
         np.save(saving_path + '.npy', new_model_results)
         np.save(saving_path + '_parameters.npy', my_posterior_samples_changed_degradation )
@@ -564,87 +662,441 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
+    def test_increase_translation(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        option = 'mean_std_period'
+        if option == 'mean_and_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                                       model_results[:,1]>0.05))))
+        elif option == 'mean_std_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+        else:
+            raise ValueError('option not recognised')
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        old_model_results = model_results[accepted_indices]
+        my_posterior_samples_changed_translation = np.copy(my_posterior_samples)
+        my_posterior_samples_changed_translation[:,1]*=1.5
+
+        new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_translation, 
+                                                                        number_of_traces_per_sample=200 )
+        print('got here')
+        old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
+        print('got here too')
+        new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_translation, sampling_duration = 12*60)  
+        print('got here again')
+
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_translation')
+
+        np.save(saving_path + '.npy', new_model_results)
+        np.save(saving_path + '_parameters.npy', my_posterior_samples_changed_translation )
+        np.save(saving_path + '_old.npy', old_model_results)
+        np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
+        np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
+        np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
+ 
     def xest_plot_mrna_change_results(self):
         
-        change = 'decreased'
+        change = 'increased'
 #         change = 'increased'
+
+#         plot_option = 'boxplot'
+        plot_option = 'lines'
         
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradationtest')
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
         results_after_change = np.load(saving_path + '.npy')
         parameters_after_change = np.load(saving_path + '_parameters.npy')
         results_before_change = np.load(saving_path + '_old.npy')
         parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+        old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+        new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
     
+        if False:
+            indices = np.where(results_before_change[:,0]>results_after_change[:,0])
+            results_after_change = results_after_change[indices]
+            parameters_after_change = parameters_after_change[indices]
+            results_before_change = results_before_change[indices]
+            parameters_before_change = parameters_before_change[indices]
+            old_lengthscales = old_lengthscales[indices]
+            new_lengthscales = new_lengthscales[indices]
+ 
         this_figure, axes = plt.subplots(3,3,figsize = (6.5,6.5))
 
         ## DEGRADATION
-        this_data_frame = pd.DataFrame(np.column_stack((parameters_before_change[:,5],
-                                                       parameters_after_change[:,5])),
-                                        columns = ['before','after'])
         this_axes = axes[0,0]
-        this_data_frame.boxplot(ax = axes[0,0])
+        if plot_option == 'boxplot':
+            this_data_frame = pd.DataFrame(np.column_stack((parameters_before_change[:,5],
+                                                           parameters_after_change[:,5])),
+                                            columns = ['before','after'])
+            this_data_frame.boxplot(ax = axes[0,0])
+        else: 
+            for parameter_index in range(parameters_before_change.shape[0]):
+                this_axes.plot([0,1],
+                         [parameters_before_change[parameter_index,5],
+                          parameters_after_change[parameter_index,5]],
+                         color = 'black',
+                         alpha = 0.005)
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
         this_axes.set_ylabel('mRNA degradation')
 
         ## EXPRESSION
-        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,0],
-                                                        results_after_change[:,0])),
-                                        columns = ['before','after'])
         this_axes = axes[0,1]
-        this_data_frame.boxplot(ax = axes[0,1])
+        if plot_option == 'boxplot':
+            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,0],
+                                                            results_after_change[:,0])),
+                                            columns = ['before','after'])
+            this_data_frame.boxplot(ax = axes[0,1])
+        else: 
+            total_count = 0
+            up_count = 0
+            for parameter_index in range(results_before_change.shape[0]):
+                total_count+=1
+                value_before = results_before_change[parameter_index,0]
+                value_after = results_after_change[parameter_index,0]
+                if value_before<value_after:
+                    up_count+=1
+                    this_color = 'blue'
+                    this_alpha = 0.01
+                    this_z = 0
+                else:
+                    this_color = 'green'
+                    this_alpha = 1.0
+                    this_z = 1
+                this_axes.plot([0,1],
+                         [results_before_change[parameter_index,0],
+                          results_after_change[parameter_index,0]],
+                         color = this_color,
+                         alpha = this_alpha)
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Hes expression')
 
         ## STANDARD DEVIATION
-        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,1],
-                                                        results_after_change[:,1])),
-                                        columns = ['before','after'])
         this_axes = axes[0,2]
-        this_data_frame.boxplot(ax = this_axes)
+        if plot_option == 'boxplot':
+            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,1],
+                                                            results_after_change[:,1])),
+                                            columns = ['before','after'])
+            this_data_frame.boxplot(ax = this_axes)
+        else: 
+            total_count = 0
+            up_count = 0
+            for parameter_index in range(results_before_change.shape[0]):
+                total_count+=1
+                value_before = results_before_change[parameter_index,1]
+                value_after = results_after_change[parameter_index,1]
+                if value_before<value_after:
+                    up_count +=1
+                    this_color = 'blue'
+                    this_alpha = 0.01
+                    this_z = 0
+                else:
+                    this_color = 'green'
+                    this_alpha = 0.1
+                    this_z = 1
+                this_axes.plot([0,1],
+                         [results_before_change[parameter_index,1],
+                          results_after_change[parameter_index,1]],
+                         color = this_color,
+                         alpha = this_alpha)
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Hes std')
 
         ## PERIOD
-        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,2],
-                                                        results_after_change[:,2])),
-                                        columns = ['before','after'])
         this_axes = axes[1,0]
-        this_data_frame.boxplot(ax = this_axes)
+        if plot_option == 'boxplot':
+            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,2],
+                                                            results_after_change[:,2])),
+                                            columns = ['before','after'])
+            this_data_frame.boxplot(ax = this_axes)
+        else: 
+            total_count = 0
+            up_count = 0
+            for parameter_index in range(results_before_change.shape[0]):
+                total_count+=1
+                value_before = results_before_change[parameter_index,2]
+                value_after = results_after_change[parameter_index,2]
+                if value_before<value_after:
+                    this_color = 'blue'
+                    this_alpha = 0.01
+                    up_count+=1
+                    this_z = 0
+                else:
+                    this_color = 'green'
+                    this_alpha = 0.1
+                    this_z = 1
+                this_axes.plot([0,1],
+                         [results_before_change[parameter_index,2],
+                          results_after_change[parameter_index,2]],
+                         color = this_color,
+                         alpha = this_alpha)
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Period')
 
         ## COHERENCE
-        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,3],
-                                                        results_after_change[:,3])),
-                                        columns = ['before','after'])
         this_axes = axes[1,1]
-        this_data_frame.boxplot(ax = this_axes)
+        if plot_option == 'boxplot':
+            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,3],
+                                                            results_after_change[:,3])),
+                                            columns = ['before','after'])
+            this_data_frame.boxplot(ax = this_axes)
+        else: 
+            total_count = 0
+            up_count = 0
+            for parameter_index in range(results_before_change.shape[0]):
+                total_count+=1
+                value_before = results_before_change[parameter_index,3]
+                value_after = results_after_change[parameter_index,3]
+                if value_before<value_after:
+                    up_count+=1
+                    this_color = 'blue'
+                    this_alpha = 0.01
+                    this_z = 0
+                else:
+                    this_color = 'green'
+                    this_alpha = 0.01
+                    this_z = 1
+                this_axes.plot([0,1],
+                         [results_before_change[parameter_index,3],
+                          results_after_change[parameter_index,3]],
+                         color = this_color,
+                         alpha = this_alpha)
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Coherence')
 
         ## MRNA
-        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,4],
-                                                        results_after_change[:,4])),
-                                        columns = ['before','after'])
         this_axes = axes[1,2]
-        this_data_frame.boxplot(ax = this_axes)
+        if plot_option == 'boxplot':
+            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,4],
+                                                            results_after_change[:,4])),
+                                            columns = ['before','after'])
+            this_data_frame.boxplot(ax = this_axes)
+        else: 
+            total_count = 0
+            up_count = 0
+            for parameter_index in range(results_before_change.shape[0]):
+                total_count+=1
+                value_before = results_before_change[parameter_index,4]
+                value_after = results_after_change[parameter_index,4]
+                if value_before<value_after:
+                    up_count+=1
+                    this_color = 'blue'
+                    this_alpha = 0.01
+                    this_z = 0
+                else:
+                    this_color = 'green'
+                    this_alpha = 1.0
+                    this_z = 1
+                this_axes.plot([0,1],
+                         [results_before_change[parameter_index,4],
+                          results_after_change[parameter_index,4]],
+                         color = this_color,
+                         alpha = this_alpha)
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('mRNA number')
 
-        ## NOISE PROPORTION
-        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-1],
-                                                        results_after_change[:,-1])),
-                                        columns = ['before','after'])
+        ## Absolute noise
         this_axes = axes[2,0]
-        this_data_frame.boxplot(ax = this_axes)
-        this_axes.set_ylabel('Noise proportion')
-
-        ## NOISE 
-        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-1]*np.power(results_before_change[:,1]*
-                                                                                             results_before_change[:,0],2),
-                                                        results_after_change[:,-1]*np.power(results_after_change[:,1]*
-                                                                                            results_after_change[:,0],2))),
-                                        columns = ['before','after'])
-        this_axes = axes[2,1]
-        this_data_frame.boxplot(ax = this_axes)
+        if plot_option == 'boxplot':
+            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-1],
+                                                            results_after_change[:,-1])),
+                                            columns = ['before','after'])
+            this_data_frame.boxplot(ax = this_axes)
+        else: 
+            total_count = 0
+            up_count = 0
+            for parameter_index in range(results_before_change.shape[0]):
+                total_count+=1
+                value_before = results_before_change[parameter_index,-1]
+                value_after = results_after_change[parameter_index,-1]
+                if value_before<value_after:
+                    up_count+=1
+                    this_color = 'blue'
+                    this_alpha = 0.1
+                    this_z = 0
+                else:
+                    this_color = 'green'
+                    this_alpha = 0.01
+                    this_z = 1
+                this_axes.plot([0,1],
+                         [results_before_change[parameter_index,-1],
+                          results_after_change[parameter_index,-1]],
+                         color = this_color,
+                         alpha = this_alpha)
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Absolute noise')
 
+        ## NOISE 
+        this_axes = axes[2,1]
+        if plot_option == 'boxplot':
+            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-1]/np.power(results_before_change[:,1]*
+                                                                                                 results_before_change[:,0],2),
+                                                            results_after_change[:,-1]/np.power(results_after_change[:,1]*
+                                                                                                results_after_change[:,0],2))),
+                                            columns = ['before','after'])
+            this_data_frame.boxplot(ax = this_axes)
+        else: 
+            total_count = 0
+            up_count = 0
+            for parameter_index in range(results_before_change.shape[0]):
+                total_count+=1
+                value_before = results_before_change[parameter_index,-1]/np.power(results_before_change[parameter_index,1]*
+                                                                                                 results_before_change[parameter_index,0],2)
+                value_after = results_after_change[parameter_index,-1]/np.power(results_after_change[parameter_index,1]*
+                                                                                                results_after_change[parameter_index,0],2)
+                if value_before<value_after:
+                    up_count+=1
+                    this_color = 'blue'
+                    this_alpha = 0.1
+                    this_z = 0
+                else:
+                    this_color = 'green'
+                    this_alpha = 0.01
+                    this_z = 1
+                this_axes.plot([0,1],
+                         [results_before_change[parameter_index,-1]/np.power(results_before_change[parameter_index,1]*
+                                                                                                 results_before_change[parameter_index,0],2),
+                          results_after_change[parameter_index,-1]/np.power(results_after_change[parameter_index,1]*
+                                                                                                results_after_change[parameter_index,0],2)],
+                         color = this_color,
+                         alpha = this_alpha)
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
+#                 this_axes.set_ylim(0,0.05)
+        this_axes.set_ylabel('Noise proportion')
+        
+        ## LENGTHSCALES
+        this_axes = axes[2,2]
+        if plot_option == 'boxplot':
+            this_data_frame = pd.DataFrame(np.column_stack((old_lengthscales,
+                                                            new_lengthscales)),
+                                            columns = ['before','after'])
+            this_data_frame.boxplot(ax = this_axes)
+        else: 
+            total_count = 0
+            up_count = 0
+            for parameter_index in range(results_before_change.shape[0]):
+                total_count+=1
+                value_before = old_lengthscales[parameter_index]
+                value_after = new_lengthscales[parameter_index] 
+                if value_before<value_after:
+                    up_count+=1
+                    this_color = 'blue'
+                    this_alpha = 0.1
+                    this_z = 0
+                else:
+                    this_color = 'green'
+                    this_alpha = 0.01
+                    this_z = 1
+                this_axes.plot([0,1],
+                         [old_lengthscales[parameter_index],
+                          new_lengthscales[parameter_index]],
+                         color = this_color,
+                         alpha = this_alpha)
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
+#                 this_axes.set_ylim(0,0.05)
+        this_axes.set_ylabel('Fluctuation rates')
+ 
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation.pdf'))
+        
+    def xest_investigate_mrna_and_expression_decrease(self):
+
+        change = 'decreased'
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradationtest')
+        results_after_change = np.load(saving_path + '.npy')
+        parameters_after_change = np.load(saving_path + '_parameters.npy')
+        results_before_change = np.load(saving_path + '_old.npy')
+        parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+        old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+        new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+        weirdest_index = np.argmax(results_before_change[:,1]-results_after_change[:,1])
+        weird_parameter_before = parameters_before_change[weirdest_index]
+        weird_parameter_after = parameters_after_change[weirdest_index]
+        
+        trace_before = hes5.generate_langevin_trajectory(720.0,
+                                                         weird_parameter_before[2], #repression_threshold, 
+                                                         weird_parameter_before[4], #hill_coefficient,
+                                                         weird_parameter_before[5], #mRNA_degradation_rate, 
+                                                         weird_parameter_before[6], #protein_degradation_rate, 
+                                                         weird_parameter_before[0], #basal_transcription_rate, 
+                                                         weird_parameter_before[1], #translation_rate,
+                                                         weird_parameter_before[3], #transcription_delay, 
+                                                         10, #initial_mRNA, 
+                                                         weird_parameter_before[2], #initial_protein,
+                                                         2000)
+
+        trace_after = hes5.generate_langevin_trajectory(720.0,
+                                                         weird_parameter_after[2], #repression_threshold, 
+                                                         weird_parameter_after[4], #hill_coefficient,
+                                                         weird_parameter_after[5], #mRNA_degradation_rate, 
+                                                         weird_parameter_after[6], #protein_degradation_rate, 
+                                                         weird_parameter_after[0], #basal_transcription_rate, 
+                                                         weird_parameter_after[1], #translation_rate,
+                                                         weird_parameter_after[3], #transcription_delay, 
+                                                         10, #initial_mRNA, 
+                                                         weird_parameter_after[2], #initial_protein,
+                                                         2000)
+
+        
+
+        plt.figure(figsize = (6.5, 4.5))
+        plt.subplot(221)
+        plt.plot(trace_before[:,0],
+                 trace_before[:,2])
+        plt.ylabel('Hes expression')
+        plt.xlabel('Time')
+        plt.ylim(3000,15000)
+        plt.title('Before')
+        plt.subplot(222)
+        plt.plot(trace_after[:,0],
+                 trace_after[:,2])
+        plt.ylabel('Hes expression')
+        plt.xlabel('Time')
+        plt.ylim(3000,15000)
+        plt.title('After')
+        plt.subplot(223)
+        plt.plot(trace_before[:,0],
+                 trace_before[:,1])
+        plt.ylabel('Hes mRNA')
+        plt.xlabel('Time')
+        plt.ylim(0,120)
+        plt.subplot(224)
+        plt.plot(trace_after[:,0],
+                 trace_after[:,1])
+        plt.ylabel('Hes mRNA')
+        plt.xlabel('Time')
+        plt.ylim(0,120)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_degradation_weird_examples.pdf'))
 
     def xest_plot_mRNA_change_examples(self):
         change = 'decreased'
@@ -1431,7 +1883,7 @@ class TestZebrafish(unittest.TestCase):
         fitted_power_spectrum_values = this_variance*2*this_fluctuation_rate/(this_fluctuation_rate*this_fluctuation_rate
                                                                               +4*np.pi*np.pi*power_spectrum[:,0]*power_spectrum[:,0])
         fitted_power_spectrum = np.vstack((power_spectrum[:,0], fitted_power_spectrum_values)).transpose()       
-        test_correlation_function = hes5.calculate_autocorrelation_from_power_spectrum(fitted_power_spectrum)
+        tlest_correlation_function = hes5.calculate_autocorrelation_from_power_spectrum(fitted_power_spectrum)
         plt.figure(figsize = (4.5,4.5))
         plt.subplot(211)
         plt.plot(power_spectrum[:,0], power_spectrum[:,1])
@@ -1444,8 +1896,8 @@ class TestZebrafish(unittest.TestCase):
                 auto_correlation_from_fourier[:,1], lw = 0.5, color = 'blue', ls = '-')
         plt.plot(time_values,
                 fitted_auto_correlation_values, lw = 0.5, color = 'orange', ls = '--')
-        plt.plot(test_correlation_function[:,0],
-                test_correlation_function[:,1], lw = 0.5, color = 'green', ls = '--', alpha =0.5)
+        plt.plot(tlest_correlation_function[:,0],
+                tlest_correlation_function[:,1], lw = 0.5, color = 'green', ls = '--', alpha =0.5)
         plt.xlim(0,1000)
         plt.xlabel('Time')
         plt.ylabel('Autocorrelation')
