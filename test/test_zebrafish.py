@@ -158,7 +158,7 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def test_a_make_abc_samples(self):
+    def xest_a_make_abc_samples(self):
         print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 200000
@@ -194,11 +194,12 @@ class TestZebrafish(unittest.TestCase):
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
         option = 'mean_std_period'
+#         option = 'mean_std_period_fewer_samples'
 #         option = 'mean_std_period_coherence'
 #         option = 'weird_decrease'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_zebrafish')
+                                    'sampling_results_zebrafish_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -238,6 +239,12 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,0]<8000,
                                         np.logical_and(model_results[:,1]<0.15,
                                                        model_results[:,1]>0.05))))
+        elif option == 'mean_std_period_fewer_samples':
+            accepted_indices = np.where(np.logical_and(model_results[:4000,0]>2000, #protein number
+                                        np.logical_and(model_results[:4000,0]<8000,
+                                        np.logical_and(model_results[:4000,1]<0.15,
+                                        np.logical_and(model_results[:4000,1]>0.05,
+                                                       model_results[:4000,2]<150)))))
         elif option == 'mean_std_period':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
                                         np.logical_and(model_results[:,0]<8000,
@@ -623,9 +630,9 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
         
-    def test_decrease_mRNA_degradation(self):
+    def xest_decrease_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_zebrafish')
+                                    'sampling_results_zebrafish_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -636,11 +643,11 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,1]<0.15,
                                                        model_results[:,1]>0.05))))
         elif option == 'mean_std_period':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
-                                        np.logical_and(model_results[:,1]<0.15,
-                                        np.logical_and(model_results[:,1]>0.05,
-                                                       model_results[:,2]<150)))))
+            accepted_indices = np.where(np.logical_and(model_results[:4000,0]>2000, #protein number
+                                        np.logical_and(model_results[:4000,0]<8000,
+                                        np.logical_and(model_results[:4000,1]<0.15,
+                                        np.logical_and(model_results[:4000,1]>0.05,
+                                                       model_results[:4000,2]<150)))))
         else:
             raise ValueError('option not recognised')
 
@@ -653,7 +660,7 @@ class TestZebrafish(unittest.TestCase):
         old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
         new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_degradation, sampling_duration = 12*60)  
 
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_decreased_degradation')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_decreased_degradation_repeated')
 
         np.save(saving_path + '.npy', new_model_results)
         np.save(saving_path + '_parameters.npy', my_posterior_samples_changed_degradation )
@@ -662,9 +669,9 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
-    def test_increase_translation(self):
+    def xest_increase_translation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_zebrafish')
+                                    'sampling_results_zebrafish_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -675,11 +682,11 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,1]<0.15,
                                                        model_results[:,1]>0.05))))
         elif option == 'mean_std_period':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
-                                        np.logical_and(model_results[:,1]<0.15,
-                                        np.logical_and(model_results[:,1]>0.05,
-                                                       model_results[:,2]<150)))))
+            accepted_indices = np.where(np.logical_and(model_results[:4000,0]>2000, #protein number
+                                        np.logical_and(model_results[:4000,0]<8000,
+                                        np.logical_and(model_results[:4000,1]<0.15,
+                                        np.logical_and(model_results[:4000,1]>0.05,
+                                                       model_results[:4000,2]<150)))))
         else:
             raise ValueError('option not recognised')
 
@@ -696,7 +703,7 @@ class TestZebrafish(unittest.TestCase):
         new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_translation, sampling_duration = 12*60)  
         print('got here again')
 
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_translation')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_translation_repeated')
 
         np.save(saving_path + '.npy', new_model_results)
         np.save(saving_path + '_parameters.npy', my_posterior_samples_changed_translation )
@@ -705,17 +712,18 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
-    def xest_plot_mrna_change_results(self):
+    def test_plot_mrna_change_results(self):
         
+#         change = 'decreased'
         change = 'increased'
-#         change = 'increased'
 
-#         plot_option = 'boxplot'
-        plot_option = 'lines'
+        plot_option = 'boxplot'
+#         plot_option = 'lines'
         
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradationtest')
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated')
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated')
         results_after_change = np.load(saving_path + '.npy')
         parameters_after_change = np.load(saving_path + '_parameters.npy')
         results_before_change = np.load(saving_path + '_old.npy')
@@ -723,14 +731,16 @@ class TestZebrafish(unittest.TestCase):
         old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
         new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
     
-        if False:
-            indices = np.where(results_before_change[:,0]>results_after_change[:,0])
+        if True:
+            indices = np.where(results_before_change[:,3]>results_after_change[:,3])
             results_after_change = results_after_change[indices]
             parameters_after_change = parameters_after_change[indices]
             results_before_change = results_before_change[indices]
             parameters_before_change = parameters_before_change[indices]
             old_lengthscales = old_lengthscales[indices]
             new_lengthscales = new_lengthscales[indices]
+            print('number of remaining parameters')
+            print(len(old_lengthscales))
  
         this_figure, axes = plt.subplots(3,3,figsize = (6.5,6.5))
 
@@ -759,30 +769,31 @@ class TestZebrafish(unittest.TestCase):
                                                             results_after_change[:,0])),
                                             columns = ['before','after'])
             this_data_frame.boxplot(ax = axes[0,1])
-        else: 
-            total_count = 0
-            up_count = 0
-            for parameter_index in range(results_before_change.shape[0]):
-                total_count+=1
-                value_before = results_before_change[parameter_index,0]
-                value_after = results_after_change[parameter_index,0]
-                if value_before<value_after:
-                    up_count+=1
-                    this_color = 'blue'
-                    this_alpha = 0.01
-                    this_z = 0
-                else:
-                    this_color = 'green'
-                    this_alpha = 1.0
-                    this_z = 1
+        else:
+            this_axes.set_xticks([0,1])
+            this_axes.set_xticklabels(['before','after'])
+        total_count = 0
+        up_count = 0
+        for parameter_index in range(results_before_change.shape[0]):
+            total_count+=1
+            value_before = results_before_change[parameter_index,0]
+            value_after = results_after_change[parameter_index,0]
+            if value_before<value_after:
+                up_count+=1
+                this_color = 'blue'
+                this_alpha = 0.01
+                this_z = 0
+            else:
+                this_color = 'green'
+                this_alpha = 1.0
+                this_z = 1
+            if plot_option == 'lines':
                 this_axes.plot([0,1],
                          [results_before_change[parameter_index,0],
                           results_after_change[parameter_index,0]],
                          color = this_color,
                          alpha = this_alpha)
-                this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
-                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
+        this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Hes expression')
 
         ## STANDARD DEVIATION
@@ -793,29 +804,30 @@ class TestZebrafish(unittest.TestCase):
                                             columns = ['before','after'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
-            total_count = 0
-            up_count = 0
-            for parameter_index in range(results_before_change.shape[0]):
-                total_count+=1
-                value_before = results_before_change[parameter_index,1]
-                value_after = results_after_change[parameter_index,1]
-                if value_before<value_after:
-                    up_count +=1
-                    this_color = 'blue'
-                    this_alpha = 0.01
-                    this_z = 0
-                else:
-                    this_color = 'green'
-                    this_alpha = 0.1
-                    this_z = 1
+            this_axes.set_xticks([0,1])
+            this_axes.set_xticklabels(['before','after'])
+        total_count = 0
+        up_count = 0
+        for parameter_index in range(results_before_change.shape[0]):
+            total_count+=1
+            value_before = results_before_change[parameter_index,1]
+            value_after = results_after_change[parameter_index,1]
+            if value_before<value_after:
+                up_count +=1
+                this_color = 'blue'
+                this_alpha = 0.01
+                this_z = 0
+            else:
+                this_color = 'green'
+                this_alpha = 0.1
+                this_z = 1
+            if plot_option == 'lines':
                 this_axes.plot([0,1],
                          [results_before_change[parameter_index,1],
                           results_after_change[parameter_index,1]],
                          color = this_color,
                          alpha = this_alpha)
-                this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
-                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
+        this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Hes std')
 
         ## PERIOD
@@ -826,29 +838,30 @@ class TestZebrafish(unittest.TestCase):
                                             columns = ['before','after'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
-            total_count = 0
-            up_count = 0
-            for parameter_index in range(results_before_change.shape[0]):
-                total_count+=1
-                value_before = results_before_change[parameter_index,2]
-                value_after = results_after_change[parameter_index,2]
-                if value_before<value_after:
-                    this_color = 'blue'
-                    this_alpha = 0.01
-                    up_count+=1
-                    this_z = 0
-                else:
-                    this_color = 'green'
-                    this_alpha = 0.1
-                    this_z = 1
+            this_axes.set_xticks([0,1])
+            this_axes.set_xticklabels(['before','after'])
+        total_count = 0
+        up_count = 0
+        for parameter_index in range(results_before_change.shape[0]):
+            total_count+=1
+            value_before = results_before_change[parameter_index,2]
+            value_after = results_after_change[parameter_index,2]
+            if value_before<value_after:
+                this_color = 'blue'
+                this_alpha = 0.01
+                up_count+=1
+                this_z = 0
+            else:
+                this_color = 'green'
+                this_alpha = 0.1
+                this_z = 1
+            if plot_option == 'lines':
                 this_axes.plot([0,1],
                          [results_before_change[parameter_index,2],
                           results_after_change[parameter_index,2]],
                          color = this_color,
                          alpha = this_alpha)
-                this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
-                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
+        this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Period')
 
         ## COHERENCE
@@ -859,29 +872,30 @@ class TestZebrafish(unittest.TestCase):
                                             columns = ['before','after'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
-            total_count = 0
-            up_count = 0
-            for parameter_index in range(results_before_change.shape[0]):
-                total_count+=1
-                value_before = results_before_change[parameter_index,3]
-                value_after = results_after_change[parameter_index,3]
-                if value_before<value_after:
-                    up_count+=1
-                    this_color = 'blue'
-                    this_alpha = 0.01
-                    this_z = 0
-                else:
-                    this_color = 'green'
-                    this_alpha = 0.01
-                    this_z = 1
+            this_axes.set_xticks([0,1])
+            this_axes.set_xticklabels(['before','after'])
+        total_count = 0
+        up_count = 0
+        for parameter_index in range(results_before_change.shape[0]):
+            total_count+=1
+            value_before = results_before_change[parameter_index,3]
+            value_after = results_after_change[parameter_index,3]
+            if value_before<value_after:
+                up_count+=1
+                this_color = 'blue'
+                this_alpha = 0.01
+                this_z = 0
+            else:
+                this_color = 'green'
+                this_alpha = 0.01
+                this_z = 1
+            if plot_option == 'lines':
                 this_axes.plot([0,1],
                          [results_before_change[parameter_index,3],
                           results_after_change[parameter_index,3]],
                          color = this_color,
                          alpha = this_alpha)
-                this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
-                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
+        this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Coherence')
 
         ## MRNA
@@ -892,29 +906,30 @@ class TestZebrafish(unittest.TestCase):
                                             columns = ['before','after'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
-            total_count = 0
-            up_count = 0
-            for parameter_index in range(results_before_change.shape[0]):
-                total_count+=1
-                value_before = results_before_change[parameter_index,4]
-                value_after = results_after_change[parameter_index,4]
-                if value_before<value_after:
-                    up_count+=1
-                    this_color = 'blue'
-                    this_alpha = 0.01
-                    this_z = 0
-                else:
-                    this_color = 'green'
-                    this_alpha = 1.0
-                    this_z = 1
+            this_axes.set_xticks([0,1])
+            this_axes.set_xticklabels(['before','after'])
+        total_count = 0
+        up_count = 0
+        for parameter_index in range(results_before_change.shape[0]):
+            total_count+=1
+            value_before = results_before_change[parameter_index,4]
+            value_after = results_after_change[parameter_index,4]
+            if value_before<value_after:
+                up_count+=1
+                this_color = 'blue'
+                this_alpha = 0.01
+                this_z = 0
+            else:
+                this_color = 'green'
+                this_alpha = 1.0
+                this_z = 1
+            if plot_option == 'lines':
                 this_axes.plot([0,1],
                          [results_before_change[parameter_index,4],
                           results_after_change[parameter_index,4]],
                          color = this_color,
                          alpha = this_alpha)
-                this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
-                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
+        this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('mRNA number')
 
         ## Absolute noise
@@ -925,29 +940,30 @@ class TestZebrafish(unittest.TestCase):
                                             columns = ['before','after'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
-            total_count = 0
-            up_count = 0
-            for parameter_index in range(results_before_change.shape[0]):
-                total_count+=1
-                value_before = results_before_change[parameter_index,-1]
-                value_after = results_after_change[parameter_index,-1]
-                if value_before<value_after:
-                    up_count+=1
-                    this_color = 'blue'
-                    this_alpha = 0.1
-                    this_z = 0
-                else:
-                    this_color = 'green'
-                    this_alpha = 0.01
-                    this_z = 1
+                this_axes.set_xticks([0,1])
+                this_axes.set_xticklabels(['before','after'])
+        total_count = 0
+        up_count = 0
+        for parameter_index in range(results_before_change.shape[0]):
+            total_count+=1
+            value_before = results_before_change[parameter_index,-1]
+            value_after = results_after_change[parameter_index,-1]
+            if value_before<value_after:
+                up_count+=1
+                this_color = 'blue'
+                this_alpha = 0.1
+                this_z = 0
+            else:
+                this_color = 'green'
+                this_alpha = 0.01
+                this_z = 1
+            if plot_option == 'lines':
                 this_axes.plot([0,1],
                          [results_before_change[parameter_index,-1],
                           results_after_change[parameter_index,-1]],
                          color = this_color,
                          alpha = this_alpha)
-                this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
-                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
+        this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Absolute noise')
 
         ## NOISE 
@@ -960,23 +976,26 @@ class TestZebrafish(unittest.TestCase):
                                             columns = ['before','after'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
-            total_count = 0
-            up_count = 0
-            for parameter_index in range(results_before_change.shape[0]):
-                total_count+=1
-                value_before = results_before_change[parameter_index,-1]/np.power(results_before_change[parameter_index,1]*
-                                                                                                 results_before_change[parameter_index,0],2)
-                value_after = results_after_change[parameter_index,-1]/np.power(results_after_change[parameter_index,1]*
-                                                                                                results_after_change[parameter_index,0],2)
-                if value_before<value_after:
-                    up_count+=1
-                    this_color = 'blue'
-                    this_alpha = 0.1
-                    this_z = 0
-                else:
-                    this_color = 'green'
-                    this_alpha = 0.01
-                    this_z = 1
+            this_axes.set_xticks([0,1])
+            this_axes.set_xticklabels(['before','after'])
+        total_count = 0
+        up_count = 0
+        for parameter_index in range(results_before_change.shape[0]):
+            total_count+=1
+            value_before = results_before_change[parameter_index,-1]/np.power(results_before_change[parameter_index,1]*
+                                                                                             results_before_change[parameter_index,0],2)
+            value_after = results_after_change[parameter_index,-1]/np.power(results_after_change[parameter_index,1]*
+                                                                                            results_after_change[parameter_index,0],2)
+            if value_before<value_after:
+                up_count+=1
+                this_color = 'blue'
+                this_alpha = 0.1
+                this_z = 0
+            else:
+                this_color = 'green'
+                this_alpha = 0.01
+                this_z = 1
+            if plot_option == 'lines':
                 this_axes.plot([0,1],
                          [results_before_change[parameter_index,-1]/np.power(results_before_change[parameter_index,1]*
                                                                                                  results_before_change[parameter_index,0],2),
@@ -984,10 +1003,7 @@ class TestZebrafish(unittest.TestCase):
                                                                                                 results_after_change[parameter_index,0],2)],
                          color = this_color,
                          alpha = this_alpha)
-                this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
-                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
-#                 this_axes.set_ylim(0,0.05)
+        this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Noise proportion')
         
         ## LENGTHSCALES
@@ -998,34 +1014,36 @@ class TestZebrafish(unittest.TestCase):
                                             columns = ['before','after'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
-            total_count = 0
-            up_count = 0
-            for parameter_index in range(results_before_change.shape[0]):
-                total_count+=1
-                value_before = old_lengthscales[parameter_index]
-                value_after = new_lengthscales[parameter_index] 
-                if value_before<value_after:
-                    up_count+=1
-                    this_color = 'blue'
-                    this_alpha = 0.1
-                    this_z = 0
-                else:
-                    this_color = 'green'
-                    this_alpha = 0.01
-                    this_z = 1
+            this_axes.set_xticks([0,1])
+            this_axes.set_xticklabels(['before','after'])
+        total_count = 0
+        up_count = 0
+        for parameter_index in range(results_before_change.shape[0]):
+            total_count+=1
+            value_before = old_lengthscales[parameter_index]
+            value_after = new_lengthscales[parameter_index] 
+            if value_before<value_after:
+                up_count+=1
+                this_color = 'blue'
+                this_alpha = 0.1
+                this_z = 0
+            else:
+                this_color = 'green'
+                this_alpha = 0.01
+                this_z = 1
+            if plot_option == 'lines':
                 this_axes.plot([0,1],
                          [old_lengthscales[parameter_index],
                           new_lengthscales[parameter_index]],
                          color = this_color,
                          alpha = this_alpha)
-                this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
-                this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
-#                 this_axes.set_ylim(0,0.05)
+        this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Fluctuation rates')
  
         plt.tight_layout()
-        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation.pdf'))
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated.pdf'))
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated' + plot_option +'.pdf'))
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated_' + plot_option +'.pdf'))
         
     def xest_investigate_mrna_and_expression_decrease(self):
 
@@ -1038,7 +1056,12 @@ class TestZebrafish(unittest.TestCase):
         old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
         new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
         
-        weirdest_index = np.argmax(results_before_change[:,1]-results_after_change[:,1])
+#         weirdest_index = np.argmax(results_before_change[:,1]-results_after_change[:,1])
+
+        weiredest_index = np.argmax(results_before_change[:,-1]/np.power(results_before_change[:,1]*
+                                                                         results_before_change[:,0],2) -
+                                    results_after_change[:,-1]/np.power(results_after_change[:,1]*
+                                                                        results_after_change[:,0],2))
         weird_parameter_before = parameters_before_change[weirdest_index]
         weird_parameter_after = parameters_after_change[weirdest_index]
         
@@ -1099,16 +1122,29 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_degradation_weird_examples.pdf'))
 
     def xest_plot_mRNA_change_examples(self):
-        change = 'decreased'
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+#         change = 'decreased'
+        change = 'increased'
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated')
         results_after_change = np.load(saving_path + '.npy')
         parameters_after_change = np.load(saving_path + '_parameters.npy')
         results_before_change = np.load(saving_path + '_old.npy')
         parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+        old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+        new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+        weirdest_index = np.argmax(results_after_change[:,-1]-results_before_change[:,-1])
+#         weirdest_index = np.argmax(results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                         results_after_change[:,0],2) -
+#                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                         results_before_change[:,0],2))
+#         weirdest_index = np.argmax(new_lengthscales-old_lengthscales)
+        example_parameter_before = parameters_before_change[weirdest_index]
+        example_parameter_after = parameters_after_change[weirdest_index]
     
-        example_parameter_index = 100
-        example_parameter_before = parameters_before_change[example_parameter_index]
-        example_parameter_after = parameters_after_change[example_parameter_index]
+#         example_parameter_index = 0
+#         example_parameter_before = parameters_before_change[example_parameter_index]
+#         example_parameter_after = parameters_after_change[example_parameter_index]
         
         example_trace_before = hes5.generate_langevin_trajectory( 720, #duration 
                                                                   example_parameter_before[2], #repression_threshold, 
@@ -1136,17 +1172,18 @@ class TestZebrafish(unittest.TestCase):
 
         plt.figure(figsize = (6.5, 2.5))
         plt.subplot(121)
-        plt.plot(example_trace_before[:,0],
-                 example_trace_before[:,2])
+        plt.plot(example_trace_before[::6,0],
+                 example_trace_before[::6,2])
         plt.ylabel('Hes expression')
         plt.xlabel('Time')
         plt.subplot(122)
-        plt.plot(example_trace_after[:,0],
-                 example_trace_after[:,2])
+        plt.plot(example_trace_after[::6,0],
+                 example_trace_after[::6,2])
         plt.ylabel('Hes expression')
         plt.xlabel('Time')
         plt.tight_layout()
-        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_examples.pdf'))
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_examples.pdf'))
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_examples.pdf'))
 
     def xest_plot_smfish_results(self):
         root = os.path.join('/home','y91198jk','hdd','smfishdata','231118deconvoluted','Experiment_2','repeat_1')
