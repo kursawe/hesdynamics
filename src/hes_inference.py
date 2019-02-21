@@ -754,3 +754,123 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             random_walk[step_index,:] = current_state
         acceptance_rate = float(acceptance_count)/iterations
     return random_walk, acceptance_rate, acceptance_tuner
+
+def calculate_langevin_summary_statistics_at_parameter_point(parameter_values, number_of_traces = 100):
+    '''Calculate the mean, relative standard deviation, period, coherence and mean mRNA
+    of protein traces at one parameter point using the langevin equation.
+    Will assume the arguments to be of the order described in
+    generate_prior_samples. This function is necessary to ensure garbage collection of
+    unnecessary traces.
+
+    Parameters
+    ----------
+
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        (repression_threshold, hill_coefficient, mRNA_degradation_rate, protein_degradation_rate,
+         basal_transcription_rate, translation_rate, transcriptional_delay)
+
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    Returns
+    -------
+
+    summary_statistics : ndarray
+        One dimension, five entries. Contains the summary statistics (mean, std, period, coherence, mean_mRNA) for the parameters
+        in parameter_values
+    '''
+    these_mrna_traces, these_protein_traces = hes5.generate_multiple_langevin_trajectories(number_of_traces, # number_of_trajectories
+                                                                                           1500*5, #duration
+                                                                                           parameter_values[0], #repression_threshold,
+                                                                                           parameter_values[1], #hill_coefficient,
+                                                                                           parameter_values[2], #mRNA_degradation_rate,
+                                                                                           parameter_values[3], #protein_degradation_rate,
+                                                                                           parameter_values[4], #basal_transcription_rate,
+                                                                                           parameter_values[5], #translation_rate,
+                                                                                           parameter_values[6], #transcription_delay,
+                                                                                           0, #initial_mRNA,
+                                                                                           0, #initial_protein,
+                                                                                           1000) #equilibration_time
+
+    this_deterministic_trace = hes5.generate_deterministic_trajectory(1500*5+1000, #duration
+                                                                parameter_values[0], #repression_threshold,
+                                                                parameter_values[1], #hill_coefficient,
+                                                                parameter_values[2], #mRNA_degradation_rate,
+                                                                parameter_values[3], #protein_degradation_rate,
+                                                                parameter_values[4], #basal_transcription_rate,
+                                                                parameter_values[5], #translation_rate,
+                                                                parameter_values[6], #transcription_delay,
+                                                                0,
+                                                                0,
+                                                                for_negative_times = 'no_negative')
+
+    this_deterministic_trace = this_deterministic_trace[this_deterministic_trace[:,0]>1000] # remove equilibration time
+#     this_deterministic_trace = np.vstack((these_protein_traces[:,0],
+#                                           these_mrna_traces[:,1],
+#                                           these_protein_traces[:,1])).transpose()
+    summary_statistics = np.zeros(9)
+    _,this_coherence, this_period = hes5.calculate_power_spectrum_of_trajectories(these_protein_traces)
+    this_mean = np.mean(these_protein_traces[:,1:])
+    this_std = np.std(these_protein_traces[:,1:])/this_mean
+    this_mean_mRNA = np.mean(these_mrna_traces[:,1:])
+    this_deterministic_mean = np.mean(this_deterministic_trace[:,2])
+    this_deterministic_std = np.std(this_deterministic_trace[:,2])/this_deterministic_mean
+    deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 1000,
+                                            this_deterministic_trace[:,2])).transpose()
+    _,this_deterministic_coherence, this_deterministic_period = hes5.calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
+    summary_statistics[0] = this_mean
+    summary_statistics[1] = this_std
+    summary_statistics[2] = this_period
+    summary_statistics[3] = this_coherence
+    summary_statistics[4] = this_mean_mRNA
+    summary_statistics[5] = this_deterministic_mean
+    summary_statistics[6] = this_deterministic_std
+    summary_statistics[7] = this_deterministic_period
+    summary_statistics[8] = this_deterministic_coherence
+
+    return summary_statistics
+
+def calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 100,
+                                                         number_of_cpus = 12):
+    '''Calculate the mean, relative standard deviation, period, coherence, and mean mrna
+    of protein traces at each parameter point in parameter_values.
+
+    Parameters
+    ----------
+
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        (basal_transcription_rate, translation_rate, repression_threshold, transcription_delay)
+
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    number_of_cpus : int
+        number of processes that should be used for calculating the samples, parallelisation happens
+        on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
+
+    Returns
+    -------
+
+    summary_statistics : ndarray
+        each row contains the summary statistics (mean, std, period, coherence, mean_mrna) for the corresponding
+        parameter set in parameter_values
+    '''
+    summary_statistics = np.zeros((parameter_values.shape[0], 9))
+
+    pool_of_processes = mp.Pool(processes = number_of_cpus)
+
+    process_results = [ pool_of_processes.apply_async(calculate_langevin_summary_statistics_at_parameter_point,
+                                                      args=(parameter_value, number_of_traces_per_sample))
+                        for parameter_value in parameter_values ]
+
+    ## Let the pool know that these are all so that the pool will exit afterwards
+    # this is necessary to prevent memory overflows.
+    pool_of_processes.close()
+
+    for parameter_index, process_result in enumerate(process_results):
+        these_summary_statistics = process_result.get()
+        summary_statistics[ parameter_index ] = these_summary_statistics
+
+    return summary_statistics

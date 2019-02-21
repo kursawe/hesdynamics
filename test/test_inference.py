@@ -544,7 +544,7 @@ class TestInference(unittest.TestCase):
                                    'example_oscillatory_trace_for_data')
         plt.savefig(file_name + '.pdf')
 
-    def test_infer_parameters_from_data_set(self):
+    def xest_infer_parameters_from_data_set(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_observations    = np.load(saving_path + 'protein_observations_180_ps3_ds2.npy')
         previous_run            = np.load(saving_path + 'full_random_walk_180_ps2_ds1.npy')
@@ -592,3 +592,18 @@ class TestInference(unittest.TestCase):
 
         for i in range(len(initial_states)):
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk_180_ps3_ds2_{cap}.npy').format(cap=i),list_of_random_walks[i])
+
+    def test_summary_statistics_from_inferred_parameters(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','parallel_random_walk_')
+        random_walk = np.load(saving_path + '90_ps1_ds1_0.npy')
+
+        parameter_values = np.zeros((7,10))
+        parameter_values = random_walk[200000:200100,:]
+        parameter_values[:,[4,5]] = np.power(10,parameter_values[:,[4,5]])
+        summary_statistics = hes_inference.calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 100,
+                                                                                               number_of_cpus = 12)
+        mean_mRNA = summary_statistics[:,4]
+
+        my_figure = plt.figure()
+        plt.hist(mean_mRNA,20)
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','mRNA_histogram.pdf'))
