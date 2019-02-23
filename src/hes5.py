@@ -16,10 +16,16 @@ import socket
 import jitcdde
 import logging
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
-import gpflow
+try:
+    import gpflow
+except ImportError:
+    print('Could not import gpflow. Gpflow will not be available for GP regression')
 import sklearn.gaussian_process as gp
 import GPy
-import george
+try:
+    import george
+except ImportError:
+    print('Could not import gpflow. Gpflow will not be available for GP regression')
 
 domain_name = socket.getfqdn()
 if domain_name == 'jochen-ThinkPad-S1-Yoga-12':

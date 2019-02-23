@@ -16,7 +16,10 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern, RBF, ConstantKernel
 import logging
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
-import gpflow
+try:
+    import gpflow
+except ImportError:
+    print('Could not import gpflow. This may affect GP regression tests.')
 from numba import jit, autojit
 
 # make sure we find the right python module
@@ -614,7 +617,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','zebrafish_coherence_distribution_'+option+'.pdf'))
         
-    def xest_increase_mRNA_degradation(self):
+    def test_increase_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
