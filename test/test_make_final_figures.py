@@ -21,7 +21,7 @@ import hes5
 
 class TestMakeFinalFigures(unittest.TestCase):
                                  
-    def test_make_period_distribution_plot(self):
+    def xest_make_period_distribution_plot(self):
         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
                                 'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 #                                   'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.npy'))
@@ -30,12 +30,12 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
-        print 'median observed period is'
-        print np.median(hilbert_periods/60)
-        print 'standard deviation of periods is'
-        print np.std(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
+        print('median observed period is')
+        print(np.median(hilbert_periods/60))
+        print('standard deviation of periods is')
+        print(np.std(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [hrs]')
 #         plt.ylim(0,1)
@@ -59,20 +59,20 @@ class TestMakeFinalFigures(unittest.TestCase):
                                                    model_results[:,1]>0.05)))  #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'total number of accepted samples'
-        print len(my_posterior_samples)
+        print('total number of accepted samples')
+        print(len(my_posterior_samples))
         my_model_results = model_results[accepted_indices]
 
         my_figure = plt.figure(figsize= (2.5,1.9))
 
         all_standard_deviations = my_model_results[:,1]
 
-        print 'mean observed standard deviation is'
-        print np.mean(all_standard_deviations)
-        print 'median observed standard deviation is' 
-        print np.median(all_standard_deviations)
-        print 'standard deviation of standard deviation is'
-        print np.std(all_standard_deviations)
+        print('mean observed standard deviation is')
+        print(np.mean(all_standard_deviations))
+        print('median observed standard deviation is')
+        print(np.median(all_standard_deviations))
+        print('standard deviation of standard deviation is')
+        print(np.std(all_standard_deviations))
 #       
         plt.hist(all_standard_deviations,bins = 20, edgecolor = 'black')
         plt.ylabel("Likelihood")
@@ -126,7 +126,7 @@ class TestMakeFinalFigures(unittest.TestCase):
             this_parameter = my_posterior_samples[0]
             this_results = my_posterior_results[0]
             
-            print this_parameter
+            print(this_parameter)
 
             for subplot_index in range(number_of_traces):
                 this_axis = plt.Subplot(my_figure, this_inner_grid[subplot_index])
@@ -209,12 +209,13 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
         
-    def xest_plot_coherence_curves(self):
+    def test_plot_coherence_curves(self):
 
         my_figure = plt.figure( figsize = (2.5, 1.9) )
 
         my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
-                                                          'extended_degradation_sweep.npy'))
+#                                                           'extended_degradation_sweep.npy'))
+                                                          'repeated_degradation_sweep.npy'))
         x_coord = -0.3
         y_coord = 1.05
         for results_table in my_degradation_sweep_results:

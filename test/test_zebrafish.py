@@ -188,12 +188,13 @@ class TestZebrafish(unittest.TestCase):
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 7))
         
-    def xest_plot_zebrafish_inference(self):
+    def test_plot_zebrafish_inference(self):
 #         option = 'prior'
 #         option = 'mean_period_and_coherence'
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
-        option = 'mean_std_period'
+#         option = 'mean_std_period'
+        option = 'coherence_decrease'
 #         option = 'mean_std_period_fewer_samples'
 #         option = 'mean_std_period_coherence'
 #         option = 'weird_decrease'
@@ -256,7 +257,7 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,0]<8000,
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
-                                        np.logical_and(model_results[:,3]>0.2,
+                                        np.logical_and(model_results[:,3]>0.4,
                                                        model_results[:,2]<150))))))
 #                                         np.logical_and(model_results[:,2]<150,
         elif option == 'amplitude_and_coherence':
@@ -286,10 +287,32 @@ class TestZebrafish(unittest.TestCase):
             weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
             weird_parameters_before = parameters_before_change[weird_indices]
             weird_parameters_after = parameters_after_change[weird_indices]
+
+        elif option == 'coherence_decrease':
+#             change = 'decreased'
+            change = 'increased'
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+#             weird_indices = np.where(results_before_change[:,0]>results_after_change[:,0])
+            weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+                                                    results_before_change[:,-1]/np.power(results_before_change[:,1]*
+                                                                                         results_before_change[:,0],2)<
+                                                    results_after_change[:,-1]/np.power(results_after_change[:,1]*
+                                                                                        results_after_change[:,0],2)))
+ 
+#                                                     old_lengthscales<new_lengthscales))
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
         else:
             ValueError('could not identify posterior option')
 #       
-        if option != 'weird_decrease':
+        if option not in ['weird_decrease', 'coherence_decrease']:
             my_posterior_samples = prior_samples[accepted_indices]
         else:
             my_posterior_samples = weird_parameters_before
@@ -712,22 +735,25 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
-    def test_plot_mrna_change_results(self):
+    def xest_plot_mrna_change_results(self):
         
-#         change = 'decreased'
-        change = 'increased'
+        change = 'decreased'
+#         change = 'increased'
 
         plot_option = 'boxplot'
 #         plot_option = 'lines'
         
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradationtest')
-#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated')
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated')
         results_after_change = np.load(saving_path + '.npy')
         parameters_after_change = np.load(saving_path + '_parameters.npy')
         results_before_change = np.load(saving_path + '_old.npy')
         parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+#         old_lengthscales = np.zeros(len(parameters_before_change))
+#         new_lengthscales = np.zeros(len(parameters_before_change))
         old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
         new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
     
@@ -1042,8 +1068,8 @@ class TestZebrafish(unittest.TestCase):
  
         plt.tight_layout()
 #         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated.pdf'))
-        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated' + plot_option +'.pdf'))
-#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated_' + plot_option +'.pdf'))
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated' + plot_option +'.pdf'))
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated_' + plot_option +'.pdf'))
         
     def xest_investigate_mrna_and_expression_decrease(self):
 

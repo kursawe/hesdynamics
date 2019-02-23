@@ -1974,7 +1974,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','abc_mrna_distribution_for_paper.pdf'))
  
-    def test_make_degradation_rate_sweep(self):
+    def xest_make_degradation_rate_sweep(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
@@ -2037,7 +2037,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + 'time_delay' + '.npy'),
                     my_parameter_sweep_results)
 
-    def test_make_relative_parameter_variation(self):
+    def xest_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 3
