@@ -9,11 +9,13 @@ font = {'size'   : 10}
 plt.rc('font', **font)
 import numpy as np
 from jitcdde import jitcdde,y,t
+import functools
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
 import switching
 import hes5
+import pickle
 
 class TestSwitching(unittest.TestCase):
 
@@ -497,13 +499,13 @@ class TestSwitching(unittest.TestCase):
         std_gillespie_mRNA = np.std(slow_gillespie_mrna[:,1])
         std_gillespie_protein = np.std(slow_gillespie_protein[:,1])
         
-        print 'langevin mean'
+        print('langevin mean')
         print(mean_langevin_protein)
-        print 'langevin std'
+        print('langevin std')
         print(std_langevin_protein)
-        print 'gilespie mean'
+        print('gilespie mean')
         print(mean_gillespie_protein)
-        print 'gilespie std'
+        print('gilespie std')
         print(std_gillespie_protein)
         my_fast_trajectory = switching.generate_switching_trajectory( duration = 100*60,
                                                         repression_threshold = 10*system_size,
@@ -579,7 +581,7 @@ class TestSwitching(unittest.TestCase):
         time_averages[:,0] = durations
         number_of_trajectories = 10000
         for duration_index, duration in enumerate(durations):
-            print duration
+            print(duration)
             _,_,my_full_trajectories = switching.generate_multiple_switching_trajectories( 
                                                         number_of_trajectories = number_of_trajectories,
                                                         duration = duration,
@@ -641,6 +643,22 @@ class TestSwitching(unittest.TestCase):
 #                                                          equilibration_time = 5000,
 #                                                          switching_rate = 12.5,
 #                                                          model = 'switching_only')
+
+        _, these_lna_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
+                                                         duration = 1500*50,
+                                                         repression_threshold = 10,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.7,
+                                                         initial_mRNA = 1,
+                                                         initial_protein = 10,
+                                                         basal_transcription_rate = 1.0,
+                                                         translation_rate = 1.0,
+                                                         hill_coefficient = 4.1,
+                                                         equilibration_time = 5000,
+                                                         switching_rate = 12.5,
+                                                         model = 'switching_only_lna')
+#
 # 
 #         np.save(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'),
 #                     these_real_traces)
@@ -648,27 +666,54 @@ class TestSwitching(unittest.TestCase):
 #         np.save(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'),
 #                     these_langevin_traces)
 
+        np.save(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'),
+                    these_lna_traces)
+
         these_real_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'))
         
         these_langevin_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'))
 
+#         these_lna_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'))
+
 
         real_standard_deviation = np.std(these_real_traces[:,1:])
         langevin_standard_deviation = np.std(these_langevin_traces[:,1:])
+        lna_standard_deviation = np.std(these_lna_traces[:,1:])
         print(real_standard_deviation)
         print(langevin_standard_deviation)
+        print(lna_standard_deviation)
 
         real_mean = np.mean(these_real_traces[:,1:])
         langevin_mean = np.mean(these_langevin_traces[:,1:])
+        lna_mean = np.mean(these_lna_traces[:,1:])
         print(real_mean)
         print(langevin_mean)
+        print(lna_mean)
 
         this_real_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_real_traces)
         this_langevin_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_langevin_traces)
+        this_lna_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_lna_traces)
+        theoretical_power_spectrum = switching.calculate_theoretical_power_spectrum_at_parameter_point(
+                                                        repression_threshold = 10,
+                                                        mRNA_degradation_rate = 0.03,
+                                                        protein_degradation_rate = 0.03,
+                                                        transcription_delay = 18.7,
+                                                        basal_transcription_rate = 1.0,
+                                                        translation_rate = 1.0,
+                                                        hill_coefficient = 4.1,
+                                                        switching_rate = 12.5)
         
+#         theoretical_power_spectrum[:,1]/=2
+        power_area_theoretical = np.trapz(theoretical_power_spectrum[:,1], theoretical_power_spectrum[:,0])
+        power_area_real = np.trapz(this_real_power_spectrum[:,1], this_real_power_spectrum[:,0])
+        ratio = power_area_theoretical/power_area_real
+        print(ratio)
+
         plt.figure()
-        plt.plot(this_real_power_spectrum[:,0], this_real_power_spectrum[:,1], lw = 1)
-        plt.plot(this_langevin_power_spectrum[:,0], this_langevin_power_spectrum[:,1], lw = 1)
+        plt.plot(this_real_power_spectrum[:,0], this_real_power_spectrum[:,1], lw = 1, label = 'full')
+        plt.plot(this_langevin_power_spectrum[:,0], this_langevin_power_spectrum[:,1], lw = 1, label = 'langevin')
+        plt.plot(this_lna_power_spectrum[:,0], this_lna_power_spectrum[:,1], lw = 1, label = 'lna')
+        plt.plot(theoretical_power_spectrum[:,0], theoretical_power_spectrum[:,1], lw =1, label = 'theory' )
         # times = these_real_traces[:,0]
         # all_power_spectra = np.zeros((this_real_power_spectrum.shape[0], these_real_traces.shape[1] - 1))
         # frequency_values = this_real_power_spectrum[:,0]
@@ -691,3 +736,54 @@ class TestSwitching(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                         'output','power_spectrum_validation.pdf'))
 
+    def xest_lambda_dependance(self):
+        number_of_traces = 1
+        repetition_factor = 20
+        
+        switching_rates = [0.01,0.1,1,10,50]
+        simulation_methods = dict()
+        simulation_methods['full'] = switching.generate_multiple_switching_ode_trajectories
+        simulation_methods['langevin'] = functools.partial(
+            switching.generate_multiple_switching_langevin_trajectories,
+            model = 'switching_only')
+        simulation_methods['lna'] = functools.partial(
+            switching.generate_multiple_switching_langevin_trajectories,
+            model = 'switching_only_lna')
+
+        simulation_results = dict()
+        for simulation_method in simulation_methods:
+            simulation_results[simulation_method] = np.zeros(len(switching_rates))
+
+        for rate_index, switching_rate in enumerate(switching_rates):
+            for simulation_method, simulation_function in simulation_methods.items():
+                _, these_simulated_traces = simulation_function(number_of_trajectories = number_of_traces,
+                                                             duration = 1500*repetition_factor,
+                                                             repression_threshold = 10,
+                                                             mRNA_degradation_rate = 0.03,
+                                                             protein_degradation_rate = 0.03,
+                                                             transcription_delay = 18.7,
+                                                             initial_mRNA = 1,
+                                                             initial_protein = 10,
+                                                             basal_transcription_rate = 1.0,
+                                                             translation_rate = 1.0,
+                                                             hill_coefficient = 4.1,
+                                                             equilibration_time = 5000,
+                                                             switching_rate = switching_rate)
+                this_mean = np.mean(these_simulated_traces[:,1:])
+                this_std = np.std(these_simulated_traces[:,1:])
+                simulation_results[simulation_method][rate_index] = this_std
+     
+        with open(os.path.join(os.path.dirname(__file__),
+                                        'output','lambda_depdendance.pickle'), 'wb') as f:
+            # Pickle the 'data' dictionary using the highest protocol available.
+            pickle.dump(simulation_results, f, pickle.HIGHEST_PROTOCOL)
+
+        plt.figure()
+        for simulation_method, simulation_result in simulation_results.items():
+            plt.semilogx(switching_rates,simulation_result,label = simulation_method)
+        plt.xlabel('switching rate [1/min]')
+        plt.ylabel('Protein std')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                        'output','lambda_depdendance.pdf'))

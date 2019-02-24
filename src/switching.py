@@ -15,6 +15,7 @@ import pandas as pd
 import socket
 import jitcdde
 from numpy.distutils.log import good
+import hes5
 
 domain_name = socket.getfqdn()
 if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
@@ -624,6 +625,143 @@ def generate_switching_only_langevin_trajectory( duration = 720,
      
     return trace 
 
+def generate_switching_only_lna_trajectory( duration = 720, 
+                                  repression_threshold = 10000,
+                                  hill_coefficient = 5,
+                                  mRNA_degradation_rate = np.log(2)/30,
+                                  protein_degradation_rate = np.log(2)/90, 
+                                  basal_transcription_rate = 1,
+                                  translation_rate = 1,
+                                  transcription_delay = 29,
+                                  initial_mRNA = 0,
+                                  initial_protein = 0,
+                                  equilibration_time = 0.0,
+                                  switching_rate = 1.0
+                                  ):
+    '''Generate one trace of the protein-autorepression model with transcriptional switching using a linear noise approximation. 
+    This function implements the Ito integral of 
+     
+    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(mu_m+alpha_m*G(P(t-tau) + 2*theta^2*alpha_m^2/lambda)d(ksi)
+    dP/dt = -mu_p*P + alpha_p*M + sqrt(mu_p*alpha_p)d(ksi)
+     
+    Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p, lambda are
+    rates of mRNA degradation, protein degradation, basal transcription, translation, and switching; in that order.
+    The variable ksi represents Gaussian white noise with delta-function auto-correlation and G 
+    represents the Hill function G(P) = 1/(1+P/p_0)^n, where p_0 is the repression threshold
+    and n is the Hill coefficient. Theta takes the form Theta^2 = (P(t-tau)/p_0)^n/(1+(p/p_0)^n)^3
+     
+    This model is an approximation of the stochastic version of the model in Monk, Current Biology (2003),
+    which is implemented in generate_stochastic_trajectory(). For negative times we assume that there
+    was no transcription.
+     
+    Warning : The time step of integration is chosen as 0.1 minute, and hence the time-delay is only
+              implemented with this accuracy.   
+ 
+    Parameters
+    ----------
+     
+    duration : float
+        duration of the trace in minutes
+ 
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+         
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+ 
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+         
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+ 
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+ 
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+         
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+         
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time 
+        in order to get rid of any overshoots, for example
+         
+    switching_rate : float
+        rate of environmental switching
+
+    Returns
+    -------
+     
+    trace : ndarray
+        2 dimensional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number
+    '''
+    total_time = duration + equilibration_time
+    delta_t = 0.1
+    sample_times = np.arange(0.0, total_time, delta_t)
+    full_trace = np.zeros((len(sample_times), 3))
+    full_trace[:,0] = sample_times
+    full_trace[0,1] = initial_mRNA
+    full_trace[0,2] = initial_protein
+    repression_threshold = float(repression_threshold)
+    
+    steady_state_mrna, steady_state_protein = hes5.calculate_steady_state_of_ode( repression_threshold = float(repression_threshold),
+                                    hill_coefficient = hill_coefficient,
+                                    mRNA_degradation_rate = mRNA_degradation_rate,
+                                    protein_degradation_rate = protein_degradation_rate, 
+                                    basal_transcription_rate = basal_transcription_rate,
+                                    translation_rate = translation_rate)
+ 
+    repression_power = np.power(steady_state_protein/repression_threshold, hill_coefficient)
+    switching_noise_strength = 2*delta_t*repression_power*basal_transcription_rate*basal_transcription_rate/(
+                switching_rate*np.power(1+repression_power,3))
+
+    mRNA_degradation_rate_per_timestep = mRNA_degradation_rate*delta_t
+    protein_degradation_rate_per_timestep = protein_degradation_rate*delta_t
+    basal_transcription_rate_per_timestep = basal_transcription_rate*delta_t
+    translation_rate_per_timestep = translation_rate*delta_t
+    delay_index_count = int(round(transcription_delay/delta_t))
+     
+    for time_index, sample_time in enumerate(sample_times[1:]):
+        last_mRNA = full_trace[time_index,1]
+        last_protein = full_trace[time_index,2]
+        if time_index + 1 < delay_index_count:
+            this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
+            d_mRNA = (-this_average_mRNA_degradation_number)
+        else:
+            protein_at_delay = full_trace[time_index + 1 - delay_index_count,2]
+            hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
+                                                    hill_coefficient))
+            this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
+            this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
+            d_mRNA = (-this_average_mRNA_degradation_number
+                      +this_average_transcription_number
+                      +np.sqrt(switching_noise_strength)*np.random.randn())
+             
+        this_average_protein_degradation_number = protein_degradation_rate_per_timestep*last_protein
+        this_average_translation_number = translation_rate_per_timestep*last_mRNA
+        d_protein = (-this_average_protein_degradation_number
+                     +this_average_translation_number)
+ 
+        current_mRNA = max(last_mRNA + d_mRNA, 0.0)
+        current_protein = max(last_protein + d_protein, 0.0)
+        full_trace[time_index + 1,1] = current_mRNA
+        full_trace[time_index + 1,2] = current_protein
+     
+    # get rid of the equilibration time now
+    trace = full_trace[ full_trace[:,0]>=equilibration_time ]
+    trace[:,0] -= equilibration_time
+     
+    return trace 
+ 
 def generate_multiple_switching_langevin_trajectories( number_of_trajectories = 10,
                                     duration = 720, 
                                     repression_threshold = 10000,
@@ -699,6 +837,8 @@ def generate_multiple_switching_langevin_trajectories( number_of_trajectories = 
         trajectory_function = generate_switching_langevin_trajectory
     elif model =='switching_only':
         trajectory_function = generate_switching_only_langevin_trajectory
+    elif model =='switching_only_lna':
+        trajectory_function = generate_switching_only_lna_trajectory
 
     first_trace = trajectory_function(duration, 
                                       repression_threshold, 
@@ -995,3 +1135,103 @@ def generate_multiple_switching_ode_trajectories( number_of_trajectories = 10,
         protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
   
     return mRNA_trajectories, protein_trajectories
+
+def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_rate = 1.0,
+                                                            translation_rate = 1.0,
+                                                            repression_threshold = 100,
+                                                            transcription_delay = 18.5,
+                                                            mRNA_degradation_rate = 0.03,
+                                                            protein_degradation_rate = 0.03,
+                                                            hill_coefficient = 5,
+                                                            switching_rate = 12.5,
+                                                            normalise = False,
+                                                            limits = [0,0.01]
+                                                            ):
+    '''Calculate the theoretical power spectrum of the protein of the Monk (2003) model
+    at a parameter point using equation 32 in Galla (2009), PRE.
+    
+    Parameters
+    ----------
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+ 
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+ 
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    normalise : bool
+        If True, normalise power spectrum to one.
+        
+    limits : list
+        two float entries denoting the frequency limits in between which the theoretical power
+        spectrum should be calculated.
+       
+    Returns
+    -------
+    
+    power_spectrum : ndarray
+        two coloumns, first column contains frequencies, second column contains power spectrum values
+    '''
+    actual_frequencies = np.linspace(limits[0],limits[1],1000)
+    pi_frequencies = actual_frequencies*2*np.pi
+    steady_state_mrna, steady_state_protein = hes5.calculate_steady_state_of_ode( repression_threshold = float(repression_threshold),
+                                    hill_coefficient = hill_coefficient,
+                                    mRNA_degradation_rate = mRNA_degradation_rate,
+                                    protein_degradation_rate = protein_degradation_rate, 
+                                    basal_transcription_rate = basal_transcription_rate,
+                                    translation_rate = translation_rate)
+
+    steady_state_hill_function_value = 1.0/(1.0 + np.power( steady_state_protein/float(repression_threshold),
+                                                            hill_coefficient ))
+    
+    steady_state_hill_derivative = -hill_coefficient*np.power(steady_state_protein/float(repression_threshold), 
+                                                            hill_coefficient - 1)/(repression_threshold*
+                                    np.power(1.0+np.power(steady_state_protein/float(repression_threshold),
+                                                        hill_coefficient),2))
+
+#     steady_state_hill_derivative = -hill_coefficient/float(repression_threshold)*np.power(
+#                                      1.0 + steady_state_protein/float(repression_threshold),
+#                                                     hill_coefficient)
+
+    power_spectrum_values = ((translation_rate**2*
+                                (2*np.power(steady_state_protein/repression_threshold,hill_coefficient)/
+                                (np.power(1+np.power(steady_state_protein/repression_threshold,hill_coefficient),3)*
+                                 switching_rate)*basal_transcription_rate**2))/
+                             ((-pi_frequencies**2 +
+                                  protein_degradation_rate*mRNA_degradation_rate
+                                  - basal_transcription_rate*translation_rate*steady_state_hill_derivative*
+                                  np.cos(pi_frequencies*transcription_delay))**2 
+                               +
+                               ((protein_degradation_rate+mRNA_degradation_rate)*
+                                  pi_frequencies +
+                                  basal_transcription_rate*translation_rate*steady_state_hill_derivative*
+                                  np.sin(pi_frequencies*transcription_delay))**2)) 
+                                 
+    power_spectrum = np.vstack((actual_frequencies, power_spectrum_values)).transpose()
+    if normalise:
+        integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
+        power_spectrum[:,1] /= integral
+
+    return power_spectrum
+
