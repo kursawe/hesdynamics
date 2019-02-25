@@ -676,6 +676,7 @@ class TestSwitching(unittest.TestCase):
         these_lna_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'))
 
 
+        print(these_real_traces[1,0] - these_real_traces[0,0])
         real_standard_deviation = np.var(these_real_traces[:,1:])
         langevin_standard_deviation = np.var(these_langevin_traces[:,1:])
         lna_standard_deviation = np.var(these_lna_traces[:,1:])
@@ -691,8 +692,11 @@ class TestSwitching(unittest.TestCase):
         print(lna_mean)
 
         this_real_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_real_traces, normalize = False)
+        this_real_power_spectrum[:,1]*=2
         this_langevin_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_langevin_traces, normalize = False)
+        this_langevin_power_spectrum[:,1]*=2
         this_lna_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_lna_traces, normalize = False)
+        this_lna_power_spectrum[:,1]*=2
         theoretical_power_spectrum = switching.calculate_theoretical_power_spectrum_at_parameter_point(
                                                         repression_threshold = 10,
                                                         mRNA_degradation_rate = 0.03,
@@ -702,12 +706,13 @@ class TestSwitching(unittest.TestCase):
                                                         translation_rate = 1.0,
                                                         hill_coefficient = 4.1,
                                                         switching_rate = 12.5)
+        theoretical_power_spectrum[:,1]*=np.pi/2.0
         
 #         theoretical_power_spectrum[:,1]/=2
         power_area_theoretical = np.trapz(theoretical_power_spectrum[:,1], theoretical_power_spectrum[:,0])
-        power_area_real = np.trapz(this_real_power_spectrum[:,1], this_real_power_spectrum[:,0])/(2*1500*50)
-        power_area_langevin = np.trapz(this_langevin_power_spectrum[:,1], this_langevin_power_spectrum[:,0])/(2*1500*50)
-        power_area_lna = np.trapz(this_lna_power_spectrum[:,1], this_lna_power_spectrum[:,0])/(2*1500*50)
+        power_area_real = np.trapz(this_real_power_spectrum[:,1], this_real_power_spectrum[:,0])
+        power_area_langevin = np.trapz(this_langevin_power_spectrum[:,1], this_langevin_power_spectrum[:,0])
+        power_area_lna = np.trapz(this_lna_power_spectrum[:,1], this_lna_power_spectrum[:,0])
         ratio = power_area_theoretical/power_area_real
         print(power_area_theoretical)
         print(power_area_real)
@@ -741,8 +746,8 @@ class TestSwitching(unittest.TestCase):
         # plt.plot(mean_power_spectrum[:,0], mean_power_spectrum[:,1], lw = 1)
         plt.xlim(0.004,0.01)
         plt.legend()
-        plt.xlabel('frequency')
-        plt.ylabel('power')
+        plt.xlabel('Frequency [1/min]')
+        plt.ylabel('Power [min]')
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                         'output','power_spectrum_validation.pdf'))
 
