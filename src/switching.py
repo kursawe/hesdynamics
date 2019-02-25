@@ -1144,7 +1144,7 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
                                                             protein_degradation_rate = 0.03,
                                                             hill_coefficient = 5,
                                                             switching_rate = 12.5,
-                                                            normalise = False,
+                                                            normalize = False,
                                                             limits = [0,0.01]
                                                             ):
     '''Calculate the theoretical power spectrum of the protein of the Monk (2003) model
@@ -1229,7 +1229,7 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
                                   np.sin(pi_frequencies*transcription_delay))**2)) 
                                  
     power_spectrum = np.vstack((actual_frequencies, power_spectrum_values)).transpose()
-    if normalise:
+    if normalize:
         integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
         power_spectrum[:,1] /= integral
 

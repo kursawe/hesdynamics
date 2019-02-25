@@ -850,7 +850,7 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
                                                             mRNA_degradation_rate = 0.03,
                                                             protein_degradation_rate = 0.03,
                                                             hill_coefficient = 5,
-                                                            normalise = True,
+                                                            normalize = True,
                                                             limits = [0,0.01]
                                                             ):
     '''Calculate the theoretical power spectrum of the protein of the Monk (2003) model
@@ -1520,6 +1520,9 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
                                                      1.0/(interval_length) )
     power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[:(number_of_data_points//2)]),2)
+#     timestep = trajectory[0,1] - trajectory[0,0]
+#     power_spectrum_without_frequencies/=number_of_data_points*number_of_data_points
+#     power_spectrum_without_frequencies*=timestep*timestep
     
     # this should really be a decision about the even/oddness of number of datapoints
     try:

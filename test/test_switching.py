@@ -644,20 +644,20 @@ class TestSwitching(unittest.TestCase):
 #                                                          switching_rate = 12.5,
 #                                                          model = 'switching_only')
 
-        _, these_lna_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
-                                                         duration = 1500*50,
-                                                         repression_threshold = 10,
-                                                         mRNA_degradation_rate = 0.03,
-                                                         protein_degradation_rate = 0.03,
-                                                         transcription_delay = 18.7,
-                                                         initial_mRNA = 1,
-                                                         initial_protein = 10,
-                                                         basal_transcription_rate = 1.0,
-                                                         translation_rate = 1.0,
-                                                         hill_coefficient = 4.1,
-                                                         equilibration_time = 5000,
-                                                         switching_rate = 12.5,
-                                                         model = 'switching_only_lna')
+#         _, these_lna_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
+#                                                          duration = 1500*50,
+#                                                          repression_threshold = 10,
+#                                                          mRNA_degradation_rate = 0.03,
+#                                                          protein_degradation_rate = 0.03,
+#                                                          transcription_delay = 18.7,
+#                                                          initial_mRNA = 1,
+#                                                          initial_protein = 10,
+#                                                          basal_transcription_rate = 1.0,
+#                                                          translation_rate = 1.0,
+#                                                          hill_coefficient = 4.1,
+#                                                          equilibration_time = 5000,
+#                                                          switching_rate = 12.5,
+#                                                          model = 'switching_only_lna')
 #
 # 
 #         np.save(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'),
@@ -666,19 +666,19 @@ class TestSwitching(unittest.TestCase):
 #         np.save(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'),
 #                     these_langevin_traces)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'),
-                    these_lna_traces)
+#         np.save(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'),
+#                     these_lna_traces)
 
         these_real_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'))
         
         these_langevin_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'))
 
-#         these_lna_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'))
+        these_lna_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'))
 
 
-        real_standard_deviation = np.std(these_real_traces[:,1:])
-        langevin_standard_deviation = np.std(these_langevin_traces[:,1:])
-        lna_standard_deviation = np.std(these_lna_traces[:,1:])
+        real_standard_deviation = np.var(these_real_traces[:,1:])
+        langevin_standard_deviation = np.var(these_langevin_traces[:,1:])
+        lna_standard_deviation = np.var(these_lna_traces[:,1:])
         print(real_standard_deviation)
         print(langevin_standard_deviation)
         print(lna_standard_deviation)
@@ -690,9 +690,9 @@ class TestSwitching(unittest.TestCase):
         print(langevin_mean)
         print(lna_mean)
 
-        this_real_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_real_traces)
-        this_langevin_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_langevin_traces)
-        this_lna_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_lna_traces)
+        this_real_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_real_traces, normalize = False)
+        this_langevin_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_langevin_traces, normalize = False)
+        this_lna_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_lna_traces, normalize = False)
         theoretical_power_spectrum = switching.calculate_theoretical_power_spectrum_at_parameter_point(
                                                         repression_threshold = 10,
                                                         mRNA_degradation_rate = 0.03,
@@ -705,8 +705,17 @@ class TestSwitching(unittest.TestCase):
         
 #         theoretical_power_spectrum[:,1]/=2
         power_area_theoretical = np.trapz(theoretical_power_spectrum[:,1], theoretical_power_spectrum[:,0])
-        power_area_real = np.trapz(this_real_power_spectrum[:,1], this_real_power_spectrum[:,0])
+        power_area_real = np.trapz(this_real_power_spectrum[:,1], this_real_power_spectrum[:,0])/(2*1500*50)
+        power_area_langevin = np.trapz(this_langevin_power_spectrum[:,1], this_langevin_power_spectrum[:,0])/(2*1500*50)
+        power_area_lna = np.trapz(this_lna_power_spectrum[:,1], this_lna_power_spectrum[:,0])/(2*1500*50)
         ratio = power_area_theoretical/power_area_real
+        print(power_area_theoretical)
+        print(power_area_real)
+        print(power_area_langevin)
+        print(power_area_lna)
+        print(len(these_real_traces))
+        print(len(these_langevin_traces))
+        print(len(these_lna_traces))
         print(ratio)
 
         plt.figure()
@@ -731,6 +740,7 @@ class TestSwitching(unittest.TestCase):
         # mean_power_spectrum[:,1]/=power_integral
         # plt.plot(mean_power_spectrum[:,0], mean_power_spectrum[:,1], lw = 1)
         plt.xlim(0.004,0.01)
+        plt.legend()
         plt.xlabel('frequency')
         plt.ylabel('power')
         plt.savefig(os.path.join(os.path.dirname(__file__),
