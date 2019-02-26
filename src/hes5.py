@@ -113,7 +113,8 @@ def generate_deterministic_trajectory( duration = 720,
                                            basal_transcription_rate, 
                                            translation_rate, 
                                            transcription_delay, 
-                                           noise_strength = 0, 
+                                           mRNA_noise_strength = 0, 
+                                           protein_noise_strength = 0, 
                                            initial_mRNA = initial_mRNA, 
                                            initial_protein = initial_protein, 
                                            equilibration_time = 0,
@@ -2265,7 +2266,7 @@ def get_full_parameter_for_reduced_parameter(reduced_parameter):
         full_parameter[5] = mrna_degradation_rate
         full_parameter[6] = protein_degradation_rate
         full_parameter[7] = reduced_parameter[-1]
-    elif reduced_parameter.shape[0] == 7:
+    elif reduced_parameter.shape[0] in [7,9]:
         full_parameter = reduced_parameter
     else: 
         raise ValueError("This dimension of the prior sample is not recognised.")
@@ -2324,7 +2325,8 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            full_parameter[0], #basal_transcription_rate, 
                                                                                            full_parameter[1], #translation_rate,
                                                                                            full_parameter[3], #transcription_delay, 
-                                                                                           full_parameter[7], #noise_strength
+                                                                                           full_parameter[7], #mrna noise_strength
+                                                                                           full_parameter[8], #protein noise_strength
                                                                                            10, #initial_mRNA, 
                                                                                            full_parameter[2], #initial_protein,
                                                                                            1000)
@@ -3384,7 +3386,8 @@ def generate_agnostic_noise_trajectory( duration = 720,
                                         basal_transcription_rate = 1,
                                         translation_rate = 1,
                                         transcription_delay = 29,
-                                        noise_strength = 10,
+                                        mRNA_noise_strength = 10,
+                                        protein_noise_strength = 10,
                                         initial_mRNA = 0,
                                         initial_protein = 0,
                                         equilibration_time = 0.0,
@@ -3394,8 +3397,8 @@ def generate_agnostic_noise_trajectory( duration = 720,
     '''Generate one trace of the protein-autorepression model using a langevin approximation. 
     This function implements the Ito integral of 
     
-    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(sigma)d(ksi)
-    dP/dt = -mu_p*P + alpha_p*M
+    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(sigma_mRNA)d(ksi_m)
+    dP/dt = -mu_p*P + alpha_p*M+ sqrt(sigma_protein)d(ksi_p)
     
     Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p are
     rates of mRNA degradation, protein degradation, basal transcription, and translation; in that order.
@@ -3477,7 +3480,8 @@ def generate_agnostic_noise_trajectory( duration = 720,
     protein_degradation_rate_per_timestep = protein_degradation_rate*delta_t
     basal_transcription_rate_per_timestep = basal_transcription_rate*delta_t
     translation_rate_per_timestep = translation_rate*delta_t
-    noise_rate_per_timestep = noise_strength*delta_t
+    mRNA_noise_rate_per_timestep = mRNA_noise_strength*delta_t
+    protein_noise_rate_per_timestep = protein_noise_strength*delta_t
     delay_index_count = int(round(transcription_delay/delta_t))
     
     sampling_index = 0
@@ -3487,7 +3491,7 @@ def generate_agnostic_noise_trajectory( duration = 720,
         if time_index + 1 < delay_index_count:
             this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
             d_mRNA = (-this_average_mRNA_degradation_number
-                      +np.sqrt(noise_rate_per_timestep)*np.random.randn())
+                      +np.sqrt(mRNA_noise_rate_per_timestep)*np.random.randn())
         else:
             protein_at_delay = full_trace[time_index + 1 - delay_index_count,2]
             hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
@@ -3496,12 +3500,13 @@ def generate_agnostic_noise_trajectory( duration = 720,
             this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
             d_mRNA = (-this_average_mRNA_degradation_number
                       +this_average_transcription_number
-                      +np.sqrt(noise_rate_per_timestep)*np.random.randn())
+                      +np.sqrt(mRNA_noise_rate_per_timestep)*np.random.randn())
             
         this_average_protein_degradation_number = protein_degradation_rate_per_timestep*last_protein
         this_average_translation_number = translation_rate_per_timestep*last_mRNA
         d_protein = (-this_average_protein_degradation_number
-                     +this_average_translation_number)
+                     +this_average_translation_number
+                     +np.sqrt(protein_noise_rate_per_timestep)*np.random.randn())
 
         current_mRNA = max(last_mRNA + d_mRNA, 0.0)
         current_protein = max(last_protein + d_protein, 0.0)
@@ -3528,7 +3533,8 @@ def generate_multiple_agnostic_trajectories( number_of_trajectories = 10,
                                     basal_transcription_rate = 1,
                                     translation_rate = 1,
                                     transcription_delay = 29,
-                                    noise_strength = 10,
+                                    mRNA_noise_strength = 10,
+                                    protein_noise_strength = 10,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
                                     equilibration_time = 0.0):
@@ -3597,7 +3603,8 @@ def generate_multiple_agnostic_trajectories( number_of_trajectories = 10,
                                                      basal_transcription_rate, 
                                                      translation_rate, 
                                                      transcription_delay,
-                                                     noise_strength, 
+                                                     mRNA_noise_strength,
+                                                     protein_noise_strength,
                                                      initial_mRNA, 
                                                      initial_protein, 
                                                      equilibration_time)
@@ -3621,7 +3628,8 @@ def generate_multiple_agnostic_trajectories( number_of_trajectories = 10,
                                                   basal_transcription_rate, 
                                                   translation_rate, 
                                                   transcription_delay, 
-                                                  noise_strength,
+                                                  mRNA_noise_strength,
+                                                  protein_noise_strength,
                                                   initial_mRNA, 
                                                   initial_protein, 
                                                   equilibration_time)

@@ -3,6 +3,7 @@ import os.path
 import sys
 import matplotlib as mpl
 from skimage.color.rgb_colors import blue
+from skimage.util import noise
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
@@ -191,7 +192,7 @@ class TestZebrafish(unittest.TestCase):
         self.assertEquals(my_posterior_samples.shape, 
                           (int(round(total_number_of_samples*acceptance_ratio)), 7))
         
-    def test_plot_zebrafish_inference(self):
+    def xest_plot_zebrafish_inference(self):
 #         option = 'prior'
 #         option = 'mean_period_and_coherence'
 #         option = 'mean_longer_periods_and_coherence'
@@ -617,7 +618,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','zebrafish_coherence_distribution_'+option+'.pdf'))
         
-    def test_increase_mRNA_degradation(self):
+    def xest_increase_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -2488,3 +2489,102 @@ class TestZebrafish(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'noise_weight_illustration.pdf'))
+
+    def test_noise_impact_on_mean_expression(self):
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,1]<0.15,
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,2]<150)))))
+#                                     np.logical_and(prior_samples[:,2]<model_results[:,0],
+#                                                    model_results[:,2]<150))))))
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_model_results = model_results[accepted_indices]
+        best_index = np.argmax(my_model_results[:,0] - my_posterior_samples[:,2])
+#         example_parameter_index = 1
+        example_parameter = my_posterior_samples[best_index]
+        example_normal_trace = hes5.generate_langevin_trajectory(720.0,
+                                                         example_parameter[2], #repression_threshold, 
+                                                         example_parameter[4], #hill_coefficient,
+                                                         example_parameter[5], #mRNA_degradation_rate, 
+                                                         example_parameter[6], #protein_degradation_rate, 
+                                                         example_parameter[0], #basal_transcription_rate, 
+                                                         example_parameter[1], #translation_rate,
+                                                         example_parameter[3], #transcription_delay, 
+                                                         10, #initial_mRNA, 
+                                                         example_parameter[2], #initial_protein,
+                                                         2000)
+
+        example_noise_trace = hes5.generate_agnostic_noise_trajectory(720.0,
+                                                         example_parameter[2], #repression_threshold, 
+                                                         example_parameter[4], #hill_coefficient,
+                                                         example_parameter[5], #mRNA_degradation_rate, 
+                                                         example_parameter[6], #protein_degradation_rate, 
+                                                         example_parameter[0], #basal_transcription_rate, 
+                                                         example_parameter[1], #translation_rate,
+                                                         example_parameter[3], #transcription_delay, 
+                                                         0, #mrna_noise, 
+                                                         70000, #protein_noise, 
+                                                         10, #initial_mRNA, 
+                                                         example_parameter[2], #initial_protein,
+                                                         2000)
+
+        example_noisier_trace = hes5.generate_agnostic_noise_trajectory(720.0,
+                                                         example_parameter[2], #repression_threshold, 
+                                                         example_parameter[4], #hill_coefficient,
+                                                         example_parameter[5], #mRNA_degradation_rate, 
+                                                         example_parameter[6], #protein_degradation_rate, 
+                                                         example_parameter[0], #basal_transcription_rate, 
+                                                         example_parameter[1], #translation_rate,
+                                                         example_parameter[3], #transcription_delay, 
+                                                         0, #mrna_noise, 
+#                                                          250000, #protein_noise, 
+                                                         1000000, #protein_noise, 
+                                                         10, #initial_mRNA, 
+                                                         example_parameter[2], #initial_protein,
+                                                         2000)
+        
+        noise_strengths = np.array([0,1,10,20,50,100,500,1000,10000,
+                                    100000,300000,1000000])
+
+        new_parameters = np.zeros((len(noise_strengths), len(example_parameter)+2))
+
+        for noise_index, protein_noise_strength in enumerate(noise_strengths):
+            new_parameters[noise_index,:len(example_parameter)] = example_parameter
+            new_parameters[noise_index,-2] = 0
+            new_parameters[noise_index,-1] = protein_noise_strength
+            
+        new_summary_stats = hes5.calculate_summary_statistics_at_parameters(new_parameters, model = 'agnostic')
+        
+        plt.figure(figsize = (4.5, 6.5))
+        plt.subplot(511)
+        plt.plot(noise_strengths,new_summary_stats[:,0])
+        plt.xlabel('noise rate [1/min]')
+        plt.ylabel('mean expression')
+        plt.subplot(512)
+        plt.plot(noise_strengths,new_summary_stats[:,1])
+        plt.xlabel('noise rate [1/min]')
+        plt.ylabel('relative std')
+        plt.axhline(my_model_results[best_index,1])
+        plt.subplot(513)
+        plt.plot(example_normal_trace[:,0],example_normal_trace[:,2])
+        plt.xlabel('time')
+        plt.ylabel('expression')
+        plt.subplot(514)
+        plt.plot(example_noise_trace[:,0],example_noise_trace[:,2])
+        plt.xlabel('time')
+        plt.ylabel('expression')
+        plt.subplot(515)
+        plt.plot(example_noisier_trace[:,0],example_noisier_trace[:,2])
+        plt.xlabel('time')
+        plt.ylabel('expression')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'noise_vs_mean.pdf'))
