@@ -19,10 +19,10 @@ import hes5
 
 class TestMakePaperAnalysis(unittest.TestCase):
                                  
-    def xest_a_make_abc_samples(self):
+    def test_a_make_abc_samples(self):
         print('making abc samples')
         ## generate posterior samples
-        total_number_of_samples = 200000
+        total_number_of_samples = 1000000
         acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
@@ -37,7 +37,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_repeated',
+                                                                saving_name = 'sampling_results_massive',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'hill',
                                                                 logarithmic = True )
@@ -152,9 +152,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
     def xest_plot_posterior_distributions(self):
         
-        option = 'deterministic'
+        option = 'increase_is_possible'
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data',
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                    'sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -170,6 +171,46 @@ class TestMakePaperAnalysis(unittest.TestCase):
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                                        model_results[:,1]>0.05)))  #standard deviation
+        elif option == 'increase_is_possible':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
+                                                       model_results[:,1]>0.05)))  #standard deviation
+            parameter_name = 'hill_coefficient'
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+#                                                           'data',
+                                                          'output',
+#                                                           'narrowed_relative_sweeps_' + 
+                                                        'repeated_relative_sweeps_' + 
+#                                                           'extended_relative_sweeps_' + 
+                                                          parameter_name + '.npy'))
+ 
+            print('these accepted base samples are')
+            possible_samples = np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
+                                                                    my_parameter_sweep_results[:,9,4] < 0.1))
+            number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
+                                                                    my_parameter_sweep_results[:,9,4] < 0.1))[0])
+            print(number_of_absolute_samples)
+            
+            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+                                                                    my_parameter_sweep_results[:,9,3] > 600),
+                                        np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
+                                                        my_parameter_sweep_results[:,4,4] > 0.1)))
+
+            print('these decrease samples are')
+            number_of_decrease_samples = len(decrease_indices[0])
+            print(number_of_decrease_samples)
+
+            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+                                                                    my_parameter_sweep_results[:,9,3] > 600),
+                                        np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
+                                                        my_parameter_sweep_results[:,14,4] > 0.1)))
+
+            print('these increase samples are')
+            number_of_increase_samples = len(increase_indices[0])
+            print(number_of_increase_samples)
+#             accepted_indices = (accepted_indices[0][decrease_indices],)
+#             accepted_indices = (accepted_indices[0][increase_indices],)
+            accepted_indices = (accepted_indices[0][possible_samples],)
         elif option == 'mean':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                                        model_results[:,0]<65000)) #protein_number
@@ -2037,15 +2078,15 @@ class TestMakePaperAnalysis(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + 'time_delay' + '.npy'),
                     my_parameter_sweep_results)
 
-    def xest_make_relative_parameter_variation(self):
-        number_of_parameter_points = 20
+    def test_make_relative_parameter_variation(self):
+        number_of_parameter_points = 2
         number_of_trajectories = 200
-#         number_of_parameter_points = 3
+#         number_of_parameter_points = 2
 #         number_of_trajectories = 2
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_massive')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2054,14 +2095,15 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
                                                    model_results[:,1]>0.05))) #standard deviation
 
-        my_posterior_samples = prior_samples[accepted_indices]
+        my_posterior_samples = prior_samples[accepted_indices][:10]
         print('number of accepted samples is')
         print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
                                                                                      number_of_trajectories,
-                                                                                     relative = True)
+                                                                                     relative = True,
+                                                                                     relative_range = (0.5,1.5))
         
         for parameter_name in my_parameter_sweep_results:
             np.save(os.path.join(os.path.dirname(__file__), 'output','repeated_relative_sweeps_' + parameter_name + '.npy'),
@@ -2237,6 +2279,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
  
     def xest_plot_bayes_factors_for_models(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2244,8 +2288,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
-                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                   model_results[:,1]>0.05))))
+                                                   model_results[:,1]>0.05)))
 
         my_posterior_samples = prior_samples[accepted_indices]
         
@@ -2277,8 +2320,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
         for parameter_name in parameter_names:
             print('investigating ' + parameter_name)
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                          'data',
-                                                          'narrowed_relative_sweeps_' + 
+#                                                           'data',
+                                                          'output',
+#                                                           'narrowed_relative_sweeps_' + 
+                                                        'repeated_relative_sweeps_' + 
+#                                                           'extended_relative_sweeps_' + 
                                                           parameter_name + '.npy'))
  
             print('these accepted base samples are')
@@ -2348,7 +2394,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                      'likelihood_plot_for_paper.pdf'))
 
     def xest_plot_power_spectra_before(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2356,8 +2403,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
-                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                   model_results[:,1]>0.05))))
+#                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                   model_results[:,1]>0.05)))
 
         my_posterior_samples = prior_samples[accepted_indices]
         
@@ -2395,7 +2442,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                        'power_spectra_before.pdf'), dpi = 400)
 
     def xest_plot_power_spectra_before_and_after(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2420,8 +2467,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
-                                    np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                   model_results[:,1]>0.05))))
+#                                     np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                   model_results[:,1]>0.05)))
 
         my_posterior_samples = prior_samples[accepted_indices]
         
@@ -2438,8 +2485,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
         for parameter_name in parameter_names:
             print('investigating ' + parameter_name)
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-                                                          'data',
-                                                          'narrowed_relative_sweeps_' + 
+#                                                           'data',
+                                                          'output',
+                                                          'repeated_relative_sweeps_' + 
                                                           parameter_name + '.npy'))
  
             print('these accepted base samples are')

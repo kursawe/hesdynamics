@@ -3467,7 +3467,8 @@ def generate_agnostic_noise_trajectory( duration = 720,
     total_time = duration + equilibration_time
     delta_t = time_step
     sample_times = np.arange(0.0, total_time, delta_t)
-    sampling_times = np.linspace(equilibration_time, total_time, int(round((total_time-equilibration_time)/sampling_frequency)))
+    sampling_times = np.linspace(equilibration_time, total_time, 
+                                 int(round((total_time-equilibration_time)/sampling_frequency)))[:-1]
     sampled_trace = np.zeros(( len(sampling_times), 3))
     sampled_trace[:,0] = sampling_times
     full_trace = np.zeros(( len(sample_times), 3))
@@ -3871,7 +3872,8 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
 def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
                                                number_of_sweep_values = 20,
                                                number_of_traces_per_parameter = 200,
-                                               relative = False):
+                                               relative = False,
+                                               relative_range = (0.1,2.0)):
     '''Conduct a parameter sweep in reasonable ranges of each of the parameter points in
     parameter_samples. The parameter_samples are four-dimensional, as produced, for example, by 
     generate_prior_samples() with the 'reduced' dimension. At each parameter point the function
@@ -3927,7 +3929,8 @@ def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
                                                               parameter_samples,
                                                               number_of_sweep_values,
                                                               number_of_traces_per_parameter,
-                                                              relative)
+                                                              relative,
+                                                              relative_range)
 
         sweep_results[parameter_name] = these_results   
         
@@ -3937,7 +3940,8 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                                           parameter_samples,
                                           number_of_sweep_values = 20,
                                           number_of_traces_per_parameter = 200,
-                                          relative = False):
+                                          relative = False,
+                                          relative_range = (0.1,2.0)):
     '''Conduct a parameter sweep of the parameter_name parameter at each of the parameter points in
     parameter_samples. The parameter_samples are four-dimensional, as produced, for example, by 
     generate_prior_samples() with the 'reduced' dimension. At each parameter point the function
@@ -4019,7 +4023,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                 this_parameter = np.log(2)/90.0
             elif parameter_name == 'hill_coefficient':
                 this_parameter = 5.0
-            for parameter_proportion in np.linspace(0.1,2.0,number_of_sweep_values):
+            for parameter_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
                 if len(sample) == 4:
                     all_parameter_values[parameter_sample_index,:4] = sample
                     all_parameter_values[parameter_sample_index,4] = 5 #Hill coefficient
@@ -4063,7 +4067,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     else:
         for sample_index, sample in enumerate(parameter_samples):
             proportion_index = 0
-            for parameter_proportion in np.linspace(0.1,2.0,number_of_sweep_values):
+            for parameter_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
                 these_summary_statistics = all_summary_statistics[parameter_sample_index]
                 # the first entry gets the degradation rate
                 sweep_results[sample_index,proportion_index,0] = parameter_proportion

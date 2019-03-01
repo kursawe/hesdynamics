@@ -29,7 +29,7 @@ class TestNSQuiescence(unittest.TestCase):
 #         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (0.1,60),
-                        'translation_rate' : (1,40),
+                        'translation_rate' : (0.01,40),
                         'repression_threshold' : (0,20000),
                         'time_delay' : (5,40),
                         'hill_coefficient' : (2,6),
@@ -55,7 +55,7 @@ class TestNSQuiescence(unittest.TestCase):
 
     def xest_plot_posterior_distributions(self):
         
-        option = 'deterministic'
+        option = 'mean_and_mrna'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                    'sampling_results_quiescense')
@@ -63,16 +63,18 @@ class TestNSQuiescence(unittest.TestCase):
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         if option == 'full':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                        np.logical_and(model_results[:,0]<65000, #protein_number
-                                        np.logical_and(model_results[:,1]<0.15,  #standard deviation
-                                                       model_results[:,1]>0.05))))  #standard deviation
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                                       model_results[:,0]<12000)) #protein_number
 #                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     prior_samples[:,3]>20))))) #time_delay
-        elif option == 'amplitude':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                        np.logical_and(model_results[:,0]<65000, #protein_number
-                                                       model_results[:,1]>0.05)))  #standard deviation
+        elif option == 'mean_and_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                        np.logical_and(model_results[:,0]<12000, #protein_number
+                                                       model_results[:,2]<300)))  #standard deviation
+        elif option == 'mean_and_mrna':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                        np.logical_and(model_results[:,0]<12000,
+                                                       model_results[:,4]<50))) #protein_number
         elif option == 'mean':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                                        model_results[:,0]<65000)) #protein_number
@@ -105,14 +107,16 @@ class TestNSQuiescence(unittest.TestCase):
         print('Number of accepted samples is ')
         print(len(my_posterior_samples))
 
-        my_posterior_samples[:,2]/=10000
+#         my_posterior_samples[:,2]/=1000
 
         data_frame = pd.DataFrame( data = my_posterior_samples,
                                    columns= ['Transcription rate', 
                                              'Translation rate', 
                                              'Repression threshold/1e4', 
                                              'Transcription delay',
-                                             'Hill coefficient'])
+                                             'Hill coefficient',
+                                             'mRNA degradation rate',
+                                             'protein degradation rate'])
 
         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
         font = {'size'   : 28}
@@ -142,7 +146,7 @@ class TestNSQuiescence(unittest.TestCase):
  
         my_figure.add_subplot(152)
 #         translation_rate_bins = np.logspace(0,2.3,20)
-        translation_rate_bins = np.linspace(0,np.log10(40),20)
+        translation_rate_bins = np.linspace(-1,np.log10(40),20)
         sns.distplot(np.log10(data_frame['Translation rate']),
                      kde = False,
                      rug = False,
@@ -151,7 +155,7 @@ class TestNSQuiescence(unittest.TestCase):
                      bins = translation_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(1,200)
-        plt.gca().set_xlim(0,np.log10(40))
+        plt.gca().set_xlim(-1,np.log10(40))
         plt.gca().set_ylim(0,1.3)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
         plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
@@ -168,8 +172,8 @@ class TestNSQuiescence(unittest.TestCase):
                      bins = 20)
 #         plt.gca().set_xlim(1,200)
         plt.xlabel("Repression threshold \n [1e4]")
-        plt.gca().set_ylim(0,0.22)
-        plt.gca().set_xlim(0,12)
+#         plt.gca().set_ylim(0,0.22)
+#         plt.gca().set_xlim(0,2)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
 #         plt.yticks([])
@@ -209,21 +213,29 @@ class TestNSQuiescence(unittest.TestCase):
 #         plt.tight_layout()
         
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                    'output','inference_for_paper_' + option + '.pdf'))
+                                    'output','inference_for_mari_' + option + '.pdf'))
 
     def xest_plot_amplitude_distribution_for_paper(self):
-        option = 'lower_amplitude'
+        option = 'mean_and_mrna'
 
-        saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_quiescense')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
  
         if option == 'prior':
             accepted_indices = (range(len(prior_samples)),)
         elif option == 'mean':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                                       model_results[:,0]<65000)) #protein_number
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                                       model_results[:,0]<12000)) #protein_number
+        elif option == 'mean_and_mrna':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                        np.logical_and(model_results[:,0]<12000,
+                                                       model_results[:,4]<50))) #protein_number
+        elif option == 'mean_and_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                        np.logical_and(model_results[:,0]<12000, #protein_number
+                                                       model_results[:,2]<300)))  #standard deviation
         elif option == 'full':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000, #protein_number
@@ -303,22 +315,25 @@ class TestNSQuiescence(unittest.TestCase):
 
 # #         dataframe = pd.DataFrame({'Model': all_periods, 
 #                                     'Data' : np.array(real_data)*60})
-        all_standard_deviations = my_model_results[:,1]
+        all_standard_deviations = my_model_results[:,2]
         print('maximal standard_deviation is')
         print(np.max(all_standard_deviations))
         print('number of samples above 0.15')
-        print(np.sum(all_standard_deviations>0.15))
+#         print(np.sum(all_standard_deviations>0.15))
         sns.distplot(all_standard_deviations,
                      kde = False,
                      rug = False,
                      norm_hist = True,
+                    bins = np.linspace(0,400,20),
                      hist_kws = {'edgecolor' : 'black'},
                      )
 #                      bins = 20)
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
-        plt.xlabel("Standard deviation/mean HES5")
-        plt.xlim(0,0.25)
+#         plt.xlabel("Standard deviation/mean HES5")
+        plt.xlabel('periods')
+        plt.xlim(0,600)
+#         plt.xlim(0,0.25)
 #         plt.ylim(0,0.5)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
@@ -328,91 +343,80 @@ class TestNSQuiescence(unittest.TestCase):
 
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','abc_single_standard_deviation_' + option + '.pdf'))
+                                 'output','mari_standard_deviation_' + option + '.pdf'))
  
-    def xest_make_degradation_rate_sweep(self):
-        number_of_parameter_points = 20
-        number_of_trajectories = 200
-#         number_of_parameter_points = 3
-#         number_of_trajectories = 2
-
-#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
-#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
+    def xest_plot_mrna_distribution_for_mari(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_quiescense')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                    np.logical_and(model_results[:,0]<65000, #protein_number
-                                    # np.logical_and(model_results[:,1]<0.15, #standard deviation
-                                                   model_results[:,1]>0.05))) #standard deviation
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                    np.logical_and(model_results[:,0]<12000,
+                                                   model_results[:,4]<50))) #protein_number
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print('number of accepted samples is')
-        print(len(my_posterior_samples))
+        my_model_results = model_results[accepted_indices]
 
-        my_sweep_results = hes5.conduct_parameter_sweep_at_parameters('protein_degradation_rate',
-                                          my_posterior_samples,
-                                          number_of_sweep_values = number_of_parameter_points,
-                                          number_of_traces_per_parameter = number_of_trajectories,
-                                          relative = False)
+#         my_posterior_samples[:,2] /= 10000
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','repeated_degradation_sweep.npy'),
-                    my_sweep_results)
-#         np.save(os.path.join(os.path.dirname(__file__), 'output','extended_degradation_sweep.npy'),
-#                     my_sweep_results)
+        my_figure = plt.figure(figsize= (4.5,2.5))
 
-    def xest_make_relative_delay_parameter_variation(self):
-        number_of_parameter_points = 20
-        number_of_trajectories = 200
-#         number_of_parameter_points = 3
-#         number_of_trajectories = 2
+        all_mrna = my_model_results[:,4]
+        print('minimum and maximum are')
+        print(np.min(all_mrna))
+        print(np.max(all_mrna))
+        print('so many samples above 100')
+        print(np.sum(all_mrna>100))
+        mrna_histogram, bins = np.histogram(all_mrna, bins = 400) 
+        maximum_index = np.argmax(mrna_histogram)
+        print('max bin is')
+        print(bins[maximum_index])
+        print(bins[maximum_index+1])
+        print(bins[maximum_index+2])
+        print(bins[maximum_index-1])
 
-#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
-        model_results = np.load(saving_path + '.npy' )
-        prior_samples = np.load(saving_path + '_parameters.npy')
-        
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                    np.logical_and(model_results[:,0]<65000, #protein_number
-                                    # np.logical_and(model_results[:,1]<0.15, #standard deviation
-                                                   model_results[:,1]>0.05))) #standard deviation
+#         sns.distplot(all_mrna[all_mrna<80],
+        sns.distplot(all_mrna,
+                     kde = False,
+                     rug = False,
+                     hist_kws = {'edgecolor' : 'black'},
+                     norm_hist = True,
+#                      norm_hist = True,
+                     bins = 20)
+#         plt.gca().set_xlim(-1,2)
+        plt.ylabel("Likelihood" )
+        plt.xlabel("mean mRNA number")
+        plt.xlim(0,100)
+#         plt.ylim(0,0.06)
+#         plt.ylim(0,0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+ 
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','mrna_distribution_for_mari.pdf'))
 
-        my_posterior_samples = prior_samples[accepted_indices]
-        print('number of accepted samples is')
-        print(len(my_posterior_samples))
-
-        my_posterior_samples = my_posterior_samples[:10]
-        my_parameter_sweep_results = hes5.conduct_parameter_sweep_at_parameters('time_delay',
-                                                                                my_posterior_samples,
-                                                                                number_of_parameter_points,
-                                                                                number_of_trajectories,
-                                                                                relative = True)
-        
-        np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + 'time_delay' + '.npy'),
-                    my_parameter_sweep_results)
-        
-    ##WE GOT HERE TODAY 26.02.2019
-
-    def xest_make_relative_parameter_variation(self):
-        number_of_parameter_points = 20
-        number_of_trajectories = 200
-#         number_of_parameter_points = 3
-#         number_of_trajectories = 2
+    def test_make_relative_parameter_variation(self):
+#         number_of_parameter_points = 20
+#         number_of_trajectories = 200
+        number_of_parameter_points = 3
+        number_of_trajectories = 2
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_quiescense')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
-                                    np.logical_and(model_results[:,0]<65000, #protein_number
-#                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
-                                                   model_results[:,1]>0.05))) #standard deviation
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                    np.logical_and(model_results[:,0]<12000,
+                                                   model_results[:,4]<50))) #protein_number
 
-        my_posterior_samples = prior_samples[accepted_indices]
+        my_posterior_samples = prior_samples[accepted_indices][:10]
         print('number of accepted samples is')
         print(len(my_posterior_samples))
 
@@ -422,7 +426,7 @@ class TestNSQuiescence(unittest.TestCase):
                                                                                      relative = True)
         
         for parameter_name in my_parameter_sweep_results:
-            np.save(os.path.join(os.path.dirname(__file__), 'output','repeated_relative_sweeps_' + parameter_name + '.npy'),
+            np.save(os.path.join(os.path.dirname(__file__), 'output','maris_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
     def xest_make_amplitude_plot(self):
