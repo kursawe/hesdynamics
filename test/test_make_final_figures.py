@@ -21,8 +21,8 @@ import hes5
 
 class TestMakeFinalFigures(unittest.TestCase):
                                  
-    def xest_make_period_distribution_plot(self):
-        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+    def test_make_period_distribution_plot(self):
+        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'data',
                                 'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 #                                   'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 
@@ -47,7 +47,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
 
-    def xest_make_standard_deviation_distribution_plot(self):
+    def test_make_standard_deviation_distribution_plot(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -87,7 +87,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
         
-    def xest_make_model_visualisation(self):
+    def test_make_model_visualisation(self):
         
                 # sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
@@ -209,22 +209,22 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
         
-    def xest_plot_coherence_curves(self):
+    def test_plot_coherence_curves(self):
 
         my_figure = plt.figure( figsize = (2.5, 1.9) )
 
-        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
-#                                                           'extended_degradation_sweep.npy'))
-                                                          'repeated_degradation_sweep.npy'))
-        print(my_degradation_sweep_results[0,:,0])
-        print(np.log(2)/90)
-        my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] - 
-                                                      my_degradation_sweep_results[:,3,4]>
-                                                      my_degradation_sweep_results[:,3,4]*1.0,
-                                                      my_degradation_sweep_results[:,3,4]>0.1))
-        print(len(my_filtered_indices[0]))
-        print(len(my_degradation_sweep_results))
-        my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'data',
+                                                        'extended_degradation_sweep.npy'))
+#                                                           'repeated_degradation_sweep.npy'))
+#         print(my_degradation_sweep_results[0,:,0])
+#         print(np.log(2)/90)
+#         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] - 
+#                                                       my_degradation_sweep_results[:,3,4]>
+#                                                       my_degradation_sweep_results[:,3,4]*1.0,
+#                                                       my_degradation_sweep_results[:,3,4]>0.1))
+#         print(len(my_filtered_indices[0]))
+#         print(len(my_degradation_sweep_results))
+#         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
         x_coord = -0.3
         y_coord = 1.05
         for results_table in my_degradation_sweep_results:
@@ -247,7 +247,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
         
-    def xest_plot_bifurcation_analysis(self):
+    def test_plot_bifurcation_analysis(self):
 #         option = 'stochastic'
         option = 'stochastic'
 
@@ -289,7 +289,7 @@ class TestMakeFinalFigures(unittest.TestCase):
     def test_make_likelihood_plot(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_massive')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_massive')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -329,8 +329,8 @@ class TestMakeFinalFigures(unittest.TestCase):
         for parameter_name in parameter_names:
             print('investigating ' + parameter_name)
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-#                                                           'data',
-                                                          'output',
+                                                        'data',
+#                                                           'output',
 #                                                           'narrowed_relative_sweeps_' + 
                                                         'repeated_relative_sweeps_' + 
 #                                                           'extended_relative_sweeps_' + 
