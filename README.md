@@ -14,7 +14,7 @@ Please see the file `troubleshooting.md` for known installation errors.
 
 ## File structure
 
-- `/src/` contains the main Python module for this repository, `hes5.py`. It includes functions to simulate stochastic and deterministic model traces, to calculate summary statistics of expression and calculate power spectra etc.
+- `/src/` contains the main Python module for this repository, `hes5.py`. It includes functions to simulate stochastic and deterministic model traces, to calculate summary statistics of expression and power spectra etc.
 - `/test/` contains the code to generate simulated data in the paper, and to make the paper figures. The main modules in this folder are 
   - `test_make_final_figures.py`, which can be used to regenerate all figures in the paper from data saved in this repository and 
   - `test_make_analysis_for_paper.py`, which can be used to generate all data needed in `test_make_final_figures` from scratch by re-running all simulations.
