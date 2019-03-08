@@ -14,6 +14,18 @@ import seaborn.apionly as sns
 import pandas as pd
 import socket
 import jitcdde
+import logging
+logging.getLogger("tensorflow").setLevel(logging.WARNING)
+try:
+    import gpflow
+except ImportError:
+    print('Could not import gpflow. Gpflow will not be available for GP regression')
+import sklearn.gaussian_process as gp
+import GPy
+try:
+    import george
+except ImportError:
+    print('Could not import gpflow. Gpflow will not be available for GP regression')
 
 domain_name = socket.getfqdn()
 if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
@@ -101,7 +113,8 @@ def generate_deterministic_trajectory( duration = 720,
                                            basal_transcription_rate, 
                                            translation_rate, 
                                            transcription_delay, 
-                                           noise_strength = 0, 
+                                           mRNA_noise_strength = 0, 
+                                           protein_noise_strength = 0, 
                                            initial_mRNA = initial_mRNA, 
                                            initial_protein = initial_protein, 
                                            equilibration_time = 0,
@@ -218,6 +231,244 @@ def hes5_ddegrad(y, parameters, time):
 
     return np.array( [dmRNA,dprotein] )
 
+def generate_deterministic_goodfellow_trajectory( duration = 720, 
+                                                  basal_mRNA_transcription_rate = 1.0,
+                                                  basal_miRNA_transcription_rate = 1.0,
+                                                  translation_rate = 10,
+                                                  repression_threshold_protein_on_mRNA = 100,
+                                                  repression_threshold_protein_on_miRNA = 100,
+                                                  repression_threshold_miRNA_on_mRNA = 100,
+                                                  repression_threshold_miRNA_on_protein = 100,
+                                                  hill_coefficient_protein_on_mRNA = 5,
+                                                  hill_coefficient_protein_on_miRNA = 5,
+                                                  hill_coefficient_miRNA_on_mRNA = 5,
+                                                  hill_coefficient_miRNA_on_protein = 100,
+                                                  transcription_delay = 19,
+                                                  upper_mRNA_degradation_rate = 0.03,
+                                                  lower_mRNA_degradation_rate = 0.03,
+                                                  protein_degradation_rate = 0.03,
+                                                  miRNA_degradation_rate = 0.00001,
+                                                  initial_mRNA = 3,
+                                                  initial_protein = 100,
+                                                  initial_miRNA = 1):
+    '''Generate one trace of the Goodfellow model. This function implements the deterministic model in 
+    Goodfellow, Nature Communications (2014).
+    
+    Parameters
+    ----------
+    
+    duration : float
+        duration of the trace in minutes
+
+    repression_threshold_protein_on_mRNA : float
+        repression threshold, Hes autorepresses its own transcription if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Goodfellow paper
+        
+    repression_threshold_protein_on_miRNA : float
+        repression threshold, Hes represses production of micro RNA if the Hes copynumber is larger
+        than this repression threshold. Corresponds to P1 in the Goodfellow paper.
+        
+    repression_threshold_miRNA_on_mRNA : float
+        repression threshold, the micro RNA represses Hes transcription if the micro RNA copynumber is larger
+        than this repression threshold. Corresponds to r0 in the Goodfellow paper
+        
+    hill_coefficient_protein_on_mRNA : float
+        exponent in the hill function regulating the Hes autorepression of its own transcription. 
+        Small values make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold, corresponds to n0 in the
+        Goodfellow paper.
+
+    hill_coefficient_miRNA_on_mRNA : float
+        exponent in the hill function regulating the impact of the micro RNA on mRNA translation. Small values
+        make the response more shallow, whereas large values will lead to a switch-like response if the miRNA 
+        concentration exceeds the repression threshold. Corresponds to m0 in the Goodfellow paper.
+
+    hill_coefficient_protein_on_miRNA : float
+        exponent in the hill function regulating the repression of miRNA transcription by Hes. Small values
+        make the response more shallow, whereas large values will lead to a switch-like response if the protein 
+        concentration exceeds the repression threshold. Corresponds to n1 in the Goodfellow paper.
+
+    upper_mRNA_degradation_rate : float
+        upper bound for the rate at which mRNA is degraded, in copynumber per minute. Corresponds to b_l in the
+        Goodfellow paper.
+
+    lower_mRNA_degradation_rate : float
+        lower bound for the rate at which mRNA is degraded, in copynumber per minute. Corresponds to b_u in the
+        Goodfellow paper.
+
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+        
+    for_negative_times : string
+        decides what protein and MRNA values are assumed for negative times. This 
+        is necessary since function values for t-tau are required for all t>0. 
+        The values 'initial', 'zero' and 'no_negative' are supported. The default 'initial' will assume that protein and 
+        mRNA numbers were constant at the values of the initial condition for all negative times.
+        If 'zero' is chosen, then the protein and mRNA numbers are assumed to be 0 at negative times. 
+        If 'no_negative' is chosen, no assumptions are made for negative times, and transcription
+        is blocked until transcription_delay has passed.
+        
+    Returns
+    -------
+    
+    trace : ndarray
+        2 dimenstional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number, fourth column is miRNA copy number.
+    '''
+    
+    hes5_dde = PyDDE.dde()
+    initial_condition = np.array([initial_mRNA,initial_miRNA,initial_protein]) 
+    # The coefficients (constants) in the equations 
+    if for_negative_times == 'initial':
+        negative_times_indicator = 0.0 
+    elif for_negative_times == 'zero':
+        negative_times_indicator = 1.0 
+    elif for_negative_times == 'no_negative':
+        negative_times_indicator = 2.0 
+    else:
+        ValueError("The parameter set for for_negative_times could not be interpreted.")
+            
+        parameters = np.array([ basal_mRNA_transcription_rate,
+                                basal_miRNA_transcription_rate,
+                                translation_rate,
+                                repression_threshold_protein_on_mRNA,
+                                repression_threshold_protein_on_miRNA,
+                                repression_threshold_miRNA_on_mRNA,
+                                repression_threshold_miRNA_on_protein,
+                                hill_coefficient_protein_on_mRNA,
+                                hill_coefficient_protein_on_miRNA,
+                                hill_coefficient_miRNA_on_mRNA,
+                                hill_coefficient_miRNA_on_protein,
+                                transcription_delay,
+                                upper_mRNA_degradation_rate,
+                                lower_mRNA_degradation_rate,
+                                protein_degradation_rate,
+                                miRNA_degradation_rate,
+                                negative_times_indicator ]) 
+
+        hes5_dde.dde(y=initial_condition, times=np.arange(0.0, duration, 1.0), 
+                     func=goodfellow_ddegrad, parms=parameters, 
+                     tol=0.000005, dt=0.01, hbsize=10000, nlag=1, ssc=[0.0, 0.0]) 
+                     #hbsize is buffer size, I believe this is how many values in the past are stored
+                     #nlag is the number of delay variables (tau_1, tau2, ... taun_lag)
+                     #ssc means "statescale" and would somehow only matter for values close to 0
+
+        this_data = hes5_dde.data
+        return hes5_dde.data
+
+def goodfellow_ddegrad(y, parameters, time):
+    '''Gradient of the Hes5 delay differential equation for
+    deterministic runs of the model. 
+    It evaluates the right hand side of DDE 1 in Monk(2003).
+    
+    Parameters
+    ----------
+    y : ndarray
+        vector of the form [mRNA, miRNA, protein] contain the concentration of these species at time t
+        
+    parameters : ndarray
+        vector of the form [ repression_threshold_protein_on_mRNA, repression_threshold_protein_on_miRNA, 
+                             repression_threshold_miRNA_on_mRNA, hill_coefficient_protein_on_mRNA, 
+                             hill_coefficient_miRNA_on_mRNA, hill_coefficient_protein_on_miRNA,
+                             transcription_delay, upper_mRNA_degradation_rate, lower_mRNA_degradation_rate,
+                             protein_degradation_rate, miRNA_degradation_rate, negative_times_indicator ]
+        containing the value of these parameters.
+        The value of negative_times_indicator corresponds to for_negative_times in generate_deterministic_trajectory().
+        The value 0.0 corresponds to the option 'initial', whereas 1.0 corresponds to 'zero',
+        and 2.0 corresponds to 'no_negative'.
+    
+    time : float
+        time at which the gradient is calculated
+        
+    Returns
+    -------
+    
+    gradient : ndarray
+        vector of the form [dmRNA, dmiRNA, dProtein] containing the evaluated right hand side of the 
+        delay differential equation for the species concentrations provided in y, the given
+        parameters, and at time t.
+    '''
+    basal_mRNA_transcription_rate = float(parameters[0])
+    basal_miRNA_transcription_rate = float(parameters[1])
+    repression_threshold_protein_on_mRNA = float(parameters[2])
+    repression_threshold_protein_on_miRNA = float(parameters[3])
+    repression_threshold_miRNA_on_mRNA = float(parameters[4])
+    repression_threshold_miRNA_on_protein = float(parameters[5])
+    hill_coefficient_protein_on_mRNA = float(parameters[6])
+    hill_coefficient_protein_on_miRNA = float(parameters[7])
+    hill_coefficient_miRNA_on_mRNA = float(parameters[8])
+    hill_coefficient_miRNA_on_protein = float(parameters[9])
+    transcription_delay = float(parameters[10])
+    upper_mRNA_degradation_rate = float(parameters[11])
+    lower_mRNA_degradation_rate = float(parameters[12])
+    protein_degradation_rate = float(parameters[13])
+    miRNA_degradation_rate = float(parameters[14])
+    negative_times_indicator = float(parameters[15]) 
+
+    if negative_times_indicator == 0.0:
+        for_negative_times = 'initial'
+    elif negative_times_indicator == 1.0:
+        for_negative_times = 'zero'
+    elif negative_times_indicator == 2.0:
+        for_negative_times = 'no_negative'
+    else:
+        ValueError("Could not interpret the value of for_negative_times")
+
+    mRNA = float(y[0])
+    protein = float(y[1])
+    miRNA = float(y[2])
+    
+    if (time>time_delay):
+        past_protein = PyDDE.pastvalue(1,time-time_delay,0)
+    elif time>0.0:
+        if for_negative_times == 'initial':
+            past_protein = PyDDE.pastvalue(1,0.0,0)
+        elif for_negative_times == 'zero':
+            past_protein = 0.0
+    else:
+        past_protein = protein
+
+    ## rate of protein change
+    translation_hill_function_value = 1.0/(1.0 + pow(miRNA/repression_threshold_miRNA_on_protein,
+                                                     hill_coefficient_miRNA_on_protein))
+    dprotein = translation_rate*translation_hill_function_value*mRNA - protein_degradation_rate*protein
+    
+    ## hill functions for miRNA and mRNA
+    miRNA_production_hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_miRNA,
+                                           hill_coefficient_protein_on_miRNA))
+
+    transcription_hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_mRNA,
+                                       hill_coefficient_protein_on_mRNA))
+
+    effective_mRNA_degradation_rate = ( upper_mRNA_degradation_rate +
+                                        ( lower_mRNA_degradation_rate - upper_mRNA_degradation_rate )/
+                                        ( 1.0 + pow(miRNA/repression_threshold_miRNA_on_mRNA, 
+                                                   hill_coefficient_miRNA_on_mRNA) ) )   
+
+    if for_negative_times != 'no_negative': #in this case look up protein at negative times, which has been set above
+        dmRNA = basal_mRNA_transcription_rate*translation_hill_function_value - effective_mRNA_degradation_rate*mRNA
+        dmiRNA = basal_miRNA_transcription_rate - miRNA_degradation_rate*miRNA
+    else:
+        if time < time_delay:
+            dmRNA = -effective_mRNA_degradation_rate*mRNA
+            dmiRNA = -miRNA_degradation_rate*miRNA
+        else:
+            dmRNA = basal_transcription_rate*translation_hill_function_value - effective_mRNA_degradation_rate*mRNA
+            dmiRNA = basal_miRNA_transcription_rate - miRNA_degradation_rate*miRNA
+
+    return np.array( [dmRNA, dmiRNA, dprotein] )
 
 def is_parameter_point_stochastically_oscillatory( repression_threshold = 10000,
                                     hill_coefficient = 5,
@@ -600,7 +851,8 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
                                                             mRNA_degradation_rate = 0.03,
                                                             protein_degradation_rate = 0.03,
                                                             hill_coefficient = 5,
-                                                            normalise = True
+                                                            normalise = True,
+                                                            limits = [0,0.01]
                                                             ):
     '''Calculate the theoretical power spectrum of the protein of the Monk (2003) model
     at a parameter point using equation 32 in Galla (2009), PRE.
@@ -637,6 +889,10 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
 
     normalise : bool
         If True, normalise power spectrum to one.
+        
+    limits : list
+        two float entries denoting the frequency limits in between which the theoretical power
+        spectrum should be calculated.
        
     Returns
     -------
@@ -644,7 +900,7 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
     power_spectrum : ndarray
         two coloumns, first column contains frequencies, second column contains power spectrum values
     '''
-    actual_frequencies = np.linspace(0,0.01,1000)
+    actual_frequencies = np.linspace(limits[0],limits[1],1000)
     pi_frequencies = actual_frequencies*2*np.pi
     steady_state_mrna, steady_state_protein = calculate_steady_state_of_ode( repression_threshold = float(repression_threshold),
                                     hill_coefficient = hill_coefficient,
@@ -976,38 +1232,85 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
     else:
         transcription_schedule = np.array([-1.0])
 
-    pool_of_processes = mp.Pool(processes = number_of_cpus)
-    arguments = [ (duration, repression_threshold, hill_coefficient,
-                  mRNA_degradation_rate, protein_degradation_rate, 
-                  basal_transcription_rate, translation_rate,
-                  transcription_delay, initial_mRNA, initial_protein,
-                  equilibration_time, transcription_schedule, sampling_timestep, False) ]*number_of_trajectories
-#                   equilibration_time, transcription_schedule) ]*number_of_trajectories
-    process_results = [ pool_of_processes.apply_async(generate_stochastic_trajectory, args=x)
-                        for x in arguments ]
+    ## only spawn subprocesses if we have more than one core
+    if number_of_cpus > 1:   
+        pool_of_processes = mp.Pool(processes = number_of_cpus)
+        arguments = [ (duration, repression_threshold, hill_coefficient,
+                      mRNA_degradation_rate, protein_degradation_rate, 
+                      basal_transcription_rate, translation_rate,
+                      transcription_delay, initial_mRNA, initial_protein,
+                      equilibration_time, transcription_schedule, sampling_timestep, False) ]*number_of_trajectories
+#                       equilibration_time, transcription_schedule) ]*number_of_trajectories
+        process_results = [ pool_of_processes.apply_async(generate_stochastic_trajectory, args=x)
+                            for x in arguments ]
 
-    ## Let the pool know that these are all so that the pool will exit afterwards
-    # this is necessary to prevent memory overflows.
-    pool_of_processes.close()
+        ## Let the pool know that these are all so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
 
-    list_of_traces = []
-    for result in process_results:
-        this_trace = result.get()
-        list_of_traces.append(this_trace)
+        list_of_traces = []
+        for result in process_results:
+            this_trace = result.get()
+            list_of_traces.append(this_trace)
+        
+        first_trace = list_of_traces[0]
+
+        sample_times = first_trace[:,0]
+        mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+        protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+        
+        mRNA_trajectories[:,0] = sample_times
+        protein_trajectories[:,0] = sample_times
+
+        for trajectory_index, this_trace in enumerate(list_of_traces): 
+            # offset one index for time column
+            mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
+            protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
+ 
+    elif number_of_cpus == 1:
+        first_trace = generate_stochastic_trajectory(duration, 
+                                                     repression_threshold, 
+                                                     hill_coefficient, 
+                                                     mRNA_degradation_rate, 
+                                                     protein_degradation_rate, 
+                                                     basal_transcription_rate, 
+                                                     translation_rate, 
+                                                     transcription_delay, 
+                                                     initial_mRNA, 
+                                                     initial_protein, 
+                                                     equilibration_time,
+                                                     transcription_schedule,
+                                                     sampling_timestep,
+                                                     False)
+
+        sample_times = first_trace[:,0]
+        mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
+        protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
     
-    first_trace = list_of_traces[0]
+        mRNA_trajectories[:,0] = sample_times
+        protein_trajectories[:,0] = sample_times
+        mRNA_trajectories[:,1] = first_trace[:,1]
+        protein_trajectories[:,1] = first_trace[:,2]
 
-    sample_times = first_trace[:,0]
-    mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
-    protein_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
-    
-    mRNA_trajectories[:,0] = sample_times
-    protein_trajectories[:,0] = sample_times
-
-    for trajectory_index, this_trace in enumerate(list_of_traces): 
+        for trajectory_index in range(1,number_of_trajectories): 
         # offset one index for time column
-        mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
-        protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
+            this_trace = generate_stochastic_trajectory(duration, 
+                                                        repression_threshold, 
+                                                        hill_coefficient, 
+                                                        mRNA_degradation_rate, 
+                                                        protein_degradation_rate, 
+                                                        basal_transcription_rate, 
+                                                        translation_rate, 
+                                                        transcription_delay, 
+                                                        initial_mRNA, 
+                                                        initial_protein, 
+                                                        equilibration_time,
+                                                        transcription_schedule,
+                                                        sampling_timestep,
+                                                        False)
+
+            mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
+            protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
  
     return mRNA_trajectories, protein_trajectories
 
@@ -1091,7 +1394,8 @@ def get_period_measurements_from_signal(time_points, signal, smoothen = False):
     
     return period_values
 
-def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
+def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard', 
+                                             normalize = True):
     '''Calculate the power spectrum, coherence, and period of a set
     of trajectories. Works by applying discrete fourier transforms to the mean
     of the trajectories. We define the power spectrum as the square of the
@@ -1102,6 +1406,8 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
     The returned power spectum excludes the frequency 0 and thus neglects
     the mean of the signal. The power spectrum is normalised such that
     all entries add to one.
+    
+    Warning: a correction factor may be needed if Deltat ne 1
     
     Parameters:
     ---------- 
@@ -1115,6 +1421,11 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
         the fft will be calculated on each trajectory, and the average of all
         power spectra will be calculated. If 'mean', then the power spectrum
         of the mean will be calculated.
+        
+    normalize : bool
+        If True the power spectrum will be normalised. Otherwise it won't.
+        Only applies if method is 'standard'. Will be ignored otherwise.
+        The zero-frequency entry will be removed from the power spectrum if normalize is true.
     
     Result:
     ------
@@ -1138,7 +1449,8 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
         times = trajectories[:,0]
         #calculate the first power spectrum separately to get the extracted frequency values
         first_compound_trajectory = np.vstack((times, trajectories[:,1])).transpose()
-        first_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(first_compound_trajectory)
+        first_power_spectrum,_,_ = calculate_power_spectrum_of_trajectory(first_compound_trajectory,
+                                                                          normalize = False)
         frequency_values = first_power_spectrum[:,0]
         all_power_spectra = np.zeros((first_power_spectrum.shape[0], trajectories.shape[1] - 1))
         all_power_spectra[:,0] = first_power_spectrum[:,1]
@@ -1150,12 +1462,15 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard'):
             all_power_spectra[:,trajectory_index] = this_power_spectrum[:,1]
             trajectory_index += 1
         mean_power_spectrum_without_frequencies = np.mean(all_power_spectra, axis = 1)
-#         mean_power_spectrum_without_frequencies /= np.sum(mean_power_spectrum_without_frequencies)
         power_spectrum = np.vstack((frequency_values, mean_power_spectrum_without_frequencies)).transpose()
+
         power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
-        power_spectrum[:,1]/=power_integral
-        smoothened_power_spectrum = smoothen_power_spectrum(power_spectrum)
+        normalized_power_spectrum = power_spectrum.copy()
+        normalized_power_spectrum[:,1] = power_spectrum[:,1]/power_integral
+        smoothened_power_spectrum = smoothen_power_spectrum(normalized_power_spectrum)
         coherence, period = calculate_coherence_and_period_of_power_spectrum(smoothened_power_spectrum)
+        if normalize:
+            power_spectrum = normalized_power_spectrum
     else:
         raise ValueError("This method of period extraction could not be resolved. Only the options 'mean' and 'standard' are accepted.")
     
@@ -1200,10 +1515,12 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     # Calculate power spectrum
     number_of_data_points = len(trajectory)
     interval_length = trajectory[-1,0]
-    fourier_transform = np.fft.fft(trajectory[:,1])/number_of_data_points
+    trajectory_to_transform = trajectory[:,1] - np.mean(trajectory[:,1])
+    fourier_transform = np.fft.fft(trajectory_to_transform, norm = 'ortho')
+#     fourier_transform = np.fft.fft(trajectory_to_transform)
     fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
-                                                     1.0/(interval_length) )[1:]
-    power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[1:(number_of_data_points//2)]),2)
+                                                     1.0/(interval_length) )
+    power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[:(number_of_data_points//2)]),2)
     
     # this should really be a decision about the even/oddness of number of datapoints
     try:
@@ -1211,12 +1528,12 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     except ValueError:
         power_spectrum = np.vstack((fourier_frequencies[:-1], power_spectrum_without_frequencies)).transpose()
 
+    power_integral = np.trapz(power_spectrum[1:,1], power_spectrum[1:,0])
+    normalized_power_spectrum = power_spectrum[1:].copy()
+    normalized_power_spectrum[:,1] = power_spectrum[1:,1]/power_integral
+    coherence, period = calculate_coherence_and_period_of_power_spectrum(normalized_power_spectrum)
     if normalize:
-#         power_spectrum_without_frequencies /= np.sum(power_spectrum_without_frequencies)
-        power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
-        power_spectrum[:,1]/=power_integral
-
-    coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
+        power_spectrum = normalized_power_spectrum
 
     return power_spectrum, coherence, period
  
@@ -1264,7 +1581,7 @@ def generate_posterior_samples( total_number_of_samples,
         
     prior_dimension : string
         'reduced', 'hill' or 'full', or 'agnostic' are possible options. If 'full', then the mRNA and protein degradation rates
-        will be inferred in addition to other model parameters, excluding the Hill coefficient. If 'hill',
+        will be inferred in addition to other model parameters. If 'hill',
         then all parameters exclucing the mRNA and protein degradation rates will be inferred. 
         If the model is 'agnostic', then this option will be ignored.
         
@@ -1692,7 +2009,9 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
         on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
 
     model : string
-        options are 'langevin', 'gillespie', 'agnostic'
+        options are 'langevin', 'gillespie', 'agnostic', 'gillespie_sequential'
+        gillespie_sequential means that traces from different parameters will be calculated in parallel,
+        rather than multiple traces from the same parameter
 
     Returns
     -------
@@ -1701,7 +2020,7 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
         each row contains the summary statistics (mean, std, period, coherence) for the corresponding
         parameter set in parameter_values
     '''
-    if model == 'langevin' or model == 'agnostic':
+    if model == 'langevin' or model == 'agnostic' or model == 'gillespie_sequential':
         summary_statistics = calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample,
                                                             number_of_cpus, model)
     else:
@@ -1712,7 +2031,7 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
 
     return summary_statistics
     
-def calculate_gillespie_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
+def calculate_gillespie_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 200,
                                                          number_of_cpus = number_of_available_cores):
     '''Calculate the mean, relative standard deviation, period, and coherence
     of protein traces at each parameter point in parameter_values. 
@@ -1741,20 +2060,22 @@ def calculate_gillespie_summary_statistics_at_parameters(parameter_values, numbe
         each row contains the summary statistics (mean, std, period, coherence) for the corresponding
         parameter set in parameter_values
     '''
+    # may need to include parameter conversion here
     summary_statistics = np.zeros((parameter_values.shape[0], 4))
     for parameter_index, parameter_value in enumerate(parameter_values):
         these_mRNA_traces, these_protein_traces = generate_multiple_trajectories( 
                                                         number_of_trajectories = number_of_traces_per_sample, 
-                                                        duration = 1500,
+                                                        duration = 1500*5,
                                                         basal_transcription_rate = parameter_value[0],
                                                         translation_rate = parameter_value[1], 
                                                         repression_threshold = parameter_value[2], 
                                                         transcription_delay = parameter_value[3],
-                                                        mRNA_degradation_rate = np.log(2)/30, 
-                                                        protein_degradation_rate = np.log(2)/90, 
+                                                        hill_coefficient = parameter_value[4],
+                                                        mRNA_degradation_rate = parameter_value[5], 
+                                                        protein_degradation_rate = parameter_value[6], 
                                                         initial_mRNA = 0,
                                                         initial_protein = parameter_value[2],
-                                                        equilibration_time = 1000,
+                                                        equilibration_time = 2000,
                                                         number_of_cpus = number_of_cpus)
         _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
         this_mean = np.mean(these_protein_traces[:,1:])
@@ -1790,7 +2111,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
 
     model : string
-        options are 'langevin', 'gillespie', 'agnostic'
+        options are 'langevin', 'gillespie_sequential', 'agnostic'
 
     Returns
     -------
@@ -1799,7 +2120,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         each row contains the summary statistics (mean, std, period, coherence, mean_mrna) for the corresponding
         parameter set in parameter_values
     '''
-    summary_statistics = np.zeros((parameter_values.shape[0], 9))
+    summary_statistics = np.zeros((parameter_values.shape[0], 11))
 
     pool_of_processes = mp.Pool(processes = number_of_cpus)
 
@@ -1815,8 +2136,99 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
     for parameter_index, process_result in enumerate(process_results):
         these_summary_statistics = process_result.get()
         summary_statistics[ parameter_index ] = these_summary_statistics
-
+    
     return summary_statistics
+
+def calculate_fluctuation_rates_at_parameters(parameter_values, number_of_traces_per_sample = 200,
+                                         number_of_cpus = number_of_available_cores,
+                                         sampling_duration = None):
+    '''Calculate the fluctuation rates at the given parameters.
+        
+    Parameters
+    ----------
+    
+    parameter_values : ndarray
+        each row contains one model parameter set in the order
+        
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    number_of_cpus : int
+        number of processes that should be used for calculating the samples, parallelisation happens
+        on a per-sample basis, i.e. all number_of_traces_per_sample of one sample are calculated in parallel
+
+    sampling_duration : float
+        sampling duration that should be used to calculate the fluctuation rate. This value can safely be reduced
+        to 12*60 or 24*60 minutes without reducing the accuracy
+
+    Returns
+    -------
+    
+    fluctuation_rates : ndarray
+        each entry contains the fluctuation rate of the the corresponding
+        parameter set in parameter_values
+    '''
+    fluctuation_rates = np.zeros(parameter_values.shape[0])
+
+    pool_of_processes = mp.Pool(processes = number_of_cpus)
+
+    process_results = [ pool_of_processes.apply_async(calculate_fluctuation_rate_at_parameter_point, 
+                                                      args=(parameter_value, 
+                                                            number_of_traces_per_sample,
+                                                            sampling_duration))
+                        for parameter_value in parameter_values ]
+
+    ## Let the pool know that these are all so that the pool will exit afterwards
+    # this is necessary to prevent memory overflows.
+    pool_of_processes.close()
+
+    for parameter_index, process_result in enumerate(process_results):
+        this_fluctuation_rate = process_result.get()
+        fluctuation_rates[ parameter_index ] = this_fluctuation_rate
+    
+    return fluctuation_rates
+
+def calculate_fluctuation_rate_at_parameter_point(parameter_value, number_of_traces = 100, sampling_duration = None):
+    '''Calculate the fluctuation rate at a given parameter point. Will run the forward model and then
+    use the autocorrelation function for estimating the fluctuation rate. 
+
+    Parameters
+    ----------
+    
+    parameter_value : ndarray
+        contains one model parameter set 
+        
+    number_of_traces_per_sample : int
+        number of traces that should be run per sample to calculate the summary statistics
+
+    sampling_duration : float
+        sampling duration that should be used to calculate the fluctuation rate. This value can safely be reduced
+        to 12*60 or 24*60 minutes without reducing the accuracy
+
+    Returns
+    -------
+    
+    fluctuation_rate : float
+        the fluctuation rate at parameter_value
+        
+    '''
+    these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                                       1500*5, #duration 
+                                                                                       parameter_value[2], #repression_threshold, 
+                                                                                       parameter_value[4], #hill_coefficient,
+                                                                                       parameter_value[5], #mRNA_degradation_rate, 
+                                                                                       parameter_value[6], #protein_degradation_rate, 
+                                                                                       parameter_value[0], #basal_transcription_rate, 
+                                                                                       parameter_value[1], #translation_rate,
+                                                                                       parameter_value[3], #transcription_delay, 
+                                                                                       10, #initial_mRNA, 
+                                                                                       parameter_value[2], #initial_protein,
+                                                                                       2000)
+    
+    fluctuation_rate = approximate_fluctuation_rate_of_traces_theoretically(these_protein_traces, sampling_interval = 6,
+                                                                            sampling_duration = sampling_duration)
+    
+    return fluctuation_rate
 
 def get_full_parameter_for_reduced_parameter(reduced_parameter):
     '''Transforms a parameter value of varying prior dimensions to 
@@ -1854,7 +2266,7 @@ def get_full_parameter_for_reduced_parameter(reduced_parameter):
         full_parameter[5] = mrna_degradation_rate
         full_parameter[6] = protein_degradation_rate
         full_parameter[7] = reduced_parameter[-1]
-    elif reduced_parameter.shape[0] == 7:
+    elif reduced_parameter.shape[0] in [7,9]:
         full_parameter = reduced_parameter
     else: 
         raise ValueError("This dimension of the prior sample is not recognised.")
@@ -1880,7 +2292,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
         number of traces that should be run per sample to calculate the summary statistics
 
     model : string
-        options are 'langevin', 'gillespie', 'agnostic'
+        options are 'langevin', 'gillespie_sequential', 'agnostic'
 
     Returns
     -------
@@ -1902,7 +2314,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            full_parameter[3], #transcription_delay, 
                                                                                            10, #initial_mRNA, 
                                                                                            full_parameter[2], #initial_protein,
-                                                                                           1000)
+                                                                                           2000)
     elif model == 'agnostic':
         these_mrna_traces, these_protein_traces = generate_multiple_agnostic_trajectories( number_of_traces, # number_of_trajectories 
                                                                                            1500*5, #duration 
@@ -1913,12 +2325,27 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            full_parameter[0], #basal_transcription_rate, 
                                                                                            full_parameter[1], #translation_rate,
                                                                                            full_parameter[3], #transcription_delay, 
-                                                                                           full_parameter[7], #noise_strength
+                                                                                           full_parameter[7], #mrna noise_strength
+                                                                                           full_parameter[8], #protein noise_strength
                                                                                            10, #initial_mRNA, 
                                                                                            full_parameter[2], #initial_protein,
                                                                                            1000)
+    elif model == 'gillespie_sequential':
+        these_mrna_traces, these_protein_traces = generate_multiple_trajectories( number_of_trajectories = number_of_traces, # number_of_trajectories 
+                                                                                  duration = 1500*5, #duration 
+                                                                                  repression_threshold = full_parameter[2], #repression_threshold, 
+                                                                                  hill_coefficient = full_parameter[4], #hill_coefficient,
+                                                                                  mRNA_degradation_rate = full_parameter[5], #mRNA_degradation_rate, 
+                                                                                  protein_degradation_rate = full_parameter[6], #protein_degradation_rate, 
+                                                                                  basal_transcription_rate = full_parameter[0], #basal_transcription_rate, 
+                                                                                  translation_rate = full_parameter[1], #translation_rate,
+                                                                                  transcription_delay = full_parameter[3], #transcription_delay, 
+                                                                                  initial_mRNA = 10, #initial_mRNA, 
+                                                                                  initial_protein = full_parameter[2], #initial_protein,
+                                                                                  equilibration_time = 2000,
+                                                                                  number_of_cpus = 1 )
  
-    this_deterministic_trace = generate_deterministic_trajectory(1500*5+1000, 
+    this_deterministic_trace = generate_deterministic_trajectory(1500*5+2000, 
                                                                 full_parameter[2], 
                                                                 full_parameter[4], 
                                                                 full_parameter[5], 
@@ -1930,20 +2357,23 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                 full_parameter[2], 
                                                                 for_negative_times = 'no_negative')
     
-    this_deterministic_trace = this_deterministic_trace[this_deterministic_trace[:,0]>1000] # remove equilibration time
+    this_deterministic_trace = this_deterministic_trace[this_deterministic_trace[:,0]>2000] # remove equilibration time
 #     this_deterministic_trace = np.vstack((these_protein_traces[:,0],
 #                                           these_mrna_traces[:,1],
 #                                           these_protein_traces[:,1])).transpose()
-    summary_statistics = np.zeros(9)
-    _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
+    summary_statistics = np.zeros(11)
+    this_power_spectrum,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces, normalize = False)
     this_mean = np.mean(these_protein_traces[:,1:])
     this_std = np.std(these_protein_traces[:,1:])/this_mean
     this_mean_mRNA = np.mean(these_mrna_traces[:,1:])
     this_deterministic_mean = np.mean(this_deterministic_trace[:,2])
+    this_deterministic_mean_mRNA = np.mean(this_deterministic_trace[:,1])
     this_deterministic_std = np.std(this_deterministic_trace[:,2])/this_deterministic_mean
-    deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 1000, 
+    deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 2000, 
                                             this_deterministic_trace[:,2])).transpose()
     _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
+
+    this_high_frequency_weight = calculate_noise_weight_from_power_spectrum(this_power_spectrum)
     summary_statistics[0] = this_mean
     summary_statistics[1] = this_std
     summary_statistics[2] = this_period
@@ -1953,6 +2383,8 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     summary_statistics[6] = this_deterministic_std
     summary_statistics[7] = this_deterministic_period
     summary_statistics[8] = this_deterministic_coherence
+    summary_statistics[9] = this_deterministic_mean_mRNA
+    summary_statistics[10] = this_high_frequency_weight
     
     return summary_statistics
 
@@ -2270,6 +2702,9 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
                                           5: 'noise_strength',
                                           6: 'mRNA_degradation_rate',
                                           7: 'protein_degradation_rate'}
+    
+    if 'mRNA_half_life' in prior_bounds:
+        index_to_parameter_name_lookup[5] = 'mRNA_half_life'
    
     standard_prior_bounds = {'basal_transcription_rate' : (0.5,100),
                              'translation_rate' : (1,200),
@@ -2307,6 +2742,10 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
             prior_samples[:,parameter_index] = these_parameter_bounds[0]*np.power(
                                                these_parameter_bounds[1]/float(these_parameter_bounds[0]),
                                                prior_samples[:,parameter_index])
+        elif this_parameter_name == 'mRNA_half_life':
+            prior_samples[:,parameter_index] *= these_parameter_bounds[1] - these_parameter_bounds[0]
+            prior_samples[:,parameter_index] += these_parameter_bounds[0]
+            prior_samples[:,parameter_index] = np.log(2)/prior_samples[:,parameter_index]
         else:
             prior_samples[:,parameter_index] *= these_parameter_bounds[1] - these_parameter_bounds[0]
             prior_samples[:,parameter_index] += these_parameter_bounds[0]
@@ -2787,6 +3226,158 @@ def generate_langevin_trajectory( duration = 720,
     return trace 
 
 @autojit(nopython = True)
+def generate_time_dependent_langevin_trajectory( duration = 720, 
+                                  repression_threshold = np.array([10000]*720),
+                                  hill_coefficient = np.array([5]*720),
+                                  mRNA_degradation_rate = np.array([np.log(2)/30]*720),
+                                  protein_degradation_rate = np.array([np.log(2)/90]*720), 
+                                  basal_transcription_rate = np.array([1]*720),
+                                  translation_rate = np.array([1]*720),
+                                  transcription_delay = np.array([29]*720),
+                                  initial_mRNA = 0,
+                                  initial_protein = 0,
+                                  equilibration_time = 0.0
+                                  ):
+    '''Generate one trace of the protein-autorepression model using a langevin approximation.
+    Parameters are passed as vectors that describe temporal variations in one-minute intervals.
+    This means, if a duration of N minutes is to be simulated, each parameter should be passed as a vector of length
+    N+1, prescribing parameter value at each time point (including t=0.0).
+     
+    This function implements the Ito integral of 
+    
+    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(mu_m+alpha_m*G(P(t-tau))d(ksi)
+    dP/dt = -mu_p*P + alpha_p*M + sqrt(mu_p*alpha_p)d(ksi)
+    
+    Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p are
+    rates of mRNA degradation, protein degradation, basal transcription, and translation; in that order.
+    The variable ksi represents Gaussian white noise with delta-function auto-correlation and G 
+    represents the Hill function G(P) = 1/(1+P/p_0)^n, where p_0 is the repression threshold
+    and n is the Hill coefficient.
+    
+    This model is an approximation of the stochastic version of the model in Monk, Current Biology (2003),
+    which is implemented in generate_stochastic_trajectory(). For negative times we assume that there
+    was no transcription.
+    
+    Warning : The time step of integration is chosen as 1 minute, and hence the time-delay is only
+              implemented with this accuracy.   
+
+    Parameters
+    ----------
+    
+    duration : float
+        duration of the trace in minutes
+
+    repression_threshold : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+        
+    hill_coefficient : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    mRNA_degradation_rate : float
+        Rate at which mRNA is degraded, in copynumber per minute
+        
+    protein_degradation_rate : float 
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    basal_transcription_rate : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes 
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    translation_rate : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+        
+    transcription_delay : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+        
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time 
+        in order to get rid of any overshoots, for example
+        
+    Returns
+    -------
+    
+    trace : ndarray
+        2 dimensional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number
+    '''
+ 
+    total_time = duration + equilibration_time
+    delta_t = 1
+    sample_times = np.arange(0.0, total_time, delta_t)
+    full_trace = np.zeros((len(sample_times), 3))
+    full_trace[:,0] = sample_times
+    full_trace[0,1] = initial_mRNA
+    full_trace[0,2] = initial_protein
+#     repression_threshold = float(repression_threshold)
+
+    all_mRNA_degradation_rate_per_timestep = mRNA_degradation_rate*delta_t
+    all_protein_degradation_rate_per_timestep = protein_degradation_rate*delta_t
+    all_basal_transcription_rate_per_timestep = basal_transcription_rate*delta_t
+    all_translation_rate_per_timestep = translation_rate*delta_t
+    all_delay_index_count = np.around(transcription_delay/delta_t).astype(np.int)
+    all_repression_thresholds = repression_threshold
+    all_hill_coefficients = hill_coefficient
+    
+    equilibration_index_count = int(round(equilibration_time/delta_t))+1
+    
+    for time_index, sample_time in enumerate(sample_times[1:]):
+        if sample_time < equilibration_time:
+            mRNA_degradation_rate_per_timestep =    all_mRNA_degradation_rate_per_timestep[0] 
+            protein_degradation_rate_per_timestep = all_protein_degradation_rate_per_timestep[0] 
+            basal_transcription_rate_per_timestep = all_basal_transcription_rate_per_timestep[0]
+            translation_rate_per_timestep =         all_translation_rate_per_timestep[0]
+            delay_index_count =                     all_delay_index_count[0]
+            repression_threshold =                  all_repression_thresholds[0]
+            hill_coefficient =                      all_hill_coefficients[0]
+        else:
+            mRNA_degradation_rate_per_timestep =    all_mRNA_degradation_rate_per_timestep[time_index - equilibration_index_count] 
+            protein_degradation_rate_per_timestep = all_protein_degradation_rate_per_timestep[time_index - equilibration_index_count] 
+            basal_transcription_rate_per_timestep = all_basal_transcription_rate_per_timestep[time_index - equilibration_index_count]
+            translation_rate_per_timestep =         all_translation_rate_per_timestep[time_index - equilibration_index_count]
+            delay_index_count =                     all_delay_index_count[time_index - equilibration_index_count]
+            repression_threshold =                  all_repression_thresholds[time_index - equilibration_index_count]
+            hill_coefficient =                      all_hill_coefficients[time_index - equilibration_index_count]
+        last_mRNA = full_trace[time_index,1]
+        last_protein = full_trace[time_index,2]
+        if time_index + 1 < delay_index_count:
+            this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
+            d_mRNA = (-this_average_mRNA_degradation_number
+                      +np.sqrt(this_average_mRNA_degradation_number)*np.random.randn())
+        else:
+            protein_at_delay = full_trace[time_index + 1 - delay_index_count,2]
+            hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
+                                                    hill_coefficient))
+            this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
+            this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
+            d_mRNA = (-this_average_mRNA_degradation_number
+                      +this_average_transcription_number
+                      +np.sqrt(this_average_mRNA_degradation_number
+                            +this_average_transcription_number)*np.random.randn())
+            
+        this_average_protein_degradation_number = protein_degradation_rate_per_timestep*last_protein
+        this_average_translation_number = translation_rate_per_timestep*last_mRNA
+        d_protein = (-this_average_protein_degradation_number
+                     +this_average_translation_number
+                     +np.sqrt(this_average_protein_degradation_number+
+                           this_average_translation_number)*np.random.randn())
+
+        current_mRNA = max(last_mRNA + d_mRNA, 0.0)
+        current_protein = max(last_protein + d_protein, 0.0)
+        full_trace[time_index + 1,1] = current_mRNA
+        full_trace[time_index + 1,2] = current_protein
+    
+    # get rid of the equilibration time now
+    trace = full_trace[ full_trace[:,0]>=equilibration_time ]
+    trace[:,0] -= equilibration_time
+    
+    return trace 
+
+@autojit(nopython = True)
 def generate_agnostic_noise_trajectory( duration = 720, 
                                         repression_threshold = 10000,
                                         hill_coefficient = 5,
@@ -2795,7 +3386,8 @@ def generate_agnostic_noise_trajectory( duration = 720,
                                         basal_transcription_rate = 1,
                                         translation_rate = 1,
                                         transcription_delay = 29,
-                                        noise_strength = 10,
+                                        mRNA_noise_strength = 10,
+                                        protein_noise_strength = 10,
                                         initial_mRNA = 0,
                                         initial_protein = 0,
                                         equilibration_time = 0.0,
@@ -2805,8 +3397,8 @@ def generate_agnostic_noise_trajectory( duration = 720,
     '''Generate one trace of the protein-autorepression model using a langevin approximation. 
     This function implements the Ito integral of 
     
-    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(sigma)d(ksi)
-    dP/dt = -mu_p*P + alpha_p*M
+    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(sigma_mRNA)d(ksi_m)
+    dP/dt = -mu_p*P + alpha_p*M+ sqrt(sigma_protein)d(ksi_p)
     
     Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p are
     rates of mRNA degradation, protein degradation, basal transcription, and translation; in that order.
@@ -2875,7 +3467,8 @@ def generate_agnostic_noise_trajectory( duration = 720,
     total_time = duration + equilibration_time
     delta_t = time_step
     sample_times = np.arange(0.0, total_time, delta_t)
-    sampling_times = np.linspace(equilibration_time, total_time, int(round((total_time-equilibration_time)/sampling_frequency)))
+    sampling_times = np.linspace(equilibration_time, total_time, 
+                                 int(round((total_time-equilibration_time)/sampling_frequency)))[:-1]
     sampled_trace = np.zeros(( len(sampling_times), 3))
     sampled_trace[:,0] = sampling_times
     full_trace = np.zeros(( len(sample_times), 3))
@@ -2888,7 +3481,8 @@ def generate_agnostic_noise_trajectory( duration = 720,
     protein_degradation_rate_per_timestep = protein_degradation_rate*delta_t
     basal_transcription_rate_per_timestep = basal_transcription_rate*delta_t
     translation_rate_per_timestep = translation_rate*delta_t
-    noise_rate_per_timestep = noise_strength*delta_t
+    mRNA_noise_rate_per_timestep = mRNA_noise_strength*delta_t
+    protein_noise_rate_per_timestep = protein_noise_strength*delta_t
     delay_index_count = int(round(transcription_delay/delta_t))
     
     sampling_index = 0
@@ -2898,7 +3492,7 @@ def generate_agnostic_noise_trajectory( duration = 720,
         if time_index + 1 < delay_index_count:
             this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
             d_mRNA = (-this_average_mRNA_degradation_number
-                      +np.sqrt(noise_rate_per_timestep)*np.random.randn())
+                      +np.sqrt(mRNA_noise_rate_per_timestep)*np.random.randn())
         else:
             protein_at_delay = full_trace[time_index + 1 - delay_index_count,2]
             hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
@@ -2907,12 +3501,13 @@ def generate_agnostic_noise_trajectory( duration = 720,
             this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
             d_mRNA = (-this_average_mRNA_degradation_number
                       +this_average_transcription_number
-                      +np.sqrt(noise_rate_per_timestep)*np.random.randn())
+                      +np.sqrt(mRNA_noise_rate_per_timestep)*np.random.randn())
             
         this_average_protein_degradation_number = protein_degradation_rate_per_timestep*last_protein
         this_average_translation_number = translation_rate_per_timestep*last_mRNA
         d_protein = (-this_average_protein_degradation_number
-                     +this_average_translation_number)
+                     +this_average_translation_number
+                     +np.sqrt(protein_noise_rate_per_timestep)*np.random.randn())
 
         current_mRNA = max(last_mRNA + d_mRNA, 0.0)
         current_protein = max(last_protein + d_protein, 0.0)
@@ -2939,7 +3534,8 @@ def generate_multiple_agnostic_trajectories( number_of_trajectories = 10,
                                     basal_transcription_rate = 1,
                                     translation_rate = 1,
                                     transcription_delay = 29,
-                                    noise_strength = 10,
+                                    mRNA_noise_strength = 10,
+                                    protein_noise_strength = 10,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
                                     equilibration_time = 0.0):
@@ -3008,7 +3604,8 @@ def generate_multiple_agnostic_trajectories( number_of_trajectories = 10,
                                                      basal_transcription_rate, 
                                                      translation_rate, 
                                                      transcription_delay,
-                                                     noise_strength, 
+                                                     mRNA_noise_strength,
+                                                     protein_noise_strength,
                                                      initial_mRNA, 
                                                      initial_protein, 
                                                      equilibration_time)
@@ -3032,7 +3629,8 @@ def generate_multiple_agnostic_trajectories( number_of_trajectories = 10,
                                                   basal_transcription_rate, 
                                                   translation_rate, 
                                                   transcription_delay, 
-                                                  noise_strength,
+                                                  mRNA_noise_strength,
+                                                  protein_noise_strength,
                                                   initial_mRNA, 
                                                   initial_protein, 
                                                   equilibration_time)
@@ -3274,7 +3872,8 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
 def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
                                                number_of_sweep_values = 20,
                                                number_of_traces_per_parameter = 200,
-                                               relative = False):
+                                               relative = False,
+                                               relative_range = (0.1,2.0)):
     '''Conduct a parameter sweep in reasonable ranges of each of the parameter points in
     parameter_samples. The parameter_samples are four-dimensional, as produced, for example, by 
     generate_prior_samples() with the 'reduced' dimension. At each parameter point the function
@@ -3330,7 +3929,8 @@ def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
                                                               parameter_samples,
                                                               number_of_sweep_values,
                                                               number_of_traces_per_parameter,
-                                                              relative)
+                                                              relative,
+                                                              relative_range)
 
         sweep_results[parameter_name] = these_results   
         
@@ -3340,7 +3940,8 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                                           parameter_samples,
                                           number_of_sweep_values = 20,
                                           number_of_traces_per_parameter = 200,
-                                          relative = False):
+                                          relative = False,
+                                          relative_range = (0.1,2.0)):
     '''Conduct a parameter sweep of the parameter_name parameter at each of the parameter points in
     parameter_samples. The parameter_samples are four-dimensional, as produced, for example, by 
     generate_prior_samples() with the 'reduced' dimension. At each parameter point the function
@@ -3422,7 +4023,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                 this_parameter = np.log(2)/90.0
             elif parameter_name == 'hill_coefficient':
                 this_parameter = 5.0
-            for parameter_proportion in np.linspace(0.1,2.0,number_of_sweep_values):
+            for parameter_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
                 if len(sample) == 4:
                     all_parameter_values[parameter_sample_index,:4] = sample
                     all_parameter_values[parameter_sample_index,4] = 5 #Hill coefficient
@@ -3449,7 +4050,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                                                                         model = 'langevin')
     
     # unpack and wrap the results in the output format
-    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 10))
+    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 12))
     parameter_sample_index = 0
     if not relative:
         for sample_index, sample in enumerate(parameter_samples):
@@ -3466,7 +4067,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     else:
         for sample_index, sample in enumerate(parameter_samples):
             proportion_index = 0
-            for parameter_proportion in np.linspace(0.1,2.0,number_of_sweep_values):
+            for parameter_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
                 these_summary_statistics = all_summary_statistics[parameter_sample_index]
                 # the first entry gets the degradation rate
                 sweep_results[sample_index,proportion_index,0] = parameter_proportion
@@ -3478,3 +4079,346 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     # repack results into output array
  
     return sweep_results
+
+def measure_fluctuation_rate_of_single_trace(trace, method = 'sklearn'):
+    '''Calculate the fluctation rate of a trace. Will fit an Ornstein-Uhlenbeck Gaussian process
+    to a time series and estimate the lengthscale parameter, alpha. Specifically, we estimate the parameter 
+    alpha = 1/rho
+    in the matern kernel with parameter nu=1/2:
+    https://en.wikipedia.org/wiki/Mat%C3%A9rn_covariance_function
+    https://gpflow.readthedocs.io/en/stable/_modules/gpflow/kernels.html
+    
+    Parameters:
+    ---------- 
+    
+    trace : ndarray
+        2D array. First column is time, second column contains the signal that is aimed to be analysed.
+        
+    method : string
+        'gpflow', 'sklearn', 'gpy', and 'george' are possible. These are names of common libraries for
+        Gaussian processes.
+        
+    Result:
+    ------
+    
+    fluctuation_rate : float
+        fluctuation rate of trace
+    '''
+    
+    times = trace[:,0]
+    times = times[:,np.newaxis]
+    trace_around_mean = trace[:,1] - np.mean(trace[:,1])
+    trace_around_mean = trace_around_mean[:,np.newaxis]
+
+    if method == 'gpflow':
+        with gpflow.defer_build():
+            ornstein_kernel = gpflow.kernels.Matern12(input_dim = 1)
+            regression_model = gpflow.models.GPR(times, trace_around_mean, kern=ornstein_kernel)
+            regression_model.kern.lengthscales.prior = gpflow.priors.Uniform(1e-2, 10000)
+        regression_model.compile()
+        gpflow.train.ScipyOptimizer().minimize(regression_model)
+        regression_values = regression_model.kern.read_values()
+        this_lengthscale = regression_values['GPR/kern/lengthscales']
+    elif method == 'sklearn':
+        ornstein_kernel = ( gp.kernels.ConstantKernel(constant_value=1.0, constant_value_bounds=(1e-5, 2.0*np.var(trace_around_mean)))*
+                            gp.kernels.Matern(nu=0.5, length_scale_bounds = (1e-2,10000)))
+        my_gp_regressor = gp.GaussianProcessRegressor(kernel=ornstein_kernel, n_restarts_optimizer=1)
+        my_fit = my_gp_regressor.fit(times, trace_around_mean)
+        this_lengthscale = my_gp_regressor.kernel_.get_params()['k2__length_scale']
+    elif method == 'gpy':
+        ornstein_kernel = GPy.kern.OU(input_dim=1)
+        my_regressor = GPy.models.GPRegression(times,trace_around_mean,ornstein_kernel)
+        my_regressor.optimize_restarts(num_restarts = 1)
+        this_lengthscale = my_regressor.parameters[0].lengthscale.values[0]
+    elif method == 'george':
+        kernel = george.kernels.Product(george.kernels.ConstantKernel(log_constant = 0.0),
+                                        george.kernels.ExpKernel(metric = 1.0))
+        gaussian_process = george.GP(kernel)
+        #initialise the x-values of the process
+        gaussian_process.compute(times[:,0])
+
+        def objective_function(hyper_parameter):
+            gaussian_process.set_parameter_vector(hyper_parameter)
+            log_likelihood = gaussian_process.log_likelihood(trace_around_mean[:,0], quiet=True)
+            return -log_likelihood if np.isfinite(log_likelihood) else 1e25
+        
+        def gradient_of_objective_function(hyper_parameter):
+            gaussian_process.set_parameter_vector(hyper_parameter)
+            return -gaussian_process.grad_log_likelihood(trace_around_mean[:,0], quiet=True)
+
+        initial_value = gaussian_process.get_parameter_vector()
+
+        results = scipy.optimize.minimize(objective_function, 
+                                          initial_value, 
+                                          jac=gradient_of_objective_function, 
+                                          method="L-BFGS-B",
+                                          bounds = [(0,np.inf),(-9.21,18.42)])
+        this_log_lengthscale_square = results.x[1]
+        this_lengthscale_square = np.exp(this_log_lengthscale_square)
+        this_lengthscale = np.sqrt(this_lengthscale_square)
+    else:
+        raise ValueError('cannot interpret method' + str(method))
+
+    this_fluctuation_rate = 1.0/this_lengthscale
+    
+    return this_fluctuation_rate
+
+def measure_fluctuation_rates_of_traces(traces, method = 'sklearn'):
+    '''Convenience function to return the fluctuation rates of multiple traces.
+    See measure_fluctuation_rate_of_single_trace for details of the implementation.
+    
+    Parameters:
+    -----------
+    
+    traces : ndarray
+        2d array. First column is time. Each further column is a signal trace at the corresponding times in the first columns.
+        
+    method : string
+        'gpflow' or 'sklearn' are possible
+
+    Returns:
+    --------
+    
+    fluctuation_rates : ndarray
+        1 dimensional array. The length is the number of signal traces that have been passed in traces.
+    '''
+    fluctuation_rates = np.zeros(traces.shape[1]-1) 
+    times = traces[:,0]
+    for signal_index, signal_trace in enumerate(traces[:,1:].transpose()):
+        this_compound_trace = np.vstack((times, signal_trace)).transpose()
+        fluctuation_rates[signal_index] = measure_fluctuation_rate_of_single_trace(this_compound_trace, method)
+        print('measured fluctuation rate is')
+        print(fluctuation_rates[signal_index])
+        
+    return fluctuation_rates
+
+def calculate_autocorrelation_from_power_spectrum(power_spectrum):
+    '''Calculate autocorrelation 
+    
+    K(tau) = <x(t)x(t+tau)>
+    
+    from the power spectrum by applying an inverse Fourier transform.
+    
+    Parameters:
+    -----------
+    
+    power_spectrum : ndarray
+        2D array. First column is frequency, second column is the value of the power spectrum at that frequency.
+        
+    Returns:
+    --------
+    
+    autocorrelation : ndarray
+        First column is time (tau in the definition above). Second column is the function value of K.
+    '''
+    length_of_power_spectrum = power_spectrum.shape[0]
+    number_of_time_samples = (length_of_power_spectrum)*2-1
+    full_power_spectrum_values = np.zeros(number_of_time_samples) 
+    full_power_spectrum_values[:number_of_time_samples//2+1] = power_spectrum[:,1]
+    full_power_spectrum_values[number_of_time_samples//2+1:] = power_spectrum[1:,1][::-1]
+#     inverse_fourier_transform = np.fft.ifft(full_power_spectrum_values, norm = 'ortho' )
+    inverse_fourier_transform = np.fft.ifft(full_power_spectrum_values )
+
+    smallest_frequency = power_spectrum[1,0]
+    correlation_times = np.linspace(0,1.0/smallest_frequency,number_of_time_samples)
+    
+    complex_autocorrelation = np.vstack((correlation_times, inverse_fourier_transform)).transpose()
+    
+    autocorrelation = np.real(complex_autocorrelation)
+#     autocorrelation[:,1] /= np.sqrt(number_of_time_samples) 
+    assert(np.sum(np.imag(complex_autocorrelation)) == 0.0)
+    
+    return autocorrelation
+
+def estimate_fluctuation_rate_of_traces(traces, fix_variance = False):
+    '''Estimate the fluctuation rate of traces by (1) calculate the power spectrum,
+    (2) transform it into the autocorrelation function K1(t), (3) Fit the function
+    K2(t)=v*exp(-alpha*t) to K1(t). The best-fit alpha will be returned as the 
+    fluctuation rate. The variance v will also be returned.
+    
+    Parameters:
+    -----------
+    
+    traces : ndarray
+        2D array. First column is time, Each further trace is one time series of the process that we are
+        trying to fit.
+        
+    fix_variance : bool
+        if True then the variance will not be estimated by optimizing the fit of the autocorrelation function
+        but instead just fixed to the variance of the signal
+        
+    Returns:
+    --------
+    
+    fluctuation_rate : float
+        fluctuation rate that best fits the autocorellation function of the proposed traces
+        
+    variance : float
+        variance for best fit
+    '''
+    power_spectrum, _, _ = calculate_power_spectrum_of_trajectories(traces, normalize = False)
+    
+    full_auto_correlation = calculate_autocorrelation_from_power_spectrum(power_spectrum)
+    useful_number_of_timepoints = np.int(np.around(full_auto_correlation.shape[0]/2.0))
+    useful_auto_correlation = full_auto_correlation[:useful_number_of_timepoints]
+    
+    if fix_variance:
+        variance = np.var(traces[:,1:])
+        def penalty_function(fluctuation_rate):
+            mean_squared_errors = np.power(np.abs(useful_auto_correlation[:,1]) - 
+                                          variance*
+                                          np.exp(-fluctuation_rate*useful_auto_correlation[:,0]), 2)
+            mean_squared_error = np.sum(mean_squared_errors)
+            return mean_squared_error
+
+        results = scipy.optimize.minimize(penalty_function, x0 = [0.001], method = 'Nelder-Mead') 
+        fluctuation_rate = results.x[0]
+    else:
+        def penalty_function(fluctuation_rate_and_variance):
+            fluctuation_rate = fluctuation_rate_and_variance[0]
+            variance = fluctuation_rate_and_variance[1]
+            mean_squared_errors = np.power(np.abs(useful_auto_correlation[:,1]) - 
+                                          variance*
+                                          np.exp(-fluctuation_rate*useful_auto_correlation[:,0]), 2)
+            mean_squared_error = np.sum(mean_squared_errors)
+            return mean_squared_error
+
+        results = scipy.optimize.minimize(penalty_function, x0 = [0.001, 1.0], method = 'Nelder-Mead') 
+
+        fluctuation_rate = results.x[0]
+        variance = results.x[1]
+
+    return fluctuation_rate, variance
+    
+def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interval = 1,
+                                                         sampling_duration = None,
+                                                         power_spectrum = None):
+    '''Estimate the fluctuation rate of traces by (1) calculate the power spectrum,
+    (2) transform it into the autocorrelation function K1(t), (3) Fit the function
+    K2(t)=v*exp(-alpha*t) to K1(t). The best-fit alpha will be returned as the 
+    fluctuation rate. The variance v will also be returned.
+    
+    Parameters:
+    -----------
+    
+    traces : ndarray
+        2D array. First column is time, Each further trace is one time series of the process that we are
+        trying to fit.
+        
+    sampling_interval : int
+        sampling_interval-1 values will be skipped between measurements in traces, i.e. traces
+        are downsampled by sampling_interval
+        
+    sampling_duration : float
+        sampling duration that should be used to calculate the fluctuation rate. This value can safely be reduced
+        to 12*60 or 24*60 minutes without reducing the accuracy
+        
+    power_spectrum : ndarray
+        precalculated power spectrum of traces. Has to be the exact power spectrum of the presented traces.
+        Added here as a command line argument to avoid recomputation for efficiency.
+        
+    Returns:
+    --------
+    
+    fluctuation_rate : float
+        fluctuation rate that best fits the autocorellation function of the proposed traces
+    '''
+    if power_spectrum is None:
+        power_spectrum, _, _ = calculate_power_spectrum_of_trajectories(traces, normalize = False)
+    full_auto_correlation = calculate_autocorrelation_from_power_spectrum(power_spectrum)
+    if sampling_duration is None:
+        sampling_duration = full_auto_correlation[-1,0]
+
+    timestep = full_auto_correlation[1,0] - full_auto_correlation[0,0]
+    signal_variance = np.var(traces[:,1:])
+    full_auto_correlation[:,1]/=signal_variance
+
+    # only half the number of fourier inverse timepoints are useful at all
+    useful_number_of_timepoints = np.int(np.around(full_auto_correlation.shape[0]/2.0))
+    sampled_number_of_timepoints = np.int(np.around(sampling_duration/timestep))
+    number_of_timepoints_to_use = np.min([useful_number_of_timepoints, sampled_number_of_timepoints])
+    useful_auto_correlation = full_auto_correlation[:number_of_timepoints_to_use:sampling_interval]
+    all_indices = np.arange(0,useful_auto_correlation.shape[0],1)
+    all_distances = scipy.spatial.distance.pdist(all_indices[:,np.newaxis]).astype(np.int)
+    index_distance_matrix = scipy.spatial.distance.squareform(all_distances) 
+    signal_covariance_matrix = useful_auto_correlation[:,1][index_distance_matrix]
+    
+    all_times = useful_auto_correlation[:,0]
+
+    # use this function to maximise KL divergence on both the fluctuation rate and variance
+    def penalty_function(fluctuation_rate_and_variance):
+        fluctuation_rate = fluctuation_rate_and_variance[0]
+        variance = fluctuation_rate_and_variance[1]
+        correlation_function = np.exp(-fluctuation_rate*all_times)
+        new_covariance_matrix = correlation_function[index_distance_matrix]
+        _, new_log_det = np.linalg.slogdet(new_covariance_matrix)
+        new_inverse_matrix = np.linalg.inv(new_covariance_matrix)
+        penalty_value = ( 1.0/variance*np.trace(new_inverse_matrix.dot(signal_covariance_matrix))
+                          + new_log_det + new_covariance_matrix.shape[0]*np.log(variance))
+        return penalty_value
+     
+    # This function only maximises alpha, since we know the variance will converge to the variance of the signal
+    def alternative_penalty_function(fluctuation_rate):
+        fluctuation_rate = fluctuation_rate[0]
+        correlation_function = np.exp(-fluctuation_rate*all_times)
+        new_covariance_matrix = correlation_function[index_distance_matrix]
+        _, new_log_det = np.linalg.slogdet(new_covariance_matrix)
+        new_inverse_matrix = np.linalg.inv(new_covariance_matrix)
+        penalty_value = ( np.trace(new_inverse_matrix.dot(signal_covariance_matrix))
+                          + new_log_det )
+        return penalty_value
+ 
+    # This is the jacobian of this previous penalty function
+    def alternative_penalty_function_jacobian(fluctuation_rate):
+        fluctuation_rate = fluctuation_rate[0]
+        correlation_function = np.exp(-fluctuation_rate*all_times)
+        derivative_correlation_function = -all_times*np.exp(-fluctuation_rate*all_times)
+        new_covariance_matrix = correlation_function[index_distance_matrix]
+        derivative_covariance_matrix = derivative_correlation_function[index_distance_matrix]
+        np.fill_diagonal(derivative_covariance_matrix, 0)
+        new_inverse_matrix = np.linalg.inv(new_covariance_matrix)
+        d_fluctuation_rate = ( -np.trace(new_inverse_matrix.dot(
+                                         derivative_covariance_matrix.dot(
+                                         new_inverse_matrix.dot(
+                                         signal_covariance_matrix))))
+                               +np.trace(new_inverse_matrix.dot(derivative_covariance_matrix)) )
+        return np.array([d_fluctuation_rate])
+
+#     results = scipy.optimize.minimize(alternative_penalty_function, x0 = [0.01], jac = alternative_penalty_function_jacobian,
+#                                     bounds = [(0.0001,None)], options = {'disp':True}) 
+    results = scipy.optimize.minimize(alternative_penalty_function, x0 = [0.01],bounds = [(0.0001,None)]) 
+
+    # it's also possible to get the same result by finding the root of the jacobian
+    def alternative_root_function(fluctuation_rate):
+        return alternative_penalty_function_jacobian([fluctuation_rate])
+    
+#     results = scipy.optimize.root_scalar(alternative_root_function_2, x0 = 0.008, bracket = [0.004,0.011]) 
+
+    fluctuation_rate = results.x[0]
+
+    return fluctuation_rate
+ 
+def calculate_noise_weight_from_power_spectrum(power_spectrum, frequency_cutoff = 1./30.):
+    '''Calculate the weight of the power spectrum that frequencies over 30 min contribute
+    
+    Parameters:
+    -----------
+    
+    power_spectrum : ndarray
+        two columns, first column contains frequencies, second column contains powers
+        
+    frequency_cutoff : float
+        threshold above which frequencies are considered to contribute to noise
+        
+    Returns:
+    -------
+    
+    noise_weight : float
+        the area under the power spectrum for frequencies larger than frequency_cutoff
+    '''
+    first_left_index = np.min(np.where(power_spectrum[:,0]>frequency_cutoff))
+    integration_axis = np.hstack(([frequency_cutoff], power_spectrum[first_left_index:,0]))
+    power_spectrum_interpolation = scipy.interpolate.interp1d(power_spectrum[:,0], power_spectrum[:,1])
+    interpolation_values = power_spectrum_interpolation(integration_axis)
+    noise_weight = np.trapz(interpolation_values, integration_axis)
+    return noise_weight

@@ -21,7 +21,7 @@ import hes5
 
 class TestMakeFinalFigures(unittest.TestCase):
                                  
-    def test_make_period_distribution_plot(self):
+    def xest_make_period_distribution_plot(self):
         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
                                 'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 #                                   'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.npy'))
@@ -30,12 +30,12 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.hist(hilbert_periods/60, density = True, bins =20, range = (0,10), edgecolor = 'black')
         plt.axvline(3.2, color = 'black')
 #         plt.axvline(0.5, color = 'black')
-        print 'mean observed period is'
-        print np.mean(hilbert_periods/60)
-        print 'median observed period is'
-        print np.median(hilbert_periods/60)
-        print 'standard deviation of periods is'
-        print np.std(hilbert_periods/60)
+        print('mean observed period is')
+        print(np.mean(hilbert_periods/60))
+        print('median observed period is')
+        print(np.median(hilbert_periods/60))
+        print('standard deviation of periods is')
+        print(np.std(hilbert_periods/60))
 #         plt.axvline(this_period/60)
         plt.xlabel('Period [hrs]')
 #         plt.ylim(0,1)
@@ -59,20 +59,20 @@ class TestMakeFinalFigures(unittest.TestCase):
                                                    model_results[:,1]>0.05)))  #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print 'total number of accepted samples'
-        print len(my_posterior_samples)
+        print('total number of accepted samples')
+        print(len(my_posterior_samples))
         my_model_results = model_results[accepted_indices]
 
         my_figure = plt.figure(figsize= (2.5,1.9))
 
         all_standard_deviations = my_model_results[:,1]
 
-        print 'mean observed standard deviation is'
-        print np.mean(all_standard_deviations)
-        print 'median observed standard deviation is' 
-        print np.median(all_standard_deviations)
-        print 'standard deviation of standard deviation is'
-        print np.std(all_standard_deviations)
+        print('mean observed standard deviation is')
+        print(np.mean(all_standard_deviations))
+        print('median observed standard deviation is')
+        print(np.median(all_standard_deviations))
+        print('standard deviation of standard deviation is')
+        print(np.std(all_standard_deviations))
 #       
         plt.hist(all_standard_deviations,bins = 20, edgecolor = 'black')
         plt.ylabel("Likelihood")
@@ -126,7 +126,7 @@ class TestMakeFinalFigures(unittest.TestCase):
             this_parameter = my_posterior_samples[0]
             this_results = my_posterior_results[0]
             
-            print this_parameter
+            print(this_parameter)
 
             for subplot_index in range(number_of_traces):
                 this_axis = plt.Subplot(my_figure, this_inner_grid[subplot_index])
@@ -214,7 +214,17 @@ class TestMakeFinalFigures(unittest.TestCase):
         my_figure = plt.figure( figsize = (2.5, 1.9) )
 
         my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
-                                                          'extended_degradation_sweep.npy'))
+#                                                           'extended_degradation_sweep.npy'))
+                                                          'repeated_degradation_sweep.npy'))
+        print(my_degradation_sweep_results[0,:,0])
+        print(np.log(2)/90)
+        my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] - 
+                                                      my_degradation_sweep_results[:,3,4]>
+                                                      my_degradation_sweep_results[:,3,4]*1.0,
+                                                      my_degradation_sweep_results[:,3,4]>0.1))
+        print(len(my_filtered_indices[0]))
+        print(len(my_degradation_sweep_results))
+        my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
         x_coord = -0.3
         y_coord = 1.05
         for results_table in my_degradation_sweep_results:
@@ -274,5 +284,133 @@ class TestMakeFinalFigures(unittest.TestCase):
  
         plt.savefig(file_name + '.pdf', dpi = 600)
         plt.savefig(file_name + '.eps', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+        
+    def test_make_likelihood_plot(self):
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_massive')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                   model_results[:,1]>0.05)))
+
+        label_fontsize = 10
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+
+        number_of_absolute_samples = len(accepted_indices[0])
+        print('base model accepted that many indices')
+        print(number_of_absolute_samples)
+        parameter_names = ['basal_transcription_rate',
+                            'translation_rate',
+                            'repression_threshold',
+                            'time_delay',
+                            'mRNA_degradation_rate',
+                            'protein_degradation_rate',
+                            'hill_coefficient']
+
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'Transcription rate'
+        x_labels['translation_rate'] = 'Translation rate'
+        x_labels['repression_threshold'] = 'Repression threshold' 
+        x_labels['time_delay'] = 'Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'Protein degradation'
+        x_labels['hill_coefficient'] = 'Hill coefficient'
+
+        decrease_ratios = dict()
+        increase_ratios = dict()
+        bardata = []
+        for parameter_name in parameter_names:
+            print('investigating ' + parameter_name)
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+#                                                           'data',
+                                                          'output',
+#                                                           'narrowed_relative_sweeps_' + 
+                                                        'repeated_relative_sweeps_' + 
+#                                                           'extended_relative_sweeps_' + 
+                                                          parameter_name + '.npy'))
+ 
+            print('these accepted base samples are')
+#             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
+#                                                                     my_parameter_sweep_results[:,9,4] < 0.1))[0])
+            number_of_absolute_samples = len(np.where(np.logical_or(accepted_model_results[:,2] > 600,
+                                                                    accepted_model_results[:,3] < 0.1))[0])
+            print(number_of_absolute_samples)
+            
+            decrease_indices = np.where(np.logical_and(np.logical_or(accepted_model_results[:,3] < 0.1,
+                                                                    accepted_model_results[:,2] > 600),
+                                        np.logical_and(my_parameter_sweep_results[:,0,3] < 300,
+                                                        my_parameter_sweep_results[:,0,4] > 0.1)))
+#             decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                                     my_parameter_sweep_results[:,9,3] > 600),
+#                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
+#                                                         my_parameter_sweep_results[:,4,4] > 0.1)))
+
+            decrease_ratios[parameter_name] = len(decrease_indices[0])/float(number_of_absolute_samples)
+            print('these decrease samples are')
+            number_of_decrease_samples = len(decrease_indices[0])
+            print(number_of_decrease_samples)
+
+            increase_indices = np.where(np.logical_and(np.logical_or(accepted_model_results[:,3] < 0.1,
+                                                                    accepted_model_results[:,2] > 600),
+                                        np.logical_and(my_parameter_sweep_results[:,1,3] < 300,
+                                                        my_parameter_sweep_results[:,1,4] > 0.1)))
+#             increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                                     my_parameter_sweep_results[:,9,3] > 600),
+#                                         np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
+#                                                         my_parameter_sweep_results[:,14,4] > 0.1)))
+
+            increase_ratios[parameter_name] = len(increase_indices[0])/float(number_of_absolute_samples)
+            print('these increase samples are')
+            number_of_increase_samples = len(increase_indices[0])
+            print(number_of_increase_samples)
+                
+        increase_bars = [increase_ratios[parameter_name] for parameter_name
+                         in parameter_names]
+
+        decrease_bars = [decrease_ratios[parameter_name] for parameter_name
+                         in parameter_names]
+
+        increase_positions = np.arange(len(increase_bars))
+        decrease_positions = np.arange(len(decrease_bars)) + len(increase_bars)
+        all_positions = np.hstack((increase_positions, decrease_positions))
+        
+        all_bars = np.array( increase_bars + decrease_bars)
+
+        labels_up = [x_labels[parameter_name] + ' up' for parameter_name in parameter_names]
+        labels_down = [x_labels[parameter_name] + ' down' for parameter_name in parameter_names]
+        
+        all_labels = labels_up + labels_down
+        sorting_indices = np.argsort(all_bars)
+        sorted_labels = [all_labels[sorting_index] for
+                         sorting_index in sorting_indices]
+        sorted_bars = np.sort(all_bars)
+        sorted_bars/= np.sum(sorted_bars)
+
+        my_figure = plt.figure( figsize = (6.25, 1.9) )
+        plt.bar(all_positions, sorted_bars[::-1], edgecolor = 'black')
+        sorted_labels.reverse()
+#         plt.xticks( all_positions + 0.4 , 
+        plt.xticks( all_positions, 
+                    sorted_labels,
+                    rotation = 30,
+                    fontsize = label_fontsize,
+                    horizontalalignment = 'right')
+        plt.xlim(all_positions[0] - 0.5, all_positions[-1] + 0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=4)
+        plt.ylim(0,sorted_bars[-1]*1.2)
+        plt.ylabel('Likelihood')
+
+        my_figure.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__), 'output',
+                                   'likelihood_plot_for_paper_with_fontsize_' + str(label_fontsize))
+        plt.savefig(file_name + '.pdf')
+        plt.savefig(file_name + '.eps')
         plt.savefig(file_name + '.png', dpi = 600)
  
