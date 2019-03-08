@@ -8,10 +8,6 @@ import matplotlib.pyplot as plt
 font = {'size'   : 10}
 plt.rc('font', **font)
 import numpy as np
-<<<<<<< HEAD
-=======
-from jitcdde import jitcdde,y,t
->>>>>>> 3fc61e7923ec08e8e128c72ea65ae107650b47ec
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
@@ -266,12 +262,8 @@ class TestInfrastructure(unittest.TestCase):
                                                          translation_rate = 29,
                                                          basal_transcription_rate = 11,
                                                          transcription_delay = 29,
-<<<<<<< HEAD
                                                          mRNA_noise_strength = 10,
                                                          protein_noise_strength = 0,
-=======
-                                                         noise_strength = 10,
->>>>>>> 3fc61e7923ec08e8e128c72ea65ae107650b47ec
                                                          initial_mRNA = 3,
                                                          initial_protein = 31400,
                                                          equilibration_time = 1000)
@@ -453,11 +445,7 @@ class TestInfrastructure(unittest.TestCase):
         repression_threshold = 100.0
         hill_coefficient = 5
         
-<<<<<<< HEAD
         is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold, 
-=======
-        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
->>>>>>> 3fc61e7923ec08e8e128c72ea65ae107650b47ec
                                                               hill_coefficient = hill_coefficient, 
                                                               mRNA_degradation_rate = mrna_degradation, 
                                                               protein_degradation_rate = protein_degradation, 
@@ -476,11 +464,7 @@ class TestInfrastructure(unittest.TestCase):
         repression_threshold = 60000
         hill_coefficient = 5
         
-<<<<<<< HEAD
         is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold, 
-=======
-        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
->>>>>>> 3fc61e7923ec08e8e128c72ea65ae107650b47ec
                                                               hill_coefficient = hill_coefficient, 
                                                               mRNA_degradation_rate = mrna_degradation, 
                                                               protein_degradation_rate = protein_degradation, 
@@ -490,7 +474,6 @@ class TestInfrastructure(unittest.TestCase):
 
         self.assert_(not is_oscillatory)
 
-<<<<<<< HEAD
     def test_stochastic_bifurcation(self):
         ##at this parameter point the system should oscillate
         protein_degradation = 0.03
@@ -544,8 +527,6 @@ class TestInfrastructure(unittest.TestCase):
         # response on the boundaries, let's check the mean instead
         self.assertAlmostEqual(np.mean(period_values), 1.42, 2)
 
-=======
->>>>>>> 3fc61e7923ec08e8e128c72ea65ae107650b47ec
     def xest_generate_alternative_deterministic_trajectory(self):
         basal_transcription_rate = 5.0
         translation_rate = 20.0
@@ -571,22 +552,14 @@ class TestInfrastructure(unittest.TestCase):
         times = np.arange(DDE.t,DDE.t+1000,1.0)
         results = np.zeros((len(times),3))
         time_index = 0
-<<<<<<< HEAD
         print(times)
-=======
-        print times
->>>>>>> 3fc61e7923ec08e8e128c72ea65ae107650b47ec
         for time in times:
             results[time_index,0] = time
             results[time_index,1:] = DDE.integrate(time)
             time_index += 1
             
         my_trajectory = results
-<<<<<<< HEAD
         print(my_trajectory)
-=======
-        print my_trajectory
->>>>>>> 3fc61e7923ec08e8e128c72ea65ae107650b47ec
 
         figuresize = (4,2.75)
         my_figure = plt.figure()
@@ -625,22 +598,14 @@ class TestInfrastructure(unittest.TestCase):
         times = np.arange(DDE.t,DDE.t+1000,1.0)
         results = np.zeros((len(times),3))
         time_index = 0
-<<<<<<< HEAD
         print(times)
-=======
-        print times
->>>>>>> 3fc61e7923ec08e8e128c72ea65ae107650b47ec
         for time in times:
             results[time_index,0] = time
             results[time_index,1:] = DDE.integrate(time)
             time_index += 1
             
         my_trajectory = results
-<<<<<<< HEAD
         print(my_trajectory)
-=======
-        print my_trajectory
->>>>>>> 3fc61e7923ec08e8e128c72ea65ae107650b47ec
 
         figuresize = (4,2.75)
         my_figure = plt.figure()
