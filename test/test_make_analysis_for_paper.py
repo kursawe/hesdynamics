@@ -19,7 +19,7 @@ import hes5
 
 class TestMakePaperAnalysis(unittest.TestCase):
                                  
-    def test_a_make_abc_samples(self):
+    def xest_a_make_abc_samples(self):
         print('making abc samples')
         ## generate posterior samples
         total_number_of_samples = 1000000
@@ -150,13 +150,15 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','hes5_phase_space_analysis.pdf'))
 
-    def xest_plot_posterior_distributions(self):
+    def test_plot_posterior_distributions(self):
         
-        option = 'increase_is_possible'
+        option = 'coherence_goes_down'
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data',
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                   'sampling_results_repeated')
+                                    'sampling_results_repeated')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output',
+#                                    'sampling_results_massive')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -231,6 +233,19 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                          np.logical_and(model_results[:,5]<65000, #protein_number
 #                                          np.logical_and(model_results[:,6]<0.15,  #standard deviation
                                                         model_results[:,6]>0.05)))
+        elif option == 'coherence_goes_down':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
+                                                       model_results[:,1]>0.05)))  #standard deviation
+            my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+#                                                           'extended_degradation_sweep.npy'))
+                                                          'repeated_degradation_sweep.npy'))
+            my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] - 
+                                                          my_degradation_sweep_results[:,3,4]>
+                                                          my_degradation_sweep_results[:,3,4]*1.0,
+                                                          my_degradation_sweep_results[:,3,4]>0.1))
+ 
+            accepted_indices = (accepted_indices[0][my_filtered_indices],)
         else:
             ValueError('could not identify posterior option')
 #       
@@ -2078,7 +2093,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','extended_relative_sweeps_' + 'time_delay' + '.npy'),
                     my_parameter_sweep_results)
 
-    def test_make_relative_parameter_variation(self):
+    def xest_make_relative_parameter_variation(self):
         number_of_parameter_points = 2
         number_of_trajectories = 200
 #         number_of_parameter_points = 2
@@ -2278,8 +2293,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                  'output','extended_bifurcation_illustration.pdf'), dpi = 400)
  
     def xest_plot_bayes_factors_for_models(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_massive')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -2328,24 +2344,34 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                           parameter_name + '.npy'))
  
             print('these accepted base samples are')
-            number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
-                                                                    my_parameter_sweep_results[:,9,4] < 0.1))[0])
+#             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
+#                                                                     my_parameter_sweep_results[:,9,4] < 0.1))[0])
+            number_of_absolute_samples = len(np.where(np.logical_or(accepted_model_results[:,2] > 600,
+                                                                    accepted_model_results[:,3] < 0.1))[0])
             print(number_of_absolute_samples)
             
-            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
-                                                                    my_parameter_sweep_results[:,9,3] > 600),
-                                        np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
-                                                        my_parameter_sweep_results[:,4,4] > 0.1)))
+            decrease_indices = np.where(np.logical_and(np.logical_or(accepted_model_results[:,3] < 0.1,
+                                                                    accepted_model_results[:,2] > 600),
+                                        np.logical_and(my_parameter_sweep_results[:,0,3] < 300,
+                                                        my_parameter_sweep_results[:,0,4] > 0.1)))
+#             decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                                     my_parameter_sweep_results[:,9,3] > 600),
+#                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
+#                                                         my_parameter_sweep_results[:,4,4] > 0.1)))
 
             decrease_ratios[parameter_name] = len(decrease_indices[0])/float(number_of_absolute_samples)
             print('these decrease samples are')
             number_of_decrease_samples = len(decrease_indices[0])
             print(number_of_decrease_samples)
 
-            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
-                                                                    my_parameter_sweep_results[:,9,3] > 600),
-                                        np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
-                                                        my_parameter_sweep_results[:,14,4] > 0.1)))
+            increase_indices = np.where(np.logical_and(np.logical_or(accepted_model_results[:,3] < 0.1,
+                                                                    accepted_model_results[:,2] > 600),
+                                        np.logical_and(my_parameter_sweep_results[:,1,3] < 300,
+                                                        my_parameter_sweep_results[:,1,4] > 0.1)))
+#             increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                                     my_parameter_sweep_results[:,9,3] > 600),
+#                                         np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
+#                                                         my_parameter_sweep_results[:,14,4] > 0.1)))
 
             increase_ratios[parameter_name] = len(increase_indices[0])/float(number_of_absolute_samples)
             print('these increase samples are')
@@ -2442,7 +2468,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                        'power_spectra_before.pdf'), dpi = 400)
 
     def xest_plot_power_spectra_before_and_after(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_massive')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -2491,19 +2518,29 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                           parameter_name + '.npy'))
  
             print('these accepted base samples are')
-            number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
-                                                                    my_parameter_sweep_results[:,9,4] < 0.1))[0])
+#             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
+#                                                                     my_parameter_sweep_results[:,9,4] < 0.1))[0])
+            number_of_absolute_samples = len(np.where(np.logical_or(accepted_model_results[:,2] > 600,
+                                                                    accepted_model_results[:,3] < 0.1))[0])
             print(number_of_absolute_samples)
             
-            decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
-                                                                    my_parameter_sweep_results[:,9,3] > 600),
-                                        np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
-                                                        my_parameter_sweep_results[:,4,4] > 0.1)))
+            decrease_indices = np.where(np.logical_and(np.logical_or(accepted_model_results[:,3] < 0.1,
+                                                                    accepted_model_results[:,2] > 600),
+                                        np.logical_and(my_parameter_sweep_results[:,0,3] < 300,
+                                                        my_parameter_sweep_results[:,0,4] > 0.1)))
+#             decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                                     my_parameter_sweep_results[:,9,3] > 600),
+#                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
+#                                                         my_parameter_sweep_results[:,4,4] > 0.1)))
 
-            increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
-                                                                    my_parameter_sweep_results[:,9,3] > 600),
-                                        np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
-                                                        my_parameter_sweep_results[:,14,4] > 0.1)))
+            increase_indices = np.where(np.logical_and(np.logical_or(accepted_model_results[:,3] < 0.1,
+                                                                    accepted_model_results[:,2] > 600),
+                                        np.logical_and(my_parameter_sweep_results[:,1,3] < 300,
+                                                        my_parameter_sweep_results[:,1,4] > 0.1)))
+#             increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
+#                                                                     my_parameter_sweep_results[:,9,3] > 600),
+#                                         np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
+#                                                         my_parameter_sweep_results[:,14,4] > 0.1)))
 
             decrease_parameters_before = my_posterior_samples[decrease_indices]
             increase_parameters_before = my_posterior_samples[increase_indices]
@@ -2513,10 +2550,10 @@ class TestMakePaperAnalysis(unittest.TestCase):
             print(decrease_parameters_before)
             print(increase_parameters_before)
             
-#             if len(decrease_parameters_before) > 10:
-#                 decrease_parameters_before = decrease_parameters_before[:10]
-#             if len(increase_parameters_before) > 10:
-#                 increase_parameters_before = increase_parameters_before[:10]
+            if len(decrease_parameters_before) > 100:
+                decrease_parameters_before = decrease_parameters_before[:100]
+            if len(increase_parameters_before) > 100:
+                increase_parameters_before = increase_parameters_before[:100]
 
             dummy_zeros = np.zeros((decrease_parameters_before.shape[0],2))
             decrease_parameters_after = np.hstack((decrease_parameters_before,dummy_zeros))
