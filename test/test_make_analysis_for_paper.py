@@ -345,6 +345,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         resolution_per_direction = 100
         mRNA_degradation_values = np.linspace(0.001,np.log(2)/20, resolution_per_direction)
         protein_degradation_values = np.linspace(0.001,np.log(2)/20, resolution_per_direction)
+
         oscillation_probability = np.zeros((len(mRNA_degradation_values),len(protein_degradation_values)))
         expected_coherence = np.zeros((len(mRNA_degradation_values),len(protein_degradation_values)))
         for protein_degradation_index, protein_degradation in enumerate(protein_degradation_values):
@@ -469,3 +470,4 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
                                    'shortened_posterior_hilbert_periods_per_cell_one_sample.pdf'))
+
