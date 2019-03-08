@@ -21,7 +21,7 @@ import hes5
 
 class TestMakeFinalFigures(unittest.TestCase):
                                  
-    def test_make_period_distribution_plot(self):
+    def xest_make_period_distribution_plot(self):
         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'data',
                                 'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 #                                   'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.npy'))
@@ -47,7 +47,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
 
-    def test_make_standard_deviation_distribution_plot(self):
+    def xest_make_standard_deviation_distribution_plot(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -87,7 +87,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
         
-    def test_make_model_visualisation(self):
+    def xest_make_model_visualisation(self):
         
                 # sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
@@ -209,7 +209,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
         
-    def test_plot_coherence_curves(self):
+    def xest_plot_coherence_curves(self):
 
         my_figure = plt.figure( figsize = (2.5, 1.9) )
 
@@ -249,7 +249,8 @@ class TestMakeFinalFigures(unittest.TestCase):
         
     def test_plot_bifurcation_analysis(self):
 #         option = 'stochastic'
-        option = 'stochastic'
+#         option = 'stochastic'
+        option = 'deterministic'
 
         X = np.load(os.path.join(os.path.dirname(__file__),
                                        'data','oscillation_coherence_protein_degradation_values_' + option + '.npy'))
@@ -258,7 +259,10 @@ class TestMakeFinalFigures(unittest.TestCase):
         expected_coherence = np.load(os.path.join(os.path.dirname(__file__),
                                        'data','oscillation_coherence_values_' + option + '.npy'))
 
+        print('maximal coherence is')
+        print(np.max(expected_coherence))
         this_figure = plt.figure(figsize = (2.5,1.9))
+#         colormesh = plt.pcolormesh(X,Y,expected_coherence, rasterized = True, vmax = 0.22909221814462538)
         colormesh = plt.pcolormesh(X,Y,expected_coherence, rasterized = True)
 #         plt.pcolor(X,Y,expected_coherence)
         plt.scatter(np.log(2)/90, np.log(2)/30)
@@ -286,7 +290,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.eps', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
         
-    def test_make_likelihood_plot(self):
+    def xest_make_likelihood_plot(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_massive')
