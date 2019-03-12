@@ -2490,7 +2490,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'noise_weight_illustration.pdf'))
 
-    def test_noise_impact_on_mean_expression(self):
+    def xest_noise_impact_on_mean_expression(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
@@ -2516,8 +2516,12 @@ class TestZebrafish(unittest.TestCase):
         second_derivatives = ( hill_coefficients*np.power(repression_factors, hill_coefficients-2)/
                                repression_thresholds**2*(1+np.power(repression_factors,hill_coefficients))**3*
                                (np.power(repression_factors,hill_coefficients)*(hill_coefficients + 1) - hill_coefficients - 1)) 
+        expected_change = ( my_posterior_samples[:,0]*my_posterior_samples[:,1]/
+                            (my_posterior_samples[:,-1]*my_posterior_samples[:,-2])*mean_proteins*
+                            second_derivatives)
 #         best_index = np.argmax(my_model_results[:,0] - my_posterior_samples[:,2])
-        best_index = np.argmax((my_model_results[:,0] - my_posterior_samples[:,2])/my_model_results[:,0])
+#         best_index = np.argmax((my_model_results[:,0] - my_posterior_samples[:,2])/my_model_results[:,0])
+        best_index = np.argmax(expected_change)
 #         best_index = np.argmax(second_derivatives)
 #         example_parameter_index = 1
         example_parameter = my_posterior_samples[best_index]
@@ -2610,4 +2614,37 @@ class TestZebrafish(unittest.TestCase):
         plt.ylim(1000,11000)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
-                                 'noise_vs_mean.pdf'))
+                                 'noise_vs_mean_different.pdf'))
+        
+    def test_flucutation_rate_dependant_activation(self):
+        times = np.linspace(0,15,1000)
+#         input_signal_before = np.ones_like(times)*11
+#         input_signal_before = np.zeros_like(times)
+        input_signal_before = 3*np.sin(2*np.pi*times/2) + 10
+        input_signal_after = 3*np.sin(2*np.pi*times/0.5) + 10
+        
+        delta_t = times[1] - times[0]
+        outputs = []
+        for signal_index, signal in enumerate([input_signal_before, input_signal_after]):
+            index = 0
+            output = np.zeros_like(input_signal_before)
+            for time in times[:-1]:
+                x = output[index]
+                this_signal = signal[index]
+                dx = 1/(1+np.power(this_signal/11,4)) + 1/(1+np.power(x/0.5,-4)) - 4*x
+                index+=1
+                output[index] = x+dx*delta_t
+            outputs.append(output)
+        
+        plt.figure(figsize = (4.5,4.5))
+        plt.subplot(221)
+        plt.plot(times,input_signal_before)
+        plt.subplot(222)
+        plt.plot(times,outputs[0])
+        plt.subplot(223)
+        plt.plot(times,input_signal_after)
+        plt.subplot(224)
+        plt.plot(times,outputs[1])
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'fluctuation_rate_dependent_activation.pdf'))
