@@ -13,6 +13,7 @@ import numpy as np
 import scipy.optimize
 import pandas as pd
 import seaborn as sns
+import sklearn.gaussian_process as gp
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern, RBF, ConstantKernel
 import logging
@@ -197,8 +198,8 @@ class TestZebrafish(unittest.TestCase):
 #         option = 'mean_period_and_coherence'
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
-#         option = 'mean_std_period'
-        option = 'coherence_decrease'
+        option = 'mean_std_period'
+#         option = 'coherence_decrease'
 #         option = 'mean_std_period_fewer_samples'
 #         option = 'mean_std_period_coherence'
 #         option = 'weird_decrease'
@@ -293,9 +294,10 @@ class TestZebrafish(unittest.TestCase):
             weird_parameters_after = parameters_after_change[weird_indices]
 
         elif option == 'coherence_decrease':
-#             change = 'decreased'
-            change = 'increased'
-            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+            change = 'decreased'
+#             change = 'increased'
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+#             saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
             results_after_change = np.load(saving_path + '.npy')
             parameters_after_change = np.load(saving_path + '_parameters.npy')
             results_before_change = np.load(saving_path + '_old.npy')
@@ -303,13 +305,13 @@ class TestZebrafish(unittest.TestCase):
             old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
             new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
         
-#             weird_indices = np.where(results_before_change[:,0]>results_after_change[:,0])
-            weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
-                                                    results_before_change[:,-1]/np.power(results_before_change[:,1]*
-                                                                                         results_before_change[:,0],2)<
-                                                    results_after_change[:,-1]/np.power(results_after_change[:,1]*
-                                                                                        results_after_change[:,0],2)))
- 
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+#             weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+#                                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                                          results_before_change[:,0],2)<
+#                                                     results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                                         results_after_change[:,0],2)))
+#  
 #                                                     old_lengthscales<new_lengthscales))
             weird_parameters_before = parameters_before_change[weird_indices]
             weird_parameters_after = parameters_after_change[weird_indices]
@@ -565,7 +567,7 @@ class TestZebrafish(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        option = 'mean_std_period'
+        option = 'coherence_decrease_degradation'
         if option == 'mean_and_std':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
                                         np.logical_and(model_results[:,0]<8000,
@@ -577,13 +579,67 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
                                                        model_results[:,2]<150)))))
+        elif option == 'coherence_decrease_translation':
+#             change = 'decreased'
+            change = 'increased'
+#             saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+#             weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+#                                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                                          results_before_change[:,0],2)<
+#                                                     results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                                         results_after_change[:,0],2)))
+#  
+#                                                     old_lengthscales<new_lengthscales))
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
+            weird_results_before = results_before_change[weird_indices]
+            weird_results_after = results_after_change[weird_indices]
+        elif option == 'coherence_decrease_degradation':
+            change = 'decreased'
+#             change = 'increased'
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+#             saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+#             weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+#                                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                                          results_before_change[:,0],2)<
+#                                                     results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                                         results_after_change[:,0],2)))
+#  
+#                                                     old_lengthscales<new_lengthscales))
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
+            weird_results_before = results_before_change[weird_indices]
+            weird_results_after = results_after_change[weird_indices]
         else:
             raise ValueError('option not recognised')
+#       
+        if option not in ['weird_decrease', 'coherence_decrease_translation',
+                          'coherence_decrease_degradation']:
+            my_posterior_samples = prior_samples[accepted_indices]
+            my_model_results = model_results[accepted_indices]
+        else:
+            my_posterior_samples = weird_parameters_before
+            my_model_results = weird_results_before
 
-        my_posterior_samples = prior_samples[accepted_indices]
-        my_model_results = model_results[accepted_indices]
 
-        sns.set()
+#         sns.set()
         # sns.set(font_scale = 1.5)
 #         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
         # font = {'size'   : 28}
@@ -599,7 +655,8 @@ class TestZebrafish(unittest.TestCase):
                      kde = False,
                      rug = False,
                      norm_hist = True,
-                     hist_kws = {'edgecolor' : 'black'},
+                     hist_kws = {'edgecolor' : 'black',
+                                 'alpha' : 1},
                      bins = 100)
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
@@ -617,6 +674,122 @@ class TestZebrafish(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','zebrafish_coherence_distribution_'+option+'.pdf'))
+        
+    def xest_plot_zebrafish_cov_distribution(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+#                                    'sampling_results_MCF7')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        option = 'coherence_decrease_translation'
+#         option = 'mean_std_period'
+        if option == 'mean_and_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                                       model_results[:,1]>0.05))))
+        elif option == 'mean_std_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+        elif option == 'coherence_decrease_translation':
+#             change = 'decreased'
+            change = 'increased'
+#             saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+#             weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+#                                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                                          results_before_change[:,0],2)<
+#                                                     results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                                         results_after_change[:,0],2)))
+#  
+#                                                     old_lengthscales<new_lengthscales))
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
+            weird_results_before = results_before_change[weird_indices]
+            weird_results_after = results_after_change[weird_indices]
+        elif option == 'coherence_decrease_degradation':
+            change = 'decreased'
+#             change = 'increased'
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+#             saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+#             weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+#                                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                                          results_before_change[:,0],2)<
+#                                                     results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                                         results_after_change[:,0],2)))
+#  
+#                                                     old_lengthscales<new_lengthscales))
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
+            weird_results_before = results_before_change[weird_indices]
+            weird_results_after = results_after_change[weird_indices]
+        else:
+            raise ValueError('option not recognised')
+#       
+        if option not in ['weird_decrease', 'coherence_decrease_translation',
+                          'coherence_decrease_degradation']:
+            my_posterior_samples = prior_samples[accepted_indices]
+            my_model_results = model_results[accepted_indices]
+        else:
+            my_posterior_samples = weird_parameters_before
+            my_model_results = weird_results_before
+
+
+#         sns.set()
+        # sns.set(font_scale = 1.5)
+#         sns.set(font_scale = 1.3, rc = {'ytick.labelsize': 6})
+        # font = {'size'   : 28}
+        # plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (4.5,2.5))
+
+# #         dataframe = pd.DataFrame({'Model': all_periods, 
+#                                     'Data' : np.array(real_data)*60})
+        all_covs = my_model_results[:,1]
+        print('largest cov is')
+        print(np.max(all_covs))
+        sns.distplot(all_covs,
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black',
+                                 'alpha' : 1},
+                     bins = 100)
+#         plt.gca().set_xlim(-1,2)
+        plt.ylabel("Likelihood", labelpad = 20)
+        plt.xlabel("COV")
+#         plt.xlim(0.2,)
+#         plt.ylim(0,5)
+#         plt.xlim(0,20)
+#         plt.ylim(0,0.8)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+ 
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','zebrafish_cov_distribution_'+option+'.pdf'))
         
     def xest_increase_mRNA_degradation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -741,15 +914,15 @@ class TestZebrafish(unittest.TestCase):
  
     def xest_plot_mrna_change_results(self):
         
-        change = 'decreased'
-#         change = 'increased'
+#         change = 'decreased'
+        change = 'increased'
 
         plot_option = 'boxplot'
 #         plot_option = 'lines'
         
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradationtest')
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
-#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated')
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated')
         results_after_change = np.load(saving_path + '.npy')
@@ -1072,8 +1245,8 @@ class TestZebrafish(unittest.TestCase):
  
         plt.tight_layout()
 #         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated.pdf'))
-#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated' + plot_option +'.pdf'))
-        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated_' + plot_option +'.pdf'))
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated' + plot_option +'.pdf'))
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated_' + plot_option +'.pdf'))
         
     def xest_investigate_mrna_and_expression_decrease(self):
 
@@ -1213,6 +1386,89 @@ class TestZebrafish(unittest.TestCase):
         plt.xlabel('Time')
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_examples.pdf'))
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_examples.pdf'))
+
+    def xest_plot_fluctuation_rate_change_examples(self):
+#         change = 'decreased'
+        change = 'increased'
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated')
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+        results_after_change = np.load(saving_path + '.npy')
+        parameters_after_change = np.load(saving_path + '_parameters.npy')
+        results_before_change = np.load(saving_path + '_old.npy')
+        parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+        old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+        new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+        weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+#         weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+#                                                 results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                                      results_before_change[:,0],2)<
+#                                                 results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                                     results_after_change[:,0],2)))
+#  
+#                                                 old_lengthscales<new_lengthscales))
+        weird_parameters_before = parameters_before_change[weird_indices]
+        weird_parameters_after = parameters_after_change[weird_indices]
+        
+        weird_old_lengthscales = old_lengthscales[weird_indices]
+        weird_new_lengthscales = new_lengthscales[weird_indices]
+        weird_results_before = results_before_change[weird_indices]
+        weird_results_after = results_after_change[weird_indices]
+
+#         weirdest_index = np.argmax(weird_results_after[:,-1]-weird_results_before[:,-1])
+#         weirdest_index = np.argmax(results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                         results_after_change[:,0],2) -
+#                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                         results_before_change[:,0],2))
+        weirdest_index = np.argmax(weird_new_lengthscales-weird_old_lengthscales)
+        example_parameter_before = weird_parameters_before[weirdest_index]
+        example_parameter_after = weird_parameters_after[weirdest_index]
+    
+#         example_parameter_index = 0
+#         example_parameter_before = parameters_before_change[example_parameter_index]
+#         example_parameter_after = parameters_after_change[example_parameter_index]
+        
+        example_trace_before = hes5.generate_langevin_trajectory( 720, #duration 
+                                                                  example_parameter_before[2], #repression_threshold, 
+                                                                  example_parameter_before[4], #hill_coefficient,
+                                                                  example_parameter_before[5], #mRNA_degradation_rate, 
+                                                                  example_parameter_before[6], #protein_degradation_rate, 
+                                                                  example_parameter_before[0], #basal_transcription_rate, 
+                                                                  example_parameter_before[1], #translation_rate,
+                                                                  example_parameter_before[3], #transcription_delay, 
+                                                                  10, #initial_mRNA, 
+                                                                  example_parameter_before[2], #initial_protein,
+                                                                  2000)
+
+        example_trace_after = hes5.generate_langevin_trajectory( 720, #duration 
+                                                                  example_parameter_after[2], #repression_threshold, 
+                                                                  example_parameter_after[4], #hill_coefficient,
+                                                                  example_parameter_after[5], #mRNA_degradation_rate, 
+                                                                  example_parameter_after[6], #protein_degradation_rate, 
+                                                                  example_parameter_after[0], #basal_transcription_rate, 
+                                                                  example_parameter_after[1], #translation_rate,
+                                                                  example_parameter_after[3], #transcription_delay, 
+                                                                  10, #initial_mRNA, 
+                                                                  example_parameter_after[2], #initial_protein,
+                                                                  2000)
+
+        plt.figure(figsize = (6.5, 2.5))
+        plt.subplot(121)
+        plt.title('Wildtype')
+        plt.plot(example_trace_before[::6,0],
+                 example_trace_before[::6,2])
+        plt.ylabel('Hes expression')
+        plt.xlabel('Time')
+        plt.subplot(122)
+        plt.title('MBS (translation)')
+        plt.plot(example_trace_after[::6,0],
+                 example_trace_after[::6,2])
+        plt.ylabel('Hes expression')
+        plt.xlabel('Time')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_decreased_coherence_examples.pdf'))
 #         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_examples.pdf'))
 
     def xest_plot_smfish_results(self):
@@ -2140,7 +2396,11 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'fluctuation_rate_convergence_alternative.pdf'))
 
-    def xest_illustrate_lengthscale_measurements(self):
+    def xest_illustrate_lengthscale_measurements_1(self):
+        option = 'without_noise'
+        # option = 'with_noise'
+        number_traces_to_consider = 100
+        noise_strength = 0.01
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
@@ -2190,6 +2450,10 @@ class TestZebrafish(unittest.TestCase):
                                                                             10, #initial_mRNA,2
                                                                             example_parameter_2[2], #initial_protein,
                                                                             1000)
+        
+        if option == 'with_noise':
+            protein_traces_1[:,1:] += np.random.randn(1500*5,100)*noise_strength*np.mean(protein_traces_1[:,1:])
+            protein_traces_2[:,1:] += np.random.randn(1500*5,100)*noise_strength*np.mean(protein_traces_2[:,1:])
 
         plt.figure(figsize = (6.5,10.5))
         ## Row 1 - traces
@@ -2208,14 +2472,17 @@ class TestZebrafish(unittest.TestCase):
 
         ## Row 2 - histogram from 12 hours
         plt.subplot(423)
-        these_shortened_traces_1 = protein_traces_1[:720]
+        these_shortened_traces_1 = protein_traces_1[:720,:number_traces_to_consider+1]
         these_measured_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_shortened_traces_1)
         np.save(os.path.join(os.path.dirname(__file__),'output',
-                'fluctuation_rates_for_convergence_shortened_1.npy'), these_measured_fluctuation_rates)
+                'fluctuation_rates_for_convergence_shortened_1_' + option + '_' + 
+                str(number_traces_to_consider) + '_' + str(noise_strength) + '.npy'), 
+                these_measured_fluctuation_rates)
 #         these_measured_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
-#                                         'fluctuation_rates_for_convergence.npy'))
-        this_fluctuation_rate_1 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_1)
-        plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.008))
+#                                         'fluctuation_rates_for_convergence_shortened_1.npy'))
+        this_fluctuation_rate_1 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_1, sampling_interval = 1)
+#         plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.008))
+        plt.hist(these_measured_fluctuation_rates, bins = 20)
         plt.axvline(np.mean(these_measured_fluctuation_rates), color = 'blue', label = 'Mean')
         plt.axvline(this_fluctuation_rate_1, color = 'green', label = 'Theory')
         plt.xlabel('Fluctuation rate')
@@ -2223,14 +2490,16 @@ class TestZebrafish(unittest.TestCase):
         plt.legend(ncol=1, loc = 'upper left', bbox_to_anchor = (-0.1,1.2), framealpha = 1.0)
 
         plt.subplot(424)
-        these_shortened_traces_2 = protein_traces_2[:720]
+        these_shortened_traces_2 = protein_traces_2[:720,:number_traces_to_consider+1]
         these_measured_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_shortened_traces_2)
         np.save(os.path.join(os.path.dirname(__file__),'output',
-                'fluctuation_rates_for_convergence_shortened_2.npy'), these_measured_fluctuation_rates)
+                'fluctuation_rates_for_convergence_shortened_2' + option + '_' + 
+                str(number_traces_to_consider) + '_' + str(noise_strength) + '.npy'), these_measured_fluctuation_rates)
 #         these_measured_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
 #                                         'fluctuation_rates_for_convergence_2.npy'))
-        this_fluctuation_rate_2 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_2)
-        plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.015))
+        this_fluctuation_rate_2 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_2, sampling_interval = 1)
+#         plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.015))
+        plt.hist(these_measured_fluctuation_rates, bins = 20)
         plt.axvline(np.mean(these_measured_fluctuation_rates), color = 'blue')
         plt.axvline(this_fluctuation_rate_2, color = 'green')
         plt.xlabel('Fluctuation rate')
@@ -2238,26 +2507,30 @@ class TestZebrafish(unittest.TestCase):
 
         ## Row 3 - histogram from 24 hours
         plt.subplot(425)
-        these_shortened_traces_1 = protein_traces_1[:720*2]
+        these_shortened_traces_1 = protein_traces_1[:720*2,:number_traces_to_consider+1]
         these_measured_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_shortened_traces_1)
         np.save(os.path.join(os.path.dirname(__file__),'output',
-                'fluctuation_rates_for_convergence_less_shortened_1.npy'), these_measured_fluctuation_rates)
+                'fluctuation_rates_for_convergence_less_shortened_1' + option + '_' + 
+                str(number_traces_to_consider) + '_' + str(noise_strength) + '.npy'), these_measured_fluctuation_rates)
 #         these_measured_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
-#                                         'fluctuation_rates_for_convergence_longer.npy'))
-        plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.008))
+#                                         'fluctuation_rates_for_convergence_less_shortened_1.npy'))
+#         plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.008))
+        plt.hist(these_measured_fluctuation_rates, bins = 20)
         plt.axvline(np.mean(these_measured_fluctuation_rates), color = 'blue')
         plt.axvline(this_fluctuation_rate_1, color = 'green')
         plt.xlabel('Fluctuation rate')
         plt.ylabel('Occurrence')
 
         plt.subplot(426)
-        these_shortened_traces_2 = protein_traces_2[:720*2]
+        these_shortened_traces_2 = protein_traces_2[:720*2,:number_traces_to_consider+1]
         these_measured_fluctuation_rates = hes5.measure_fluctuation_rates_of_traces(these_shortened_traces_2)
         np.save(os.path.join(os.path.dirname(__file__),'output',
-                'fluctuation_rates_for_convergence_less_shortened_2.npy'), these_measured_fluctuation_rates)
+                'fluctuation_rates_for_convergence_less_shortened_2' + option + '_' + 
+                str(number_traces_to_consider) + '_' + str(noise_strength) + '.npy'), these_measured_fluctuation_rates)
 #         these_measured_fluctuation_rates = np.load(os.path.join(os.path.dirname(__file__),'output',
-#                                         'fluctuation_rates_for_convergence_longer_2.npy'))
-        plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.015))
+#                                         'fluctuation_rates_for_convergence_less_shortened_2.npy'))
+#         plt.hist(these_measured_fluctuation_rates, bins = 20, range = (0,0.015))
+        plt.hist(these_measured_fluctuation_rates, bins = 20)
         plt.axvline(np.mean(these_measured_fluctuation_rates), color = 'blue')
         plt.axvline(this_fluctuation_rate_2, color = 'green')
         plt.xlabel('Fluctuation rate')
@@ -2265,10 +2538,13 @@ class TestZebrafish(unittest.TestCase):
 
         ## Row 4 - histogram from 12 hours, lower sampling rate
         plt.subplot(427)
-        these_short_downsampled_protein_traces_1 = protein_traces_1[:720:10]
+        these_short_downsampled_protein_traces_1 = protein_traces_1[:720:10,:number_traces_to_consider+1]
         these_measured_fluctuation_rates_1 = hes5.measure_fluctuation_rates_of_traces(these_short_downsampled_protein_traces_1)
         np.save(os.path.join(os.path.dirname(__file__),'output',
-                'fluctuation_rates_for_convergence_downsampled_1.npy'), these_measured_fluctuation_rates_1)
+                'fluctuation_rates_for_convergence_downsampled_1' + option + '_' + 
+                str(number_traces_to_consider) + '_' + str(noise_strength) + '.npy'), these_measured_fluctuation_rates_1)
+#         these_measured_fluctuation_rates_1 = np.load(os.path.join(os.path.dirname(__file__),'output',
+#                                         'fluctuation_rates_for_convergence_downsampled_1.npy'))
         this_estimated_fluctuation_rate_1 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_1,
                                                                                                       sampling_interval = 10)
         plt.hist(these_measured_fluctuation_rates_1, bins = 20)
@@ -2278,10 +2554,13 @@ class TestZebrafish(unittest.TestCase):
         plt.ylabel('Occurrence')
 
         plt.subplot(428)
-        these_short_downsampled_protein_traces_2 = protein_traces_2[:720:10]
+        these_short_downsampled_protein_traces_2 = protein_traces_2[:720:10,:number_traces_to_consider+1]
         these_measured_fluctuation_rates_2 = hes5.measure_fluctuation_rates_of_traces(these_short_downsampled_protein_traces_2)
         np.save(os.path.join(os.path.dirname(__file__),'output',
-                'fluctuation_rates_for_convergence_downsampled_2.npy'), these_measured_fluctuation_rates_2)
+                'fluctuation_rates_for_convergence_downsampled_2' + option + '_' + 
+                str(number_traces_to_consider) + '_' + str(noise_strength) + '.npy'), these_measured_fluctuation_rates_2)
+#         these_measured_fluctuation_rates_2 = np.load(os.path.join(os.path.dirname(__file__),'output',
+#                                         'fluctuation_rates_for_convergence_downsampled_2.npy'))
         this_estimated_fluctuation_rate_2 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_2,
                                                                                                       sampling_interval = 10)
         plt.hist(these_measured_fluctuation_rates_2, bins = 20)
@@ -2292,7 +2571,9 @@ class TestZebrafish(unittest.TestCase):
 
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
-                                 'fluctuation_rate_illustration_panels.pdf'))
+                                 'fluctuation_rate_illustration_panels_' + option + '_' + 
+                                  str(number_traces_to_consider) + '_' + str(noise_strength) + 
+                                 '.pdf'))
         
         ## make the second plot
         this_halfway_sampling_rate_1 = hes5.approximate_fluctuation_rate_of_traces_theoretically(protein_traces_1,
@@ -2328,7 +2609,106 @@ class TestZebrafish(unittest.TestCase):
         plt.ylabel('Fluctuation rate [1/min]')
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
-                                 'fluctuation_rate_illustration_short.pdf'))
+                                 'fluctuation_rate_illustration_short_' + option + '_' + 
+                                  str(number_traces_to_consider) + '_' + str(noise_strength) + 
+                                  '.pdf'))
+
+    def test_illustrate_lengthscale_measurements_with_noise(self):
+        option = 'without_noise'
+        # option = 'with_noise'
+        number_traces_to_consider = 100
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.3))))  
+
+        my_posterior_samples_1 = prior_samples[accepted_indices]
+        example_parameter_index = 100
+        example_parameter_1 = my_posterior_samples_1[example_parameter_index]
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                    np.logical_and(model_results[:,0]<8000,
+                                    np.logical_and(model_results[:,2]<100,
+                                                   model_results[:,3]>0.2))))  
+        my_posterior_samples_2 = prior_samples[accepted_indices]
+#         example_parameter_index = 10
+        example_parameter_index = 10
+        example_parameter_2 = my_posterior_samples_2[example_parameter_index]
+ 
+        number_of_traces = 100
+        _, protein_traces_1 = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                            1500*5, #duration 
+                                                                            example_parameter_1[2], #repression_threshold, 
+                                                                            example_parameter_1[4], #hill_coefficient,
+                                                                            example_parameter_1[5], #mRNA_degradation_rate, 
+                                                                            example_parameter_1[6], #protein_degradation_rate, 
+                                                                            example_parameter_1[0], #basal_transcription_rate, 
+                                                                            example_parameter_1[1], #translation_rate,
+                                                                            example_parameter_1[3], #transcription_delay, 
+                                                                            10, #initial_mRNA, 
+                                                                            example_parameter_1[2], #initial_protein,
+                                                                            1000)
+        number_of_traces = 100
+        _, protein_traces_2 = hes5.generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
+                                                                            1500*5, #duration 
+                                                                            example_parameter_2[2], #repression_threshold, 
+                                                                            example_parameter_2[4], #hill_coefficient,
+                                                                            example_parameter_2[5], #mRNA_degradation_rate, 
+                                                                            example_parameter_2[6], #protein_degradation_rate, 
+                                                                            example_parameter_2[0], #basal_transcription_rate, 
+                                                                            example_parameter_2[1], #translation_rate,
+                                                                            example_parameter_2[3], #transcription_delay, 
+                                                                            10, #initial_mRNA,2
+                                                                            example_parameter_2[2], #initial_protein,
+                                                                            1000)
+        
+        noises_to_investigate = [0.0,0.01,0.05,0.1]
+        fluctuation_rates_for_noise = np.zeros((len(noises_to_investigate),3))
+        fluctuation_rates_for_noise[:,0] = noises_to_investigate
+        
+        for noise_index, noise_strength in enumerate(fluctuation_rates_for_noise[:,0]):
+            this_signal_1 = protein_traces_1[:,1:] + np.random.randn(1500*5,100)*noise_strength*np.mean(protein_traces_1[:,1:])
+            this_signal_2 = protein_traces_2[:,1:] + np.random.randn(1500*5,100)*noise_strength*np.mean(protein_traces_2[:,1:])
+            this_fluctuation_rate_1 = hes5.approximate_fluctuation_rate_of_traces_theoretically(this_signal_1,
+                                                                                                 sampling_interval = 6)
+            this_fluctuation_rate_2 = hes5.approximate_fluctuation_rate_of_traces_theoretically(this_signal_2,
+                                                                                                 sampling_interval = 6)
+            fluctuation_rates_for_noise[noise_index,1] = this_fluctuation_rate_1
+            fluctuation_rates_for_noise[noise_index,2] = this_fluctuation_rate_2
+        
+        plt.figure(figsize = (6.5,4.5))
+        plt.subplot(221)
+        this_trace = protein_traces_1[:,(0,1)]
+        plt.plot(this_trace[:,0], this_trace[:,1], color = 'blue')
+        plt.xlabel('Time [min]')
+        plt.ylabel('# Her6')
+        plt.xlim(0,1000)
+
+        plt.subplot(222)
+        this_trace = protein_traces_2[:,(0,1)]
+        plt.plot(this_trace[:,0], this_trace[:,1], color = 'green')
+        plt.xlabel('Time [min]')
+        plt.ylabel('# Her6')
+        plt.xlim(0,1000)
+        plt.subplot(223)
+        plt.plot(fluctuation_rates_for_noise[:,0], 
+                 fluctuation_rates_for_noise[:,1],
+                 marker = 'o',
+                 color = 'blue')
+        plt.plot(fluctuation_rates_for_noise[:,0], 
+                 fluctuation_rates_for_noise[:,2],
+                 marker = 'o',
+                 color = 'green')
+        plt.xlabel('noise std/signal mean')
+        plt.ylabel('Fluctuation rate [1/min]')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'fluctuation_rate_illustration_noise_dependence.pdf'))
 
     def xest_get_get_correlation_matrices(self):
         times = np.linspace(0,10,100)
@@ -2616,12 +2996,12 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'noise_vs_mean_different.pdf'))
         
-    def test_flucutation_rate_dependant_activation(self):
-        times = np.linspace(0,15,1000)
+    def xest_flucutation_rate_dependant_activation(self):
+        times = np.linspace(0,15,100000)
 #         input_signal_before = np.ones_like(times)*11
 #         input_signal_before = np.zeros_like(times)
-        input_signal_before = 3*np.sin(2*np.pi*times/2) + 10
-        input_signal_after = 3*np.sin(2*np.pi*times/0.5) + 10
+        input_signal_before = 3*np.sin(2*np.pi*times/2) + 3
+        input_signal_after = 3*np.sin(2*np.pi*times/0.5) + 3
         
         delta_t = times[1] - times[0]
         outputs = []
@@ -2631,20 +3011,94 @@ class TestZebrafish(unittest.TestCase):
             for time in times[:-1]:
                 x = output[index]
                 this_signal = signal[index]
-                dx = 1/(1+np.power(this_signal/11,4)) + 1/(1+np.power(x/0.5,-4)) - 4*x
+                dx = 0.5/(1+np.power(this_signal/3,4)) + 10/(1+np.power(x/0.4,-4)) - 3*x
                 index+=1
                 output[index] = x+dx*delta_t
             outputs.append(output)
         
         plt.figure(figsize = (4.5,4.5))
         plt.subplot(221)
+        plt.title('Slow input')
         plt.plot(times,input_signal_before)
+        plt.ylabel('Input Signal (Her6)')
+        plt.xlabel('Time')
         plt.subplot(222)
         plt.plot(times,outputs[0])
+        plt.ylabel('Downstream Response')
+        plt.xlabel('Time')
+        plt.ylim(0,4)
         plt.subplot(223)
         plt.plot(times,input_signal_after)
+        plt.title('Fast input')
+        plt.ylabel('Input Signal (Her6)')
+        plt.xlabel('Time')
         plt.subplot(224)
         plt.plot(times,outputs[1])
+        plt.xlabel('Time')
+        plt.ylabel('Downstream Response')
+        plt.ylim(0,4)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'fluctuation_rate_dependent_activation.pdf'))
+
+    def xest_stochastic_flucutation_rate_dependant_activation(self):
+        times = np.linspace(0,15,10000)
+#         input_signal_before = np.ones_like(times)*11
+#         input_signal_before = np.zeros_like(times)
+#         input_signal_before = 3*np.sin(2*np.pi*times/2) + 3
+#         input_signal_after = 3*np.sin(2*np.pi*times/0.5) + 3
+        
+        input_variance = np.sqrt(3)
+
+        ornstein_kernel_before = ( gp.kernels.ConstantKernel(constant_value=input_variance)*
+                            gp.kernels.Matern(nu=0.5, length_scale = 4.0))
+        my_gp_regressor_before = gp.GaussianProcessRegressor(kernel=ornstein_kernel_before )
+        input_signal_before = my_gp_regressor_before.sample_y(times[:, np.newaxis])
+        input_signal_before +=6
+        
+        ornstein_kernel_after = ( gp.kernels.ConstantKernel(constant_value=input_variance)*
+                                  gp.kernels.Matern(nu=0.5, length_scale = 0.1))
+        my_gp_regressor_after = gp.GaussianProcessRegressor(kernel=ornstein_kernel_after )
+        input_signal_after = my_gp_regressor_after.sample_y(times[:, np.newaxis])
+        input_signal_after +=6
+
+        delta_t = times[1] - times[0]
+        outputs = []
+        for signal_index, signal in enumerate([input_signal_before, input_signal_after]):
+            index = 0
+            output = np.zeros_like(input_signal_before)
+            for time in times[:-1]:
+                x = output[index]
+                this_signal = signal[index]
+                dx = 0.5/(1+np.power(this_signal/6,4)) + 10/(1+np.power(x/0.5,-4)) - 3*x
+                index+=1
+                output[index] = x+dx*delta_t
+            outputs.append(output)
+        
+        plt.figure(figsize = (4.5,4.5))
+        plt.subplot(221)
+        plt.title('Slow input')
+        plt.plot(times,input_signal_before)
+        plt.ylim(0,10)
+        plt.ylabel('Input Signal (Her6)')
+        plt.xlabel('Time')
+        plt.subplot(222)
+        plt.plot(times,outputs[0])
+        plt.ylabel('Downstream Response')
+        plt.xlabel('Time')
+        plt.ylim(0,4)
+        plt.subplot(223)
+        plt.plot(times,input_signal_after)
+        plt.title('Fast input')
+        plt.ylabel('Input Signal (Her6)')
+        plt.xlabel('Time')
+        plt.ylim(0,10)
+        plt.subplot(224)
+        plt.plot(times,outputs[1])
+        plt.xlabel('Time')
+        plt.ylabel('Downstream Response')
+        plt.ylim(0,4)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'stochastic_fluctuation_rate_dependent_activation.pdf'))
+
