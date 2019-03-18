@@ -3936,6 +3936,91 @@ def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
         
     return sweep_results
     
+def conduct_dual_parameter_sweep_at_parameters(parameter_samples,
+                                               number_of_sweep_values = 20,
+                                               number_of_traces_per_parameter = 200,
+                                               relative_range = (0.1,2.0)):
+    '''Conduct a simultaneous (dual) parameter sweep of the mRNA degradation rate and
+    the translation rate at each of the parameter points in
+    parameter_samples. The parameter_samples are seven-dimensional, as produced, for example, by 
+    generate_prior_samples() with the 'full' dimension. At each parameter point the function
+    will sweep over number_sweep_values of mrna degradation, and the same number of translation rate values, 
+    and from number_of_trajectories langevin traces the summary statistics [mean expression
+    standard_deviation, period, coherence] will be returned.     
+
+    Parameters:
+    -----------
+    
+    parameter_samples : ndarray
+        four columns, each row corresponds to one parameter. The columns are in the order returned by
+        generate_prior_samples().
+        
+    number_of_sweep_values : int
+        number of different parameter values to consider. These number of values will be evenly spaced
+        between reasonable ranges for each parameter. The total number of parameter variations per input parameter
+        that is generated in this sweep will be number_of_sweep_values^2
+        
+    number_of_traces_per_parameter : int
+        number of traces that should be used to calculate summary statistics
+        
+    relative_range : (float,float)
+        lower and upper relative boundaries of the parameter sweep. Relative the the individual model parameter.
+        
+
+    Results:
+    --------
+    
+    sweep_results : ndarray
+        three-dimensional array. Each entry along the first dimension corresponds to one parameter
+        in parameter_samples and contains a 2d array where the first column is a value of parameter_name
+        and each further column contains the summary statistics in the order described above.
+    ''' 
+    # first: make a table of 7d parameters
+    total_number_of_parameters_required = parameter_samples.shape[0]*(number_of_sweep_values**2)
+    all_parameter_values = np.zeros((total_number_of_parameters_required, 7)) 
+    parameter_sample_index = 0
+    for sample in parameter_samples:
+        for degradation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
+            for translation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
+                all_parameter_values[parameter_sample_index] = sample
+                # now replace the parameter of interest with the actual parameter value
+                # degradation rate
+                all_parameter_values[parameter_sample_index, 5] *= degradation_proportion
+                # translation rate
+                all_parameter_values[parameter_sample_index, 1] *= translation_proportion
+                parameter_sample_index += 1
+
+    # pass these parameters to the calculate_summary_statistics_at_parameter_points
+    all_summary_statistics = calculate_summary_statistics_at_parameters(parameter_values = all_parameter_values, 
+                                                                        number_of_traces_per_sample = number_of_traces_per_parameter,
+                                                                        number_of_cpus = number_of_available_cores, 
+                                                                        model = 'langevin')
+    
+    # unpack and wrap the results in the output format
+    sweep_results = np.zeros((parameter_samples.shape[0], 
+                              number_of_sweep_values,
+                              number_of_sweep_values, 
+                              13))
+    parameter_sample_index = 0
+    for sample_index, sample in enumerate(parameter_samples):
+        degradation_proportion_index = 0
+        for degradation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
+            translation_proportion_index = 0
+            for translation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
+                these_summary_statistics = all_summary_statistics[parameter_sample_index]
+                # the first entry gets the degradation rate
+                sweep_results[sample_index,degradation_proportion_index,
+                              translation_proportion_index,:2] = [degradation_proportion, translation_proportion]
+                # the remaining entries get the summary statistics. We discard the last summary statistic, 
+                # which is the mean mRNA
+                sweep_results[sample_index,degradation_proportion_index,
+                              translation_proportion_index,2:] = these_summary_statistics
+                translation_proportion_index+=1
+                parameter_sample_index+= 1
+            degradation_proportion_index+=1
+ 
+    return sweep_results
+
 def conduct_parameter_sweep_at_parameters(parameter_name,
                                           parameter_samples,
                                           number_of_sweep_values = 20,
