@@ -174,13 +174,13 @@ class TestZebrafish(unittest.TestCase):
 #         total_number_of_samples = 10
 #         acceptance_ratio = 0.5
 
-        prior_bounds = {'basal_transcription_rate' : (0.3,60),
-                        'translation_rate' : (1.0,40),
+        prior_bounds = {'basal_transcription_rate' : (0.6,60),
+                        'translation_rate' : (0.04,40),
                         'repression_threshold' : (0,5000),
                         'time_delay' : (5,40),
                         'hill_coefficient' : (2,6),
                         'protein_degradation_rate' : ( np.log(2)/11.0, np.log(2)/11.0 ),
-                        'mRNA_half_life' : ( 1, 15) }
+                        'mRNA_half_life' : ( 1, 11) }
 
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
@@ -199,13 +199,15 @@ class TestZebrafish(unittest.TestCase):
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
         option = 'mean_std_period'
+#         option = 'coherence_decrease_translation'
+#         option = 'coherence_decrease_degradation'
 #         option = 'coherence_decrease'
 #         option = 'mean_std_period_fewer_samples'
 #         option = 'mean_std_period_coherence'
 #         option = 'weird_decrease'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_zebrafish_repeated')
+                                    'sampling_results_zebrafish')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -217,8 +219,8 @@ class TestZebrafish(unittest.TestCase):
 #                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
 #                                                     prior_samples[:,3]>20))))) #time_delay
         elif option == 'mean':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                                       model_results[:,0]<8000))  #standard deviation
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                                       model_results[:,0]<1500))  #standard deviation
 #                                                        model_results[:,1]>0.05)))  #standard deviation
         elif option == 'prior':
             accepted_indices = range(len(prior_samples))
@@ -241,19 +243,19 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,3]>0.25,
                                                        model_results[:,3]<0.4)))))
         elif option == 'mean_and_std':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                                        model_results[:,1]>0.05))))
         elif option == 'mean_std_period_fewer_samples':
-            accepted_indices = np.where(np.logical_and(model_results[:4000,0]>2000, #protein number
-                                        np.logical_and(model_results[:4000,0]<8000,
+            accepted_indices = np.where(np.logical_and(model_results[:4000,0]>1000, #protein number
+                                        np.logical_and(model_results[:4000,0]<2500,
                                         np.logical_and(model_results[:4000,1]<0.15,
                                         np.logical_and(model_results[:4000,1]>0.05,
                                                        model_results[:4000,2]<150)))))
         elif option == 'mean_std_period':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
                                                        model_results[:,2]<150)))))
@@ -293,7 +295,7 @@ class TestZebrafish(unittest.TestCase):
             weird_parameters_before = parameters_before_change[weird_indices]
             weird_parameters_after = parameters_after_change[weird_indices]
 
-        elif option == 'coherence_decrease':
+        elif option == 'coherence_decrease_degradation':
             change = 'decreased'
 #             change = 'increased'
             saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
@@ -315,18 +317,52 @@ class TestZebrafish(unittest.TestCase):
 #                                                     old_lengthscales<new_lengthscales))
             weird_parameters_before = parameters_before_change[weird_indices]
             weird_parameters_after = parameters_after_change[weird_indices]
+        elif option == 'coherence_decrease_translation':
+#             change = 'decreased'
+            change = 'increased'
+#             saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+#             weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+#                                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                                          results_before_change[:,0],2)<
+#                                                     results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                                         results_after_change[:,0],2)))
+#  
+#                                                     old_lengthscales<new_lengthscales))
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
         else:
             ValueError('could not identify posterior option')
 #       
-        if option not in ['weird_decrease', 'coherence_decrease']:
+        if option not in ['weird_decrease', 'coherence_decrease_degradation',
+                          'coherence_decrease_translation']:
             my_posterior_samples = prior_samples[accepted_indices]
         else:
             my_posterior_samples = weird_parameters_before
 
         print('Number of accepted samples is ')
         print(len(my_posterior_samples))
+        print('minimal transcription is')
+        print(np.min(my_posterior_samples[:,0]))
+        print('and in log space')
+        print(np.min(np.log10(my_posterior_samples[:,0])))
+        print('minimal translation is')
+        print(np.min(my_posterior_samples[:,1]))
+        print('and in log space')
+        print(np.min(np.log10(my_posterior_samples[:,1])))
 
         my_posterior_samples[:,2]/=1000
+
+        print(my_posterior_samples.shape)
+#         my_pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
 
         data_frame = pd.DataFrame( data = my_posterior_samples[:,:6],
                                    columns= ['Transcription rate', 
@@ -335,6 +371,31 @@ class TestZebrafish(unittest.TestCase):
                                              'Transcription delay',
                                              'Hill coefficient',
                                              'mRNA degradation'])
+
+        ### PAIRGRID
+        my_adjusted_posterior_samples = np.copy(my_posterior_samples)
+        my_adjusted_posterior_samples[:,5] = np.log(2)/my_adjusted_posterior_samples[:,5]
+        my_adjusted_posterior_samples[:,0] = np.log10(my_adjusted_posterior_samples[:,0])
+        my_adjusted_posterior_samples[:,1] = np.log10(my_adjusted_posterior_samples[:,1])
+        new_data_frame = pd.DataFrame( data = my_adjusted_posterior_samples[:,:6],
+                                   columns= ['log10(Transcription rate)', 
+                                             'log10(Translation rate)', 
+                                             'Repression threshold/1e3', 
+                                             'Transcription delay',
+                                             'Hill coefficient',
+                                             'mRNA half life'])
+        my_pairplot = sns.PairGrid(new_data_frame)
+#         my_pairplot = sns.pairplot(new_data_frame)
+        my_pairplot.map_upper(plt.scatter, alpha = 0.02, color = 'black', rasterized = True)
+#         my_pairplot.map_upper(sns.kdeplot,rasterized = True)
+        my_pairplot.map_diag(plt.hist)
+        my_pairplot.map_lower(sns.kdeplot, cmap = 'Reds', rasterized = True)
+#         my_pairplot.axes[-1,0].set_xscale("log")
+#         my_pairplot.axes[-1,1].set_xscale("log")
+        my_pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                         'output',
+                                         'pairplot_zebrafish_abc_' +  option + '.pdf'))
+        ### END PAIRGRID
 
         sns.set(font_scale = 1.1, rc = {'ytick.labelsize': 6})
 #         font = {'size'   : 28}
@@ -490,15 +551,15 @@ class TestZebrafish(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        option = 'mean_std_period'
-        if option == 'mean_and_std':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+        option = 'mean_std'
+        if option == 'mean_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                                        model_results[:,1]>0.05))))
         elif option == 'mean_std_period':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
                                                        model_results[:,2]<150)))))
@@ -567,15 +628,15 @@ class TestZebrafish(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        option = 'coherence_decrease_degradation'
-        if option == 'mean_and_std':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+        option = 'mean_std'
+        if option == 'mean_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                                        model_results[:,1]>0.05))))
         elif option == 'mean_std_period':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
                                                        model_results[:,2]<150)))))
@@ -682,19 +743,23 @@ class TestZebrafish(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        option = 'coherence_decrease_translation'
+        option = 'mean_period'
 #         option = 'mean_std_period'
-        if option == 'mean_and_std':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+        if option == 'mean_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                                        model_results[:,1]>0.05))))
         elif option == 'mean_std_period':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
                                                        model_results[:,2]<150)))))
+        elif option == 'mean_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
+                                                       model_results[:,2]<150)))
         elif option == 'coherence_decrease_translation':
 #             change = 'decreased'
             change = 'increased'
@@ -1000,7 +1065,7 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
         
-    def test_b_decrease_mRNA_degradation(self):
+    def xest_b_decrease_mRNA_degradation(self):
         print('changing mrna degradation')
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
@@ -1009,8 +1074,8 @@ class TestZebrafish(unittest.TestCase):
         
         option = 'mean_std_period'
         if option == 'mean_and_std':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                                        model_results[:,1]>0.05))))
         elif option == 'mean_std_period':
@@ -1042,7 +1107,7 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
-    def test_c_increase_translation(self):
+    def xest_c_increase_translation(self):
         print('changing translation')
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_zebrafish')
@@ -1051,8 +1116,8 @@ class TestZebrafish(unittest.TestCase):
 
         option = 'mean_std_period'
         if option == 'mean_and_std':
-            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                        np.logical_and(model_results[:,0]<8000,
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                                        model_results[:,1]>0.05))))
         elif option == 'mean_std_period':
@@ -1071,11 +1136,10 @@ class TestZebrafish(unittest.TestCase):
 
         new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_translation, 
                                                                         number_of_traces_per_sample=200 )
-        print('got here')
         old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
-        print('got here too')
+#         print('got here too')
         new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_translation, sampling_duration = 12*60)  
-        print('got here again')
+#         print('got here again')
 
         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_translation')
 
@@ -1089,26 +1153,26 @@ class TestZebrafish(unittest.TestCase):
     def xest_plot_mrna_change_results(self):
         
 #         change = 'decreased'
-        change = 'increased'
+        change = 'decreased'
 
         plot_option = 'boxplot'
 #         plot_option = 'lines'
         
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradationtest')
-#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated')
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated')
         results_after_change = np.load(saving_path + '.npy')
         parameters_after_change = np.load(saving_path + '_parameters.npy')
         results_before_change = np.load(saving_path + '_old.npy')
         parameters_before_change = np.load(saving_path + '_parameters_old.npy')
-#         old_lengthscales = np.zeros(len(parameters_before_change))
-#         new_lengthscales = np.zeros(len(parameters_before_change))
-        old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
-        new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        old_lengthscales = np.zeros(len(parameters_before_change))
+        new_lengthscales = np.zeros(len(parameters_before_change))
+#         old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+#         new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
     
-        if True:
+        if False:
             indices = np.where(results_before_change[:,3]>results_after_change[:,3])
             results_after_change = results_after_change[indices]
             parameters_after_change = parameters_after_change[indices]
@@ -1419,8 +1483,8 @@ class TestZebrafish(unittest.TestCase):
  
         plt.tight_layout()
 #         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated.pdf'))
-        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated' + plot_option +'.pdf'))
-#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated_' + plot_option +'.pdf'))
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_' + plot_option +'.pdf'))
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_' + plot_option +'.pdf'))
         
     def xest_investigate_mrna_and_expression_decrease(self):
 
@@ -3276,7 +3340,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'stochastic_fluctuation_rate_dependent_activation.pdf'))
 
-    def test_e_make_relative_parameter_variation(self):
+    def xest_e_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 2
@@ -3308,7 +3372,7 @@ class TestZebrafish(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def test_d_make_dual_parameter_variation(self):
+    def xest_d_make_dual_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
 #         number_of_parameter_points = 2

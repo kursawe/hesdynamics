@@ -1652,7 +1652,7 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
     '''
     sns.set()
     
-    posterior_samples[:,2]/=10000
+#     posterior_samples[:,2]/=10000
 
     if posterior_samples.shape[1] == 4:
         data_frame = pd.DataFrame( data = posterior_samples,
@@ -1676,12 +1676,13 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
                                              'Hill coefficient',
                                              'Noise_strength'])
     elif posterior_samples.shape[1] == 7:
+        print('hello')
         data_frame = pd.DataFrame( data = posterior_samples,
                                    columns= ['Transcription rate', 
                                              'Translation rate', 
                                              'Repression threshold/1e4', 
                                              'Transcription delay',
-                                             'Hill coefficient'
+                                             'Hill coefficient',
                                              'mRNA degradation',
                                              'Protein degradation'])
     else:
