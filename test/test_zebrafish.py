@@ -3406,3 +3406,37 @@ class TestZebrafish(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps.npy'),
                     my_parameter_sweep_results)
 
+    def xest_e_make_dual_parameter_variation_low_res(self):
+        number_of_parameter_points = 10
+        number_of_trajectories = 200
+#         number_of_parameter_points = 2
+#         number_of_trajectories = 2
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                    np.logical_and(model_results[:,0]<2500,
+                                    np.logical_and(model_results[:,1]<0.15,
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,2]<150)))))
+       
+        my_posterior_samples = prior_samples[accepted_indices]
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
+
+        my_parameter_sweep_results = hes5.conduct_dual_parameter_sweep_at_parameters(my_posterior_samples,
+                                                                                     number_of_parameter_points,
+                                                                                     number_of_trajectories,
+                                                                                     relative_range = (0.2,1.8))
+        
+#         self.assertEqual(my_parameter_sweep_results.shape, (len(my_posterior_samples),
+#                                                             number_of_parameter_points,
+#                                                             number_of_parameter_points,
+#                                                             13))
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_low_res.npy'),
+                    my_parameter_sweep_results)
+
