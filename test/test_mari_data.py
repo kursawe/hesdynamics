@@ -3,6 +3,9 @@ import os.path
 import sys
 import matplotlib as mpl
 import matplotlib.gridspec 
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import logging
+logging.getLogger("tensorflow").setLevel(logging.WARNING)
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
@@ -53,7 +56,7 @@ class TestNSQuiescence(unittest.TestCase):
                                       'output','pairplot_extended_abc_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
 
-    def test_plot_posterior_distributions(self):
+    def xest_plot_posterior_distributions(self):
         
         option = 'mean_and_mrna'
 
@@ -215,7 +218,7 @@ class TestNSQuiescence(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','inference_for_mari_' + option + '.pdf'))
 
-    def test_plot_period_distribution_for_paper(self):
+    def xest_plot_period_distribution_for_paper(self):
         option = 'mean_and_mrna'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -507,7 +510,7 @@ class TestNSQuiescence(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','mari_standard_deviation_' + option + '.pdf'))
  
-    def test_plot_mrna_distribution_for_mari(self):
+    def xest_plot_mrna_distribution_for_mari(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                    'sampling_results_quiescense')
         model_results = np.load(saving_path + '.npy' )
@@ -599,7 +602,7 @@ class TestNSQuiescence(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','maris_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def test_plot_bayes_factors_for_models(self):
+    def xest_plot_bayes_factors_for_models(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_quiescense')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -715,6 +718,121 @@ class TestNSQuiescence(unittest.TestCase):
                                      'output',
                                      'period_likelihood_plot_for_mari.pdf'))
 
+    def test_plot_bayes_2D(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_quiescense')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        sns.set()
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                    np.logical_and(model_results[:,0]<12000,
+                                                   model_results[:,4]<50))) #protein_number
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        
+        accepted_model_results = model_results[accepted_indices]
+
+        number_of_absolute_samples = len(accepted_indices[0])
+        print('base model accepted that many indices')
+        print(number_of_absolute_samples)
+        parameter_names = ['basal_transcription_rate',
+                            'translation_rate',
+                            'repression_threshold',
+                            'time_delay',
+                            'mRNA_degradation_rate',
+                            'protein_degradation_rate',
+                            'hill_coefficient']
+
+        x_labels = dict()
+        x_labels['basal_transcription_rate'] = 'Transcription rate'
+        x_labels['translation_rate'] = 'Translation rate'
+        x_labels['repression_threshold'] = 'Repression threshold' 
+        x_labels['time_delay'] = 'Transcription delay'
+        x_labels['mRNA_degradation_rate'] = 'mRNA degradation'
+        x_labels['protein_degradation_rate'] = 'Protein degradation'
+        x_labels['hill_coefficient'] = 'Hill coefficient'
+        
+        all_labels_in_order = [ x_labels[parameter_name] for parameter_name in parameter_names ]
+        
+        number_parameters = len(x_labels)
+        
+        likelihood_table = np.zeros((20,number_parameters))
+        relative_change_values = np.linspace(0.1,2.0,20)
+
+        decrease_ratios = dict()
+        increase_ratios = dict()
+        bardata = []
+        for parameter_index, parameter_name in enumerate(parameter_names):
+            print('investigating ' + parameter_name)
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                          'output',
+                                                          'maris_relative_sweeps_' + 
+                                                          parameter_name + '.npy'))
+            these_results_before = my_parameter_sweep_results[:,9,:]
+            for change_index, relative_change in enumerate(relative_change_values):
+                these_results_after = my_parameter_sweep_results[:,change_index,:]
+                this_condition_mask = np.logical_and(these_results_after[:,3] > 
+                                                     1.5*these_results_before[:,3],
+                                      np.logical_and(these_results_after[:,3] < 
+                                                     2.0*these_results_before[:,3],
+                                                     these_results_after[:,5] < these_results_before[:,5]))
+                this_likelihood = np.sum(this_condition_mask)
+                likelihood_table[change_index, parameter_index] = this_likelihood
+         
+        x_bin_edges = np.linspace(0.5,7.5,8)
+        y_bin_edges = np.linspace(0.05,2.05,21)
+
+        x_bin_centers = np.linspace(1.0,7.0,7)
+        this_figure = plt.figure(figsize = (4.5,4.5))
+        colormesh = plt.pcolormesh(x_bin_edges,y_bin_edges,likelihood_table, rasterized = True)
+        plt.xticks( x_bin_centers, 
+                    all_labels_in_order,
+                    rotation = 30,
+                    fontsize = 10,
+                    horizontalalignment = 'right')
+#         plt.pcolor(X,Y,expected_coherence)
+#         plt.scatter(np.log(2)/90, np.log(2)/30)
+        plt.ylabel("Relative change", y=0.4)
+        
+        divider = make_axes_locatable(plt.gca())
+        cax = divider.new_vertical(size=0.07, pad=1.0, pack_start=True)
+        this_figure.add_axes(cax)
+
+        tick_locator = mpl.ticker.MaxNLocator(nbins=5)
+        this_colorbar = this_figure.colorbar(colormesh, cax = cax, orientation = 'horizontal')
+        this_colorbar.locator = tick_locator
+        this_colorbar.update_ticks()
+#         for ticklabel in this_colorbar.ax.get_xticklabels():
+#             ticklabel.set_horizontalalignment('left') 
+        this_colorbar.ax.set_ylabel('Likelihood', rotation = 0, verticalalignment = 'top', labelpad = 30)
+        plt.tight_layout(pad = 0.05)
+#         plt.tight_layout()
+
+        file_name = os.path.join(os.path.dirname(__file__),
+                                 'output','mari_2D_likelihood_plot')
+ 
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.eps', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+
+        my_figure = plt.figure( figsize = (4.5, 1.5) )
+        plt.bar(x_bin_centers, np.sum(likelihood_table, axis = 0))
+#         plt.xticks( all_positions + 0.4 , 
+        plt.xticks( x_bin_centers, 
+                    all_labels_in_order,
+                    rotation = 30,
+                    fontsize = 5,
+                    horizontalalignment = 'right')
+        plt.gca().locator_params(axis='y', tight = True, nbins=4)
+        plt.ylabel('Likelihood')
+
+        my_figure.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                     'output',
+                                     'alternative_period_likelihood_plot_for_mari.pdf'))
+
+    #### Blablaoldstuff
     def xest_plot_power_spectra_before(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
         model_results = np.load(saving_path + '.npy' )
