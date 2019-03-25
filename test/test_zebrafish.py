@@ -2,11 +2,10 @@ import unittest
 import os.path
 import sys
 import matplotlib as mpl
-from skimage.color.rgb_colors import blue
-from skimage.util import noise
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 font = {'size'   : 10}
 plt.rc('font', **font)
 import numpy as np
@@ -27,6 +26,15 @@ from numba import jit, autojit
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
 import hes5
+
+import socket
+import multiprocessing as mp
+domain_name = socket.getfqdn()
+if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
+    number_of_available_cores = 2
+else:
+#     number_of_available_cores = 1
+    number_of_available_cores = mp.cpu_count()
 
 class TestZebrafish(unittest.TestCase):
 
@@ -163,7 +171,7 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def test_a_make_abc_samples(self):
+    def xest_a_make_abc_samples(self):
         print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 200000
@@ -198,8 +206,8 @@ class TestZebrafish(unittest.TestCase):
 #         option = 'mean_period_and_coherence'
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
-        option = 'mean_std_period'
-#         option = 'coherence_decrease_translation'
+#         option = 'mean_std_period'
+        option = 'coherence_decrease_translation'
 #         option = 'coherence_decrease_degradation'
 #         option = 'coherence_decrease'
 #         option = 'mean_std_period_fewer_samples'
@@ -1095,8 +1103,8 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples_changed_degradation[:,5]*=0.5
         new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_degradation, 
                                                                         number_of_traces_per_sample=200 )
-        old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
-        new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_degradation, sampling_duration = 12*60)  
+#         old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
+#         new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_degradation, sampling_duration = 12*60)  
 
         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_decreased_degradation')
 
@@ -1104,8 +1112,8 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_parameters.npy', my_posterior_samples_changed_degradation )
         np.save(saving_path + '_old.npy', old_model_results)
         np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
-        np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
-        np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
+#         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
+#         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
     def xest_c_increase_translation(self):
         print('changing translation')
@@ -1136,9 +1144,9 @@ class TestZebrafish(unittest.TestCase):
 
         new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_translation, 
                                                                         number_of_traces_per_sample=200 )
-        old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
+#         old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
 #         print('got here too')
-        new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_translation, sampling_duration = 12*60)  
+#         new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_translation, sampling_duration = 12*60)  
 #         print('got here again')
 
         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_increased_translation')
@@ -1147,12 +1155,12 @@ class TestZebrafish(unittest.TestCase):
         np.save(saving_path + '_parameters.npy', my_posterior_samples_changed_translation )
         np.save(saving_path + '_old.npy', old_model_results)
         np.save(saving_path + '_parameters_old.npy', my_posterior_samples )
-        np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
-        np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
+#         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
+#         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
     def xest_plot_mrna_change_results(self):
         
-#         change = 'decreased'
+#         change = 'increased'
         change = 'decreased'
 
         plot_option = 'boxplot'
@@ -1167,12 +1175,12 @@ class TestZebrafish(unittest.TestCase):
         parameters_after_change = np.load(saving_path + '_parameters.npy')
         results_before_change = np.load(saving_path + '_old.npy')
         parameters_before_change = np.load(saving_path + '_parameters_old.npy')
-        old_lengthscales = np.zeros(len(parameters_before_change))
-        new_lengthscales = np.zeros(len(parameters_before_change))
-#         old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
-#         new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+#         old_lengthscales = np.zeros(len(parameters_before_change))
+#         new_lengthscales = np.zeros(len(parameters_before_change))
+        old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+        new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
     
-        if False:
+        if True:
             indices = np.where(results_before_change[:,3]>results_after_change[:,3])
             results_after_change = results_after_change[indices]
             parameters_after_change = parameters_after_change[indices]
@@ -3280,7 +3288,7 @@ class TestZebrafish(unittest.TestCase):
                                  'fluctuation_rate_dependent_activation.pdf'))
 
     def xest_stochastic_flucutation_rate_dependant_activation(self):
-        times = np.linspace(0,15,10000)
+        times = np.linspace(0,15,1000)
 #         input_signal_before = np.ones_like(times)*11
 #         input_signal_before = np.zeros_like(times)
 #         input_signal_before = 3*np.sin(2*np.pi*times/2) + 3
@@ -3289,13 +3297,14 @@ class TestZebrafish(unittest.TestCase):
         input_variance = np.sqrt(3)
 
         ornstein_kernel_before = ( gp.kernels.ConstantKernel(constant_value=input_variance)*
-                            gp.kernels.Matern(nu=0.5, length_scale = 4.0))
+                            gp.kernels.Matern(nu=0.5, length_scale = 1.3))
         my_gp_regressor_before = gp.GaussianProcessRegressor(kernel=ornstein_kernel_before )
         input_signal_before = my_gp_regressor_before.sample_y(times[:, np.newaxis])
         input_signal_before +=6
         
         ornstein_kernel_after = ( gp.kernels.ConstantKernel(constant_value=input_variance)*
-                                  gp.kernels.Matern(nu=0.5, length_scale = 0.1))
+#                                   gp.kernels.Matern(nu=0.5, length_scale = 0.1))
+                                  gp.kernels.Matern(nu=0.5, length_scale = 1.1))
         my_gp_regressor_after = gp.GaussianProcessRegressor(kernel=ornstein_kernel_after )
         input_signal_after = my_gp_regressor_after.sample_y(times[:, np.newaxis])
         input_signal_after +=6
@@ -3423,7 +3432,6 @@ class TestZebrafish(unittest.TestCase):
                                     np.logical_and(model_results[:,1]<0.15,
                                     np.logical_and(model_results[:,1]>0.05,
                                                    model_results[:,2]<150)))))
-       
         my_posterior_samples = prior_samples[accepted_indices]
         print('number of accepted samples is')
         print(len(my_posterior_samples))
@@ -3440,3 +3448,182 @@ class TestZebrafish(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_low_res.npy'),
                     my_parameter_sweep_results)
 
+
+    def xest_make_dual_parameter_variation_lengthscale_calculation(self):
+        number_of_parameter_points = 20
+        number_of_trajectories = 200
+        relative_range = (0.1,2.0)
+#         number_of_parameter_points = 2
+#         number_of_trajectories = 2
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                    np.logical_and(model_results[:,0]<2500,
+                                    np.logical_and(model_results[:,1]<0.15,
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,2]<150)))))
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_posterior_results = model_results[accepted_indices]
+
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps.npy'))
+
+        # first: make a table of 7d parameters
+        total_number_of_parameters_required = my_posterior_samples.shape[0]*(number_of_parameter_points**2)
+        kept_parameter_values = np.zeros((total_number_of_parameters_required, 7)) 
+        kept_sample_index = 0
+        parameters_counted = 0
+        for sample_index, sample in enumerate(my_posterior_samples):
+            degradation_proportion_index = 0
+            for degradation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_parameter_points):
+                translation_proportion_index = 0
+                for translation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_parameter_points):
+                    this_result_after = dual_sweep_results[sample_index,
+                                                           degradation_proportion_index,
+                                                           translation_proportion_index]
+                    condition = ( this_result_after[2]< my_posterior_results[sample_index,0]*2.2 and
+                                  this_result_after[2]> my_posterior_results[sample_index,0]*1.8 and
+                                  this_result_after[5]< my_posterior_results[sample_index,3])
+                    if condition:
+                        kept_parameter_values[kept_sample_index] = sample
+                        # now replace the parameter of interest with the actual parameter value
+                        # degradation rate
+                        kept_parameter_values[kept_sample_index, 5] *= degradation_proportion
+                        # translation rate
+                        kept_parameter_values[kept_sample_index, 1] *= translation_proportion
+                        kept_sample_index += 1
+                    translation_proportion_index += 1
+                degradation_proportion_index += 1
+        
+        kept_parameter_values = kept_parameter_values[:kept_sample_index]
+        print(kept_parameter_values)
+        print(len(kept_parameter_values))
+    
+        # pass these parameters to the calculate_summary_statistics_at_parameter_points
+        all_fluctuation_rates = hes5.calculate_fluctuation_rates_at_parameters(parameter_values = kept_parameter_values, 
+                                                                            number_of_traces_per_sample = number_of_trajectories,
+                                                                            number_of_cpus = number_of_available_cores,
+                                                                            sampling_duration = 12*60)
+        
+        # unpack and wrap the results in the output format
+        fluctuation_rate_results = np.zeros((my_posterior_samples.shape[0], 
+                                             number_of_parameter_points,
+                                             number_of_parameter_points, 
+                                             3))
+        kept_sample_index = 0
+        for sample_index, sample in enumerate(my_posterior_samples):
+            degradation_proportion_index = 0
+            for degradation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_parameter_points):
+                translation_proportion_index = 0
+                for translation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_parameter_points):
+                    this_result_after = dual_sweep_results[sample_index,
+                                                           degradation_proportion_index,
+                                                           translation_proportion_index]
+                    condition = ( this_result_after[2]< my_posterior_results[sample_index,0]*2.2 and
+                                  this_result_after[2]> my_posterior_results[sample_index,0]*1.8 and
+                                  this_result_after[5]< my_posterior_results[sample_index,3])
+                    fluctuation_rate_results[sample_index,degradation_proportion_index,
+                                             translation_proportion_index,:2] = [degradation_proportion, translation_proportion]
+                    if condition:
+                        this_fluctuation_rate = all_fluctuation_rates[kept_sample_index]
+                        # the first entry gets the degradation rate
+                        # the remaining entries get the summary statistics. We discard the last summary statistic, 
+                        # which is the mean mRNA
+                        fluctuation_rate_results[sample_index,degradation_proportion_index,
+                                      translation_proportion_index,2] = this_fluctuation_rate
+                        kept_sample_index+= 1
+                    else:
+                        fluctuation_rate_results[sample_index,degradation_proportion_index,
+                                      translation_proportion_index,2] = np.nan
+                    translation_proportion_index+=1
+                degradation_proportion_index+=1
+ 
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_fluctuation_rates.npy'),
+                    fluctuation_rate_results)
+
+    def xest_plot_dual_parameter_change(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                    np.logical_and(model_results[:,0]<2500,
+                                    np.logical_and(model_results[:,1]<0.15,
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,2]<150)))))
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_posterior_results = model_results[accepted_indices]
+        
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps.npy'))
+
+        translation_changes = dual_sweep_results[0,0,:,1]
+        degradation_changes = dual_sweep_results[0,:,0,0]
+        X, Y = np.meshgrid(translation_changes, degradation_changes)
+
+        # need to replace this with something
+        likelihoods = np.zeros((degradation_changes.shape[0],
+                                translation_changes.shape[0]))
+        
+        for translation_index, translation_change in enumerate(translation_changes):
+            for degradation_index, degradation_change in enumerate(degradation_changes):
+                these_results_after = dual_sweep_results[:, 
+                                                         degradation_index, 
+                                                         translation_index, 
+                                                         :]
+                condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
+                                np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
+                                                these_results_after[:,5]<my_posterior_results[:,3]))
+#                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
+#                                                 these_results_after[:,2]>my_posterior_results[:,0]*1.8)
+#                 condition_mask = np.logical_and(these_results_after[:,2]<5000,
+#                                 np.logical_and(these_results_after[:,2]>2000,
+#                                                 these_results_after[:,5]<my_posterior_results[:,3]))
+                likelihoods[degradation_index, translation_index] = np.sum(condition_mask)
+                
+        print(likelihoods)
+        
+        print(translation_changes)
+        translation_step = translation_changes[1] - translation_changes[0]
+        left_translation_boundary = translation_changes[0] - 0.5*translation_step
+        right_translation_boundary = translation_changes[-1] + 0.5*translation_step
+        translation_bin_edges = np.linspace(left_translation_boundary,right_translation_boundary, len(translation_changes) +1)
+        print(translation_bin_edges)
+
+        degradation_step = degradation_changes[1] - degradation_changes[0]
+        left_degradation_boundary = degradation_changes[0] - 0.5*degradation_step
+        right_degradation_boundary = degradation_changes[-1] + 0.5*degradation_step
+        degradation_bin_edges = np.linspace(left_degradation_boundary,right_degradation_boundary, len(degradation_changes) +1)
+        print(degradation_bin_edges)
+
+        this_figure = plt.figure(figsize = (2.5,1.9))
+        colormesh = plt.pcolormesh(degradation_bin_edges,translation_bin_edges,likelihoods, rasterized = True)
+#         plt.pcolor(X,Y,expected_coherence)
+#         plt.scatter(np.log(2)/90, np.log(2)/30)
+        plt.xlabel("Translation change", labelpad = 1.3)
+        plt.ylabel("Degradation\nchange", y=0.4)
+        
+        divider = make_axes_locatable(plt.gca())
+        cax = divider.new_vertical(size=0.07, pad=0.5, pack_start=True)
+        this_figure.add_axes(cax)
+
+        tick_locator = mpl.ticker.MaxNLocator(nbins=5)
+        this_colorbar = this_figure.colorbar(colormesh, cax = cax, orientation = 'horizontal')
+        this_colorbar.locator = tick_locator
+        this_colorbar.update_ticks()
+#         for ticklabel in this_colorbar.ax.get_xticklabels():
+#             ticklabel.set_horizontalalignment('left') 
+        this_colorbar.ax.set_ylabel('Likelihood\nof change', rotation = 0, verticalalignment = 'top', labelpad = 30)
+        plt.tight_layout(pad = 0.05)
+#         plt.tight_layout()
+
+        file_name = os.path.join(os.path.dirname(__file__),
+                                 'output','zebrafish_likelihood_plot')
+ 
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.eps', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)

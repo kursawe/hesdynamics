@@ -4312,7 +4312,9 @@ def calculate_autocorrelation_from_power_spectrum(power_spectrum):
     
     autocorrelation = np.real(complex_autocorrelation)
 #     autocorrelation[:,1] /= np.sqrt(number_of_time_samples) 
-    assert(np.sum(np.imag(complex_autocorrelation)) == 0.0)
+    if np.sum(np.imag(complex_autocorrelation)) != 0.0:
+       print('WARNING: autocorrelation has complex component')
+       print(complex_autocorrelation)
     
     return autocorrelation
 
