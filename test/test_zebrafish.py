@@ -3559,7 +3559,7 @@ class TestZebrafish(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_fluctuation_rates.npy'),
                     fluctuation_rate_results)
 
-    def test_make_dual_parameter_variation_full_lengthscale_calculation(self):
+    def xest_make_dual_parameter_variation_full_lengthscale_calculation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
         relative_range = (0.1,2.0)
