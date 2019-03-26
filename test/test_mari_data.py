@@ -718,7 +718,7 @@ class TestNSQuiescence(unittest.TestCase):
                                      'output',
                                      'period_likelihood_plot_for_mari.pdf'))
 
-    def test_plot_bayes_2D(self):
+    def xest_plot_bayes_2D(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_quiescense')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -773,10 +773,11 @@ class TestNSQuiescence(unittest.TestCase):
             for change_index, relative_change in enumerate(relative_change_values):
                 these_results_after = my_parameter_sweep_results[:,change_index,:]
                 this_condition_mask = np.logical_and(these_results_after[:,3] > 
-                                                     1.5*these_results_before[:,3],
+                                                     1.3*these_results_before[:,3],
                                       np.logical_and(these_results_after[:,3] < 
-                                                     2.0*these_results_before[:,3],
-                                                     these_results_after[:,5] < these_results_before[:,5]))
+                                                     2.5*these_results_before[:,3],
+                                      np.logical_and(these_results_after[:,5] < 0.6*these_results_before[:,5],
+                                                     these_results_after[:,5] > 0.0*these_results_before[:,5])))
                 this_likelihood = np.sum(this_condition_mask)
                 likelihood_table[change_index, parameter_index] = this_likelihood
          
@@ -831,6 +832,115 @@ class TestNSQuiescence(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                      'output',
                                      'alternative_period_likelihood_plot_for_mari.pdf'))
+
+    def xest_plot_mean_level_distribution_for_protein_degradation_change(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_quiescense')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        option = 'mean_and_mrna'
+
+        if option == 'mean_and_mrna':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                        np.logical_and(model_results[:,0]<12000,
+                                                       model_results[:,4]<50))) #protein_number
+            number_of_bins = 40
+        elif option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                                       model_results[:,0]<12000))
+            number_of_bins = 400
+
+        parameter_name = 'protein_degradation_rate'
+        print('investigating ' + parameter_name)
+        these_mean_expression_levels = []
+        relative_change_values = np.linspace(0.1,2.0,20)
+        my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+                                                      'output',
+                                                      'maris_relative_sweeps_' + 
+                                                      parameter_name + '.npy'))
+        these_results_before = my_parameter_sweep_results[:,9,:]
+        for change_index, relative_change in enumerate(relative_change_values):
+            these_results_after = my_parameter_sweep_results[:,change_index,:]
+            this_condition_mask = np.logical_and(these_results_after[:,3] > 
+                                                 1.3*these_results_before[:,3],
+                                  np.logical_and(these_results_after[:,3] < 
+                                                 2.5*these_results_before[:,3],
+                                  np.logical_and(these_results_after[:,5] < 0.6*these_results_before[:,5],
+                                                 these_results_after[:,5] > 0.0*these_results_before[:,5])))
+            these_mean_expression_levels += these_results_after[this_condition_mask,1].tolist()
+ 
+#         my_posterior_samples[:,2] /= 10000
+
+        my_figure = plt.figure(figsize= (4.5,2.5))
+
+        number_of_bis = 20
+        sns.distplot(these_mean_expression_levels,
+                     kde = False,
+                     rug = False,
+                     hist_kws = {'edgecolor' : 'black'},
+                     norm_hist = True,
+#                      norm_hist = True,
+                     bins = number_of_bins)
+#         plt.gca().set_xlim(-1,2)
+        plt.ylabel("Likelihood" )
+        plt.xlabel("Mean Hes1 expression")
+#         plt.xlim(0,100)
+#         plt.ylim(0,0.06)
+#         plt.ylim(0,0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+ 
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','mari_bayesian_posterior_prediction_level_changes.pdf'))
+
+    def test_plot_mean_level_distribution_for_protein_degradation_change(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   'sampling_results_quiescense')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        option = 'mean_and_mrna'
+
+        if option == 'mean_and_mrna':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                        np.logical_and(model_results[:,0]<12000,
+                                                       model_results[:,4]<50))) #protein_number
+        elif option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>8000, #protein number
+                                                       model_results[:,0]<12000))
+
+        my_posterior_results = model_results[accepted_indices]
+        these_mean_expression_levels = my_posterior_results[:,0]
+        my_figure = plt.figure(figsize= (4.5,2.5))
+
+        number_of_bins = 20
+        sns.distplot(these_mean_expression_levels,
+                     kde = False,
+                     rug = False,
+                     hist_kws = {'edgecolor' : 'black'},
+                     norm_hist = True,
+#                      norm_hist = True,
+                     bins = number_of_bins)
+#         plt.gca().set_xlim(-1,2)
+        plt.ylabel("Likelihood" )
+        plt.xlabel("Mean Hes1 expression")
+#         plt.xlim(0,100)
+#         plt.ylim(0,0.06)
+#         plt.ylim(0,0.5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1.0)
+#         plt.xticks([-1,0,1,2], [r'$10^{-1}$',r'$10^0$',r'$10^1$',r'$10^2$'])
+#         plt.yticks([])
+ 
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','mari_bayesian_posterior_prediction_level_changes_before.pdf'))
 
     #### Blablaoldstuff
     def xest_plot_power_spectra_before(self):

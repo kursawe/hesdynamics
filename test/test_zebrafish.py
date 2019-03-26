@@ -3478,6 +3478,7 @@ class TestZebrafish(unittest.TestCase):
         kept_parameter_values = np.zeros((total_number_of_parameters_required, 7)) 
         kept_sample_index = 0
         parameters_counted = 0
+        list_of_reference_indices = []
         for sample_index, sample in enumerate(my_posterior_samples):
             degradation_proportion_index = 0
             for degradation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_parameter_points):
@@ -3497,9 +3498,16 @@ class TestZebrafish(unittest.TestCase):
                         # translation rate
                         kept_parameter_values[kept_sample_index, 1] *= translation_proportion
                         kept_sample_index += 1
+                        list_of_reference_indices.append(sample_index)
                     translation_proportion_index += 1
                 degradation_proportion_index += 1
         
+        list_of_reference_indices_as_np = np.array(list_of_reference_indices)
+        unique_list_of_reference_indices = np.unique(list_of_reference_indices_as_np)
+        for additional_sample_index in unique_list_of_reference_indices:
+            kept_parameter_values[kept_sample_index] = my_posterior_samples[additional_sample_index]
+            kept_sample_index += 1
+            
         kept_parameter_values = kept_parameter_values[:kept_sample_index]
         print(kept_parameter_values)
         print(len(kept_parameter_values))
@@ -3543,6 +3551,11 @@ class TestZebrafish(unittest.TestCase):
                     translation_proportion_index+=1
                 degradation_proportion_index+=1
  
+        for additional_sample_index in unique_list_of_reference_indices:
+            this_fluctuation_rate = all_fluctuation_rates[kept_sample_index]
+            fluctuation_rate_results[additional_sample_index,9,9,2] = this_fluctuation_rate
+            kept_sample_index += 1
+
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_fluctuation_rates.npy'),
                     fluctuation_rate_results)
 
@@ -3560,6 +3573,7 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_results = model_results[accepted_indices]
         
         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps.npy'))
+        fluctuation_rate_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_fluctuation_rates.npy'))
 
         translation_changes = dual_sweep_results[0,0,:,1]
         degradation_changes = dual_sweep_results[0,:,0,0]
@@ -3569,15 +3583,26 @@ class TestZebrafish(unittest.TestCase):
         likelihoods = np.zeros((degradation_changes.shape[0],
                                 translation_changes.shape[0]))
         
+        fluctuation_rates_before = fluctuation_rate_results[:,9,9,2]
+        print(fluctuation_rates_before)
         for translation_index, translation_change in enumerate(translation_changes):
             for degradation_index, degradation_change in enumerate(degradation_changes):
                 these_results_after = dual_sweep_results[:, 
                                                          degradation_index, 
                                                          translation_index, 
                                                          :]
-                condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
-                                np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
-                                                these_results_after[:,5]<my_posterior_results[:,3]))
+                these_fluctuation_rates_after = fluctuation_rate_results[:, 
+                                                         degradation_index, 
+                                                         translation_index, 
+                                                         :]
+#                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
+#                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
+#                                                 these_results_after[:,5]<my_posterior_results[:,3]))
+#                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
+#                                  np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
+#                                  np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
+#                                                 these_fluctuation_rates_after[:,2]<fluctuation_rates_before)))
+                condition_mask = these_fluctuation_rates_after[:,2]<fluctuation_rates_before
 #                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
 #                                                 these_results_after[:,2]>my_posterior_results[:,0]*1.8)
 #                 condition_mask = np.logical_and(these_results_after[:,2]<5000,
