@@ -5,6 +5,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
+import matplotlib.gridspec 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 font = {'size'   : 10}
 plt.rc('font', **font)
@@ -174,7 +175,7 @@ class TestZebrafish(unittest.TestCase):
     def xest_a_make_abc_samples(self):
         print('starting zebrafish abc')
         ## generate posterior samples
-        total_number_of_samples = 200000
+        total_number_of_samples = 100
 #         total_number_of_samples = 5
 #         total_number_of_samples = 100
         acceptance_ratio = 0.02
@@ -193,7 +194,7 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_zebrafish',
+                                                                saving_name = 'sampling_results_zebrafish_testytest',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'full',
                                                                 logarithmic = True )
@@ -206,8 +207,8 @@ class TestZebrafish(unittest.TestCase):
 #         option = 'mean_period_and_coherence'
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
-#         option = 'mean_std_period'
-        option = 'coherence_decrease_translation'
+        option = 'mean_std_period'
+#         option = 'coherence_decrease_translation'
 #         option = 'coherence_decrease_degradation'
 #         option = 'coherence_decrease'
 #         option = 'mean_std_period_fewer_samples'
@@ -1160,15 +1161,15 @@ class TestZebrafish(unittest.TestCase):
  
     def xest_plot_mrna_change_results(self):
         
-#         change = 'increased'
-        change = 'decreased'
+        change = 'increased'
+#         change = 'decreased'
 
         plot_option = 'boxplot'
 #         plot_option = 'lines'
         
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradationtest')
-        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
-#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+#         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated')
 #         saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_repeated')
         results_after_change = np.load(saving_path + '.npy')
@@ -1190,6 +1191,10 @@ class TestZebrafish(unittest.TestCase):
             new_lengthscales = new_lengthscales[indices]
             print('number of remaining parameters')
             print(len(old_lengthscales))
+            print('number of increasing lengthscales within there')
+            print(np.sum(new_lengthscales>old_lengthscales))
+            print(old_lengthscales)
+            print(new_lengthscales)
  
         this_figure, axes = plt.subplots(3,3,figsize = (6.5,6.5))
 
@@ -1491,8 +1496,8 @@ class TestZebrafish(unittest.TestCase):
  
         plt.tight_layout()
 #         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_repeated.pdf'))
-#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_' + plot_option +'.pdf'))
-        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_' + plot_option +'.pdf'))
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_' + plot_option +'.pdf'))
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_' + plot_option +'.pdf'))
         
     def xest_investigate_mrna_and_expression_decrease(self):
 
@@ -3288,66 +3293,169 @@ class TestZebrafish(unittest.TestCase):
                                  'fluctuation_rate_dependent_activation.pdf'))
 
     def xest_stochastic_flucutation_rate_dependant_activation(self):
-        times = np.linspace(0,15,1000)
-#         input_signal_before = np.ones_like(times)*11
-#         input_signal_before = np.zeros_like(times)
-#         input_signal_before = 3*np.sin(2*np.pi*times/2) + 3
-#         input_signal_after = 3*np.sin(2*np.pi*times/0.5) + 3
         
-        input_variance = np.sqrt(3)
+#         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
+#         fluctuation_rates = np.linspace(0.5,1.5,21)
+        fluctuation_rates = [0.05,2.0]
+        for fluctuation_rate in fluctuation_rates:
+            times, y, x = hes5.simulate_downstream_response_at_fluctuation_rate(fluctuation_rate)
+            plt.figure(figsize = (4.5,2.25))
+            plt.subplot(121)
+            plt.plot(times,y)
+            plt.ylim(0,10)
+            plt.ylabel('Input Signal (Her6)')
+            plt.xlabel('Time')
+            plt.subplot(122)
+            plt.plot(times,x)
+            plt.ylabel('Downstream Response')
+            plt.xlabel('Time')
+            plt.ylim(0,4)
+            plt.tight_layout()
+            plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                     'stochastic_fluctuation_rate_dependent_activation_' + 
+                                     '{:.2f}'.format(fluctuation_rate) + '.pdf'))
 
-        ornstein_kernel_before = ( gp.kernels.ConstantKernel(constant_value=input_variance)*
-                            gp.kernels.Matern(nu=0.5, length_scale = 1.3))
-        my_gp_regressor_before = gp.GaussianProcessRegressor(kernel=ornstein_kernel_before )
-        input_signal_before = my_gp_regressor_before.sample_y(times[:, np.newaxis])
-        input_signal_before +=6
+    def xest_stochastic_flucutation_rate_dependant_activation_figure_draft(self):
         
-        ornstein_kernel_after = ( gp.kernels.ConstantKernel(constant_value=input_variance)*
-#                                   gp.kernels.Matern(nu=0.5, length_scale = 0.1))
-                                  gp.kernels.Matern(nu=0.5, length_scale = 1.1))
-        my_gp_regressor_after = gp.GaussianProcessRegressor(kernel=ornstein_kernel_after )
-        input_signal_after = my_gp_regressor_after.sample_y(times[:, np.newaxis])
-        input_signal_after +=6
+        number_of_traces = 4
+#         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
+#         fluctuation_rates = np.linspace(0.5,1.5,21)
+        color_list = ['C0','C1','C2','C3','C4','C5','C6','C7','C8','C9']
+        fluctuation_rates = [2,15,100]
+        for fluctuation_rate in fluctuation_rates:
+            times, y, x = hes5.simulate_downstream_response_at_fluctuation_rate(fluctuation_rate, number_of_traces)
+            this_figure = plt.figure(figsize = (4.5,2.25))
+            outer_grid = matplotlib.gridspec.GridSpec(1, 2 )
+            this_left_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(number_of_traces, 1,
+                    subplot_spec=outer_grid[0], hspace=0.0)
+            for subplot_index in range(number_of_traces):
+                this_axis = plt.Subplot(this_figure, this_left_grid[subplot_index])
+                this_figure.add_subplot(this_axis)
+                plt.plot(times,y.transpose()[subplot_index], lw = 0.5, color = color_list[subplot_index] )
+                plt.yticks([2,7], fontsize = 8)
+                plt.ylim(0,10)
+            plt.ylabel('Input Signal Y')
+            plt.xlabel('Time')
+            this_axis.yaxis.set_label_coords(-0.15,2.0)
+            plt.subplot(122)
+            this_axis = plt.Subplot(this_figure, outer_grid[0])
+            for trace_index, x_trace in enumerate(x.transpose()):
+                plt.plot(times, x_trace, color = color_list[trace_index] )
+            plt.ylabel('Downstream Response X')
+            plt.xlabel('Time')
+            plt.ylim(0,4)
+            plt.tight_layout()
+            plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                     'stochastic_multiple_fluctuation_rate_dependent_activation_' + 
+                                     '{:.2f}'.format(fluctuation_rate) + '.pdf'))
 
-        delta_t = times[1] - times[0]
-        outputs = []
-        for signal_index, signal in enumerate([input_signal_before, input_signal_after]):
-            index = 0
-            output = np.zeros_like(input_signal_before)
-            for time in times[:-1]:
-                x = output[index]
-                this_signal = signal[index]
-                dx = 0.5/(1+np.power(this_signal/6,4)) + 10/(1+np.power(x/0.5,-4)) - 3*x
-                index+=1
-                output[index] = x+dx*delta_t
-            outputs.append(output)
+    def xest_multiple_stochastic_flucutation_rate_dependant_activation(self):
         
-        plt.figure(figsize = (4.5,4.5))
-        plt.subplot(221)
-        plt.title('Slow input')
-        plt.plot(times,input_signal_before)
-        plt.ylim(0,10)
-        plt.ylabel('Input Signal (Her6)')
-        plt.xlabel('Time')
-        plt.subplot(222)
-        plt.plot(times,outputs[0])
-        plt.ylabel('Downstream Response')
-        plt.xlabel('Time')
-        plt.ylim(0,4)
-        plt.subplot(223)
-        plt.plot(times,input_signal_after)
-        plt.title('Fast input')
-        plt.ylabel('Input Signal (Her6)')
-        plt.xlabel('Time')
-        plt.ylim(0,10)
-        plt.subplot(224)
-        plt.plot(times,outputs[1])
-        plt.xlabel('Time')
-        plt.ylabel('Downstream Response')
-        plt.ylim(0,4)
+        number_of_traces = 4
+#         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
+#         fluctuation_rates = np.linspace(0.5,1.5,21)
+        fluctuation_rates = [2,25,100]
+        for fluctuation_rate in fluctuation_rates:
+            times, y, x = hes5.simulate_downstream_response_at_fluctuation_rate(fluctuation_rate, number_of_traces)
+            plt.figure(figsize = (4.5,2.25))
+            plt.subplot(121)
+            for y_trace in y.transpose():
+                plt.plot(times,y_trace, lw = 0.5)
+            plt.ylim(0,10)
+            plt.ylabel('Input Signal (Her6)')
+            plt.xlabel('Time')
+            plt.subplot(122)
+            for x_trace in x.transpose():
+                plt.plot(times,x_trace)
+            plt.ylabel('Downstream Response')
+            plt.xlabel('Time')
+            plt.ylim(0,4)
+            plt.tight_layout()
+            plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                     'stochastic_multiple_fluctuation_rate_dependent_activation_' + 
+                                     '{:.2f}'.format(fluctuation_rate) + '.pdf'))
+
+    def xest_switching_vs_fluctuation_rate_paper_figure_draft(self):
+        
+#         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
+#         fluctuation_rates = np.linspace(0.5,1.5,21)
+#         fluctuation_rates = np.array([0.05,2.0])
+#         fluctuation_rates = np.logspace(0,3,10)
+        fluctuation_rates = np.linspace(2,100,20)
+        number_of_traces = 1000
+#         number_of_traces = 10
+        percentages = np.zeros_like(fluctuation_rates)
+        activation_times = np.zeros_like(fluctuation_rates)
+        activation_time_deviations = np.zeros_like(fluctuation_rates) 
+
+        for fluctuation_index, fluctuation_rate in enumerate(fluctuation_rates):
+            times, y, x = hes5.simulate_downstream_response_at_fluctuation_rate(fluctuation_rate, number_of_traces)
+            turned_on_targets = x[-1,:]>2
+            percentages[fluctuation_index] = np.sum(turned_on_targets)/number_of_traces
+            active_level_bools = x>2
+            these_activation_times = np.zeros(number_of_traces)
+            for column_index, column in enumerate(active_level_bools.transpose()):
+                entries = np.nonzero(column)
+                if len(entries[0]) > 0:
+                    minimum_entry = np.min(entries)
+                    time = times[minimum_entry]
+                    these_activation_times[column_index] = time
+                else:
+                    these_activation_times[column_index] = times[-1]
+            activation_times[fluctuation_index] = np.mean(these_activation_times)
+            activation_time_deviations[fluctuation_index] = np.std(these_activation_times)
+
+        plt.figure(figsize = (2.25,2.25))
+        plt.plot(fluctuation_rates, percentages)
+        plt.xlabel('Y aperiodic lengthscale')
+        plt.ylabel('Switching probability')
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
-                                 'stochastic_fluctuation_rate_dependent_activation.pdf'))
+                                 'stochastic_fluctuation_rate_probability_draft_figure.pdf'))
+
+    def xest_switching_vs_fluctuation_rate(self):
+        
+#         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
+#         fluctuation_rates = np.linspace(0.5,1.5,21)
+#         fluctuation_rates = np.array([0.05,2.0])
+#         fluctuation_rates = np.logspace(0,3,10)
+        fluctuation_rates = np.linspace(2,100,20)
+        number_of_traces = 400
+        percentages = np.zeros_like(fluctuation_rates)
+        activation_times = np.zeros_like(fluctuation_rates)
+        activation_time_deviations = np.zeros_like(fluctuation_rates) 
+
+        for fluctuation_index, fluctuation_rate in enumerate(fluctuation_rates):
+            times, y, x = hes5.simulate_downstream_response_at_fluctuation_rate(fluctuation_rate, number_of_traces)
+            turned_on_targets = x[-1,:]>2
+            percentages[fluctuation_index] = np.sum(turned_on_targets)/number_of_traces
+            active_level_bools = x>2
+            these_activation_times = np.zeros(number_of_traces)
+            for column_index, column in enumerate(active_level_bools.transpose()):
+                entries = np.nonzero(column)
+                if len(entries[0]) > 0:
+                    minimum_entry = np.min(entries)
+                    time = times[minimum_entry]
+                    these_activation_times[column_index] = time
+                else:
+                    these_activation_times[column_index] = times[-1]
+            activation_times[fluctuation_index] = np.mean(these_activation_times)
+            activation_time_deviations[fluctuation_index] = np.std(these_activation_times)
+
+        plt.figure(figsize = (4.5,2.25))
+        plt.subplot(121)
+#         plt.gca().set_xscale("log", nonposx='clip')
+        plt.errorbar(fluctuation_rates, activation_times, yerr = activation_time_deviations)
+        plt.ylabel('Time to activation')
+        plt.xlabel('Her6 aperiodic lengthscale')
+        plt.subplot(122)
+#         plt.gca().set_xscale("log", nonposx='clip')
+        plt.plot(fluctuation_rates, percentages)
+        plt.xlabel('Her6 aperiodic lengthscale')
+        plt.ylabel('Switching probability')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'stochastic_fluctuation_rate_probability_analysis.pdf'))
 
     def xest_e_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
@@ -3381,9 +3489,70 @@ class TestZebrafish(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def xest_d_make_dual_parameter_variation(self):
-        number_of_parameter_points = 20
-        number_of_trajectories = 200
+    def xest_d_make_dual_parameter_variation(self, 
+                                             quadrant_index = 'all'):
+        number_of_trajectories = 2
+
+        degradation_ranges = dict()
+        degradation_ranges[1] = (0.6, 1.0)
+        degradation_ranges[2] = (0.6, 1.0)
+        degradation_ranges[3] = (0.1, 0.5)
+        degradation_ranges[4] = (0.1, 0.5)
+        degradation_ranges[5] = (0.6, 1.0)
+        degradation_ranges[6] = (0.1, 0.5)
+        degradation_ranges[7] = (0.1, 0.5)
+        degradation_ranges[8] = (0.6, 1.0)
+        degradation_ranges[9] = (1.1, 1.5)
+        degradation_ranges[10] = (1.1, 1.5)
+        degradation_ranges[11] = (1.1, 1.5)
+        degradation_ranges[12] = (1.1, 1.5)
+        degradation_ranges[13] = (1.6, 2.0)
+        degradation_ranges[14] = (1.6, 2.0)
+        degradation_ranges[15] = (1.6, 2.0)
+        degradation_ranges[16] = (1.6, 2.0)
+        degradation_ranges['all'] = (0.1, 2.0)
+
+        degradation_interval_numbers = { i: 5 for i in range(1,17)}
+        degradation_interval_numbers['all'] = 20
+        
+        translation_ranges = dict()
+        translation_ranges[1] = (1.0, 1.5)
+        translation_ranges[2] = (1.6, 2.0)
+        translation_ranges[3] = (1.0, 1.5)
+        translation_ranges[4] = (1.6, 2.0)
+        translation_ranges[5] = (0.5, 0.9)
+        translation_ranges[6] = (0.5, 0.9)
+        translation_ranges[7] = (0.1, 0.4)
+        translation_ranges[8] = (0.1, 0.4)
+        translation_ranges[9] = (1.0, 1.5)
+        translation_ranges[10] = (1.6, 2.0)
+        translation_ranges[11] = (0.5, 0.9)
+        translation_ranges[12] = (0.1, 0.4)
+        translation_ranges[13] = (1.0, 1.5)
+        translation_ranges[14] = (0.5, 0.9)
+        translation_ranges[15] = (1.6, 2.0)
+        translation_ranges[16] = (0.1, 0.4)
+        translation_ranges['all'] = (0.1, 2.0)
+
+        translation_interval_numbers = dict()
+        translation_interval_numbers[1] = 6
+        translation_interval_numbers[2] = 5
+        translation_interval_numbers[3] = 6
+        translation_interval_numbers[4] = 5
+        translation_interval_numbers[5] = 5
+        translation_interval_numbers[6] = 5
+        translation_interval_numbers[7] = 4
+        translation_interval_numbers[8] = 4
+        translation_interval_numbers[9] = 6
+        translation_interval_numbers[10] = 5
+        translation_interval_numbers[11] = 5
+        translation_interval_numbers[12] = 4
+        translation_interval_numbers[13] = 6
+        translation_interval_numbers[14] = 5
+        translation_interval_numbers[15] = 5
+        translation_interval_numbers[16] = 4
+        translation_interval_numbers['all'] = 20
+
 #         number_of_parameter_points = 2
 #         number_of_trajectories = 2
 
@@ -3399,20 +3568,22 @@ class TestZebrafish(unittest.TestCase):
                                     np.logical_and(model_results[:,1]>0.05,
                                                    model_results[:,2]<150)))))
        
-        my_posterior_samples = prior_samples[accepted_indices]
+        my_posterior_samples = prior_samples[accepted_indices][:2]
         print('number of accepted samples is')
         print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_dual_parameter_sweep_at_parameters(my_posterior_samples,
-                                                                                     number_of_parameter_points,
-                                                                                     number_of_trajectories,
-                                                                                     relative_range = (0.1,2.0))
+                                                                                     degradation_range = degradation_ranges[quadrant_index],
+                                                                                     translation_range = translation_ranges[quadrant_index],
+                                                                                     degradation_interval_number = degradation_interval_numbers[quadrant_index],
+                                                                                     translation_interval_number = translation_interval_numbers[quadrant_index],
+                                                                                     number_of_traces_per_parameter = number_of_trajectories)
         
 #         self.assertEqual(my_parameter_sweep_results.shape, (len(my_posterior_samples),
 #                                                             number_of_parameter_points,
 #                                                             number_of_parameter_points,
 #                                                             13))
-        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps.npy'),
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_' + str(quadrant_index) +'.npy'),
                     my_parameter_sweep_results)
 
     def xest_e_make_dual_parameter_variation_low_res(self):
@@ -3659,7 +3830,9 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_results = model_results[accepted_indices]
         
         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps.npy'))
-        fluctuation_rate_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_fluctuation_rates.npy'))
+#         fluctuation_rate_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_fluctuation_rates.npy'))
+        fluctuation_rate_results = np.load(os.path.join(os.path.dirname(__file__),'output',
+                                                        'zebrafish_dual_sweeps_fluctuation_rates_full.npy'))
 
         translation_changes = dual_sweep_results[0,0,:,1]
         degradation_changes = dual_sweep_results[0,:,0,0]
@@ -3681,20 +3854,39 @@ class TestZebrafish(unittest.TestCase):
                                                          degradation_index, 
                                                          translation_index, 
                                                          :]
+
+                relative_noise_after = ( these_results_after[:,-1]/np.power(these_results_after[:,3]*
+                                         these_results_after[:,2],2))
+                relative_noise_before = ( my_posterior_results[:,-1]/np.power(my_posterior_results[:,1]*
+                                          my_posterior_results[:,0],2))
 #                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
 #                                                 these_results_after[:,2]>my_posterior_results[:,0]*1.8)
 #                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
 #                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
-#                                                 these_results_after[:,5]<my_posterior_results[:,3]))
+#                                                these_results_after[:,5]<my_posterior_results[:,3]))
+#                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
+#                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
+#                                 np.logical_and(these_results_after[:,5]>0.1,
+#                                                 these_results_after[:,5]<my_posterior_results[:,3])))
+#                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
+#                                 np.logical_and(these_results_after[:,2] >my_posterior_results[:,0]*1.8,
+#                                 np.logical_and(these_results_after[:,5] <my_posterior_results[:,3],
+#                                                 these_results_after[:,4] <150)))
+#                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
+#                                 np.logical_and(these_results_after[:,2] >my_posterior_results[:,0]*1.8,
+#                                 np.logical_and(these_results_after[:,5] <my_posterior_results[:,3],
+#                                                 relative_noise_after>relative_noise_before)))
 #                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.5,
 #                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.5,
 #                                 np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
 #                                                 these_fluctuation_rates_after[:,2]>fluctuation_rates_before)))
-                condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.5,
-                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.5,
-                                 np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
-                                 np.logical_and(these_results_after[:,4]<150,
-                                                these_fluctuation_rates_after[:,2]>fluctuation_rates_before))))
+                condition_mask = np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
+                                                these_fluctuation_rates_after[:,2]>fluctuation_rates_before)
+#                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.5,
+#                                  np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.5,
+#                                  np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
+#                                  np.logical_and(these_results_after[:,4]<150,
+#                                                 these_fluctuation_rates_after[:,2]>fluctuation_rates_before))))
 #                 condition_mask = these_fluctuation_rates_after[:,2]>fluctuation_rates_before
 #                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
 #                                                 these_results_after[:,2]>my_posterior_results[:,0]*1.8)
@@ -3717,15 +3909,20 @@ class TestZebrafish(unittest.TestCase):
         right_degradation_boundary = degradation_changes[-1] + 0.5*degradation_step
         degradation_bin_edges = np.linspace(left_degradation_boundary,right_degradation_boundary, len(degradation_changes) +1)
         print(degradation_bin_edges)
+        
+        print('likelihood of dec. coh. and incr. fluct. at 1.5 transl.')
+        print(likelihoods[9,14])
 
         this_figure = plt.figure(figsize = (2.5,1.9))
-        colormesh = plt.pcolormesh(degradation_bin_edges,translation_bin_edges,likelihoods, rasterized = True)
+#         colormesh = plt.pcolormesh(degradation_bin_edges,translation_bin_edges,likelihoods, rasterized = True)
+        colormesh = plt.pcolormesh(degradation_bin_edges,translation_bin_edges,likelihoods, rasterized = True,
+                                   vmin = 0, vmax = 100)
 #         plt.pcolor(X,Y,expected_coherence)
 #         plt.scatter(np.log(2)/90, np.log(2)/30)
-        plt.xlabel("Translation change", labelpad = 1.3)
+        plt.xlabel("Translation proportion", labelpad = 1.3)
         plt.xlim(0.95,2.05)
         plt.ylim(0.25,1.05)
-        plt.ylabel("Degradation\nchange", y=0.4)
+        plt.ylabel("Degradation\nproportion", y=0.4)
         
         divider = make_axes_locatable(plt.gca())
         cax = divider.new_vertical(size=0.07, pad=0.5, pack_start=True)

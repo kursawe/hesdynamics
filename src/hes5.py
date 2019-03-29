@@ -2121,7 +2121,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
         each row contains the summary statistics (mean, std, period, coherence, mean_mrna) for the corresponding
         parameter set in parameter_values
     '''
-    summary_statistics = np.zeros((parameter_values.shape[0], 11))
+    summary_statistics = np.zeros((parameter_values.shape[0], 12))
 
     pool_of_processes = mp.Pool(processes = number_of_cpus)
 
@@ -2362,7 +2362,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
 #     this_deterministic_trace = np.vstack((these_protein_traces[:,0],
 #                                           these_mrna_traces[:,1],
 #                                           these_protein_traces[:,1])).transpose()
-    summary_statistics = np.zeros(11)
+    summary_statistics = np.zeros(12)
     this_power_spectrum,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces, normalize = False)
     this_mean = np.mean(these_protein_traces[:,1:])
     this_std = np.std(these_protein_traces[:,1:])/this_mean
@@ -2373,6 +2373,8 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 2000, 
                                             this_deterministic_trace[:,2])).transpose()
     _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
+    this_fluctuation_rate = approximate_fluctuation_rate_of_traces_theoretically(these_protein_traces, sampling_interval = 6,
+                                                                                sampling_duration = 12*60)
 
     this_high_frequency_weight = calculate_noise_weight_from_power_spectrum(this_power_spectrum)
     summary_statistics[0] = this_mean
@@ -2386,6 +2388,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     summary_statistics[8] = this_deterministic_coherence
     summary_statistics[9] = this_deterministic_mean_mRNA
     summary_statistics[10] = this_high_frequency_weight
+    summary_statistics[11] = this_fluctuation_rate
     
     return summary_statistics
 
@@ -3938,9 +3941,11 @@ def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
     return sweep_results
     
 def conduct_dual_parameter_sweep_at_parameters(parameter_samples,
-                                               number_of_sweep_values = 20,
-                                               number_of_traces_per_parameter = 200,
-                                               relative_range = (0.1,2.0)):
+                                               degradation_range = (0.1,2.0),
+                                               translation_range = (0.1,2.0),
+                                               degradation_interval_number = 20,
+                                               translation_interval_number = 20,
+                                               number_of_traces_per_parameter = 200):
     '''Conduct a simultaneous (dual) parameter sweep of the mRNA degradation rate and
     the translation rate at each of the parameter points in
     parameter_samples. The parameter_samples are seven-dimensional, as produced, for example, by 
@@ -3956,18 +3961,26 @@ def conduct_dual_parameter_sweep_at_parameters(parameter_samples,
         four columns, each row corresponds to one parameter. The columns are in the order returned by
         generate_prior_samples().
         
-    number_of_sweep_values : int
+    degradation_range : (float,float)
+        lower and upper relative boundaries of the degradation parameter sweep. 
+        Relative to the original degradation rate.
+        
+    translation_range : (float,float)
+        lower and upper relative boundaries of the degradation parameter sweep. 
+        Relative to the original degradation rate.
+
+    degradation_interval_number : int
         number of different parameter values to consider. These number of values will be evenly spaced
-        between reasonable ranges for each parameter. The total number of parameter variations per input parameter
-        that is generated in this sweep will be number_of_sweep_values^2
+        within degradation_range. 
+        
+    translation_interval_number : int
+        number of different parameter values to consider. These number of values will be evenly spaced
+        within translation_range. The total number of parameter variations per input parameter
+        that is generated in this sweep will be degradation_interval_number*translation_interval_number
         
     number_of_traces_per_parameter : int
         number of traces that should be used to calculate summary statistics
         
-    relative_range : (float,float)
-        lower and upper relative boundaries of the parameter sweep. Relative the the individual model parameter.
-        
-
     Results:
     --------
     
@@ -3977,12 +3990,12 @@ def conduct_dual_parameter_sweep_at_parameters(parameter_samples,
         and each further column contains the summary statistics in the order described above.
     ''' 
     # first: make a table of 7d parameters
-    total_number_of_parameters_required = parameter_samples.shape[0]*(number_of_sweep_values**2)
+    total_number_of_parameters_required = parameter_samples.shape[0]*(degradation_interval_number*translation_interval_number)
     all_parameter_values = np.zeros((total_number_of_parameters_required, 7)) 
     parameter_sample_index = 0
     for sample in parameter_samples:
-        for degradation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
-            for translation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
+        for degradation_proportion in np.linspace(degradation_range[0],degradation_range[1],degradation_interval_number):
+            for translation_proportion in np.linspace(translation_range[0],translation_range[1],translation_interval_number):
                 all_parameter_values[parameter_sample_index] = sample
                 # now replace the parameter of interest with the actual parameter value
                 # degradation rate
@@ -3999,15 +4012,15 @@ def conduct_dual_parameter_sweep_at_parameters(parameter_samples,
     
     # unpack and wrap the results in the output format
     sweep_results = np.zeros((parameter_samples.shape[0], 
-                              number_of_sweep_values,
-                              number_of_sweep_values, 
-                              13))
+                              degradation_interval_number,
+                              translation_interval_number, 
+                              14))
     parameter_sample_index = 0
     for sample_index, sample in enumerate(parameter_samples):
         degradation_proportion_index = 0
-        for degradation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
+        for degradation_proportion in np.linspace(degradation_range[0],degradation_range[1],degradation_interval_number):
             translation_proportion_index = 0
-            for translation_proportion in np.linspace(relative_range[0],relative_range[1],number_of_sweep_values):
+            for translation_proportion in np.linspace(translation_range[0],translation_range[1],translation_interval_number):
                 these_summary_statistics = all_summary_statistics[parameter_sample_index]
                 # the first entry gets the degradation rate
                 sweep_results[sample_index,degradation_proportion_index,
@@ -4377,6 +4390,70 @@ def estimate_fluctuation_rate_of_traces(traces, fix_variance = False):
         variance = results.x[1]
 
     return fluctuation_rate, variance
+    
+def simulate_downstream_response_at_fluctuation_rate(fluctuation_rate, number_of_samples):
+    '''Simulate a potential downstream response to a signal with a specific fluctuation rate.
+    This function implemetns the network y-|X<-- , i.e y represses X and X self-activates.
+                                            \__/
+    
+    by implementing the equations
+    
+    dX/dt = G_1(y) + G_2(X) - mu*X
+    G_1(y) = k_1*1/(1+(y/y0)^n)
+    G_2(X) = k_2*1/(1+(X/X0)^(-n)))
+    
+    Parameters:
+    -----------
+    
+    fluctuation_rate : float
+        value of the fluctuation rate for which in silico Her6 concentrations y should be generated
+        and for which the downstream response of X should be simulated
+        
+    number_of_samples : int
+        number of samples to generate
+        
+    Returns:
+    --------
+    
+    times : ndarray
+        float entries, all times at which values of y and x are calculated
+
+    y : ndarray
+        float entries. Simulated values of Her6 expression, each column is a different trace
+        
+    x : ndarray
+        float entries, simulated values downstream response gene expression X, each column is a different trace
+    '''
+    times = np.linspace(0,30,2000)
+
+    input_variance = 1.7
+    ornstein_kernel = ( gp.kernels.ConstantKernel(constant_value=input_variance)*
+                        gp.kernels.Matern(nu=0.5, length_scale = 1.0/fluctuation_rate))
+    my_gp_regressor_before = gp.GaussianProcessRegressor(kernel=ornstein_kernel )
+    y = my_gp_regressor_before.sample_y(times[:, np.newaxis], n_samples = number_of_samples, random_state = None)
+    y +=6
+    
+    # doing the same thing in a different library
+#     ornstein_kernel = GPy.kern.OU(input_dim=1, variance = input_variance, lengthscale = 1/fluctuation_rate)
+#     means = np.zeros(len(times))
+#     vector of the means
+#     covariances = ornstein_kernel.K(times[:, np.newaxis],times[:, np.newaxis])
+#     covariance matrix
+#     Generate 20 sample path with mean mu and covariance C
+#     y = np.random.multivariate_normal(means, covariances)
+#     y +=6
+
+    delta_t = times[1] - times[0]
+    index = 0
+    x = np.zeros_like(y)
+    for time in times[:-1]:
+        this_x = x[index]
+        this_y = y[index]
+        dx = 0.5/(1+np.power(this_y/7.9,4)) + 10/(1+np.power(this_x/0.5,-4)) - 3*this_x
+        index+=1
+        x[index] = this_x+dx*delta_t
+        
+    return times, y, x
     
 def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interval = 1,
                                                          sampling_duration = None,
