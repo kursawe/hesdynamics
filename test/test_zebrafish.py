@@ -3491,7 +3491,7 @@ class TestZebrafish(unittest.TestCase):
 
     def xest_d_make_dual_parameter_variation(self, 
                                              quadrant_index = 'all'):
-        number_of_trajectories = 2
+        number_of_trajectories = 200
 
         degradation_ranges = dict()
         degradation_ranges[1] = (0.6, 1.0)
@@ -3568,7 +3568,7 @@ class TestZebrafish(unittest.TestCase):
                                     np.logical_and(model_results[:,1]>0.05,
                                                    model_results[:,2]<150)))))
        
-        my_posterior_samples = prior_samples[accepted_indices][:2]
+        my_posterior_samples = prior_samples[accepted_indices]
         print('number of accepted samples is')
         print(len(my_posterior_samples))
 
