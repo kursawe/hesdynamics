@@ -4458,10 +4458,9 @@ def simulate_downstream_response_at_fluctuation_rate(fluctuation_rate, number_of
 def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interval = 1,
                                                          sampling_duration = None,
                                                          power_spectrum = None):
-    '''Estimate the fluctuation rate of traces by (1) calculate the power spectrum,
-    (2) transform it into the autocorrelation function K1(t), (3) Fit the function
-    K2(t)=v*exp(-alpha*t) to K1(t). The best-fit alpha will be returned as the 
-    fluctuation rate. The variance v will also be returned.
+    '''Estimate the fluctuation rate of traces by minimising the kullback leibler divergence
+    between the measured Gaussian process and the OU process. The best-fit alpha will be returned as the 
+    fluctuation rate. 
     
     Parameters:
     -----------
