@@ -4121,3 +4121,186 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(file_name + '.pdf', dpi = 600)
         plt.savefig(file_name + '.eps', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
+
+    def test_fit_model_by_optimization(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_large')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                    np.logical_and(model_results[:,0]<2500,
+                                    np.logical_and(model_results[:,1]<0.15,
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,2]<150)))))
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_posterior_results = model_results[accepted_indices]
+        
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_complete_matrix.npy'))
+        translation_changes = dual_sweep_results[0,0,:,1]
+        degradation_changes = dual_sweep_results[0,:,0,0]
+        fluctuation_rates_before = dual_sweep_results[:,9,9,-1]
+
+        total_condition_mask = np.zeros(len(dual_sweep_results))
+        list_of_indices = []
+        corresponding_proportions = []
+        for translation_index, translation_change in enumerate(translation_changes):
+            for degradation_index, degradation_change in enumerate(degradation_changes):
+                these_results_after = dual_sweep_results[:, 
+                                                         degradation_index, 
+                                                         translation_index, 
+                                                         :]
+                condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
+                                np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
+                                np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
+                                np.logical_and(these_results_after[:,4]<150,
+                                                these_results_after[:,-1]>fluctuation_rates_before))))
+                
+                these_indices = np.where(condition_mask)[0]
+                if len(these_indices>0):
+                    for item in these_indices:
+                        list_of_indices.append(item)
+                        corresponding_proportions.append((degradation_change, translation_change))
+ 
+        reference_index = 0
+        example_index = list_of_indices[reference_index]
+        example_parameter_before = my_posterior_samples[example_index]
+        example_parameter_after = np.copy(example_parameter_before)
+        degradation_proportion_after=corresponding_proportions[reference_index][0]
+        translation_proportion_after=corresponding_proportions[reference_index][1]
+        
+        full_initial_parameter = np.zeros(9)
+        full_initial_parameter[:7] = example_parameter_before
+        full_initial_parameter[7:] = [degradation_proportion_after, translation_proportion_after]
+
+        mean_expression_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[0]
+        mean_expression_before_constraint = scipy.optimize.NonlinearConstraint(mean_expression_before,
+                                                                               1000,2500)
+        def relative_expression_after(parameter):
+            this_mean_expression_before = mean_expression_before(parameter)
+            parameter_after = parameter[:-2].copy()
+            parameter_after[5]*=parameter[-2]
+            parameter_after[1]*=parameter[-1]
+            this_mean_expression_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter_after[:-2])[0]
+            relative_expression_after = this_mean_expression_after/this_mean_expression_before
+            return relative_expression_after
+        mean_expression_after_constraint = scipy.optimize.NonlinearConstraint(relative_expression_after,
+                                                                              1.8,2.2)
+        
+        period_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[2]
+        period_before_constraint = scipy.optimize.NonlinearConstraint(period_before,
+                                                                      0,150)
+        def period_after(parameter):
+            parameter_after = parameter[:-2].copy()
+            parameter_after[5]*=parameter[-2]
+            parameter_after[1]*=parameter[-1]
+            period_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[2]
+            return period_after
+        period_after_constraint = scipy.optimize.NonlinearConstraint(period_after,
+                                                                     0,150)
+        
+        def period_difference_after(parameter):
+            this_period_before = period_before(parameter)
+            this_period_after = period_after(parameter)
+            return this_period_after - this_period_before
+
+        coherence_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[3]
+        def coherence_difference_after(parameter):
+            this_coherence_before = coherence_before(parameter)
+            parameter_after = parameter[:-2].copy()
+            parameter_after[5]*=parameter[-2]
+            parameter_after[1]*=parameter[-1]
+            this_coherence_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[3]
+            return this_coherence_after - this_coherence_before
+        coherence_after_constraint = scipy.optimize.NonlinearConstraint(coherence_difference_after,
+                                                                        -100,0)
+        
+        fluctuation_rate_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[-1]
+        def fluctuation_rate_difference(parameter):
+            this_fluctuation_rate_before = fluctuation_rate_before(parameter)
+            parameter_after = parameter[:-2].copy()
+            parameter_after[5]*=parameter[-2]
+            parameter_after[1]*=parameter[-1]
+            this_fluctuation_rate_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[-1]
+            return - (this_fluctuation_rate_after - this_fluctuation_rate_before)
+        flucutation_rate_difference_constraint = scipy.optimize.NonlinearConstraint(fluctuation_rate_difference,
+                                                                                    -10000,0)
+ 
+        def fluctuation_rate_difference_minimisation_function(parameter):
+            this_fluctuation_rate_difference = fluctuation_rate_difference(parameter)
+            this_mean_expression_before = mean_expression_before(parameter) 
+            this_relative_mean_expression_after = relative_expression_after(parameter)
+            this_period_before = period_before(parameter)
+            this_period_after = period_after(parameter)
+            this_period_difference_after = period_difference_after(parameter)
+            this_coherence_difference_after = coherence_difference_after(parameter)
+            if not (this_mean_expression_before<2500 and
+                    this_mean_expression_before>1000 and
+                    this_period_before<150 and
+                    this_period_after<150 and
+                    this_coherence_difference_after <0 and
+                    parameter[0]>0.001,
+                    parameter[0]<60,
+                    parameter[1]>0.001,
+                    parameter[1]<40,
+                    parameter[2]>0,
+                    parameter[2]<6000,
+                    parameter[3]>5,
+                    parameter[3]<40,
+                    parameter[4]>2,
+                    parameter[4]<6,
+                    parameter[5]>np.log(2)/11,
+                    parameter[5]<np.log(2)/1,
+                    parameter[6]>np.log(2)/11.1,
+                    parameter[6]<np.log(2)/10.9,
+                    parameter[7]>0.0,
+                    parameter[7]<1.0,
+                    parameter[8]>1.0,
+                    parameter[8]<10.0,
+                    ):
+                this_fluctuation_rate_difference = 1000
+            return this_fluctuation_rate_difference
+                
+#         result = scipy.optimize.minimize(fluctuation_rate_difference,full_initial_parameter, 
+#                                          constraints = (mean_expression_before_constraint,
+#                                                         mean_expression_after_constraint,
+#                                                         period_before_constraint,
+#                                                         period_after_constraint,
+#                                                         coherence_after_constraint),
+#                                          bounds = [(0.001,60),(0.001,40),(0,6000),(5,40),(2,6),(np.log(2)/11,np.log(2)/1),
+#                                                    (np.log(2)/11,np.log(2)/11),(0.0,1.0),(1.0,10.0)], 
+#                                          options = {'disp':True},
+#                                          tol = 0.01)
+
+        result = scipy.optimize.minimize(period_difference_after,full_initial_parameter, 
+                                         constraints = (mean_expression_before_constraint,
+                                                        mean_expression_after_constraint,
+                                                        period_before_constraint,
+                                                        period_after_constraint,
+                                                        flucutation_rate_difference_constraint,
+                                                        coherence_after_constraint),
+                                         bounds = [(0.001,60),(0.001,40),(0,6000),(5,40),(2,6),(np.log(2)/11,np.log(2)/1),
+                                                   (np.log(2)/11,np.log(2)/11),(0.0,1.0),(1.0,10.0)], 
+                                         options = {'disp':True},
+                                         tol = 10.0)
+        
+        print(result.x)
+        this_parameter = np.array(result.x)
+        this_parameter_after = this_parameter[:-2].copy()
+        this_parameter_after[5]*=this_parameter[-2]
+        this_parameter_after[1]*=this_parameter[-1]
+        results_before = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter[:-2])
+        results_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter_after)
+        print(results_before)
+        print(results_after)
+
+
+#         result = scipy.optimize.minimize(fluctuation_rate_difference_minimisation_function,
+#                                          full_initial_parameter, 
+#                                          method = 'Nelder-Mead',
+#                                          options = {'disp':True},
+#                                          tol = 0.1)
+
+#         result = scipy.optimize.minimize(fluctuation_rate_difference_minimisation_function,
+#                                         full_initial_parameter, 
+#                                         options = {'disp':True},
+#                                         tol = 0.1)
