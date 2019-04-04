@@ -4122,7 +4122,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(file_name + '.eps', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
 
-    def test_fit_model_by_optimization(self):
+    def xest_fit_model_by_optimization(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_large')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -4395,4 +4395,69 @@ class TestZebrafish(unittest.TestCase):
         results_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter_after)
         print(results_before)
         print(results_after)
+        
+    def xest_extrinsic_noise_trajectory_and_summary_stats(self):
+        my_trajectory = hes5.generate_langevin_trajectory( duration = 1500,
+                                                           repression_threshold = 2000,
+                                                           mRNA_degradation_rate = np.log(2)/11,
+                                                           protein_degradation_rate = np.log(2)/11,
+                                                           translation_rate = 26,
+                                                           basal_transcription_rate = 9,
+                                                           transcription_delay = 18,
+                                                           hill_coefficient = 3,
+                                                           initial_mRNA = 3,
+                                                           initial_protein = 2000,
+                                                           extrinsic_noise_rate = 100 )
+
+        
+        self.assertGreaterEqual(np.min(my_trajectory),0.0)
+        figuresize = (4,2.5)
+        my_figure = plt.figure()
+        plt.plot(my_trajectory[:,0], 
+                 my_trajectory[:,1]*100, label = 'mRNA*100', color = 'black')
+        plt.plot(my_trajectory[:,0],
+                 my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
+        plt.text(0.95, 0.4, 'Mean protein number: ' + str(np.mean(my_trajectory[:,2])),
+                 verticalalignment='bottom', horizontalalignment='right',
+                 transform=plt.gca().transAxes)
+        plt.xlabel('Time')
+        plt.ylabel('Copy number')
+        plt.legend()
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','her6_intrinsic_noise_langevin_trajectory.pdf'))
+        
+        print('attempting to calculate summary statistics from model')
+        this_parameter = np.array([9,26,2000,18,3,np.log(2)/8,np.log(2)/11,10])
+        these_summary_statistics = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter)
+        print(these_summary_statistics)
+    
+    def test_perform_abc_with_extrinsic_noise(self):
+        print('starting zebrafish abc')
+        ## generate posterior samples
+        total_number_of_samples = 10
+#         total_number_of_samples = 5
+#         total_number_of_samples = 100
+        acceptance_ratio = 0.02
+
+#         total_number_of_samples = 10
+#         acceptance_ratio = 0.5
+
+        prior_bounds = {'basal_transcription_rate' : (0.6,60),
+                        'translation_rate' : (0.04,40),
+                        'repression_threshold' : (0,5000),
+                        'time_delay' : (5,40),
+                        'hill_coefficient' : (2,6),
+                        'protein_degradation_rate' : ( np.log(2)/11.0, np.log(2)/11.0 ),
+                        'mRNA_half_life' : ( 1, 11),
+                        'extrinsic_noise_rate' : (0.1,1000) }
+
+        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
+                                                                acceptance_ratio,
+                                                                number_of_traces_per_sample = 200,
+                                                                saving_name = 'sampling_results_zebrafish_extrinsic_noise',
+                                                                prior_bounds = prior_bounds,
+                                                                prior_dimension = 'extrinsic_noise',
+                                                                logarithmic = True )
+ 
 
