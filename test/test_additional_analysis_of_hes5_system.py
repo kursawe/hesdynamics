@@ -225,7 +225,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                       'output','pairplot_hill_abc_' +  str(total_number_of_samples) + '_'
                                       + str(acceptance_ratio) + '.pdf'))
  
-    def test_pairplot_prior(self):
+    def xest_pairplot_prior(self):
 #         acceptance_ratio = 0.02
         total_number_of_samples = 200000
         
@@ -3424,14 +3424,14 @@ class TestSimpleHes5ABC(unittest.TestCase):
                         these_statistic_values/=10000
                     # scatter
                     if plotting_option == 'samples_only':
-                        print 'hello'
+                        print('hello')
                         plt.scatter(these_x_positions, these_statistic_values, 
                                     marker = '.', lw = 0, color = 'dimgrey', 
 #                                     alpha = 0.1, 
                                     s = 1,
                                     zorder = 0)
                     elif plotting_option == 'boxes':
-                        print 'hell1'
+                        print('hell1')
                         plt.boxplot(these_statistic_values, positions = [this_x_position],
                                     sym = '', widths = [0.7])
                     plt.gca().set_rasterization_zorder(1)
@@ -3553,8 +3553,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         new_accepted_indices = np.where(my_posterior_samples[:,1]<10)
         number_of_absolute_samples = len(accepted_indices[0])
-        print 'base model accepted that many indices'
-        print number_of_absolute_samples
+        print('base model accepted that many indices')
+        print(number_of_absolute_samples)
         parameter_names = ['basal_transcription_rate',
                             'translation_rate',
                             'repression_threshold',
@@ -3579,13 +3579,13 @@ class TestSimpleHes5ABC(unittest.TestCase):
         bardata = []
         ## Increase in coherence
         for parameter_name in parameter_names:
-            print 'investigating ' + parameter_name
+            print('investigating ' + parameter_name)
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                           'data',
                                                           'logarithmic_relative_sweeps_' + 
                                                           parameter_name + '.npy'))
  
-            print 'these accepted base samples are'
+            print('these accepted base samples are')
 #             print len(np.where(my_parameter_sweep_results[:,9,4] < 0.1)[0])
 #             number_of_absolute_samples = len(np.where(my_parameter_sweep_results[:,9,3] > 1000)[0])
 #             print number_of_absolute_samples
@@ -3649,7 +3649,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
 
         ## Increase in coherence
         for parameter_name in parameter_names:
-            print 'investigating ' + parameter_name
+            print('investigating ' + parameter_name)
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
                                                           'data',
                                                           'logarithmic_relative_sweeps_' + 
@@ -3657,7 +3657,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
  
 #             my_reducing_indices = np.where(my_posterior_samples[:,0]<13)
 #             my_parameter_sweep_results = my_parameter_sweep_results[new_accepted_indices]
-            print 'these accepted base samples are'
+            print('these accepted base samples are')
 #             print len(np.where(my_parameter_sweep_results[:,9,4] < 0.1)[0])
 #             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 300,
 #                                                                     my_parameter_sweep_results[:,9,4] < 0.1))[0])
@@ -3665,7 +3665,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
                                                                     my_parameter_sweep_results[:,9,4] < 0.1))[0])
 #             number_of_absolute_samples = len(np.where( my_parameter_sweep_results[:,9,4] < 0.2)[0])
 #             number_of_absolute_samples = len(np.where( my_parameter_sweep_results[:,9,4] < 0.2)[0])
-            print number_of_absolute_samples
+            print(number_of_absolute_samples)
             
 #             decrease_indices = np.where(np.logical_and(my_parameter_sweep_results[:,9,4] < 0.1,
 #                                                         my_parameter_sweep_results[:,4,4] > 0.1))
@@ -5230,7 +5230,7 @@ class TestSimpleHes5ABC(unittest.TestCase):
         # first_samples
         ##
         first_parameter = my_posterior_samples[lowest_indices[0]]
-        print first_parameter
+        print(first_parameter)
         first_mRNA_trajectories, first_protein_trajectories = hes5.generate_multiple_trajectories( number_of_trajectories = number_of_traces,
                                                                                         duration = 1500*repetition_factor,
                                                          repression_threshold = first_parameter[2],
@@ -9375,3 +9375,175 @@ class TestSimpleHes5ABC(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','hes5_ngn_toy_model.pdf'))
+        
+    def xest_make_variance_vs_mean_bayesian_posterior_prediction(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+ 
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                    np.logical_and(model_results[:,0]<65000, #protein_number
+                                                   model_results[:,1]>0.05)))  #standard deviation
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print('total number of accepted samples')
+        print(len(my_posterior_samples))
+        my_model_results = model_results[accepted_indices]
+
+        my_figure = plt.figure(figsize= (4.5,1.9))
+        plt.subplot(121)
+
+        all_means = my_model_results[:,0]
+        all_absolute_standard_deviations = my_model_results[:,1]*my_model_results[:,0]
+        all_variances = all_absolute_standard_deviations*all_absolute_standard_deviations
+        lower_limit = all_means*0.05
+        lower_limit = lower_limit*lower_limit
+
+        plt.scatter(all_means, all_variances,rasterized = True, alpha = 0.1, s = 1)
+        plt.plot(all_means, lower_limit)
+        plt.ylim(0,0.7e8)
+        plt.ylabel("Variance")
+        plt.xlabel("Mean HES5")
+#         plt.xlim(0.03,0.2)
+#         plt.gca().locator_params(axis='y', tight = True, nbins=3)
+#         plt.gca().locator_params(axis='x', tight = True, nbins=5)
+
+        plt.subplot(122)
+        sns.kdeplot(all_means, all_variances, linewidths = 0.5, bw = 0.2)
+        plt.plot(all_means, lower_limit)
+        plt.ylim(0,0.7e8)
+        plt.ylabel("Variance")
+        plt.xlabel("Mean HES5")
+        plt.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__), 'output',
+                                   'mean_vs_variance_investigation')
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+
+    def xest_plot_mean_and_variance_dependence_on_protein_degradation(self):
+        my_figure = plt.figure( figsize = (2.5, 5.7) )
+        parameter_name = 'repression_threshold'
+#         parameter_name = 'protein_degradation_rate'
+
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'data',
+                                                            'extended_relative_sweeps_repression_threshold.npy'))
+#                                                           'repeated_degradation_sweep.npy'))
+#         print(my_degradation_sweep_results[0,:,0])
+#         print(np.log(2)/90)
+#         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] - 
+#                                                       my_degradation_sweep_results[:,3,4]>
+#                                                       my_degradation_sweep_results[:,3,4]*1.0,
+#                                                       my_degradation_sweep_results[:,3,4]>0.1))
+#         print(len(my_filtered_indices[0]))
+#         print(len(my_degradation_sweep_results))
+#         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+        x_coord = -0.3
+        y_coord = 1.05
+        plt.subplot(311)
+        for results_table in my_degradation_sweep_results:
+            plt.plot(results_table[:,0],
+                     results_table[:,1], color = 'C0', alpha = 0.02, zorder = 0)
+#         plt.axvline( np.log(2)/90, color = 'black' )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel('relative HES5 degradation')
+        plt.ylim(40000,90000)
+        plt.ylabel('Mean Hes5')
+#         plt.ylim(40000,100000)
+#         plt.ylim(0,1)
+#         plt.xlim(0,np.log(2)/15.)
+#         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+        plt.subplot(312)
+        for results_table in my_degradation_sweep_results:
+            variances = results_table[:,2]*results_table[:,1]
+            variances = variances*variances 
+            plt.plot(results_table[:,0],
+                     variances, color = 'C0', alpha = 0.02, zorder = 0)
+#         plt.axvline( np.log(2)/90, color = 'black' )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel('relative HES5 degradation')
+        plt.ylabel('Variance')
+#         plt.ylim(40000,100000)
+#         plt.ylim(0,1)
+#         plt.xlim(0,np.log(2)/15.)
+#         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+        plt.subplot(313)
+        for results_table in my_degradation_sweep_results:
+            variances = results_table[:,2]*results_table[:,1]
+            variances = variances*variances 
+            plt.plot(results_table[:,1],
+                     variances, color = 'C0', alpha = 0.005, zorder = 0)
+#         plt.axvline( np.log(2)/90, color = 'black' )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel('HES5 mean')
+        plt.ylim(0,1e8)
+        plt.ylabel('Variance')
+        plt.xlim(40000,90000)
+#         plt.ylim(0,0.5e8)
+#         plt.ylim(40000,100000)
+#         plt.ylim(0,1)
+#         plt.xlim(0,np.log(2)/15.)
+#         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+        plt.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__),
+                                 'output','hes5_variances_means_vs_' + parameter_name)
+ 
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+   
+    def test_make_plot_for_paper(self):
+
+        parameter_name = 'repression_threshold'
+#         parameter_name = 'protein_degradation_rate'
+
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'data',
+                                                            'extended_relative_sweeps_repression_threshold.npy'))
+#
+        means = my_degradation_sweep_results[:,:,1]
+        standard_deviations = my_degradation_sweep_results[:,:,2]
+        variances = means*standard_deviations
+        variances = variances*variances
+        mean_means = np.mean(means, axis = 0)
+        mean_variances = np.mean(variances, axis = 0)
+        std_variances = np.std(variances, axis = 0)
+        my_figure = plt.figure( figsize = (2.5, 1.9) )
+#         for results_table in my_degradation_sweep_results:
+#             variances = results_table[:,2]*results_table[:,1]
+#             variances = variances*variances 
+#             plt.plot(results_table[:,1],
+#                      variances, color = 'C0', alpha = 0.005, zorder = 0)
+#         plt.axvline( np.log(2)/90, color = 'black' )
+        plt.plot(mean_means, mean_variances, color = 'black', lw = 0.5)
+        plt.plot(mean_means, mean_variances - std_variances, color = 'black', lw = 0.25)
+        plt.plot(mean_means, mean_variances + std_variances, color = 'black', lw = 0.25)
+        plt.fill_between(mean_means, mean_variances - std_variances, mean_variances + std_variances, alpha = 0.5)
+#         plt.errorbar(mean_means, mean_variances,yerr=std_variances)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel('HES5 mean')
+#         plt.ylim(0,1e8)
+        plt.ylabel('Variance')
+        plt.xlim(40000,90000)
+#         plt.ylim(0,0.5e8)
+#         plt.ylim(40000,100000)
+#         plt.ylim(0,1)
+#         plt.xlim(0,np.log(2)/15.)
+#         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+        plt.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__),
+                                 'output','hes5_variances_means_vs_' + parameter_name + '_plot_for_paper')
+ 
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+ 
