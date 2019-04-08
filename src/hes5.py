@@ -4019,7 +4019,7 @@ def conduct_dual_parameter_sweep_at_parameters(parameter_samples,
     ''' 
     # first: make a table of 7d parameters
     total_number_of_parameters_required = parameter_samples.shape[0]*(degradation_interval_number*translation_interval_number)
-    all_parameter_values = np.zeros((total_number_of_parameters_required, 7)) 
+    all_parameter_values = np.zeros((total_number_of_parameters_required, parameter_samples.shape[1])) 
     parameter_sample_index = 0
     for sample in parameter_samples:
         for degradation_proportion in np.linspace(degradation_range[0],degradation_range[1],degradation_interval_number):
