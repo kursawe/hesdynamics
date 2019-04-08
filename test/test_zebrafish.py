@@ -575,13 +575,21 @@ class TestZebrafish(unittest.TestCase):
                                     'output','inference_for_zebrafish_' + option + '.pdf'))
 
     def xest_plot_zebrafish_period_distribution(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_zebrafish')
+        model_option = 'extrinsic_noise'
+        if model_option == 'extrinsic_noise':
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output',
+#                                     'sampling_results_zebrafish')
+            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                        'sampling_results_zebrafish_extrinsic_noise')
+        else:
+            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                        'sampling_results_zebrafish')
+#
 #                                    'sampling_results_MCF7')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        option = 'mean_std'
+        option = 'mean_std_period'
         if option == 'mean_std':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
                                         np.logical_and(model_results[:,0]<2500,
@@ -630,6 +638,7 @@ class TestZebrafish(unittest.TestCase):
 # #         sns.distplot(all_periods[np.logical_and(all_periods<1000,
 #                                                 all_periods>100)],
         sns.distplot(all_periods[all_periods<300],
+#         sns.distplot(all_periods,
                      kde = False,
                      rug = False,
                      norm_hist = True,
@@ -638,7 +647,7 @@ class TestZebrafish(unittest.TestCase):
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Modelled period [h]")
-        plt.xlim(0,300)
+#         plt.xlim(0,300)
 #         plt.ylim(0,0.2)
 #         plt.ylim(0,0.0003)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
@@ -649,7 +658,7 @@ class TestZebrafish(unittest.TestCase):
  
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','zebrafish_period_distribution_' + option + '.pdf'))
+                                 'output','zebrafish_period_distribution_' + model_option + '_'+ option + '.pdf'))
  
     def xest_plot_zebrafish_coherence_distribution(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -767,19 +776,31 @@ class TestZebrafish(unittest.TestCase):
                                  'output','zebrafish_coherence_distribution_'+option+'.pdf'))
         
     def xest_plot_zebrafish_cov_distribution(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_zebrafish')
+        model_option = 'extrinsic_noise'
+        if model_option == 'extrinsic_noise':
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output',
+#                                     'sampling_results_zebrafish')
+            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                        'sampling_results_zebrafish_extrinsic_noise')
+        else:
+            saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                        'sampling_results_zebrafish')
 #                                    'sampling_results_MCF7')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        option = 'mean_period'
+#         option = 'mean_period'
+        option = 'mean_std'
 #         option = 'mean_std_period'
-        if option == 'mean_std':
+        if option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                                       model_results[:,0]<2500))
+        elif option == 'mean_std':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
                                         np.logical_and(model_results[:,0]<2500,
+#                                                        model_results[:,1]<0.15)))
                                         np.logical_and(model_results[:,1]<0.15,
-                                                       model_results[:,1]>0.05))))
+                                                        model_results[:,1]>0.05))))
         elif option == 'mean_std_period':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
                                         np.logical_and(model_results[:,0]<2500,
@@ -884,7 +905,8 @@ class TestZebrafish(unittest.TestCase):
  
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','zebrafish_cov_distribution_'+option+'.pdf'))
+                                 'output','zebrafish_cov_distribution_' + 
+                                 model_option + '_' + option +'.pdf'))
         
     def xest_plot_zebrafish_mrna_distribution(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -3623,7 +3645,7 @@ class TestZebrafish(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def xest_d_make_dual_parameter_variation(self, 
+    def test_d_make_dual_parameter_variation(self, 
                                              quadrant_index = 'all'):
         number_of_trajectories = 200
 
@@ -3692,7 +3714,7 @@ class TestZebrafish(unittest.TestCase):
 
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -3717,7 +3739,7 @@ class TestZebrafish(unittest.TestCase):
 #                                                             number_of_parameter_points,
 #                                                             number_of_parameter_points,
 #                                                             13))
-        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_' + str(quadrant_index) +'.npy'),
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_extrinsic_noise_' + str(quadrant_index) +'.npy'),
                     my_parameter_sweep_results)
 
     def xest_reconstruct_dual_parameter_variation_matrix(self): 
@@ -4432,7 +4454,7 @@ class TestZebrafish(unittest.TestCase):
         these_summary_statistics = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter)
         print(these_summary_statistics)
     
-    def test_perform_abc_with_extrinsic_noise(self):
+    def xest_perform_abc_with_extrinsic_noise(self):
         print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 200000
@@ -4460,4 +4482,403 @@ class TestZebrafish(unittest.TestCase):
                                                                 prior_dimension = 'extrinsic_noise',
                                                                 logarithmic = True )
  
+
+    def xest_plot_zebrafish_inference_extrinsic_noise(self):
+#         option = 'prior'
+#         option = 'mean_period_and_coherence'
+#         option = 'mean_longer_periods_and_coherence'
+#         option = 'mean_and_std'
+        option = 'mean_std_period'
+#         option = 'coherence_decrease_translation'
+#         option = 'coherence_decrease_degradation'
+#         option = 'dual_coherence_decrease'
+#         option = 'mean'
+#         option = 'dual_coherence_and_lengthscale_decrease'
+#         option = 'mean_std_period_fewer_samples'
+#         option = 'mean_std_period_coherence'
+#         option = 'weird_decrease'
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                    'sampling_results_zebrafish_extrinsic_noise')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        
+        if option == 'full':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
+                                        np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                                       model_results[:,1]>0.05))))  #standard deviation
+#                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
+#                                                     prior_samples[:,3]>20))))) #time_delay
+        elif option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                                       model_results[:,0]<1500))  #standard deviation
+#                                                        model_results[:,1]>0.05)))  #standard deviation
+        elif option == 'prior':
+            accepted_indices = range(len(prior_samples))
+        elif option == 'coherence':
+            accepted_indices = np.where( model_results[:,3]>0.3 )  #standard deviation
+        elif option == 'period':
+            accepted_indices = np.where( model_results[:,2]<100 )  #standard deviation
+        elif option == 'period_and_coherence':
+            accepted_indices = np.where( np.logical_and( model_results[:,2]<100,
+                                                         model_results[:,3]>0.3 ))  
+        elif option == 'mean_period_and_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,2]<100,
+                                                       model_results[:,3]>0.3))))  
+        elif option == 'mean_longer_periods_and_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,2]<150,
+                                        np.logical_and(model_results[:,3]>0.25,
+                                                       model_results[:,3]<0.4)))))
+        elif option == 'mean_and_std':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                                       model_results[:,1]>0.05))))
+        elif option == 'mean_std_period_fewer_samples':
+            accepted_indices = np.where(np.logical_and(model_results[:4000,0]>1000, #protein number
+                                        np.logical_and(model_results[:4000,0]<2500,
+                                        np.logical_and(model_results[:4000,1]<0.15,
+                                        np.logical_and(model_results[:4000,1]>0.05,
+                                                       model_results[:4000,2]<150)))))
+        elif option == 'mean_std_period':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+        elif option == 'mean_std_period_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<8000,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                        np.logical_and(model_results[:,3]>0.4,
+                                                       model_results[:,2]<150))))))
+#                                         np.logical_and(model_results[:,2]<150,
+        elif option == 'amplitude_and_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000, #protein_number
+#                                         np.logical_and(model_results[:,4]>40,
+#                                         np.logical_and(model_results[:,4]>60, #mrna number
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,3]>0.15)))) #standard deviation
+        elif option == 'deterministic': 
+             accepted_indices = np.where(np.logical_and(model_results[:,5]>2000, #protein number
+                                         np.logical_and(model_results[:,5]<4000, #protein_number
+                                         np.logical_and(model_results[:,9]>40,
+                                         np.logical_and(model_results[:,9]<60, #mrna number
+                                                        model_results[:,6]>0.05)))))  #standard deviation
+        elif option == 'weird_decrease':
+            change = 'decreased'
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradationtest')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+#             weird_indices = np.where(results_before_change[:,0]>results_after_change[:,0])
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
+        elif option == 'coherence_decrease_degradation':
+            change = 'decreased'
+#             change = 'increased'
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+#             saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+#             weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+#                                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                                          results_before_change[:,0],2)<
+#                                                     results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                                         results_after_change[:,0],2)))
+#  
+#                                                     old_lengthscales<new_lengthscales))
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
+        elif option == 'coherence_decrease_translation':
+#             change = 'decreased'
+            change = 'increased'
+#             saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation')
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation')
+            results_after_change = np.load(saving_path + '.npy')
+            parameters_after_change = np.load(saving_path + '_parameters.npy')
+            results_before_change = np.load(saving_path + '_old.npy')
+            parameters_before_change = np.load(saving_path + '_parameters_old.npy')
+            old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
+            new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
+        
+            weird_indices = np.where(results_before_change[:,3]>results_after_change[:,3])
+#             weird_indices = np.where(np.logical_and(results_before_change[:,3]>results_after_change[:,3],
+#                                                     results_before_change[:,-1]/np.power(results_before_change[:,1]*
+#                                                                                          results_before_change[:,0],2)<
+#                                                     results_after_change[:,-1]/np.power(results_after_change[:,1]*
+#                                                                                         results_after_change[:,0],2)))
+#  
+#                                                     old_lengthscales<new_lengthscales))
+            weird_parameters_before = parameters_before_change[weird_indices]
+            weird_parameters_after = parameters_after_change[weird_indices]
+        elif option == 'dual_coherence_decrease':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods_coherence_decrease.npy')
+            conditions = np.load(saving_path)
+            positive_indices = np.where(conditions>0)
+            accepted_indices = (accepted_indices[0][positive_indices],)
+        elif option == 'dual_coherence_and_lengthscale_decrease':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods.npy')
+            conditions = np.load(saving_path)
+            positive_indices = np.where(conditions>0)
+            accepted_indices = (accepted_indices[0][positive_indices],)
+        else:
+            ValueError('could not identify posterior option')
+#       
+        if option not in ['weird_decrease', 'coherence_decrease_degradation',
+                          'coherence_decrease_translation']:
+            my_posterior_samples = prior_samples[accepted_indices]
+        else:
+            my_posterior_samples = weird_parameters_before
+
+        print('Number of accepted samples is ')
+        print(len(my_posterior_samples))
+        print('minimal transcription is')
+        print(np.min(my_posterior_samples[:,0]))
+        print('and in log space')
+        print(np.min(np.log10(my_posterior_samples[:,0])))
+        print('minimal translation is')
+        print(np.min(my_posterior_samples[:,1]))
+        print('and in log space')
+        print(np.min(np.log10(my_posterior_samples[:,1])))
+
+        my_posterior_samples[:,2]/=1000
+
+        print(my_posterior_samples.shape)
+#         my_pairplot = hes5.plot_posterior_distributions(my_posterior_samples)
+
+        data_frame = pd.DataFrame( data = my_posterior_samples[:,(0,1,2,3,4,5,7)],
+                                   columns= ['Transcription rate', 
+                                             'Translation rate', 
+                                             'Repression threshold/1e3', 
+                                             'Transcription delay',
+                                             'Hill coefficient',
+                                             'mRNA degradation',
+                                             'Extrinsic noise rate'])
+
+        ### PAIRGRID
+#         my_adjusted_posterior_samples = np.copy(my_posterior_samples)
+#         my_adjusted_posterior_samples[:,5] = np.log(2)/my_adjusted_posterior_samples[:,5]
+#         my_adjusted_posterior_samples[:,0] = np.log10(my_adjusted_posterior_samples[:,0])
+#         my_adjusted_posterior_samples[:,1] = np.log10(my_adjusted_posterior_samples[:,1])
+#         new_data_frame = pd.DataFrame( data = my_adjusted_posterior_samples[:,:6],
+#                                    columns= ['log10(Transcription rate)', 
+#                                              'log10(Translation rate)', 
+#                                              'Repression threshold/1e3', 
+#                                              'Transcription delay',
+#                                              'Hill coefficient',
+#                                              'mRNA half life'])
+#         my_pairplot = sns.PairGrid(new_data_frame)
+# #         my_pairplot = sns.pairplot(new_data_frame)
+#         my_pairplot.map_upper(plt.scatter, alpha = 0.02, color = 'black', rasterized = True)
+# #         my_pairplot.map_upper(sns.kdeplot,rasterized = True)
+#         my_pairplot.map_diag(plt.hist)
+#         my_pairplot.map_lower(sns.kdeplot, cmap = 'Reds', rasterized = True)
+# #         my_pairplot.axes[-1,0].set_xscale("log")
+# #         my_pairplot.axes[-1,1].set_xscale("log")
+#         my_pairplot.savefig(os.path.join(os.path.dirname(__file__),
+#                                          'output',
+#                                          'pairplot_zebrafish_abc_' +  option + '.pdf'))
+#         ### END PAIRGRID
+
+        sns.set(font_scale = 1.1, rc = {'ytick.labelsize': 6})
+#         font = {'size'   : 28}
+#         plt.rc('font', **font)
+        my_figure = plt.figure(figsize= (11,3))
+
+        my_figure.add_subplot(171)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(np.log10(0.6),np.log10(60.0),20)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Transcription rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+        plt.gca().set_xlim(-0.5,np.log10(60.0))
+        plt.ylabel("Probability", labelpad = 20)
+        plt.xlabel("Transcription rate \n [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        plt.gca().set_ylim(0,1)
+#         plt.gca().set_ylim(0,1)
+#         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(172)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        translation_rate_bins = np.linspace(np.log10(0.04),np.log10(40),20)
+        sns.distplot(np.log10(data_frame['Translation rate']),
+                     kde = False,
+                     rug = False,
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black',
+                                 'alpha' : None},
+                     bins = translation_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_xlim(-2,1)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xticks([-1,0], [r'$10^{-1}$',r'$10^0$'])
+        plt.xlabel("Translation rate \n [1/min]")
+        plt.gca().set_ylim(0,1)
+#         plt.gca().set_ylim(0,1.0)
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(173)
+        sns.distplot(data_frame['Repression threshold/1e3'],
+                     kde = False,
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.xlabel("Repression threshold \n [1e3]")
+        plt.gca().set_ylim(0,0.5)
+        plt.gca().set_xlim(0,5)
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        plots_to_shift = []
+        plots_to_shift.append(my_figure.add_subplot(174))
+        time_delay_bins = np.linspace(5,40,10)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
+                     bins = time_delay_bins)
+        plt.gca().set_xlim(5,40)
+        plt.gca().set_ylim(0,0.07)
+#         plt.gca().set_ylim(0,0.04)
+        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel(" Transcription delay \n [min]")
+#         plt.yticks([])
+ 
+        plots_to_shift.append(my_figure.add_subplot(175))
+        sns.distplot(data_frame['Hill coefficient'],
+                     kde = False,
+                     norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
+                     rug = False,
+                     bins = 20)
+#         plt.gca().set_xlim(1,200)
+        plt.gca().set_ylim(0,0.4)
+        plt.gca().set_xlim(2,6)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.yticks([])
+
+        my_figure.add_subplot(176)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+#         degradation_rate_bins = np.linspace(np.log(2.0)/15.0,np.log(2)/1.0,20)
+#         histogram, bin_edges = np.histogram(data_frame['mRNA degradation'], degradation_rate_bins, 
+#                                             density = True)
+#         plt.hist(histogram[::-1], np.log(2)/bin_edges[::-1] )
+
+        half_lifes = np.log(2)/data_frame['mRNA degradation']
+        print(half_lifes)
+        half_life_bins = np.linspace(1,11,20)
+#         half_life_histogram, _ = np.histogram(half_lifes, half_life_bins, density = True)
+#         print(half_life_histogram)
+#         prior_histogram, _ = np.histogram( np.log(2)/prior_samples[:,5], half_life_bins, density = True )
+#         corrected_histogram = half_life_histogram/prior_histogram
+#         corrected_histogram = half_life_histogram
+#         print(corrected_histogram)
+#         bin_centres = (half_life_bins[:-1] + half_life_bins[1:])/2
+#         width = 0.7*(half_life_bins[1] - half_life_bins[0])
+         
+#         plt.bar(bin_centres, corrected_histogram, align = 'center' , width = width )
+        sns.distplot(half_lifes,
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
+                    bins = half_life_bins)
+#
+#         sns.distplot(data_frame['mRNA degradation'],
+#                      kde = False,
+#                      rug = False,
+#                      norm_hist = True,
+#                      hist_kws = {'edgecolor' : 'black'},
+#                      bins = degradation_rate_bins)
+# #         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(1,200)
+#         plt.gca().set_xlim(-2,0)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+#         plt.xticks([-1,0], [r'$10^{-1}$',r'$10^0$'])
+        plt.xlabel("mRNA half-life \n [min]")
+#         plt.gca().set_ylim(0,4.0)
+#         plt.gca().set_ylim(0,1.0)
+#         plt.yticks([])
+
+        ## EXTRINSIC NOISE
+        my_figure.add_subplot(177)
+#         transcription_rate_bins = np.logspace(-1,2,20)
+        transcription_rate_bins = np.linspace(np.log10(0.1),np.log10(1000),20)
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#                                                        bins = time_delay_bins )
+        sns.distplot(np.log10(data_frame['Extrinsic noise rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
+                    bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+#         plt.gca().set_xlim(-0.5,np.log10(60.0))
+        plt.xlabel("Extrinsic noise\nrate [1/min]")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        plt.gca().set_ylim(0,1)
+#         plt.gca().set_ylim(0,1)
+#         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        plt.tight_layout(w_pad = 0.0001)
+#         plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','inference_for_zebrafish_extrinsic_noise_' + option + '.pdf'))
+
 
