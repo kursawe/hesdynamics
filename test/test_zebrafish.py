@@ -3796,7 +3796,7 @@ class TestZebrafish(unittest.TestCase):
                                     np.logical_and(model_results[:,1]>0.05,
                                                    model_results[:,2]<150)))))
        
-        my_posterior_samples = prior_samples[accepted_indices][:2]
+        my_posterior_samples = prior_samples[accepted_indices]
         print('number of accepted samples is')
         print(len(my_posterior_samples))
 
