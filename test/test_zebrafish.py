@@ -1,5 +1,7 @@
 import unittest
 import os.path
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
 import sys
 import matplotlib as mpl
 mpl.use('Agg')
@@ -3722,10 +3724,12 @@ class TestZebrafish(unittest.TestCase):
         degradation_ranges[16] = (1.6, 2.0)
         degradation_ranges['all'] = (0.1, 2.0)
         degradation_ranges['shifted'] = (0.1, 2.0)
+        degradation_ranges['shifted_more'] = (0.1, 2.0)
 
         degradation_interval_numbers = { i: 5 for i in range(1,17)}
         degradation_interval_numbers['all'] = 20
         degradation_interval_numbers['shifted'] = 20
+        degradation_interval_numbers['shifted_more'] = 20
         
         translation_ranges = dict()
         translation_ranges[1] = (1.0, 1.5)
@@ -3746,6 +3750,7 @@ class TestZebrafish(unittest.TestCase):
         translation_ranges[16] = (0.1, 0.4)
         translation_ranges['all'] = (0.1, 2.0)
         translation_ranges['shifted'] = (0.9, 3.1)
+        translation_ranges['shifted_more'] = (3.2, 4.1)
 
         translation_interval_numbers = dict()
         translation_interval_numbers[1] = 6
@@ -3766,6 +3771,7 @@ class TestZebrafish(unittest.TestCase):
         translation_interval_numbers[16] = 4
         translation_interval_numbers['all'] = 20
         translation_interval_numbers['shifted'] = 23
+        translation_interval_numbers['shifted_more'] = 10
 
 #         number_of_parameter_points = 2
 #         number_of_trajectories = 2
@@ -3790,7 +3796,7 @@ class TestZebrafish(unittest.TestCase):
                                     np.logical_and(model_results[:,1]>0.05,
                                                    model_results[:,2]<150)))))
        
-        my_posterior_samples = prior_samples[accepted_indices]
+        my_posterior_samples = prior_samples[accepted_indices][:2]
         print('number of accepted samples is')
         print(len(my_posterior_samples))
 
@@ -4067,9 +4073,9 @@ class TestZebrafish(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_fluctuation_rates_full.npy'),
                     fluctuation_rate_results)
 
-    def xest_plot_dual_parameter_change(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_large')
-#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise')
+    def test_plot_dual_parameter_change(self):
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -4081,7 +4087,9 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
         my_posterior_results = model_results[accepted_indices]
         
-        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_complete_matrix.npy'))
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_complete_matrix.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_all.npy'))
 #         fluctuation_rate_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_fluctuation_rates.npy'))
 #         fluctuation_rate_results = np.load(os.path.join(os.path.dirname(__file__),'output',
@@ -4132,9 +4140,9 @@ class TestZebrafish(unittest.TestCase):
 #                                 np.logical_and(these_results_after[:,5] <my_posterior_results[:,3],
 #                                                 relative_noise_after>relative_noise_before)))
 #                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
-#                                  np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
-#                                  np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
-#                                  np.logical_and(relative_noise_after>relative_noise_before,
+#                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
+#                                 np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
+#                                 np.logical_and(relative_noise_after>relative_noise_before,
 #                                                 these_results_after[:,4]<150))))
 #                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.5,
 #                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.5,
@@ -4192,9 +4200,9 @@ class TestZebrafish(unittest.TestCase):
 #         plt.pcolor(X,Y,expected_coherence)
 #         plt.scatter(np.log(2)/90, np.log(2)/30)
         plt.xlabel("Translation proportion", labelpad = 1.3)
-        plt.xlim(0.95,2.05)
+#         plt.xlim(0.95,2.05)
 #         plt.ylim(0.25,1.05)
-        plt.ylim(0.05,1.05)
+#         plt.ylim(0.05,1.05)
         plt.ylabel("Degradation\nproportion", y=0.4)
         
         divider = make_axes_locatable(plt.gca())
@@ -4213,7 +4221,7 @@ class TestZebrafish(unittest.TestCase):
 
         file_name = os.path.join(os.path.dirname(__file__),
 #                                  'output','zebrafish_likelihood_plot_extrinsic_noise')
-                                 'output','zebrafish_likelihood_plot')
+                                 'output','zebrafish_likelihood_plot_shifted')
  
         plt.savefig(file_name + '.pdf', dpi = 600)
         plt.savefig(file_name + '.eps', dpi = 600)

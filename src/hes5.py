@@ -30,6 +30,8 @@ except ImportError:
 domain_name = socket.getfqdn()
 if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
     number_of_available_cores = 2
+elif domain_name.endswith('csf3.alces.network'):
+    number_of_available_cores = 24
 else:
 #     number_of_available_cores = 1
     number_of_available_cores = mp.cpu_count()
