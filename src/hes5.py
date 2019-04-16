@@ -4592,8 +4592,8 @@ def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interv
 
     return fluctuation_rate
  
-def calculate_noise_weight_from_power_spectrum(power_spectrum, frequency_cutoff = 1./30.):
-    '''Calculate the weight of the power spectrum that frequencies over 30 min contribute
+def calculate_noise_weight_from_power_spectrum(power_spectrum, frequency_cutoff = 1./40.):
+    '''Calculate the weight of the power spectrum that frequencies over 40 min contribute
     
     Parameters:
     -----------
