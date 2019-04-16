@@ -4682,7 +4682,7 @@ class TestZebrafish(unittest.TestCase):
     def test_perform_abc_with_extrinsic_noise(self):
         print('starting zebrafish abc')
         ## generate posterior samples
-        total_number_of_samples = 200000
+        total_number_of_samples = 2000000
 #         total_number_of_samples = 5
 #         total_number_of_samples = 100
         acceptance_ratio = 0.02
