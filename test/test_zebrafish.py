@@ -174,7 +174,7 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def test_a_make_abc_samples(self):
+    def xest_a_make_abc_samples(self):
         print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 2000000
@@ -1877,9 +1877,9 @@ class TestZebrafish(unittest.TestCase):
 #                 condition_mask = np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
 #                                                 these_results_after[:,-1]>fluctuation_rates_before)
                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
-                                np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
-                                np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
-                                np.logical_and(these_results_after[:,4]<150,
+                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
+                                 np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
+                                 np.logical_and(these_results_after[:,4]<150,
                                                 these_results_after[:,-1]>fluctuation_rates_before))))
 #                                                 these_fluctuation_rates_after[:,2]>fluctuation_rates_before))))
 #                 condition_mask = these_fluctuation_rates_after[:,2]>fluctuation_rates_before
@@ -3900,6 +3900,17 @@ class TestZebrafish(unittest.TestCase):
         translation_interval_numbers['shifted_more'] = 10
         translation_interval_numbers['shifted_final'] = 21
 
+        additional_index = 17
+        for degradation_change_start in [0.7,0.3]:
+            for translation_change_start in np.linspace(4.8,3.0,7):
+                degradation_ranges[additional_index] = (degradation_change_start, 
+                                                        degradation_change_start + 0.3)
+                translation_ranges[additional_index] = (translation_change_start, 
+                                                        translation_change_start + 0.2)
+                degradation_interval_numbers[additional_index] = 4
+                translation_interval_numbers[additional_index] = 3
+                additional_index += 1
+            
 #         number_of_parameter_points = 2
 #         number_of_trajectories = 2
 
@@ -3907,12 +3918,12 @@ class TestZebrafish(unittest.TestCase):
             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
 #             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
         if model == 'standard_large':
-            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_large')
+            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
         elif model == 'extrinsic_noise':
             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
 #             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise')
         elif model == 'extrinsic_noise_large':
-            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_massive')
+            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
             
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
@@ -4679,7 +4690,7 @@ class TestZebrafish(unittest.TestCase):
         these_summary_statistics = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter)
         print(these_summary_statistics)
     
-    def test_perform_abc_with_extrinsic_noise(self):
+    def xest_perform_abc_with_extrinsic_noise(self):
         print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 2000000
