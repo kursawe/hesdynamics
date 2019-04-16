@@ -209,10 +209,10 @@ class TestZebrafish(unittest.TestCase):
 #         option = 'mean_period_and_coherence'
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
-        option = 'mean_std_period'
+#         option = 'mean_std_period'
 #         option = 'coherence_decrease_translation'
 #         option = 'coherence_decrease_degradation'
-#         option = 'dual_coherence_decrease'
+        option = 'dual_coherence_decrease'
 #         option = 'dual_coherence_and_lengthscale_decrease'
 #         option = 'mean_std_period_fewer_samples'
 #         option = 'mean_std_period_coherence'
@@ -356,7 +356,7 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
                                                        model_results[:,2]<150)))))
-            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods_coherence_decrease.npy')
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods.npy')
             conditions = np.load(saving_path)
             positive_indices = np.where(conditions>0)
             accepted_indices = (accepted_indices[0][positive_indices],)
@@ -495,7 +495,7 @@ class TestZebrafish(unittest.TestCase):
 
         plots_to_shift = []
         plots_to_shift.append(my_figure.add_subplot(164))
-        time_delay_bins = np.linspace(1,30,11)
+        time_delay_bins = np.linspace(1,30,31)
         sns.distplot(data_frame['Transcription delay'],
                      kde = False,
                      rug = False,
@@ -503,8 +503,8 @@ class TestZebrafish(unittest.TestCase):
                     hist_kws = {'edgecolor' : 'black',
                                 'alpha' : None},
                      bins = time_delay_bins)
-        plt.gca().set_xlim(1,40)
-        plt.gca().set_ylim(0,0.07)
+#         plt.gca().set_xlim(1,40)
+#         plt.gca().set_ylim(0,0.07)
 #         plt.gca().set_ylim(0,0.04)
         plt.gca().locator_params(axis='x', tight = True, nbins=5)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
@@ -1204,7 +1204,7 @@ class TestZebrafish(unittest.TestCase):
 #         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
 #         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
-    def xest_plot_mrna_change_results(self):
+    def test_plot_mrna_change_results(self):
         
         change = 'increased'
 #         change = 'decreased'
@@ -1212,7 +1212,8 @@ class TestZebrafish(unittest.TestCase):
 #         plot_option = 'boxplot'
         plot_option = 'lines'
         
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -1226,11 +1227,13 @@ class TestZebrafish(unittest.TestCase):
         
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_complete_matrix.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_all.npy'))
-        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_more.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_more.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_final.npy'))
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_final.npy'))
 
         translation_changes = dual_sweep_results[0,0,:,1]
         degradation_changes = dual_sweep_results[0,:,0,0]
-        fluctuation_rates_before = dual_sweep_results[:,9,9,-1]
+        fluctuation_rates_before = my_posterior_results[:,-1]
 
         total_condition_mask = np.zeros(len(dual_sweep_results))
         list_of_indices = []
@@ -1340,8 +1343,8 @@ class TestZebrafish(unittest.TestCase):
 #         new_lengthscales = np.zeros(len(parameters_before_change))
 #         old_lengthscales = np.load(saving_path + '_old_lengthscales.npy')
 #         new_lengthscales = np.load(saving_path + '_new_lengthscales.npy')
-        old_lengthscales = results_before_change[-1]
-        new_lengthscales = results_after_change[-1]
+        old_lengthscales = results_before_change[:,-1]
+        new_lengthscales = results_after_change[:,-1]
     
         if False:
             indices = np.where(results_before_change[:,3]>results_after_change[:,3])
@@ -4215,8 +4218,8 @@ class TestZebrafish(unittest.TestCase):
 
     def xest_plot_dual_parameter_change(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
-#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -4230,8 +4233,8 @@ class TestZebrafish(unittest.TestCase):
         
         print('number of accepted samples')
         print(len(my_posterior_results))
-        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_final.npy'))
-#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_final.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_final.npy'))
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_final.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted.npy'))
@@ -4737,7 +4740,7 @@ class TestZebrafish(unittest.TestCase):
 #         option = 'weird_decrease'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_zebrafish_extrinsic_noise')
+                                    'sampling_results_zebrafish_extrinsic_noise_delay')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
@@ -5021,7 +5024,7 @@ class TestZebrafish(unittest.TestCase):
 
         plots_to_shift = []
         plots_to_shift.append(my_figure.add_subplot(174))
-        time_delay_bins = np.linspace(5,40,10)
+        time_delay_bins = np.linspace(1,30,30)
         sns.distplot(data_frame['Transcription delay'],
                      kde = False,
                      rug = False,
@@ -5029,8 +5032,8 @@ class TestZebrafish(unittest.TestCase):
                     hist_kws = {'edgecolor' : 'black',
                                 'alpha' : None},
                      bins = time_delay_bins)
-        plt.gca().set_xlim(5,40)
-        plt.gca().set_ylim(0,0.07)
+        plt.gca().set_xlim(1,30)
+#         plt.gca().set_ylim(0,0.07)
 #         plt.gca().set_ylim(0,0.04)
         plt.gca().locator_params(axis='x', tight = True, nbins=5)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
