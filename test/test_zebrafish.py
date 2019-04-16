@@ -177,7 +177,7 @@ class TestZebrafish(unittest.TestCase):
     def test_a_make_abc_samples(self):
         print('starting zebrafish abc')
         ## generate posterior samples
-        total_number_of_samples = 200000
+        total_number_of_samples = 2000000
 #         total_number_of_samples = 5
 #         total_number_of_samples = 100
         acceptance_ratio = 0.02
@@ -196,7 +196,7 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_zebrafish_delay',
+                                                                saving_name = 'sampling_results_zebrafish_delay_large',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'full',
                                                                 logarithmic = True )
@@ -4702,7 +4702,7 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_zebrafish_extrinsic_noise_delay',
+                                                                saving_name = 'sampling_results_zebrafish_extrinsic_noise_delay_large',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'extrinsic_noise',
                                                                 logarithmic = True )
