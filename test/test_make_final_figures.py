@@ -4,7 +4,10 @@ import sys
 import matplotlib as mpl
 import matplotlib.gridspec 
 mpl.use('Agg')
-mpl.rcParams['mathtext.default'] = 'regular'
+# matplotlib.rcParams['text.usetex'] = True
+# mpl.rcParams['ps.fonttype'] = 3
+# mpl.rcParams['pdf.fonttype'] = 3
+# mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
 font = {'size'   : 10,
         'sans-serif' : 'Arial'}
@@ -234,7 +237,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
         plt.gca().set_rasterization_zorder(1)
-        plt.xlabel('HES5 degradation [1/min]')
+        plt.xlabel(r'HES5 degradation [min$^{-1}$]')
         plt.ylabel('Coherence')
         plt.ylim(0,1)
         plt.xlim(0,np.log(2)/15.)
@@ -266,8 +269,8 @@ class TestMakeFinalFigures(unittest.TestCase):
         colormesh = plt.pcolormesh(X,Y,expected_coherence, rasterized = True)
 #         plt.pcolor(X,Y,expected_coherence)
         plt.scatter(np.log(2)/90, np.log(2)/30)
-        plt.xlabel("Protein degradation [1/min]", labelpad = 1.3)
-        plt.ylabel("mRNA degradation\n[1/min]", y=0.4)
+        plt.xlabel("Protein degradation [min$^{-1}$]", labelpad = 1.3)
+        plt.ylabel("mRNA degradation\n[min$^{-1}$]", y=0.4)
         
         divider = make_axes_locatable(plt.gca())
         cax = divider.new_vertical(size=0.07, pad=0.5, pack_start=True)

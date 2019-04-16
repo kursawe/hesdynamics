@@ -59,7 +59,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
 #                                     'sampling_results_repeated')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_massive')
+#                                     'sampling_results_massive')
+                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
