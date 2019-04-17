@@ -1204,7 +1204,7 @@ class TestZebrafish(unittest.TestCase):
 #         np.save(saving_path + '_old_lengthscales.npy', old_lengthscales)
 #         np.save(saving_path + '_new_lengthscales.npy', new_lengthscales)
  
-    def test_plot_mrna_change_results(self):
+    def xest_plot_mrna_change_results(self):
         
         change = 'increased'
 #         change = 'decreased'
@@ -5130,3 +5130,114 @@ class TestZebrafish(unittest.TestCase):
                                     'output','inference_for_zebrafish_extrinsic_noise_' + option + '.pdf'))
 
 
+    def xest_plot_coherence_curves(self):
+
+        my_figure = plt.figure( figsize = (2.5, 1.9) )
+
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                                        'zebrafish_relative_sweeps_protein_degradation_rate.npy'))
+#                                                           'repeated_degradation_sweep.npy'))
+        print(my_degradation_sweep_results[0,:,0])
+        my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
+                                       np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
+                                                      my_degradation_sweep_results[:,9,2]<0.15)))
+
+        print(len(my_filtered_indices[0]))
+        print(len(my_degradation_sweep_results))
+        my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+        x_coord = -0.3
+        y_coord = 1.05
+        for results_table in my_degradation_sweep_results:
+            plt.plot(results_table[:,0],
+                    results_table[:,4], color = 'C0', alpha = 0.002, zorder = 0)
+#         plt.axvline( np.log(2)/90, color = 'black' )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel(r'rel. Her6 degradation')
+        plt.ylabel('Coherence')
+#         plt.ylim(0,1)
+#         plt.xlim(0,np.log(2)/15.)
+#         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+        plt.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__),
+                                 'output','zebrafish_coherence_curves')
+ 
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+ 
+    def xest_plot_period_curves(self):
+
+        my_figure = plt.figure( figsize = (2.5, 1.9) )
+
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                                        'zebrafish_relative_sweeps_protein_degradation_rate.npy'))
+#                                                           'repeated_degradation_sweep.npy'))
+        print(my_degradation_sweep_results[0,:,0])
+        my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
+                                       np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
+                                                      my_degradation_sweep_results[:,9,2]<0.15)))
+
+        print(len(my_filtered_indices[0]))
+        print(len(my_degradation_sweep_results))
+        my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+        x_coord = -0.3
+        y_coord = 1.05
+        for results_table in my_degradation_sweep_results:
+            plt.plot(results_table[:,0],
+                    results_table[:,3], color = 'C0', alpha = 0.002, zorder = 0)
+#         plt.axvline( np.log(2)/90, color = 'black' )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel(r'rel. Her6 degradation')
+        plt.ylabel('period')
+        plt.ylim(0,200)
+#         plt.xlim(0,np.log(2)/15.)
+#         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+        plt.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__),
+                                 'output','zebrafish_period_curves')
+ 
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+ 
+    def test_plot_level_curves(self):
+
+        my_figure = plt.figure( figsize = (2.5, 1.9) )
+
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                                        'zebrafish_relative_sweeps_protein_degradation_rate.npy'))
+#                                                           'repeated_degradation_sweep.npy'))
+        print(my_degradation_sweep_results[0,:,0])
+        my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
+                                       np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
+                                                      my_degradation_sweep_results[:,9,2]<0.15)))
+
+        print(len(my_filtered_indices[0]))
+        print(len(my_degradation_sweep_results))
+        my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+        x_coord = -0.3
+        y_coord = 1.05
+        for results_table in my_degradation_sweep_results:
+            plt.plot(results_table[:,0],
+                    results_table[:,1], color = 'C0', alpha = 0.002, zorder = 0)
+#         plt.axvline( np.log(2)/90, color = 'black' )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel(r'rel. Her6 level')
+        plt.ylabel('level')
+#         plt.ylim(0,200)
+#         plt.xlim(0,np.log(2)/15.)
+#         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+        plt.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__),
+                                 'output','zebrafish_level_curves')
+ 
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+ 
