@@ -50,7 +50,14 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
 
-    def xest_make_standard_deviation_distribution_plot(self):
+    def test_make_standard_deviation_distribution_plot(self):
+        
+#         string_option = 'divided1'
+#         string_option = 'divided2'
+#         string_option = 'empty'
+        string_option = 'relative'
+#         string_option = 'standard'
+#         string_option = 'square_bracket'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -79,14 +86,25 @@ class TestMakeFinalFigures(unittest.TestCase):
 #       
         plt.hist(all_standard_deviations,bins = 20, edgecolor = 'black')
         plt.ylabel("Likelihood")
-        plt.xlabel("Standard deviation/mean HES5")
+        if string_option == 'standard':
+            plt.xlabel("Standard deviation/mean HES5")
+        elif string_option == 'square_bracket':
+            plt.xlabel("Standard deviation [mean HES5]")
+        elif string_option == 'divided1':
+            plt.xlabel(r'$\frac{\mathrm{Standard}\ \mathrm{deviation}}{\mathrm{mean}\ \mathrm{HES5}}$')
+        elif string_option == 'divided2':
+            plt.xlabel(r'Standard deviation$\div$' + '\nmean HES5')
+        elif string_option == 'empty':
+            plt.xlabel("   ")
+        elif string_option == 'relative':
+            plt.xlabel('Relative standard deviation')
         plt.xlim(0.03,0.2)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=3)
         plt.gca().locator_params(axis='x', tight = True, nbins=5)
 
         plt.tight_layout()
         file_name = os.path.join(os.path.dirname(__file__), 'output',
-                                   'standard_deviation_predicted_distribution_for_paper')
+                                   'standard_deviation_predicted_distribution_for_paper_' + string_option)
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
         
@@ -250,7 +268,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
         
-    def test_plot_bifurcation_analysis(self):
+    def xest_plot_bifurcation_analysis(self):
 #         option = 'stochastic'
 #         option = 'stochastic'
         option = 'deterministic'

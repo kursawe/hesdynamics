@@ -4,9 +4,10 @@ import sys
 import matplotlib as mpl
 import matplotlib.gridspec 
 mpl.use('Agg')
-mpl.rcParams['mathtext.default'] = 'regular'
+# mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
-font = {'size'   : 10}
+font = {'size'   : 10,
+        'sans-serif' : 'Arial'}
 plt.rc('font', **font)
 import numpy as np
 import scipy.signal
@@ -53,7 +54,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
     def test_plot_posterior_distributions(self):
         
-        option = 'amplitude'
+        option = 'deterministic'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -75,6 +76,8 @@ class TestMakePaperAnalysis(unittest.TestCase):
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                                        model_results[:,1]>0.05)))  #standard deviation
+        elif option == 'prior':
+            accepted_indices=np.where(model_results[:,0]>0)
         elif option == 'increase_is_possible':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000, #protein_number
@@ -189,10 +192,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         plt.gca().set_xlim(0.1,100)
         plt.gca().set_xlim(-1,np.log10(60.0))
         plt.ylabel("Probability", labelpad = 20)
-        plt.xlabel("Transcription rate \n [1/min]")
+        plt.xlabel("Transcription rate \n [min$^{-1}$]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
-        plt.gca().set_ylim(0,1.0)
-        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+        if option != 'deterministic':
+            plt.gca().set_ylim(0,1.0)
+        plt.xticks([-1,0,1], [r'10$^{-1}$',r'10$^0$',r'10$^1$'])
 #         plt.yticks([])
  
         my_figure.add_subplot(152)
@@ -207,23 +211,25 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(1,200)
         plt.gca().set_xlim(0,np.log10(40))
-        plt.gca().set_ylim(0,1.3)
+        if option != 'deterministic':
+            plt.gca().set_ylim(0,2.0)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
-        plt.xlabel("Translation rate \n [1/min]")
-        plt.gca().set_ylim(0,2.0)
+        plt.xticks([0,1], [r'10$^0$',r'10$^1$'])
+        plt.xlabel("Translation rate \n [min$^{-1}$]")
 #         plt.yticks([])
  
         my_figure.add_subplot(153)
         sns.distplot(data_frame['Repression threshold/1e4'],
                      kde = False,
                      norm_hist = True,
-                    hist_kws = {'edgecolor' : 'black'},
+                    hist_kws = {'edgecolor' : 'black',
+                                'range' : (0,12)},
                      rug = False,
                      bins = 20)
 #         plt.gca().set_xlim(1,200)
         plt.xlabel("Repression threshold \n [1e4]")
-        plt.gca().set_ylim(0,0.22)
+        if option != 'deterministic':
+            plt.gca().set_ylim(0,0.22)
         plt.gca().set_xlim(0,12)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
@@ -231,16 +237,20 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         plots_to_shift = []
         plots_to_shift.append(my_figure.add_subplot(154))
-        time_delay_bins = np.linspace(5,40,10)
+        if option == 'deterministic':
+            time_delay_bins = np.linspace(5,40,20)
+        else:
+            time_delay_bins = np.linspace(5,40,10)
         sns.distplot(data_frame['Transcription delay'],
                      kde = False,
                      rug = False,
-                    norm_hist = True,
-                    hist_kws = {'edgecolor' : 'black'},
+                     norm_hist = True,
+                     hist_kws = {'edgecolor' : 'black'},
                      bins = time_delay_bins)
         plt.gca().set_xlim(5,40)
 #         plt.gca().set_ylim(0,0.035)
-        plt.gca().set_ylim(0,0.04)
+        if option != 'deterministic':
+            plt.gca().set_ylim(0,0.04)
         plt.gca().locator_params(axis='x', tight = True, nbins=5)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
         plt.xlabel(" Transcription delay \n [min]")
@@ -250,11 +260,13 @@ class TestMakePaperAnalysis(unittest.TestCase):
         sns.distplot(data_frame['Hill coefficient'],
                      kde = False,
                      norm_hist = True,
-                    hist_kws = {'edgecolor' : 'black'},
+                    hist_kws = {'edgecolor' : 'black',
+                                'range' : (2,6)},
                      rug = False,
                      bins = 20)
 #         plt.gca().set_xlim(1,200)
-        plt.gca().set_ylim(0,0.35)
+        if option != 'deterministic':
+            plt.gca().set_ylim(0,0.35)
         plt.gca().set_xlim(2,6)
         plt.gca().locator_params(axis='x', tight = True, nbins=3)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
