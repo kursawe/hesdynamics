@@ -195,7 +195,7 @@ class TestZebrafish(unittest.TestCase):
 
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
-                                                                number_of_traces_per_sample = 200,
+                                                                number_of_traces_per_sample = 400,
                                                                 saving_name = 'sampling_results_zebrafish_delay_large',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'full',
@@ -1255,9 +1255,9 @@ class TestZebrafish(unittest.TestCase):
                                                          translation_index, 
                                                          :]
 
-                relative_noise_after = ( these_results_after[:,-1]/np.power(these_results_after[:,3]*
+                relative_noise_after = ( these_results_after[:,-2]/np.power(these_results_after[:,3]*
                                          these_results_after[:,2],2))
-                relative_noise_before = ( my_posterior_results[:,-1]/np.power(my_posterior_results[:,1]*
+                relative_noise_before = ( my_posterior_results[:,-2]/np.power(my_posterior_results[:,1]*
                                           my_posterior_results[:,0],2))
 #                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
 #                                                 these_results_after[:,2]>my_posterior_results[:,0]*1.8)
@@ -1596,9 +1596,9 @@ class TestZebrafish(unittest.TestCase):
         ## NOISE 
         this_axes = axes[2,1]
         if plot_option == 'boxplot':
-            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-1]/np.power(results_before_change[:,1]*
+            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-2]/np.power(results_before_change[:,1]*
                                                                                                  results_before_change[:,0],2),
-                                                            results_after_change[:,-1]/np.power(results_after_change[:,1]*
+                                                            results_after_change[:,-2]/np.power(results_after_change[:,1]*
                                                                                                 results_after_change[:,0],2))),
                                             columns = ['before','after'])
             this_data_frame.boxplot(ax = this_axes)
@@ -1609,9 +1609,9 @@ class TestZebrafish(unittest.TestCase):
         up_count = 0
         for parameter_index in range(results_before_change.shape[0]):
             total_count+=1
-            value_before = results_before_change[parameter_index,-1]/np.power(results_before_change[parameter_index,1]*
+            value_before = results_before_change[parameter_index,-2]/np.power(results_before_change[parameter_index,1]*
                                                                                              results_before_change[parameter_index,0],2)
-            value_after = results_after_change[parameter_index,-1]/np.power(results_after_change[parameter_index,1]*
+            value_after = results_after_change[parameter_index,-2]/np.power(results_after_change[parameter_index,1]*
                                                                                             results_after_change[parameter_index,0],2)
             if value_before<value_after:
                 up_count+=1
@@ -1624,9 +1624,9 @@ class TestZebrafish(unittest.TestCase):
                 this_z = 1
             if plot_option == 'lines':
                 this_axes.plot([0,1],
-                         [results_before_change[parameter_index,-1]/np.power(results_before_change[parameter_index,1]*
+                         [results_before_change[parameter_index,-2]/np.power(results_before_change[parameter_index,1]*
                                                                                                  results_before_change[parameter_index,0],2),
-                          results_after_change[parameter_index,-1]/np.power(results_after_change[parameter_index,1]*
+                          results_after_change[parameter_index,-2]/np.power(results_after_change[parameter_index,1]*
                                                                                                 results_after_change[parameter_index,0],2)],
                          color = this_color,
                          alpha = this_alpha)
@@ -1813,7 +1813,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_examples.pdf'))
 #         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_examples.pdf'))
 
-    def test_plot_dual_sweep_change_examples(self):
+    def xest_plot_dual_sweep_change_examples(self):
         
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_large')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise')
@@ -1850,9 +1850,9 @@ class TestZebrafish(unittest.TestCase):
                                                          translation_index, 
                                                          :]
 
-                relative_noise_after = ( these_results_after[:,-1]/np.power(these_results_after[:,3]*
+                relative_noise_after = ( these_results_after[:,-2]/np.power(these_results_after[:,3]*
                                          these_results_after[:,2],2))
-                relative_noise_before = ( my_posterior_results[:,-1]/np.power(my_posterior_results[:,1]*
+                relative_noise_before = ( my_posterior_results[:,-2]/np.power(my_posterior_results[:,1]*
                                           my_posterior_results[:,0],2))
 #                 condition_mask = np.logical_and(these_results_after[:,2]<my_posterior_results[:,0]*2.2,
 #                                                 these_results_after[:,2]>my_posterior_results[:,0]*1.8)
@@ -1921,6 +1921,8 @@ class TestZebrafish(unittest.TestCase):
                         periods_after.append(these_results_after[item,4])
                         fluctuation_rate_increases.append((these_results_after[item,-1]-fluctuation_rates_before[item])/
                                                         fluctuation_rates_before[item])
+#                         if item == 71792:
+#                             import pdb; pdb.set_trace()
 #                         fluctuation_rate_increases.append(these_results_after[item,-1]-fluctuation_rates_before[item])
  
 #         print(list_of_indices)
@@ -1930,7 +1932,9 @@ class TestZebrafish(unittest.TestCase):
         print('maximal increase')
         print(np.max(fluctuation_rate_increases))
         maximal_reference_index = np.argmax(fluctuation_rate_increases)
-        reference_index = 5
+        print('reference index')
+        print(maximal_reference_index)
+        reference_index = maximal_reference_index
         example_index = list_of_indices[maximal_reference_index]
         example_parameter_before = my_posterior_samples[example_index]
         example_parameter_after = np.copy(example_parameter_before)
@@ -2003,7 +2007,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','dual_change_period_prediction_extrinsic_noise.pdf'))
         
     ### POWER SPECTRA
-        example_mrna_before, example_protein_traces_before = hes5.generate_multiple_langevin_trajectories(200, 
+        example_mrna_before, example_protein_traces_before = hes5.generate_multiple_langevin_trajectories(400, 
                                                                   720, #duration 
                                                                   example_parameter_before[2], #repression_threshold, 
                                                                   example_parameter_before[4], #hill_coefficient,
@@ -2016,7 +2020,7 @@ class TestZebrafish(unittest.TestCase):
                                                                   example_parameter_before[2], #initial_protein,
                                                                   2000)
 
-        example_mrna_traces_after, example_protein_traces_after = hes5.generate_multiple_langevin_trajectories(200,
+        example_mrna_traces_after, example_protein_traces_after = hes5.generate_multiple_langevin_trajectories(400,
                                                                   720, #duration 
                                                                   example_parameter_after[2], #repression_threshold, 
                                                                   example_parameter_after[4], #hill_coefficient,
@@ -2029,22 +2033,88 @@ class TestZebrafish(unittest.TestCase):
                                                                   example_parameter_after[2], #initial_protein,
                                                                   2000)
 
-        power_spectrum_before,_,_ = hes5.calculate_power_spectrum_of_trajectories(example_protein_traces_before)
-        power_spectrum_after,_,_ = hes5.calculate_power_spectrum_of_trajectories(example_protein_traces_after)
-        
-        print('coherence_before')
-        print(my_posterior_results[maximal_reference_index,3])
-        print(my_posterior_results[maximal_reference_index,2])
-        print('coherence_after')
-        print(dual_sweep_results[maximal_reference_index,1,10,5])
-        print(dual_sweep_results[maximal_reference_index,1,10,4])
+        power_spectrum_before,period_before,coherence_before = hes5.calculate_power_spectrum_of_trajectories(example_protein_traces_before, normalize = False)
+        power_spectrum_after,period_after,coherence_after = hes5.calculate_power_spectrum_of_trajectories(example_protein_traces_after, normalize = False)
 
+        frequency_cutoff = 1.0/40.0
+        first_left_index = np.min(np.where(power_spectrum_before[:,0]>frequency_cutoff))
+        last_right_index = np.max(np.where(power_spectrum_after[:,0]<1.0/6.0))
+        last_right_index = np.max(np.where(power_spectrum_after[:,0]<1.0/6.0))
+        print('power spectrum analysis')
+        print(first_left_index)
+        print(1.0/40)
+        print(power_spectrum_before[first_left_index,0])
+        print(power_spectrum_before[first_left_index,1])
+        integration_axis = np.hstack(([frequency_cutoff], power_spectrum_before[first_left_index:last_right_index+1,0]))
+        print(integration_axis)
+        power_spectrum_interpolation = scipy.interpolate.interp1d(power_spectrum_before[:,0], power_spectrum_before[:,1])
+        interpolation_values = power_spectrum_interpolation(integration_axis)
+        print(interpolation_values)
+        noise_weight = 0
+        for index, value in enumerate(interpolation_values[:-1]):
+            noise_weight+= value*(integration_axis[index+1]-integration_axis[index])
+#         noise_weight = np.trapz(interpolation_values, integration_axis)
+        print(noise_weight)
+
+        frequency_cutoff = 1.0/40.0
+        first_left_index = np.min(np.where(power_spectrum_after[:,0]>frequency_cutoff))
+        last_right_index = np.max(np.where(power_spectrum_after[:,0]<1.0/6.0))
+        print('power spectrum analysis after')
+        print(first_left_index)
+        print(1.0/40)
+        print(power_spectrum_after[first_left_index,0])
+        print(power_spectrum_after[first_left_index,1])
+        integration_axis = np.hstack(([frequency_cutoff], power_spectrum_after[first_left_index:last_right_index+1,0]))
+        print(integration_axis)
+        power_spectrum_interpolation = scipy.interpolate.interp1d(power_spectrum_after[:,0], power_spectrum_after[:,1])
+        interpolation_values = power_spectrum_interpolation(integration_axis)
+        noise_weight = 0
+        for index, value in enumerate(interpolation_values[:-1]):
+            noise_weight+= value*(integration_axis[index+1]-integration_axis[index])
+        print(interpolation_values)
+#         noise_weight = np.trapz(interpolation_values, integration_axis)
+        print(noise_weight)
+
+        print('mean before')
+        print(np.mean(example_protein_traces_before[:,1:]))
+        print(my_posterior_results[list_of_indices[maximal_reference_index],0])
+        print('mean after')
+        print(np.mean(example_protein_traces_after[:,1:]))
+        print(dual_sweep_results[list_of_indices[maximal_reference_index],4,-1,2])
+        print('coherence_before')
+        print(my_posterior_results[list_of_indices[maximal_reference_index],3])
+        print(my_posterior_results[list_of_indices[maximal_reference_index],2])
+        print(coherence_before)
+        print(period_before)
+        print('coherence_after')
+        print(dual_sweep_results[list_of_indices[maximal_reference_index],4,-1,5])
+        print(dual_sweep_results[list_of_indices[maximal_reference_index],4,-1,4])
+        print(coherence_after)
+        print(period_after)
+        print('power_spectrum_weight before')
+        print(my_posterior_results[list_of_indices[maximal_reference_index],-2])
+        print(hes5.calculate_noise_weight_from_power_spectrum(power_spectrum_before))
+        print(relative_noise_before[list_of_indices[maximal_reference_index]])
+        print('power_spectrum_weight after')
+        print(dual_sweep_results[list_of_indices[maximal_reference_index],4,-1,-2])
+        print(hes5.calculate_noise_weight_from_power_spectrum(power_spectrum_after))
+#         print(relative_noise_before[list_of_indices[maximal_reference_index]])
+#         import pdb; pdb.set_trace()
+
+        smoothened_power_spectrum_before = hes5.smoothen_power_spectrum(power_spectrum_before)
+        smoothened_power_spectrum_after = hes5.smoothen_power_spectrum(power_spectrum_after)
         plt.figure(figsize = (4.5, 2.5))
         plt.plot(power_spectrum_before[:,0],
-                 power_spectrum_before[:,1])
+                 power_spectrum_before[:,1], lw = 0.5, label = 'CTRL')
+        plt.plot(smoothened_power_spectrum_before[:,0],
+                smoothened_power_spectrum_before[:,1], lw = 0.5 , color = 'black')
         plt.plot(power_spectrum_after[:,0],
-                 power_spectrum_after[:,1])
+                 power_spectrum_after[:,1], lw = 0.5, label = 'MBS')
+        plt.plot(smoothened_power_spectrum_after[:,0],
+                smoothened_power_spectrum_after[:,1], lw = 0.5, color = 'black')
         plt.axvline(1./40)
+        plt.axvline(1./6.0)
+        plt.legend()
         plt.xlim(0,0.1)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','dual_change_power_spectra.pdf'))
@@ -2324,7 +2394,6 @@ class TestZebrafish(unittest.TestCase):
         ornstein_kernel = ConstantKernel(1.0, (1e-3, 1e3))*Matern(length_scale=0.1, length_scale_bounds=(1e-03, 100), nu=0.5)
         my_gp_regressor = GaussianProcessRegressor(kernel=ornstein_kernel, n_restarts_optimizer=10)
         my_fit = my_gp_regressor.fit(times, protein_trace)
-        import pdb; pdb.set_trace()
         print(my_fit)
         print(my_fit.kernel_)
         my_parameters = my_gp_regressor.get_params()
@@ -3902,7 +3971,7 @@ class TestZebrafish(unittest.TestCase):
     def xest_d_make_dual_parameter_variation(self, 
                                              quadrant_index = 'all',
                                              model = 'standard'):
-        number_of_trajectories = 200
+        number_of_trajectories = 400
 
         degradation_ranges = dict()
         degradation_ranges[1] = (0.6, 1.0)
@@ -3978,7 +4047,7 @@ class TestZebrafish(unittest.TestCase):
 
         additional_index = 17
         for degradation_change_start in [0.7,0.3]:
-            for translation_change_start in np.linspace(4.8,3.0,7):
+            for translation_change_start in np.linspace(6.0,3.0,11):
                 degradation_ranges[additional_index] = (degradation_change_start, 
                                                         degradation_change_start + 0.3)
                 translation_ranges[additional_index] = (translation_change_start, 
@@ -4437,6 +4506,7 @@ class TestZebrafish(unittest.TestCase):
         translation_bin_edges = np.linspace(left_translation_boundary,right_translation_boundary, len(translation_changes) +1)
         print(translation_bin_edges)
 
+        print(degradation_changes)
         degradation_step = degradation_changes[1] - degradation_changes[0]
         left_degradation_boundary = degradation_changes[0] - 0.5*degradation_step
         right_degradation_boundary = degradation_changes[-1] + 0.5*degradation_step
@@ -4821,7 +4891,7 @@ class TestZebrafish(unittest.TestCase):
 
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
-                                                                number_of_traces_per_sample = 200,
+                                                                number_of_traces_per_sample = 400,
                                                                 saving_name = 'sampling_results_zebrafish_extrinsic_noise_delay_large',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'extrinsic_noise',

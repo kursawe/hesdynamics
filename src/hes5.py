@@ -2847,11 +2847,11 @@ def smoothen_power_spectrum(power_spectrum):
         first column contains frequencies, second column contains the smoothened power spectrum values
     """
     # reserve memory
-    smoothened_spectrum = np.zeros_like(power_spectrum)
-    smoothened_spectrum[:,0] = power_spectrum[:,0]
+    smoothened_spectrum = np.zeros_like(power_spectrum[1:])
+    smoothened_spectrum[:,0] = power_spectrum[1:,0]
     # figure out how many datapoints we want to consider
     # do this by figuring out how many datapoints fit in a frequency band of width 0.001
-    frequency_window = 0.001
+    frequency_window = 0.02
     frequency_step = power_spectrum[1,0] - power_spectrum[0,0]
     if frequency_step < frequency_window:
         window_length = int(round(frequency_window/frequency_step))
@@ -2861,7 +2861,7 @@ def smoothen_power_spectrum(power_spectrum):
             poly_order = window_length - 1
         else:
             poly_order = 3
-        smoothened_spectrum[:,1] = scipy.signal.savgol_filter(power_spectrum[:,1], 
+        smoothened_spectrum[:,1] = scipy.signal.savgol_filter(power_spectrum[1:,1], 
                                                               window_length, 
                                                               poly_order)
     else:
