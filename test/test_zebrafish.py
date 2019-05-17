@@ -4091,7 +4091,7 @@ class TestZebrafish(unittest.TestCase):
 
         additional_index = 17
         for degradation_change_start in [0.7,0.3]:
-            for translation_change_start in np.linspace(6.0,3.0,11):
+            for translation_change_start in np.linspace(7.5,3.0,16):
                 degradation_ranges[additional_index] = (degradation_change_start, 
                                                         degradation_change_start + 0.3)
                 translation_ranges[additional_index] = (translation_change_start, 
@@ -4100,6 +4100,8 @@ class TestZebrafish(unittest.TestCase):
                 translation_interval_numbers[additional_index] = 3
                 additional_index += 1
             
+        print(translation_ranges)
+        print(degradation_ranges)
 #         number_of_parameter_points = 2
 #         number_of_trajectories = 2
 
