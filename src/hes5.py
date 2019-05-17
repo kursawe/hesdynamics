@@ -2315,7 +2315,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     full_parameter = get_full_parameter_for_reduced_parameter(parameter_value)
     if model == 'langevin':
         these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                           1500*5, #duration 
+                                                                                           1500, #duration 
                                                                                            full_parameter[2], #repression_threshold, 
                                                                                            full_parameter[4], #hill_coefficient,
                                                                                            full_parameter[5], #mRNA_degradation_rate, 
@@ -2329,7 +2329,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            full_parameter[7]) #extrinsic noise
     elif model == 'agnostic':
         these_mrna_traces, these_protein_traces = generate_multiple_agnostic_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                           1500*5, #duration 
+                                                                                           1500, #duration 
                                                                                            full_parameter[2], #repression_threshold, 
                                                                                            full_parameter[4], #hill_coefficient,
                                                                                            full_parameter[5], #mRNA_degradation_rate, 
@@ -2344,7 +2344,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            1000)
     elif model == 'gillespie_sequential':
         these_mrna_traces, these_protein_traces = generate_multiple_trajectories( number_of_trajectories = number_of_traces, # number_of_trajectories 
-                                                                                  duration = 1500*5, #duration 
+                                                                                  duration = 1500, #duration 
                                                                                   repression_threshold = full_parameter[2], #repression_threshold, 
                                                                                   hill_coefficient = full_parameter[4], #hill_coefficient,
                                                                                   mRNA_degradation_rate = full_parameter[5], #mRNA_degradation_rate, 
