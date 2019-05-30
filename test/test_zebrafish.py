@@ -185,7 +185,7 @@ class TestZebrafish(unittest.TestCase):
 #         total_number_of_samples = 10
 #         acceptance_ratio = 0.5
 
-        prior_bounds = {'basal_transcription_rate' : (1.0,60),
+        prior_bounds = {'basal_transcription_rate' : (1.0,120),
                         'translation_rate' : (0.1,40),
                         'repression_threshold' : (0,4000),
                         'time_delay' : (1,12),
@@ -196,7 +196,7 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 2000,
-                                                                saving_name = 'sampling_results_zebrafish_delay_large',
+                                                                saving_name = 'sampling_results_zebrafish_delay_large_extra',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'full',
                                                                 logarithmic = True )
@@ -205,7 +205,7 @@ class TestZebrafish(unittest.TestCase):
                           (int(round(total_number_of_samples*acceptance_ratio)), 7))
         
     def xest_plot_zebrafish_inference(self):
-        option = 'prior'
+#         option = 'prior'
 #         option = 'mean_period_and_coherence'
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
@@ -1215,8 +1215,8 @@ class TestZebrafish(unittest.TestCase):
         
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
-#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -1233,8 +1233,8 @@ class TestZebrafish(unittest.TestCase):
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_final.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_final.npy'))
-        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
-#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
 
         translation_changes = dual_sweep_results[0,0,:,1]
         degradation_changes = dual_sweep_results[0,:,0,0]
@@ -1377,7 +1377,7 @@ class TestZebrafish(unittest.TestCase):
         if plot_option == 'boxplot':
             this_data_frame = pd.DataFrame(np.column_stack((parameters_before_change[:,5],
                                                            parameters_after_change[:,5])),
-                                            columns = ['before','after'])
+                                            columns = ['CTRL','MBS'])
             this_data_frame.boxplot(ax = axes[0,0])
         else: 
             for parameter_index in range(parameters_before_change.shape[0]):
@@ -1385,10 +1385,10 @@ class TestZebrafish(unittest.TestCase):
                          [parameters_before_change[parameter_index,5],
                           parameters_after_change[parameter_index,5]],
                          color = 'black',
-#                          alpha = 0.005)
-                         alpha = 1.0)
+                        alpha = 0.01)
+#                          alpha = 1.0)
                 this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_xticklabels(['CTRL','MBS'])
         this_axes.set_ylabel('mRNA degradation')
 
         ## EXPRESSION
@@ -1396,11 +1396,11 @@ class TestZebrafish(unittest.TestCase):
         if plot_option == 'boxplot':
             this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,0],
                                                             results_after_change[:,0])),
-                                            columns = ['before','after'])
+                                            columns = ['CTRL','MBS'])
             this_data_frame.boxplot(ax = axes[0,1])
         else:
             this_axes.set_xticks([0,1])
-            this_axes.set_xticklabels(['before','after'])
+            this_axes.set_xticklabels(['CTRL','MBS'])
         total_count = 0
         up_count = 0
         for parameter_index in range(results_before_change.shape[0]):
@@ -1410,8 +1410,8 @@ class TestZebrafish(unittest.TestCase):
             if value_before<value_after:
                 up_count+=1
                 this_color = 'blue'
-#                 this_alpha = 0.01
-                this_alpha = 1.0
+                this_alpha = 0.01
+#                 this_alpha = 1.0
                 this_z = 0
             else:
                 this_color = 'green'
@@ -1421,7 +1421,7 @@ class TestZebrafish(unittest.TestCase):
                 this_axes.plot([0,1],
                          [results_before_change[parameter_index,0],
                           results_after_change[parameter_index,0]],
-                         color = this_color,
+                         color = this_color,#                 this_alpha = 1.0
                          alpha = this_alpha)
         this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
         this_axes.set_ylabel('Hes expression')
@@ -1431,11 +1431,11 @@ class TestZebrafish(unittest.TestCase):
         if plot_option == 'boxplot':
             this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,1],
                                                             results_after_change[:,1])),
-                                            columns = ['before','after'])
+                                            columns = ['CTRL','MBS'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
             this_axes.set_xticks([0,1])
-            this_axes.set_xticklabels(['before','after'])
+            this_axes.set_xticklabels(['CTRL','MBS'])
         total_count = 0
         up_count = 0
         for parameter_index in range(results_before_change.shape[0]):
@@ -1445,13 +1445,13 @@ class TestZebrafish(unittest.TestCase):
             if value_before<value_after:
                 up_count +=1
                 this_color = 'blue'
-#                 this_alpha = 0.01
-                this_alpha = 1.0
+                this_alpha = 0.01
+#                 this_alpha = 1.0
                 this_z = 0
             else:
                 this_color = 'green'
-#                 this_alpha = 0.1
-                this_alpha = 1.0
+                this_alpha = 0.01
+#                 this_alpha = 1.0
                 this_z = 1
             if plot_option == 'lines':
                 this_axes.plot([0,1],
@@ -1460,18 +1460,18 @@ class TestZebrafish(unittest.TestCase):
                          color = this_color,
                          alpha = this_alpha)
         this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
-        this_axes.set_ylabel('Hes std')
+        this_axes.set_ylabel('Hes COV')
 
         ## PERIOD
         this_axes = axes[1,0]
         if plot_option == 'boxplot':
             this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,2],
                                                             results_after_change[:,2])),
-                                            columns = ['before','after'])
+                                            columns = ['CTRL','MBS'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
             this_axes.set_xticks([0,1])
-            this_axes.set_xticklabels(['before','after'])
+            this_axes.set_xticklabels(['CTRL','MBS'])
         total_count = 0
         up_count = 0
         for parameter_index in range(results_before_change.shape[0]):
@@ -1480,12 +1480,14 @@ class TestZebrafish(unittest.TestCase):
             value_after = results_after_change[parameter_index,2]
             if value_before<value_after:
                 this_color = 'blue'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 up_count+=1
                 this_z = 0
             else:
                 this_color = 'green'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 1
             if plot_option == 'lines':
                 this_axes.plot([0,1],
@@ -1494,6 +1496,7 @@ class TestZebrafish(unittest.TestCase):
                          color = this_color,
                          alpha = this_alpha)
         this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
+        this_axes.set_ylim(0,150)
         this_axes.set_ylabel('Period')
 
         ## COHERENCE
@@ -1501,11 +1504,11 @@ class TestZebrafish(unittest.TestCase):
         if plot_option == 'boxplot':
             this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,3],
                                                             results_after_change[:,3])),
-                                            columns = ['before','after'])
+                                            columns = ['CTRL','MBS'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
             this_axes.set_xticks([0,1])
-            this_axes.set_xticklabels(['before','after'])
+            this_axes.set_xticklabels(['CTRL','MBS'])
         total_count = 0
         up_count = 0
         for parameter_index in range(results_before_change.shape[0]):
@@ -1515,11 +1518,13 @@ class TestZebrafish(unittest.TestCase):
             if value_before<value_after:
                 up_count+=1
                 this_color = 'blue'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 0
             else:
                 this_color = 'green'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 1
             if plot_option == 'lines':
                 this_axes.plot([0,1],
@@ -1535,11 +1540,11 @@ class TestZebrafish(unittest.TestCase):
         if plot_option == 'boxplot':
             this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,4],
                                                             results_after_change[:,4])),
-                                            columns = ['before','after'])
+                                            columns = ['CTRL','MBS'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
             this_axes.set_xticks([0,1])
-            this_axes.set_xticklabels(['before','after'])
+            this_axes.set_xticklabels(['CTRL','MBS'])
         total_count = 0
         up_count = 0
         for parameter_index in range(results_before_change.shape[0]):
@@ -1549,11 +1554,13 @@ class TestZebrafish(unittest.TestCase):
             if value_before<value_after:
                 up_count+=1
                 this_color = 'blue'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 0
             else:
                 this_color = 'green'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 1
             if plot_option == 'lines':
                 this_axes.plot([0,1],
@@ -1567,32 +1574,34 @@ class TestZebrafish(unittest.TestCase):
         ## Absolute noise
         this_axes = axes[2,0]
         if plot_option == 'boxplot':
-            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-1],
-                                                            results_after_change[:,-1])),
-                                            columns = ['before','after'])
+            this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,-2],
+                                                            results_after_change[:,-2])),
+                                            columns = ['CTRL','MBS'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
                 this_axes.set_xticks([0,1])
-                this_axes.set_xticklabels(['before','after'])
+                this_axes.set_xticklabels(['CTRL','MBS'])
         total_count = 0
         up_count = 0
         for parameter_index in range(results_before_change.shape[0]):
             total_count+=1
-            value_before = results_before_change[parameter_index,-1]
-            value_after = results_after_change[parameter_index,-1]
+            value_before = results_before_change[parameter_index,-2]
+            value_after = results_after_change[parameter_index,-2]
             if value_before<value_after:
                 up_count+=1
                 this_color = 'blue'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 0
             else:
                 this_color = 'green'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 1
             if plot_option == 'lines':
                 this_axes.plot([0,1],
-                         [results_before_change[parameter_index,-1],
-                          results_after_change[parameter_index,-1]],
+                         [results_before_change[parameter_index,-2],
+                          results_after_change[parameter_index,-2]],
                          color = this_color,
                          alpha = this_alpha)
         this_axes.set_title(r'$P_{up}$=' + '{:.2f}'.format(up_count/total_count))
@@ -1605,11 +1614,11 @@ class TestZebrafish(unittest.TestCase):
                                                                                                  results_before_change[:,0],2),
                                                             results_after_change[:,-2]/np.power(results_after_change[:,1]*
                                                                                                 results_after_change[:,0],2))),
-                                            columns = ['before','after'])
+                                            columns = ['CTRL','MBS'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
             this_axes.set_xticks([0,1])
-            this_axes.set_xticklabels(['before','after'])
+            this_axes.set_xticklabels(['CTRL','MBS'])
         total_count = 0
         up_count = 0
         for parameter_index in range(results_before_change.shape[0]):
@@ -1621,11 +1630,13 @@ class TestZebrafish(unittest.TestCase):
             if value_before<value_after:
                 up_count+=1
                 this_color = 'blue'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 0
             else:
                 this_color = 'green'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 1
             if plot_option == 'lines':
                 this_axes.plot([0,1],
@@ -1643,11 +1654,11 @@ class TestZebrafish(unittest.TestCase):
         if plot_option == 'boxplot':
             this_data_frame = pd.DataFrame(np.column_stack((old_lengthscales,
                                                             new_lengthscales)),
-                                            columns = ['before','after'])
+                                            columns = ['CTRL','MBS'])
             this_data_frame.boxplot(ax = this_axes)
         else: 
             this_axes.set_xticks([0,1])
-            this_axes.set_xticklabels(['before','after'])
+            this_axes.set_xticklabels(['CTRL','MBS'])
         total_count = 0
         up_count = 0
         for parameter_index in range(results_before_change.shape[0]):
@@ -1657,11 +1668,13 @@ class TestZebrafish(unittest.TestCase):
             if value_before<value_after:
                 up_count+=1
                 this_color = 'blue'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 0
             else:
                 this_color = 'green'
-                this_alpha = 1.0
+#                 this_alpha = 1.0
+                this_alpha = 0.01
                 this_z = 1
             if plot_option == 'lines':
                 this_axes.plot([0,1],
@@ -1905,7 +1918,7 @@ class TestZebrafish(unittest.TestCase):
                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
                                 np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
 #                                  np.logical_and(these_results_after[:,3]<0.2,
-                                np.logical_and(my_posterior_results[:,3]>0.1,
+                                np.logical_and(my_posterior_results[:,3]>0.15,
 #                                  np.logical_and(these_results_after[:,4]<150,
                                                 these_results_after[:,-1]>1.1*fluctuation_rates_before))))
 #                                                 relative_noise_after>1.2*relative_noise_before)))))
@@ -4089,9 +4102,11 @@ class TestZebrafish(unittest.TestCase):
         translation_interval_numbers['shifted_more'] = 10
         translation_interval_numbers['shifted_final'] = 21
 
-        additional_index = 17
+#         additional_index = 17
+        additional_index = 7
         for degradation_change_start in [0.7,0.3]:
-            for translation_change_start in np.linspace(7.5,3.0,16):
+#             for translation_change_start in np.linspace(7.5,3.0,16):
+            for translation_change_start in np.linspace(10.5,3.0,26):
                 degradation_ranges[additional_index] = (degradation_change_start, 
                                                         degradation_change_start + 0.3)
                 translation_ranges[additional_index] = (translation_change_start, 
@@ -4193,6 +4208,26 @@ class TestZebrafish(unittest.TestCase):
             for submatrix_index in range(12,22):
                 this_lower_matrix = np.hstack((all_sub_matrices[submatrix_index][parameter_index],this_lower_matrix))
             this_full_matrix[parameter_index] = np.vstack((this_lower_matrix,this_upper_matrix))
+            
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_' + model + '_complete_matrix.npy'),
+                    this_full_matrix)
+
+    def xest_reconstruct_further_dual_parameter_variation_matrix(self): 
+#         model = 'standard'
+        model = 'standard_large'
+#         model = 'extrinsic_noise_large'
+        saving_path_root = os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_' + model + '_')
+        all_sub_matrices = []
+        for quadrant_index in range(17,32):
+            this_saving_path = saving_path_root + str(quadrant_index) + '.npy'
+            all_sub_matrices.append(np.load(this_saving_path))
+            
+        this_full_matrix = np.zeros((len(all_sub_matrices[0]),4,45,14))
+        for parameter_index in range(len(all_sub_matrices[0])):
+            this_upper_matrix = all_sub_matrices[0][parameter_index]
+            for submatrix_index in range(1,15):
+                this_upper_matrix = np.hstack((all_sub_matrices[submatrix_index][parameter_index],this_upper_matrix))
+            this_full_matrix[parameter_index] = this_upper_matrix
             
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_' + model + '_complete_matrix.npy'),
                     this_full_matrix)
@@ -4430,8 +4465,8 @@ class TestZebrafish(unittest.TestCase):
     def xest_plot_dual_parameter_change(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
-#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -4448,8 +4483,8 @@ class TestZebrafish(unittest.TestCase):
         print(len(my_posterior_results))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_final.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_final.npy'))
-#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
-        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted.npy'))
@@ -4522,7 +4557,10 @@ class TestZebrafish(unittest.TestCase):
                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
                                 np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
                                 np.logical_and(my_posterior_results[:,3]>0.1,
-                                                these_results_after[:,-1]>1.05*fluctuation_rates_before))))
+                                np.logical_and(my_posterior_samples[:,1]*translation_change<40,
+#                                 np.logical_and(these_results_after[:,4]<150,
+#                                 np.logical_and(these_results_after[:,3]<0.25,
+                                                these_results_after[:,-1]>1.1*fluctuation_rates_before)))))
 #                                                 these_results_after[:,-1]>fluctuation_rates_before))))
 #                 condition_mask = np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
 #                                                 these_results_after[:,-1]>fluctuation_rates_before)
@@ -4541,6 +4579,8 @@ class TestZebrafish(unittest.TestCase):
                 
                 total_condition_mask += condition_mask
                 likelihoods[degradation_index, translation_index] = np.sum(condition_mask)
+        print('total accepted samples')
+        print(np.sum(total_condition_mask))
                 
         print(likelihoods)
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_likelihoods.npy'),
@@ -4927,7 +4967,7 @@ class TestZebrafish(unittest.TestCase):
 #         total_number_of_samples = 10
 #         acceptance_ratio = 0.5
 
-        prior_bounds = {'basal_transcription_rate' : (1.0,60),
+        prior_bounds = {'basal_transcription_rate' : (1.0,120),
                         'translation_rate' : (0.1,40),
                         'repression_threshold' : (0,4000),
                         'time_delay' : (1,12),
@@ -4939,7 +4979,7 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 2000,
-                                                                saving_name = 'sampling_results_zebrafish_extrinsic_noise_delay_large',
+                                                                saving_name = 'sampling_results_zebrafish_extrinsic_noise_delay_large_extra',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'extrinsic_noise',
                                                                 logarithmic = True )
@@ -5020,7 +5060,7 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,0]<2500,
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
-                                        np.logical_and(model_results[:,3]>0.8,
+                                        np.logical_and(model_results[:,3]>0.1,
                                                        model_results[:,2]<150))))))
         elif option == 'mean_std_period_coherence_noise':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
@@ -5187,7 +5227,7 @@ class TestZebrafish(unittest.TestCase):
 
         my_figure.add_subplot(171)
 #         transcription_rate_bins = np.logspace(-1,2,20)
-        transcription_rate_bins = np.linspace(np.log10(0.6),np.log10(60.0),20)
+        transcription_rate_bins = np.linspace(np.log10(1.0),np.log10(60.0),20)
 #         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
 #                                                        bins = time_delay_bins )
         sns.distplot(np.log10(data_frame['Transcription rate']),
@@ -5203,7 +5243,7 @@ class TestZebrafish(unittest.TestCase):
         plt.ylabel("Probability", labelpad = 20)
         plt.xlabel("Transcription rate \n [1/min]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
-        plt.gca().set_ylim(0,1)
+        plt.gca().set_ylim(0,1.2)
 #         plt.gca().set_ylim(0,1)
 #         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
         plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
@@ -5211,7 +5251,7 @@ class TestZebrafish(unittest.TestCase):
  
         my_figure.add_subplot(172)
 #         translation_rate_bins = np.logspace(0,2.3,20)
-        translation_rate_bins = np.linspace(np.log10(0.04),np.log10(40),20)
+        translation_rate_bins = np.linspace(np.log10(0.1),np.log10(40),20)
         sns.distplot(np.log10(data_frame['Translation rate']),
                      kde = False,
                      rug = False,
@@ -5223,7 +5263,7 @@ class TestZebrafish(unittest.TestCase):
 #         plt.gca().set_xlim(1,200)
         plt.gca().set_xlim(-2,1)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-        plt.xticks([-1,0], [r'$10^{-1}$',r'$10^0$'])
+        plt.xticks([-1,0], [r'$10^{\mathrm{-}1}$',r'$10^0$'])
         plt.xlabel("Translation rate \n [1/min]")
         plt.gca().set_ylim(0,1)
 #         plt.gca().set_ylim(0,1.0)
@@ -5238,8 +5278,8 @@ class TestZebrafish(unittest.TestCase):
                      rug = False,
                      bins = 20)
 #         plt.gca().set_xlim(1,200)
-        plt.xlabel("Repression threshold \n [1e3]")
-        plt.gca().set_ylim(0,0.5)
+        plt.xlabel("Repression\n threshold [1e3]")
+        plt.gca().set_ylim(0,0.8)
         plt.gca().set_xlim(0,5)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
@@ -5247,7 +5287,7 @@ class TestZebrafish(unittest.TestCase):
 
         plots_to_shift = []
         plots_to_shift.append(my_figure.add_subplot(174))
-        time_delay_bins = np.linspace(1,30,30)
+        time_delay_bins = np.linspace(1,12,13)
         sns.distplot(data_frame['Transcription delay'],
                      kde = False,
                      rug = False,
@@ -5255,10 +5295,10 @@ class TestZebrafish(unittest.TestCase):
                     hist_kws = {'edgecolor' : 'black',
                                 'alpha' : None},
                      bins = time_delay_bins)
-        plt.gca().set_xlim(1,30)
+#         plt.gca().set_xlim(1,30)
 #         plt.gca().set_ylim(0,0.07)
 #         plt.gca().set_ylim(0,0.04)
-        plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
         plt.xlabel(" Transcription delay \n [min]")
 #         plt.yticks([])
@@ -5272,7 +5312,7 @@ class TestZebrafish(unittest.TestCase):
                      rug = False,
                      bins = 20)
 #         plt.gca().set_xlim(1,200)
-        plt.gca().set_ylim(0,0.4)
+        plt.gca().set_ylim(0,0.5)
         plt.gca().set_xlim(2,6)
         plt.gca().locator_params(axis='x', tight = True, nbins=3)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
@@ -5325,7 +5365,7 @@ class TestZebrafish(unittest.TestCase):
         ## EXTRINSIC NOISE
         my_figure.add_subplot(177)
 #         transcription_rate_bins = np.logspace(-1,2,20)
-        transcription_rate_bins = np.linspace(np.log10(0.1),np.log10(1000),20)
+#         transcription_rate_bins = np.linspace(np.log10(0.1),np.log10(1000),20)
 #         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
 #                                                        bins = time_delay_bins )
         sns.distplot(np.log10(data_frame['Extrinsic noise rate']),
@@ -5334,15 +5374,16 @@ class TestZebrafish(unittest.TestCase):
                     norm_hist = True,
                     hist_kws = {'edgecolor' : 'black',
                                 'alpha' : None},
-                    bins = transcription_rate_bins)
+                    bins = 20)
+#                     bins = transcription_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(0.1,100)
 #         plt.gca().set_xlim(-0.5,np.log10(60.0))
         plt.xlabel("Extrinsic noise\nrate [1/min]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
-        plt.gca().set_ylim(0,1)
+        plt.gca().set_ylim(0,0.5)
 #         plt.gca().set_ylim(0,1)
-#         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+        plt.xticks([0,2], [r'$10^0$',r'$10^2$'])
 #         plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
 #         plt.yticks([])
  
