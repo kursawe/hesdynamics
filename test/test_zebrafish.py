@@ -4133,8 +4133,8 @@ class TestZebrafish(unittest.TestCase):
             
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
-        model_results = np.load(saving_path + '.npy' )[:20]
-        prior_samples = np.load(saving_path + '_parameters.npy')[:20]
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
 
         accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
                                     np.logical_and(model_results[:,0]<2500,
