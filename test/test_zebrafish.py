@@ -1,7 +1,7 @@
-import unittest
 import os.path
 import os
 os.environ["OMP_NUM_THREADS"] = "1"
+import unittest
 import sys
 import matplotlib as mpl
 mpl.use('Agg')
@@ -3993,6 +3993,43 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'stochastic_fluctuation_rate_probability_analysis.pdf'))
 
+    def test_make_protein_degradation_variation(self):
+        number_of_parameter_points = 20
+        number_of_trajectories = 400
+#         number_of_parameter_points = 2
+#         number_of_trajectories = 2
+
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                    np.logical_and(model_results[:,0]<2500,
+                                    np.logical_and(model_results[:,1]<0.15,
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,2]<150)))))
+       
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods.npy')
+        conditions = np.load(saving_path)
+        positive_indices = np.where(conditions>0)
+        accepted_indices = (accepted_indices[0][positive_indices],)
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
+
+        my_parameter_sweep_results = hes5.conduct_parameter_sweep_at_parameters('protein_degradation_rate',
+                                                                                 my_posterior_samples,
+                                                                                 number_of_parameter_points,
+                                                                                 number_of_trajectories,
+                                                                                 relative = True,
+                                                                                 relative_range = (0.1,2.0))
+        
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_relative_sweeps_protein_degradation_rate.npy'),
+                my_parameter_sweep_results)
+
     def xest_e_make_relative_parameter_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 200
@@ -4465,8 +4502,8 @@ class TestZebrafish(unittest.TestCase):
     def xest_plot_dual_parameter_change(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
-#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -4483,8 +4520,8 @@ class TestZebrafish(unittest.TestCase):
         print(len(my_posterior_results))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_final.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_final.npy'))
-        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
-#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted.npy'))

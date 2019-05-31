@@ -4179,7 +4179,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                                                                         model = 'langevin')
     
     # unpack and wrap the results in the output format
-    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 12))
+    sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 13))
     parameter_sample_index = 0
     if not relative:
         for sample_index, sample in enumerate(parameter_samples):
