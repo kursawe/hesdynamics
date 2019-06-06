@@ -583,7 +583,7 @@ class TestZebrafish(unittest.TestCase):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
 #                                     'sampling_results_zebrafish')
             saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                        'sampling_results_zebrafish_extrinsic_noise')
+                                        'sampling_results_zebrafish_extrinsic_noise_delay_large')
         else:
             saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                         'sampling_results_zebrafish')
@@ -593,6 +593,7 @@ class TestZebrafish(unittest.TestCase):
         prior_samples = np.load(saving_path + '_parameters.npy')
         
         option = 'mean_std_period'
+        option = 'dual_coherence_and_lengthscale_decrease'
         if option == 'mean_std':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
                                         np.logical_and(model_results[:,0]<2500,
@@ -604,6 +605,16 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
                                                        model_results[:,2]<150)))))
+        elif option == 'dual_coherence_and_lengthscale_decrease':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                        np.logical_and(model_results[:,0]<2500,
+                                        np.logical_and(model_results[:,1]<0.15,
+                                        np.logical_and(model_results[:,1]>0.05,
+                                                       model_results[:,2]<150)))))
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods.npy')
+            conditions = np.load(saving_path)
+            positive_indices = np.where(conditions>0)
+            accepted_indices = (accepted_indices[0][positive_indices],)
         else:
             raise ValueError('option not recognised')
 
@@ -649,7 +660,7 @@ class TestZebrafish(unittest.TestCase):
                      bins = 100)
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
-        plt.xlabel("Modelled period [h]")
+        plt.xlabel("Modelled period [min]")
 #         plt.xlim(0,300)
 #         plt.ylim(0,0.2)
 #         plt.ylim(0,0.0003)
@@ -1210,13 +1221,13 @@ class TestZebrafish(unittest.TestCase):
         change = 'increased'
 #         change = 'decreased'
 
-#         plot_option = 'boxplot'
-        plot_option = 'lines'
+        plot_option = 'boxplot'
+#         plot_option = 'lines'
         
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
-#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -1233,8 +1244,8 @@ class TestZebrafish(unittest.TestCase):
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_final.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_final.npy'))
-#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
-        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
 
         translation_changes = dual_sweep_results[0,0,:,1]
         degradation_changes = dual_sweep_results[0,:,0,0]
@@ -3993,7 +4004,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'stochastic_fluctuation_rate_probability_analysis.pdf'))
 
-    def test_make_protein_degradation_variation(self):
+    def xest_make_protein_degradation_variation(self):
         number_of_parameter_points = 20
         number_of_trajectories = 400
 #         number_of_parameter_points = 2
@@ -4152,6 +4163,16 @@ class TestZebrafish(unittest.TestCase):
                 translation_interval_numbers[additional_index] = 3
                 additional_index += 1
             
+        additional_index = 100
+        for translation_change_start in np.linspace(3.0,13.2,35):
+            degradation_ranges[additional_index] = (0.75,1.0)
+            translation_ranges[additional_index] = (translation_change_start, 
+                                                    translation_change_start)
+            degradation_interval_numbers[additional_index] = 6
+            translation_interval_numbers[additional_index] = 1
+            additional_index += 1
+ 
+        print(additional_index)
         print(translation_ranges)
         print(degradation_ranges)
 #         number_of_parameter_points = 2
@@ -4162,11 +4183,15 @@ class TestZebrafish(unittest.TestCase):
 #             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
         if model == 'standard_large':
             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
+        if model == 'standard_extra':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large_extra')
         elif model == 'extrinsic_noise':
             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
 #             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise')
         elif model == 'extrinsic_noise_large':
             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
+        elif model == 'extrinsic_noise_extra':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large_extra')
             
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
@@ -4177,7 +4202,8 @@ class TestZebrafish(unittest.TestCase):
                                     np.logical_and(model_results[:,0]<2500,
                                     np.logical_and(model_results[:,1]<0.15,
                                     np.logical_and(model_results[:,1]>0.05,
-                                                   model_results[:,2]<150)))))
+                                    np.logical_and(model_results[:,3]>0.1,
+                                                   model_results[:,2]<150))))))
        
         my_posterior_samples = prior_samples[accepted_indices]
         print('number of accepted samples is')
@@ -4255,14 +4281,14 @@ class TestZebrafish(unittest.TestCase):
 #         model = 'extrinsic_noise_large'
         saving_path_root = os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_' + model + '_')
         all_sub_matrices = []
-        for quadrant_index in range(17,32):
+        for quadrant_index in range(7,32):
             this_saving_path = saving_path_root + str(quadrant_index) + '.npy'
             all_sub_matrices.append(np.load(this_saving_path))
             
-        this_full_matrix = np.zeros((len(all_sub_matrices[0]),4,45,14))
+        this_full_matrix = np.zeros((len(all_sub_matrices[0]),4,75,14))
         for parameter_index in range(len(all_sub_matrices[0])):
             this_upper_matrix = all_sub_matrices[0][parameter_index]
-            for submatrix_index in range(1,15):
+            for submatrix_index in range(1,25):
                 this_upper_matrix = np.hstack((all_sub_matrices[submatrix_index][parameter_index],this_upper_matrix))
             this_full_matrix[parameter_index] = this_upper_matrix
             
@@ -5438,19 +5464,19 @@ class TestZebrafish(unittest.TestCase):
         my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
                                                         'zebrafish_relative_sweeps_protein_degradation_rate.npy'))
 #                                                           'repeated_degradation_sweep.npy'))
-        print(my_degradation_sweep_results[0,:,0])
-        my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
-                                       np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
-                                                      my_degradation_sweep_results[:,9,2]<0.15)))
+#         print(my_degradation_sweep_results[0,:,0])
+#         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
+#                                        np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
+#                                                       my_degradation_sweep_results[:,9,2]<0.15)))
 
-        print(len(my_filtered_indices[0]))
-        print(len(my_degradation_sweep_results))
-        my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+#         print(len(my_filtered_indices[0]))
+#         print(len(my_degradation_sweep_results))
+#         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
         x_coord = -0.3
         y_coord = 1.05
         for results_table in my_degradation_sweep_results:
             plt.plot(results_table[:,0],
-                    results_table[:,4], color = 'C0', alpha = 0.002, zorder = 0)
+                    results_table[:,4], color = 'C0', alpha = 0.05, zorder = 0)
 #         plt.axvline( np.log(2)/90, color = 'black' )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
@@ -5475,19 +5501,19 @@ class TestZebrafish(unittest.TestCase):
         my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
                                                         'zebrafish_relative_sweeps_protein_degradation_rate.npy'))
 #                                                           'repeated_degradation_sweep.npy'))
-        print(my_degradation_sweep_results[0,:,0])
-        my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
-                                       np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
-                                                      my_degradation_sweep_results[:,9,2]<0.15)))
+#         print(my_degradation_sweep_results[0,:,0])
+#         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
+#                                        np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
+#                                                       my_degradation_sweep_results[:,9,2]<0.15)))
 
-        print(len(my_filtered_indices[0]))
-        print(len(my_degradation_sweep_results))
-        my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+#         print(len(my_filtered_indices[0]))
+#         print(len(my_degradation_sweep_results))
+#         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
         x_coord = -0.3
         y_coord = 1.05
         for results_table in my_degradation_sweep_results:
             plt.plot(results_table[:,0],
-                    results_table[:,3], color = 'C0', alpha = 0.002, zorder = 0)
+                    results_table[:,3], color = 'C0', alpha = 0.05, zorder = 0)
 #         plt.axvline( np.log(2)/90, color = 'black' )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
@@ -5519,18 +5545,18 @@ class TestZebrafish(unittest.TestCase):
 
         print(len(my_filtered_indices[0]))
         print(len(my_degradation_sweep_results))
-        my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+#         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
         x_coord = -0.3
         y_coord = 1.05
         for results_table in my_degradation_sweep_results:
             plt.plot(results_table[:,0],
-                    results_table[:,1], color = 'C0', alpha = 0.002, zorder = 0)
+                    results_table[:,1], color = 'C0', alpha = 0.05, zorder = 0)
 #         plt.axvline( np.log(2)/90, color = 'black' )
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
         plt.gca().set_rasterization_zorder(1)
-        plt.xlabel(r'rel. Her6 level')
-        plt.ylabel('level')
+        plt.xlabel(r'rel. Her6 degradation')
+        plt.ylabel('Expression level')
 #         plt.ylim(0,200)
 #         plt.xlim(0,np.log(2)/15.)
 #         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
