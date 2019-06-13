@@ -1520,9 +1520,10 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     fourier_frequencies = np.arange( 0,number_of_data_points/(2*interval_length), 
                                                      1.0/(interval_length) )
     power_spectrum_without_frequencies = np.power(np.abs(fourier_transform[:(number_of_data_points//2)]),2)
-    power_spectrum_without_frequencies/=number_of_data_points
+#     power_spectrum_without_frequencies/=number_of_data_points
     timestep = trajectory[1,0] - trajectory[0,0]
-    power_spectrum_without_frequencies*=timestep
+    power_spectrum_without_frequencies*=timestep*timestep
+    power_spectrum_without_frequencies/=interval_length
     
     # this should really be a decision about the even/oddness of number of datapoints
     try:

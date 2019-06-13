@@ -613,90 +613,96 @@ class TestSwitching(unittest.TestCase):
                                         'output','time_average_distribution.pdf'))
         
     
-    def test_generate_power_spectrum(self):
-        number_of_traces = 100
-#         _, these_real_traces = switching.generate_multiple_switching_ode_trajectories(number_of_trajectories = number_of_traces,
-#                                                          duration = 1500*50,
-#                                                          repression_threshold = 10,
-#                                                          mRNA_degradation_rate = 0.03,
-#                                                          protein_degradation_rate = 0.03,
-#                                                          transcription_delay = 18.7,
-#                                                          initial_mRNA = 1,
-#                                                          initial_protein = 10,
-#                                                          basal_transcription_rate = 1.0,
-#                                                          translation_rate = 1.0,
-#                                                          hill_coefficient = 4.1,
-#                                                          equilibration_time = 5000,
-#                                                          switching_rate = 12.5)
-# 
-#         _, these_langevin_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
-#                                                          duration = 1500*50,
-#                                                          repression_threshold = 10,
-#                                                          mRNA_degradation_rate = 0.03,
-#                                                          protein_degradation_rate = 0.03,
-#                                                          transcription_delay = 18.7,
-#                                                          initial_mRNA = 1,
-#                                                          initial_protein = 10,
-#                                                          basal_transcription_rate = 1.0,
-#                                                          translation_rate = 1.0,
-#                                                          hill_coefficient = 4.1,
-#                                                          equilibration_time = 5000,
-#                                                          switching_rate = 12.5,
-#                                                          model = 'switching_only')
-
-#         _, these_lna_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
-#                                                          duration = 1500*50,
-#                                                          repression_threshold = 10,
-#                                                          mRNA_degradation_rate = 0.03,
-#                                                          protein_degradation_rate = 0.03,
-#                                                          transcription_delay = 18.7,
-#                                                          initial_mRNA = 1,
-#                                                          initial_protein = 10,
-#                                                          basal_transcription_rate = 1.0,
-#                                                          translation_rate = 1.0,
-#                                                          hill_coefficient = 4.1,
-#                                                          equilibration_time = 5000,
-#                                                          switching_rate = 12.5,
-#                                                          model = 'switching_only_lna')
-#
-# 
-#         np.save(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'),
-#                     these_real_traces)
-#         
-#         np.save(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'),
-#                     these_langevin_traces)
-
-#         np.save(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'),
-#                     these_lna_traces)
-
-        these_real_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'))
+    def xest_generate_power_spectrum(self):
+#         number_of_traces = 2000
+        number_of_traces = 5
+        switching_rate = 100.0
+        _, these_real_traces = switching.generate_multiple_switching_ode_trajectories(number_of_trajectories = number_of_traces,
+                                                         duration = 1500*20,
+                                                         repression_threshold = 10,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.7,
+                                                         initial_mRNA = 1,
+                                                         initial_protein = 10,
+                                                         basal_transcription_rate = 1.0,
+                                                         translation_rate = 1.0,
+                                                         hill_coefficient = 4.1,
+                                                         equilibration_time = 5000,
+                                                         switching_rate = switching_rate)
+ 
+        _, these_langevin_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
+                                                         duration = 1500*20,
+                                                         repression_threshold = 10,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.7,
+                                                         initial_mRNA = 1,
+                                                         initial_protein = 10,
+                                                         basal_transcription_rate = 1.0,
+                                                         translation_rate = 1.0,
+                                                         hill_coefficient = 4.1,
+                                                         equilibration_time = 5000,
+                                                         switching_rate = switching_rate,
+                                                         model = 'switching_only')
+ 
+        _, these_lna_traces = switching.generate_multiple_switching_langevin_trajectories(number_of_trajectories = number_of_traces,
+                                                         duration = 1500*20,
+                                                         repression_threshold = 10,
+                                                         mRNA_degradation_rate = 0.03,
+                                                         protein_degradation_rate = 0.03,
+                                                         transcription_delay = 18.7,
+                                                         initial_mRNA = 1,
+                                                         initial_protein = 10,
+                                                         basal_transcription_rate = 1.0,
+                                                         translation_rate = 1.0,
+                                                         hill_coefficient = 4.1,
+                                                         equilibration_time = 5000,
+                                                         switching_rate = switching_rate,
+                                                         model = 'switching_only_lna')
+ 
+ 
+        np.save(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories_faster_lambda.npy'),
+                    these_real_traces)
         
-        these_langevin_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'))
+        np.save(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories_faster_lambda.npy'),
+                    these_langevin_traces)
+ 
+        np.save(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories_faster_lambda.npy'),
+                    these_lna_traces)
 
-        these_lna_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'))
+#         these_real_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','real_switching_trajectories.npy'))
+#          
+#         these_langevin_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','langevin_switching_trajectories.npy'))
+#  
+#         these_lna_traces = np.load(os.path.join(os.path.dirname(__file__), 'output','lna_switching_trajectories.npy'))
 
 
+        print('Real timestep')
         print(these_real_traces[1,0] - these_real_traces[0,0])
         real_standard_deviation = np.var(these_real_traces[:,1:])
         langevin_standard_deviation = np.var(these_langevin_traces[:,1:])
         lna_standard_deviation = np.var(these_lna_traces[:,1:])
+        print('Real variance')
         print(real_standard_deviation)
+        print('Langevin variance')
         print(langevin_standard_deviation)
+        print('lna variance')
         print(lna_standard_deviation)
 
         real_mean = np.mean(these_real_traces[:,1:])
         langevin_mean = np.mean(these_langevin_traces[:,1:])
         lna_mean = np.mean(these_lna_traces[:,1:])
+        print('real mean')
         print(real_mean)
+        print('langevin mean')
         print(langevin_mean)
+        print('lna mean')
         print(lna_mean)
 
         this_real_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_real_traces, normalize = False)
-        this_real_power_spectrum[:,1]*=2
         this_langevin_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_langevin_traces, normalize = False)
-        this_langevin_power_spectrum[:,1]*=2
         this_lna_power_spectrum, _, _ = hes5.calculate_power_spectrum_of_trajectories(these_lna_traces, normalize = False)
-        this_lna_power_spectrum[:,1]*=2
         theoretical_power_spectrum = switching.calculate_theoretical_power_spectrum_at_parameter_point(
                                                         repression_threshold = 10,
                                                         mRNA_degradation_rate = 0.03,
@@ -705,28 +711,35 @@ class TestSwitching(unittest.TestCase):
                                                         basal_transcription_rate = 1.0,
                                                         translation_rate = 1.0,
                                                         hill_coefficient = 4.1,
-                                                        switching_rate = 12.5)
-        theoretical_power_spectrum[:,1]*=np.pi/2.0
+                                                        switching_rate = switching_rate)
+#         theoretical_power_spectrum[:,1]*=np.sqrt(np.pi)
         
-#         theoretical_power_spectrum[:,1]/=2
         power_area_theoretical = np.trapz(theoretical_power_spectrum[:,1], theoretical_power_spectrum[:,0])
         power_area_real = np.trapz(this_real_power_spectrum[:,1], this_real_power_spectrum[:,0])
         power_area_langevin = np.trapz(this_langevin_power_spectrum[:,1], this_langevin_power_spectrum[:,0])
         power_area_lna = np.trapz(this_lna_power_spectrum[:,1], this_lna_power_spectrum[:,0])
-        ratio = power_area_theoretical/power_area_real
+        ratio = power_area_theoretical/power_area_lna
+        print('theoretical area')
         print(power_area_theoretical)
+        print('real area')
         print(power_area_real)
+        print('langevin area')
         print(power_area_langevin)
+        print('lna area')
         print(power_area_lna)
+        print('real traces length')
         print(len(these_real_traces))
+        print('langevin traces length')
         print(len(these_langevin_traces))
+        print('lna traces length')
         print(len(these_lna_traces))
+        print('theoretical area over real area')
         print(ratio)
 
         plt.figure()
         plt.plot(this_real_power_spectrum[:,0], this_real_power_spectrum[:,1], lw = 1, label = 'full')
-        plt.plot(this_langevin_power_spectrum[:,0], this_langevin_power_spectrum[:,1], lw = 1, label = 'langevin')
-        plt.plot(this_lna_power_spectrum[:,0], this_lna_power_spectrum[:,1], lw = 1, label = 'lna')
+#         plt.plot(this_langevin_power_spectrum[:,0], this_langevin_power_spectrum[:,1], lw = 1, label = 'langevin')
+#         plt.plot(this_lna_power_spectrum[:,0], this_lna_power_spectrum[:,1], lw = 1, label = 'lna')
         plt.plot(theoretical_power_spectrum[:,0], theoretical_power_spectrum[:,1], lw =1, label = 'theory' )
         # times = these_real_traces[:,0]
         # all_power_spectra = np.zeros((this_real_power_spectrum.shape[0], these_real_traces.shape[1] - 1))
@@ -749,9 +762,9 @@ class TestSwitching(unittest.TestCase):
         plt.xlabel('Frequency [1/min]')
         plt.ylabel('Power [min]')
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                        'output','power_spectrum_validation.pdf'))
+                                        'output','power_spectrum_validation_faster_lambda.pdf'))
 
-    def xest_lambda_dependance(self):
+    def test_lambda_dependance(self):
         number_of_traces = 1
         repetition_factor = 20
         
@@ -801,4 +814,4 @@ class TestSwitching(unittest.TestCase):
         plt.legend()
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                        'output','lambda_depdendance.pdf'))
+                                        'output','lambda_depdendance_new.pdf'))

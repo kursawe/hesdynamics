@@ -723,6 +723,9 @@ def generate_switching_only_lna_trajectory( duration = 720,
     repression_power = np.power(steady_state_protein/repression_threshold, hill_coefficient)
     switching_noise_strength = 2*delta_t*repression_power*basal_transcription_rate*basal_transcription_rate/(
                 switching_rate*np.power(1+repression_power,3))
+    hill_function_standard_value = 1.0/(1.0+np.power(steady_state_protein/repression_threshold,
+                                                    hill_coefficient))
+    hill_derivative = -1.0/np.power(1.0+repression_power,2)*hill_coefficient/repression_threshold*np.power(steady_state_protein/repression_threshold, hill_coefficient-1)
 
     mRNA_degradation_rate_per_timestep = mRNA_degradation_rate*delta_t
     protein_degradation_rate_per_timestep = protein_degradation_rate*delta_t
@@ -738,8 +741,8 @@ def generate_switching_only_lna_trajectory( duration = 720,
             d_mRNA = (-this_average_mRNA_degradation_number)
         else:
             protein_at_delay = full_trace[time_index + 1 - delay_index_count,2]
-            hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
-                                                    hill_coefficient))
+            hill_function_value = hill_function_standard_value + hill_derivative*(protein_at_delay-steady_state_protein)
+
             this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
             this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
             d_mRNA = (-this_average_mRNA_degradation_number
@@ -1201,6 +1204,10 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
                                     protein_degradation_rate = protein_degradation_rate, 
                                     basal_transcription_rate = basal_transcription_rate,
                                     translation_rate = translation_rate)
+    
+    print('steady_state_protein and mrna is')
+    print(steady_state_protein)
+    print(steady_state_mrna)
 
     steady_state_hill_function_value = 1.0/(1.0 + np.power( steady_state_protein/float(repression_threshold),
                                                             hill_coefficient ))
