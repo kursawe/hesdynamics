@@ -4005,7 +4005,7 @@ class TestZebrafish(unittest.TestCase):
                                  'stochastic_fluctuation_rate_probability_analysis.pdf'))
 
     def xest_make_protein_degradation_variation(self):
-        number_of_parameter_points = 20
+        number_of_parameter_points = 50
         number_of_trajectories = 400
 #         number_of_parameter_points = 2
 #         number_of_trajectories = 2
@@ -4036,7 +4036,7 @@ class TestZebrafish(unittest.TestCase):
                                                                                  number_of_parameter_points,
                                                                                  number_of_trajectories,
                                                                                  relative = True,
-                                                                                 relative_range = (0.1,2.0))
+                                                                                 relative_range = (0.1,5.0))
         
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_relative_sweeps_protein_degradation_rate.npy'),
                 my_parameter_sweep_results)
@@ -4525,7 +4525,7 @@ class TestZebrafish(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_fluctuation_rates_full.npy'),
                     fluctuation_rate_results)
 
-    def xest_plot_dual_parameter_change(self):
+    def test_plot_dual_parameter_change(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
@@ -4675,11 +4675,12 @@ class TestZebrafish(unittest.TestCase):
 #                                     vmin = 0, vmax = 100)
 #         plt.pcolor(X,Y,expected_coherence)
 #         plt.scatter(np.log(2)/90, np.log(2)/30)
-        plt.xlabel("Translation proportion", labelpad = 1.3)
+        plt.xlabel("Translation ratio MBS/CTRL", labelpad = 1.3, x = 0.45)
+#         plt.xlabel("Translation ratio MBS/CTRL")
 #         plt.xlim(0.95,2.05)
 #         plt.ylim(0.25,1.05)
 #         plt.ylim(0.05,1.05)
-        plt.ylabel("Degradation\nproportion", y=0.4)
+        plt.ylabel("mRNA degradation\nratio MBS/CTRL", y=0.4)
         
         divider = make_axes_locatable(plt.gca())
         cax = divider.new_vertical(size=0.07, pad=0.5, pack_start=True)
@@ -4691,7 +4692,7 @@ class TestZebrafish(unittest.TestCase):
         this_colorbar.update_ticks()
 #         for ticklabel in this_colorbar.ax.get_xticklabels():
 #             ticklabel.set_horizontalalignment('left') 
-        this_colorbar.ax.set_ylabel('Likelihood\nof change', rotation = 0, verticalalignment = 'top', labelpad = 30)
+        this_colorbar.ax.set_ylabel('Likelihood\nof ratios', rotation = 0, verticalalignment = 'top', labelpad = 30)
         plt.tight_layout(pad = 0.05)
 #         plt.tight_layout()
 
@@ -5539,12 +5540,12 @@ class TestZebrafish(unittest.TestCase):
                                                         'zebrafish_relative_sweeps_protein_degradation_rate.npy'))
 #                                                           'repeated_degradation_sweep.npy'))
         print(my_degradation_sweep_results[0,:,0])
-        my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
-                                       np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
-                                                      my_degradation_sweep_results[:,9,2]<0.15)))
+#         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
+#                                        np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
+#                                                       my_degradation_sweep_results[:,9,2]<0.15)))
 
-        print(len(my_filtered_indices[0]))
-        print(len(my_degradation_sweep_results))
+#         print(len(my_filtered_indices[0]))
+#         print(len(my_degradation_sweep_results))
 #         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
         x_coord = -0.3
         y_coord = 1.05
@@ -5564,6 +5565,114 @@ class TestZebrafish(unittest.TestCase):
         plt.tight_layout()
         file_name = os.path.join(os.path.dirname(__file__),
                                  'output','zebrafish_level_curves')
+ 
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+ 
+    def xest_plot_cov_curves(self):
+
+        my_figure = plt.figure( figsize = (2.5, 1.9) )
+
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                                        'zebrafish_relative_sweeps_protein_degradation_rate.npy'))
+#                                                           'repeated_degradation_sweep.npy'))
+        print(my_degradation_sweep_results[0,:,0])
+#         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4]>0.1,
+#                                        np.logical_and(my_degradation_sweep_results[:,9,4]<0.6,
+#                                                       my_degradation_sweep_results[:,9,2]<0.15)))
+
+#         print(len(my_filtered_indices[0]))
+#         print(len(my_degradation_sweep_results))
+#         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+        x_coord = -0.3
+        y_coord = 1.05
+        for results_table in my_degradation_sweep_results:
+            plt.plot(results_table[:,0],
+                     results_table[:,2], color = 'C0', alpha = 0.05, zorder = 0)
+#         plt.axvline( np.log(2)/90, color = 'black' )
+        plt.gca().locator_params(axis='x', tight = True, nbins=4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=3)
+        plt.gca().set_rasterization_zorder(1)
+        plt.xlabel(r'rel. Her6 degradation')
+        plt.ylabel('Expression COV')
+#         plt.ylim(0,200)
+#         plt.xlim(0,np.log(2)/15.)
+#         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+        plt.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__),
+                                 'output','zebrafish_cov_curves')
+ 
+        plt.savefig(file_name + '.pdf', dpi = 600)
+        plt.savefig(file_name + '.png', dpi = 600)
+ 
+    def xest_plot_double_perturbation_experiment(self):
+
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                                        'zebrafish_relative_sweeps_protein_degradation_rate.npy'))
+#                                                           'repeated_degradation_sweep.npy'))
+
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                    np.logical_and(model_results[:,0]<2500,
+                                    np.logical_and(model_results[:,1]<0.15,
+                                    np.logical_and(model_results[:,1]>0.05,
+                                                   model_results[:,2]<150)))))
+       
+        saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods.npy')
+        conditions = np.load(saving_path)
+        positive_indices = np.where(conditions>0)
+        accepted_indices = (accepted_indices[0][positive_indices],)
+
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_posterior_results = model_results[accepted_indices]
+        
+        my_adjusted_parameters = my_posterior_samples.copy()
+        print(my_adjusted_parameters[0])
+        my_adjusted_parameters[:,6]*=0.1
+        my_adjusted_parameters[:,0]*=0.5
+        print(my_adjusted_parameters[0])
+        
+        my_adjusted_results = hes5.calculate_summary_statistics_at_parameters(parameter_values = my_adjusted_parameters,
+                                                                            number_of_traces_per_sample = 400,
+                                                                            model = 'langevin' )
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_double_experiment_adjusted_results.npy'),
+                my_adjusted_results)
+        
+#         my_adjusted_results = np.load(os.path.join(os.path.dirname(__file__), 'output','zebrafish_double_experiment_adjusted_results.npy'))
+
+        my_figure = plt.figure( figsize = (2.5, 1.9) )
+#         plt.xlim(left = -3, right = 3)
+        x_values_1 = np.array([1.0]*len(my_posterior_results) + 
+                            [2.0]*len(my_posterior_results) + 
+                            [3.0]*len(my_posterior_results))
+#         x_values_1 = np.array([1.0]*len(my_posterior_results) + 
+#                               [2.0]*len(my_posterior_results))
+        print(x_values_1)
+#         print(x_values_2)
+        print(my_adjusted_results[:,0]/my_posterior_results[:,0])
+        axes = sns.stripplot(x_values_1,
+                             np.hstack((my_posterior_results[:,0], 
+                                        my_degradation_sweep_results[:,0,1], 
+                                        my_adjusted_results[:,0])), 
+                             rasterized= True, 
+                             size = 1.0,
+                             alpha = 0.1,
+                             jitter = 0.1)
+        plt.xticks([0,1,2],['wt',r'degradation$\times$0.1',r'degradation$\times$0.1,' + '\n' + r'transcription$\times$0.5'], 
+                   rotation = 30, 
+                   fontsize = 7,
+                   horizontalalignment = 'right')
+#         axes.set_xlim(left = -3, right = 3)
+#         axes = sns.stripplot(x_values_2,my_degradation_sweep_results[:,0,1], rasterized= True, alpha = 0.1,
+#                     jitter = 0.1, color = 'green')
+#         axes.set_xlim(left = -3, right = 3)
+        plt.tight_layout()
+        file_name = os.path.join(os.path.dirname(__file__),
+                                 'output','zebrafish_double_experiment_stripplot')
  
         plt.savefig(file_name + '.pdf', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
