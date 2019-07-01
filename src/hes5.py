@@ -1582,7 +1582,8 @@ def generate_posterior_samples( total_number_of_samples,
         python dictionary containing parameter names and the bounds of the respective uniform prior.
         
     prior_dimension : string
-        'reduced', 'hill' or 'full', or 'agnostic' are possible options. If 'full', then the mRNA and protein degradation rates
+        'reduced', 'hill' or 'full', or 'agnostic', 'extrinsic_noise',
+        'transcription_noise_amplification' are possible options. If 'full', then the mRNA and protein degradation rates
         will be inferred in addition to other model parameters. If 'hill',
         then all parameters exclucing the mRNA and protein degradation rates will be inferred. 
         If the model is 'agnostic', then this option will be ignored.
@@ -2253,31 +2254,39 @@ def get_full_parameter_for_reduced_parameter(reduced_parameter):
     mrna_degradation_rate = np.log(2)/30.0
     protein_degradation_rate = np.log(2)/90.0
     extrinsic_noise = 0.0
+    transcription_noise_amplification = 1.0
     if reduced_parameter.shape[0] == 4:
-        full_parameter = np.zeros(8)
+        full_parameter = np.zeros(9)
         full_parameter[:4] = reduced_parameter
         full_parameter[4] = hill_coefficient
         full_parameter[5] = mrna_degradation_rate
         full_parameter[6] = protein_degradation_rate
         full_parameter[7] = extrinsic_noise
+        full_parameter[8] = transcription_noise_amplification
     elif reduced_parameter.shape[0] == 5:
-        full_parameter = np.zeros(8)
+        full_parameter = np.zeros(9)
         full_parameter[:5] = reduced_parameter
         full_parameter[5] = mrna_degradation_rate
         full_parameter[6] = protein_degradation_rate
         full_parameter[7] = extrinsic_noise
+        full_parameter[8] = transcription_noise_amplification
     elif reduced_parameter.shape[0] == 6:
-        full_parameter = np.zeros(8)
+        full_parameter = np.zeros(9)
         full_parameter[:5] = reduced_parameter[:5]
         full_parameter[5] = mrna_degradation_rate
         full_parameter[6] = protein_degradation_rate
         full_parameter[7] = reduced_parameter[-1]
         full_parameter[7] = extrinsic_noise
+        full_parameter[8] = transcription_noise_amplification
     elif reduced_parameter.shape[0] == 7:
-        full_parameter = np.zeros(8)
+        full_parameter = np.zeros(9)
         full_parameter[:7] = reduced_parameter[:7]
         full_parameter[7] = extrinsic_noise
-    elif reduced_parameter.shape[0] in [8,9]:
+        full_parameter[8] = transcription_noise_amplification
+    elif reduced_parameter.shape[0] == 8:
+        full_parameter[:8] = reduced_parameter
+        full_parameter[8] = transcription_noise_amplification
+    elif reduced_parameter.shape[0] == 9:
         full_parameter = reduced_parameter
     else: 
         raise ValueError("This dimension of the prior sample is not recognised.")
@@ -2326,7 +2335,8 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            10, #initial_mRNA, 
                                                                                            full_parameter[2], #initial_protein,
                                                                                            2000,#equilibration_time
-                                                                                           full_parameter[7]) #extrinsic noise
+                                                                                           full_parameter[7],#extrinsic noise
+                                                                                           full_parameter[8]) #transcription noise amplification
     elif model == 'agnostic':
         these_mrna_traces, these_protein_traces = generate_multiple_agnostic_trajectories( number_of_traces, # number_of_trajectories 
                                                                                            1500, #duration 
@@ -2708,7 +2718,8 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
                                           4: 'hill_coefficient',
                                           5: 'mRNA_degradation_rate',
                                           6: 'protein_degradation_rate',
-                                          7: 'extrinsic_noise_rate'}
+                                          7: 'extrinsic_noise_rate',
+                                          8: 'transcription_noise_amplification'}
     else:
         index_to_parameter_name_lookup = {0: 'basal_transcription_rate',
                                           1: 'translation_rate',
@@ -2730,7 +2741,8 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
                              'mRNA_degradation_rate': (np.log(2)/500, np.log(2)/5),
                              'protein_degradation_rate': (np.log(2)/500, np.log(2)/5),
                              'noise_strength' : (0,50),
-                             'extrinsic_noise_rate' : (0.0,0.0)}
+                             'extrinsic_noise_rate' : (0.0,0.0),
+                             'transcription_noise_amplification' : (1.0,1.0)}
 
     # depending on the function argument prior_dimension we create differently sized prior tables
     if prior_dimension == 'full':
@@ -2743,6 +2755,8 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
         number_of_dimensions = 6
     elif prior_dimension == 'extrinsic_noise':
         number_of_dimensions = 8
+    elif prior_dimension == 'transcription_noise_amplification':
+        number_of_dimensions = 9
     else:
         raise ValueError("The value for prior_dimension is not recognised, must be 'reduced', 'hill, or 'full'.")
 
@@ -2759,9 +2773,12 @@ def generate_prior_samples(number_of_samples, use_langevin = True,
         if logarithmic and this_parameter_name in ['translation_rate',
                                                    'basal_transcription_rate',
                                                    'extrinsic_noise_rate']:
-            prior_samples[:,parameter_index] = these_parameter_bounds[0]*np.power(
-                                               these_parameter_bounds[1]/float(these_parameter_bounds[0]),
-                                               prior_samples[:,parameter_index])
+            if these_parameter_bounds[0] != 0.0 and these_parameter_bounds[1] != 0:
+                prior_samples[:,parameter_index] = these_parameter_bounds[0]*np.power(
+                                                   these_parameter_bounds[1]/float(these_parameter_bounds[0]),
+                                                   prior_samples[:,parameter_index])
+            else: 
+                prior_samples[:,parameter_index] *= 0.0
         elif this_parameter_name == 'mRNA_half_life':
             prior_samples[:,parameter_index] *= these_parameter_bounds[1] - these_parameter_bounds[0]
             prior_samples[:,parameter_index] += these_parameter_bounds[0]
@@ -3129,7 +3146,8 @@ def generate_langevin_trajectory( duration = 720,
                                   initial_mRNA = 0,
                                   initial_protein = 0,
                                   equilibration_time = 0.0,
-                                  extrinsic_noise_rate = 0.0
+                                  extrinsic_noise_rate = 0.0,
+                                  transcription_noise_amplification = 1.0
                                   ):
     '''Generate one trace of the protein-autorepression model using a langevin approximation. 
     This function implements the Ito integral of 
@@ -3191,6 +3209,12 @@ def generate_langevin_trajectory( duration = 720,
         quantifies the effect of extrinsic noise, for example through upstream signal fluctuations, 
         always positive
         
+    transcription_noise_amplfication : float
+        similar to extrinsic_noise_rate. While extrinsic_noise_rate is additive and independent of expression levels,
+        this parameter adds extrinsic transcriptional noise by amplifying the intrinsic noise associated with transcription.
+        This paramerer is specified as a ratio between actual transcription noise and the amount of transcription noise one
+        would expect if transcription was a simple, poisson / rate process.
+
     Returns
     -------
     
@@ -3212,7 +3236,7 @@ def generate_langevin_trajectory( duration = 720,
     protein_degradation_rate_per_timestep = protein_degradation_rate*delta_t
     basal_transcription_rate_per_timestep = basal_transcription_rate*delta_t
     translation_rate_per_timestep = translation_rate*delta_t
-    noise_fate_per_timestep = extrinsic_noise_rate*delta_t
+    extrinsic_noise_rate_per_timestep = extrinsic_noise_rate*delta_t
     delay_index_count = int(round(transcription_delay/delta_t))
     
     for time_index, sample_time in enumerate(sample_times[1:]):
@@ -3231,8 +3255,8 @@ def generate_langevin_trajectory( duration = 720,
             d_mRNA = (-this_average_mRNA_degradation_number
                       +this_average_transcription_number
                       +np.sqrt(this_average_mRNA_degradation_number
-                            +this_average_transcription_number
-                            +extrinsic_noise_rate)*np.random.randn())
+                            +this_average_transcription_number*transcription_noise_amplification
+                            +extrinsic_noise_rate_per_timestep)*np.random.randn())
             
         this_average_protein_degradation_number = protein_degradation_rate_per_timestep*last_protein
         this_average_translation_number = translation_rate_per_timestep*last_mRNA
@@ -3802,7 +3826,8 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
-                                    extrinsic_noise_rate = 0.0):
+                                    extrinsic_noise_rate = 0.0,
+                                    transcription_noise_amplification = 1.0):
     '''Generate multiple langevin stochastic traces from the Monk model by using
        generate_langevin_trajectory.
     
@@ -3850,6 +3875,12 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
         quantifies the effect of extrinsic noise, for example through upstream signal fluctuations, 
         always positive
 
+    transcription_noise_amplfication : float
+        similar to extrinsic_noise_rate. While extrinsic_noise_rate is additive and independent of expression levels,
+        this parameter adds extrinsic transcriptional noise by amplifying the intrinsic noise associated with transcription.
+        This paramerer is specified as a ratio between actual transcription noise and the amount of transcription noise one
+        would expect if transcription was a simple, poisson / rate process.
+
     Returns
     -------
     
@@ -3872,7 +3903,8 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
                                                initial_mRNA, 
                                                initial_protein, 
                                                equilibration_time,
-                                               extrinsic_noise_rate)
+                                               extrinsic_noise_rate,
+                                               transcription_noise_amplification)
 
     sample_times = first_trace[:,0]
     mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
@@ -3896,7 +3928,8 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
                                                initial_mRNA, 
                                                initial_protein, 
                                                equilibration_time,
-                                               extrinsic_noise_rate)
+                                               extrinsic_noise_rate,
+                                               transcription_noise_amplification)
 
         mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
         protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
