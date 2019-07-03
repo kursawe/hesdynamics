@@ -2284,6 +2284,7 @@ def get_full_parameter_for_reduced_parameter(reduced_parameter):
         full_parameter[7] = extrinsic_noise
         full_parameter[8] = transcription_noise_amplification
     elif reduced_parameter.shape[0] == 8:
+        full_parameter = np.zeros(9)
         full_parameter[:8] = reduced_parameter
         full_parameter[8] = transcription_noise_amplification
     elif reduced_parameter.shape[0] == 9:
@@ -2379,6 +2380,10 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                 full_parameter[2], 
                                                                 for_negative_times = 'no_negative')
     
+    ## for debugging:
+#     these_mrna_traces = these_mrna_traces[::10]
+#     these_protein_traces = these_protein_traces[::10]
+    ###
     this_deterministic_trace = this_deterministic_trace[this_deterministic_trace[:,0]>2000] # remove equilibration time
 #     this_deterministic_trace = np.vstack((these_protein_traces[:,0],
 #                                           these_mrna_traces[:,1],
@@ -3060,7 +3065,7 @@ def generate_heterozygous_langevin_trajectory( duration = 720,
         from the other allele, fourth column is protein number from the other allele.
     '''
     total_time = duration + equilibration_time
-    delta_t = 0.5
+    delta_t = 1.0
     sample_times = np.arange(0.0, total_time, delta_t)
     full_trace = np.zeros((len(sample_times), 5))
     full_trace[:,0] = sample_times
@@ -3224,7 +3229,7 @@ def generate_langevin_trajectory( duration = 720,
     '''
  
     total_time = duration + equilibration_time
-    delta_t = 1
+    delta_t = 0.1
     sample_times = np.arange(0.0, total_time, delta_t)
     full_trace = np.zeros((len(sample_times), 3))
     full_trace[:,0] = sample_times
@@ -3247,7 +3252,7 @@ def generate_langevin_trajectory( duration = 720,
             d_mRNA = (-this_average_mRNA_degradation_number
                       +np.sqrt(this_average_mRNA_degradation_number)*np.random.randn())
         else:
-            protein_at_delay = full_trace[time_index + 1 - delay_index_count,2]
+            protein_at_delay = full_trace[time_index - delay_index_count,2]
             hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
                                                     hill_coefficient))
             this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
@@ -3274,7 +3279,10 @@ def generate_langevin_trajectory( duration = 720,
     trace = full_trace[ full_trace[:,0]>=equilibration_time ]
     trace[:,0] -= equilibration_time
     
-    return trace 
+    # ensure we only sample every minute in the final trace
+    trace_to_return = trace[::10]
+    
+    return trace_to_return
 
 @autojit(nopython = True)
 def generate_time_dependent_langevin_trajectory( duration = 720, 
@@ -4149,7 +4157,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
 
     # first: make a table of 7d parameters
     total_number_of_parameters_required = parameter_samples.shape[0]*number_of_sweep_values
-    all_parameter_values = np.zeros((total_number_of_parameters_required, 7)) 
+    all_parameter_values = np.zeros((total_number_of_parameters_required, parameter_samples.shape[1])) 
     parameter_sample_index = 0
     index_of_parameter_name = parameter_indices_and_ranges[parameter_name][0]
     if not relative:
