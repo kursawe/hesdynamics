@@ -174,7 +174,7 @@ class TestZebrafish(unittest.TestCase):
         print('the maximal difference we can get is')
         print(optimize_result.x)
         
-    def xest_a_make_abc_samples(self):
+    def xest_make_abc_samples(self):
         print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 2000000
@@ -5117,7 +5117,7 @@ class TestZebrafish(unittest.TestCase):
                         'hill_coefficient' : (2,6),
                         'protein_degradation_rate' : ( np.log(2)/11.0, np.log(2)/11.0 ),
                         'mRNA_half_life' : ( 1, 11),
-                        'extrinsic_noise_rate' : (0.1,3000) }
+                        'extrinsic_noise_rate' : (0.1,7000) }
 
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
@@ -5127,7 +5127,7 @@ class TestZebrafish(unittest.TestCase):
                                                                 prior_dimension = 'extrinsic_noise',
                                                                 logarithmic = True )
  
-    def xest_perform_abc_with_transcription_noise_amplification(self):
+    def xest_a_perform_abc_with_transcription_noise_amplification(self):
         print('starting zebrafish abc')
         ## generate posterior samples
         total_number_of_samples = 2000000
@@ -6019,8 +6019,9 @@ class TestZebrafish(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','transcription_amplification_factor_test.pdf'))
         
-    def test_plot_cle_vs_different_timesteps(self):
+    def xest_plot_cle_vs_different_timesteps(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large_extra')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -6040,6 +6041,7 @@ class TestZebrafish(unittest.TestCase):
         print('number of accepted samples is')
         print(len(posterior_samples))
 
+        import pdb; pdb.set_trace()
 
 #         posterior_samples = posterior_samples[:10,:]
 #         posterior_results = posterior_results[:10,:]
