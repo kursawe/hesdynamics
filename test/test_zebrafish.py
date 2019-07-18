@@ -6073,3 +6073,64 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','zebrafish_CLE_timestep_validation.pdf'))
 
+    def test_convergence_analysis(self):
+        sample_parameter = np.array([10,1,1000,4,5.5,np.log(2)/7, np.log(2)/11,100])
+        
+        single_sample_trace = hes5.generate_langevin_trajectory(duration = 720, 
+                                                                repression_threshold = sample_parameter[2], 
+                                                                hill_coefficient = sample_parameter[4],
+                                                                mRNA_degradation_rate = sample_parameter[5], 
+                                                                protein_degradation_rate = sample_parameter[6], 
+                                                                basal_transcription_rate = sample_parameter[0],
+                                                                translation_rate = sample_parameter[1], 
+                                                                transcription_delay = sample_parameter[3],
+                                                                initial_mRNA = 10, 
+                                                                initial_protein = sample_parameter[2], 
+                                                                equilibration_time = 2000, 
+                                                                extrinsic_noise_rate = sample_parameter[7],
+                                                                transcription_noise_amplification = 1.0
+                                                                )
+        
+        plt.figure(figsize = (4.5,2.5))
+        plt.plot(single_sample_trace[:,0], single_sample_trace[:,1]*10)
+        plt.plot(single_sample_trace[:,0], single_sample_trace[:,2])
+        plt.xlabel('Time [min]')
+        plt.ylabel('Copy number')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','zebrafish_ml_example.pdf'))
+        
+        timesteps = np.array([10.0,5.0,1.0,0.5,0.1,0.05,0.01])
+        summary_statistics = np.zeros((timesteps.shape[0], 12))
+        
+        for timestep_index, timestep in enumerate(timesteps):
+            these_summary_statistics = hes5.calculate_langevin_summary_statistics_at_parameter_point(sample_parameter, 
+                                                                                       number_of_traces = 2000,
+                                                                                       timestep = timestep
+                                                                                       )
+            summary_statistics[timestep_index] = these_summary_statistics
+
+        summary_statistic_names = ['Mean Protein #',
+                                   'Std of Protein #',
+                                   'period',
+                                   'coherence',
+                                   'mean mrna #',
+                                   'deterministic protein',
+                                   'deterministic std',
+                                   'deterministic period',
+                                   'deterministic coherence',
+                                   'deterministic mean mrna',
+                                   'High frequency weight',
+                                   'aperiodic lengthscale']
+        
+        plt.figure(figsize = (6.5,10))
+
+        for statistics_index, statistic_name in enumerate(summary_statistic_names):
+            plt.subplot(4,3,statistics_index+1)
+            plt.semilogx(timesteps, summary_statistics[:,statistics_index])
+            plt.xlabel('Timestep')
+            plt.ylabel(statistic_name)
+            
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','zebrafish_convergence_analysis.pdf'))

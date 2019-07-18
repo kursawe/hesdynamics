@@ -1991,7 +1991,8 @@ def calculate_heterozygous_summary_statistics_at_parameter_point(parameter_value
 
 def calculate_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
                                                number_of_cpus = number_of_available_cores, 
-                                               model = 'langevin'):
+                                               model = 'langevin',
+                                               timestep = 0.5):
     '''Calculate the mean, relative standard deviation, period, and coherence
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
@@ -2016,6 +2017,9 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
         options are 'langevin', 'gillespie', 'agnostic', 'gillespie_sequential'
         gillespie_sequential means that traces from different parameters will be calculated in parallel,
         rather than multiple traces from the same parameter
+        
+    timestep : double
+        discretization timestep of the numerical scheme. Will be ignored if model is not 'langevin'
 
     Returns
     -------
@@ -2026,7 +2030,7 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
     '''
     if model == 'langevin' or model == 'agnostic' or model == 'gillespie_sequential':
         summary_statistics = calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample,
-                                                            number_of_cpus, model)
+                                                            number_of_cpus, model, timestep)
     else:
         if parameter_values.shape[1] != 4:
             raise ValueError("Gillespie inference on full parameter space is not implemented.")
@@ -2093,7 +2097,8 @@ def calculate_gillespie_summary_statistics_at_parameters(parameter_values, numbe
  
 def calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 100,
                                                          number_of_cpus = number_of_available_cores,
-                                                         model = 'langevin'):
+                                                         model = 'langevin',
+                                                         timestep = 0.5):
     '''Calculate the mean, relative standard deviation, period, coherence, and mean mrna
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
@@ -2117,6 +2122,9 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
     model : string
         options are 'langevin', 'gillespie_sequential', 'agnostic'
 
+    timestep : double
+        discretization timestep of the numerical scheme. Will be ignored if model is not 'langevin'
+
     Returns
     -------
     
@@ -2130,7 +2138,7 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
 
     process_results = [ pool_of_processes.apply_async(calculate_langevin_summary_statistics_at_parameter_point, 
                                                       args=(parameter_value, number_of_traces_per_sample,
-                                                            model))
+                                                            model,timestep))
                         for parameter_value in parameter_values ]
 
     ## Let the pool know that these are all so that the pool will exit afterwards
@@ -2295,7 +2303,7 @@ def get_full_parameter_for_reduced_parameter(reduced_parameter):
     return full_parameter
 
 def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, number_of_traces = 100,
-                                                             model = 'langevin'):
+                                                             model = 'langevin', timestep = 0.5):
     '''Calculate the mean, relative standard deviation, period, coherence and mean mRNA
     of protein traces at one parameter point using the langevin equation. 
     Will assume the arguments to be of the order described in
@@ -2314,6 +2322,9 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
 
     model : string
         options are 'langevin', 'gillespie_sequential', 'agnostic'
+
+    timestep : double
+        discretization timestep of the numerical scheme. Will be ignored if model is not 'langevin'
 
     Returns
     -------
@@ -2337,7 +2348,8 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            full_parameter[2], #initial_protein,
                                                                                            2000,#equilibration_time
                                                                                            full_parameter[7],#extrinsic noise
-                                                                                           full_parameter[8]) #transcription noise amplification
+                                                                                           full_parameter[8],#transcription noise amplification
+                                                                                           timestep) 
     elif model == 'agnostic':
         these_mrna_traces, these_protein_traces = generate_multiple_agnostic_trajectories( number_of_traces, # number_of_trajectories 
                                                                                            1500, #duration 
@@ -3152,7 +3164,8 @@ def generate_langevin_trajectory( duration = 720,
                                   initial_protein = 0,
                                   equilibration_time = 0.0,
                                   extrinsic_noise_rate = 0.0,
-                                  transcription_noise_amplification = 1.0
+                                  transcription_noise_amplification = 1.0,
+                                  timestep = 0.5
                                   ):
     '''Generate one trace of the protein-autorepression model using a langevin approximation. 
     This function implements the Ito integral of 
@@ -3220,6 +3233,10 @@ def generate_langevin_trajectory( duration = 720,
         This paramerer is specified as a ratio between actual transcription noise and the amount of transcription noise one
         would expect if transcription was a simple, poisson / rate process.
 
+    timestep : double
+        discretization timestep of the numerical scheme. Will be ignored if model is not 'langevin',
+        note that the sampling timestep of the generated traces will always be min(1 minute, timestep).
+
     Returns
     -------
     
@@ -3229,7 +3246,7 @@ def generate_langevin_trajectory( duration = 720,
     '''
  
     total_time = duration + equilibration_time
-    delta_t = 0.1
+    delta_t = timestep
     sample_times = np.arange(0.0, total_time, delta_t)
     full_trace = np.zeros((len(sample_times), 3))
     full_trace[:,0] = sample_times
@@ -3280,7 +3297,12 @@ def generate_langevin_trajectory( duration = 720,
     trace[:,0] -= equilibration_time
     
     # ensure we only sample every minute in the final trace
-    trace_to_return = trace[::10]
+    if timestep>=1.0:
+        sampling_timestep_multiple = 1
+    else:
+        sampling_timestep_multiple = int(round(1.0/timestep))
+
+    trace_to_return = trace[::sampling_timestep_multiple]
     
     return trace_to_return
 
@@ -3835,7 +3857,8 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
                                     extrinsic_noise_rate = 0.0,
-                                    transcription_noise_amplification = 1.0):
+                                    transcription_noise_amplification = 1.0,
+                                    timestep = 0.5):
     '''Generate multiple langevin stochastic traces from the Monk model by using
        generate_langevin_trajectory.
     
@@ -3889,6 +3912,10 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
         This paramerer is specified as a ratio between actual transcription noise and the amount of transcription noise one
         would expect if transcription was a simple, poisson / rate process.
 
+    timestep : double
+        discretization timestep of the numerical scheme. Will be ignored if model is not 'langevin',
+        note that the sampling timestep of the generated traces will always be min(1 minute, timestep).
+
     Returns
     -------
     
@@ -3912,7 +3939,8 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
                                                initial_protein, 
                                                equilibration_time,
                                                extrinsic_noise_rate,
-                                               transcription_noise_amplification)
+                                               transcription_noise_amplification,
+                                               timestep)
 
     sample_times = first_trace[:,0]
     mRNA_trajectories = np.zeros((len(sample_times), number_of_trajectories + 1)) # one extra column for the time
@@ -3937,7 +3965,8 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
                                                initial_protein, 
                                                equilibration_time,
                                                extrinsic_noise_rate,
-                                               transcription_noise_amplification)
+                                               transcription_noise_amplification,
+                                               timestep)
 
         mRNA_trajectories[:,trajectory_index + 1] = this_trace[:,1] 
         protein_trajectories[:,trajectory_index + 1] = this_trace[:,2]
