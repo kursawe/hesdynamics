@@ -6073,7 +6073,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','zebrafish_CLE_timestep_validation.pdf'))
 
-    def test_convergence_analysis(self):
+    def xest_convergence_analysis(self):
         sample_parameter = np.array([10,1,1000,4,5.5,np.log(2)/7, np.log(2)/11,100])
         
         single_sample_trace = hes5.generate_langevin_trajectory(duration = 720, 
