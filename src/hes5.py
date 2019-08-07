@@ -3227,7 +3227,7 @@ def generate_langevin_trajectory( duration = 720,
         quantifies the effect of extrinsic noise, for example through upstream signal fluctuations, 
         always positive
         
-    transcription_noise_amplfication : float
+    transcription_noise_amplification : float
         similar to extrinsic_noise_rate. While extrinsic_noise_rate is additive and independent of expression levels,
         this parameter adds extrinsic transcriptional noise by amplifying the intrinsic noise associated with transcription.
         This paramerer is specified as a ratio between actual transcription noise and the amount of transcription noise one
@@ -3906,7 +3906,7 @@ def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
         quantifies the effect of extrinsic noise, for example through upstream signal fluctuations, 
         always positive
 
-    transcription_noise_amplfication : float
+    transcription_noise_amplification : float
         similar to extrinsic_noise_rate. While extrinsic_noise_rate is additive and independent of expression levels,
         this parameter adds extrinsic transcriptional noise by amplifying the intrinsic noise associated with transcription.
         This paramerer is specified as a ratio between actual transcription noise and the amount of transcription noise one
