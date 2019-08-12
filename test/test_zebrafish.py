@@ -4257,6 +4257,8 @@ class TestZebrafish(unittest.TestCase):
             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
         elif model == 'extrinsic_noise_extra':
             saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large_extra')
+        elif model == 'transcription_amplification':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_transcription_amplification')
             
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
