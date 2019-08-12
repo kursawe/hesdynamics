@@ -17,6 +17,54 @@ import switching
 import hes5
 import pickle
 
+parameter_set_dict = {}
+parameter_set_dict['standard'] = dict()
+parameter_set_dict['standard']['repression_threshold'] = 10
+parameter_set_dict['standard']['mRNA_degradation_rate'] = 0.03
+parameter_set_dict['standard']['protein_degradation_rate'] = 0.03
+parameter_set_dict['standard']['transcription_delay'] = 18.7
+parameter_set_dict['standard']['initial_mRNA'] = 1
+parameter_set_dict['standard']['initial_protein'] = 10
+parameter_set_dict['standard']['basal_transcription_rate'] = 1.0
+parameter_set_dict['standard']['translation_rate'] = 1.0
+parameter_set_dict['standard']['hill_coefficient'] = 4.1
+parameter_set_dict['standard']['equilibration_time'] = 5000
+
+parameter_set_dict['hes5'] = dict()
+parameter_set_dict['hes5']['repression_threshold'] = 50000
+parameter_set_dict['hes5']['mRNA_degradation_rate'] = np.log(2)/30
+parameter_set_dict['hes5']['protein_degradation_rate'] = np.log(2)/90
+parameter_set_dict['hes5']['transcription_delay'] = 30
+parameter_set_dict['hes5']['initial_mRNA'] = 1
+parameter_set_dict['hes5']['initial_protein'] = 10
+parameter_set_dict['hes5']['basal_transcription_rate'] = 1.0
+parameter_set_dict['hes5']['translation_rate'] = 15.0
+parameter_set_dict['hes5']['hill_coefficient'] = 4
+parameter_set_dict['hes5']['equilibration_time'] = 5000
+
+parameter_set_dict['her6'] = dict()
+parameter_set_dict['her6']['repression_threshold'] = 2000
+parameter_set_dict['her6']['mRNA_degradation_rate'] = np.log(2)/7
+parameter_set_dict['her6']['protein_degradation_rate'] = np.log(2)/11
+parameter_set_dict['her6']['transcription_delay'] = 5
+parameter_set_dict['her6']['initial_mRNA'] = 1
+parameter_set_dict['her6']['initial_protein'] = 10.0
+parameter_set_dict['her6']['basal_transcription_rate'] = 20.0
+parameter_set_dict['her6']['translation_rate'] = 1.0
+parameter_set_dict['her6']['hill_coefficient'] = 4
+parameter_set_dict['her6']['equilibration_time'] = 5000
+
+parameter_points_dict = {}
+for parameter_name, parameter_values in parameter_set_dict.items():
+    parameter_points_dict[parameter_name] = np.array([parameter_values['basal_transcription_rate'],
+                                                      parameter_values['translation_rate'],
+                                                      parameter_values['repression_threshold'],
+                                                      parameter_values['transcription_delay'],
+                                                      parameter_values['hill_coefficient'],
+                                                      parameter_values['mRNA_degradation_rate'],
+                                                      parameter_values['protein_degradation_rate']])
+
+
 class TestSwitching(unittest.TestCase):
 
     def xest_generate_single_gillespie_trajectory(self):
@@ -764,6 +812,23 @@ class TestSwitching(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                         'output','power_spectrum_validation_faster_lambda.pdf'))
 
+
+    def xest_plot_example_parameter_sets_wo_switching(self):
+        for parameter_set_name in parameter_set_dict:
+            this_trace = hes5.generate_langevin_trajectory(**parameter_set_dict[parameter_set_name])
+            these_summary_statistics = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter_points_dict[parameter_set_name])
+            plt.figure(figsize = (4.5,2.5))
+            plt.plot(this_trace[:,0], this_trace[:,1])
+            plt.plot(this_trace[:,0], this_trace[:,2])
+            plt.xlabel('Time')
+            plt.ylabel('Copy number')
+            plt.title('Coherence: ' + "{:.2f}".format(these_summary_statistics[3]) + 
+                       ', Mean: ' + "{:.2f}".format(these_summary_statistics[0]) +
+                       ', Period: ' + "{:.2f}".format(these_summary_statistics[2]))
+            plt.tight_layout()
+            plt.savefig(os.path.join(os.path.dirname(__file__),
+                        'output','switching_example_max_lik_parameters_'+parameter_set_name +'.pdf'))
+
     def test_lambda_dependance(self):
         number_of_traces = 1
         repetition_factor = 20
@@ -778,40 +843,35 @@ class TestSwitching(unittest.TestCase):
             switching.generate_multiple_switching_langevin_trajectories,
             model = 'switching_only_lna')
 
-        simulation_results = dict()
-        for simulation_method in simulation_methods:
-            simulation_results[simulation_method] = np.zeros(len(switching_rates))
 
-        for rate_index, switching_rate in enumerate(switching_rates):
-            for simulation_method, simulation_function in simulation_methods.items():
-                _, these_simulated_traces = simulation_function(number_of_trajectories = number_of_traces,
-                                                             duration = 1500*repetition_factor,
-                                                             repression_threshold = 10,
-                                                             mRNA_degradation_rate = 0.03,
-                                                             protein_degradation_rate = 0.03,
-                                                             transcription_delay = 18.7,
-                                                             initial_mRNA = 1,
-                                                             initial_protein = 10,
-                                                             basal_transcription_rate = 1.0,
-                                                             translation_rate = 1.0,
-                                                             hill_coefficient = 4.1,
-                                                             equilibration_time = 5000,
-                                                             switching_rate = switching_rate)
-                this_mean = np.mean(these_simulated_traces[:,1:])
-                this_std = np.std(these_simulated_traces[:,1:])
-                simulation_results[simulation_method][rate_index] = this_std
-     
-        with open(os.path.join(os.path.dirname(__file__),
-                                        'output','lambda_depdendance.pickle'), 'wb') as f:
-            # Pickle the 'data' dictionary using the highest protocol available.
-            pickle.dump(simulation_results, f, pickle.HIGHEST_PROTOCOL)
+        for parameter_set_name in parameter_set_dict.keys():
+            simulation_results = dict()
+            for simulation_method in simulation_methods:
+                simulation_results[simulation_method] = np.zeros(len(switching_rates))
+ 
+            for rate_index, switching_rate in enumerate(switching_rates):
+                for simulation_method, simulation_function in simulation_methods.items():
+                    _, these_simulated_traces = simulation_function(number_of_trajectories = number_of_traces,
+                                                                 duration = 1500*repetition_factor,
+                                                                 **parameter_set_dict[parameter_set_name])
+                    this_mean = np.mean(these_simulated_traces[:,1:])
+                    this_std = np.std(these_simulated_traces[:,1:])
+                    simulation_results[simulation_method][rate_index] = this_std
+      
+#             with open(os.path.join(os.path.dirname(__file__),
+#                                             'output','lambda_depdendance.pickle'), 'wb') as f:
+#                 Pickle the 'data' dictionary using the highest protocol available.
+#                 pickle.dump(simulation_results, f, pickle.HIGHEST_PROTOCOL)
 
-        plt.figure()
-        for simulation_method, simulation_result in simulation_results.items():
-            plt.semilogx(switching_rates,simulation_result,label = simulation_method)
-        plt.xlabel('switching rate [1/min]')
-        plt.ylabel('Protein std')
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(os.path.join(os.path.dirname(__file__),
-                                        'output','lambda_depdendance_new.pdf'))
+#             simulation_results = pickle.load(open(os.path.join(os.path.dirname(__file__),'output','lambda_depdendance.pickle'), 'rb'))
+
+            plt.figure()
+            for simulation_method, simulation_result in simulation_results.items():
+                plt.semilogx(switching_rates,simulation_result,label = simulation_method)
+            plt.xlabel('switching rate [1/min]')
+            plt.ylabel('Protein std')
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(os.path.join(os.path.dirname(__file__),
+                                            'output','lambda_depdendance_new_'+
+                                            parameter_set_name + '.pdf'))
