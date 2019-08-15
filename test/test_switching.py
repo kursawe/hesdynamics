@@ -830,7 +830,7 @@ class TestSwitching(unittest.TestCase):
                         'output','switching_example_max_lik_parameters_'+parameter_set_name +'.pdf'))
 
     def test_lambda_dependance(self):
-        number_of_traces = 1
+        number_of_traces = 100
         repetition_factor = 20
         
         switching_rates = [0.01,0.1,1,10,50]
@@ -858,10 +858,10 @@ class TestSwitching(unittest.TestCase):
                     this_std = np.std(these_simulated_traces[:,1:])
                     simulation_results[simulation_method][rate_index] = this_std
       
-#             with open(os.path.join(os.path.dirname(__file__),
-#                                             'output','lambda_depdendance.pickle'), 'wb') as f:
+            with open(os.path.join(os.path.dirname(__file__),
+                                            'output','lambda_depdendance_new_' + parameter_set_name + '.pickle'), 'wb') as f:
 #                 Pickle the 'data' dictionary using the highest protocol available.
-#                 pickle.dump(simulation_results, f, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(simulation_results, f, pickle.HIGHEST_PROTOCOL)
 
 #             simulation_results = pickle.load(open(os.path.join(os.path.dirname(__file__),'output','lambda_depdendance.pickle'), 'rb'))
 
