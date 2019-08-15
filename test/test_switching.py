@@ -843,7 +843,6 @@ class TestSwitching(unittest.TestCase):
             switching.generate_multiple_switching_langevin_trajectories,
             model = 'switching_only_lna')
 
-
         for parameter_set_name in parameter_set_dict.keys():
             simulation_results = dict()
             for simulation_method in simulation_methods:
@@ -852,8 +851,9 @@ class TestSwitching(unittest.TestCase):
             for rate_index, switching_rate in enumerate(switching_rates):
                 for simulation_method, simulation_function in simulation_methods.items():
                     _, these_simulated_traces = simulation_function(number_of_trajectories = number_of_traces,
-                                                                 duration = 1500*repetition_factor,
-                                                                 **parameter_set_dict[parameter_set_name])
+                                                                    duration = 1500*repetition_factor,
+                                                                    switching_rate = switching_rate,
+                                                                    **parameter_set_dict[parameter_set_name])
                     this_mean = np.mean(these_simulated_traces[:,1:])
                     this_std = np.std(these_simulated_traces[:,1:])
                     simulation_results[simulation_method][rate_index] = this_std
@@ -863,7 +863,7 @@ class TestSwitching(unittest.TestCase):
 #                 Pickle the 'data' dictionary using the highest protocol available.
                 pickle.dump(simulation_results, f, pickle.HIGHEST_PROTOCOL)
 
-#             simulation_results = pickle.load(open(os.path.join(os.path.dirname(__file__),'output','lambda_depdendance.pickle'), 'rb'))
+#             simulation_results = pickle.load(open(os.path.join(os.path.dirname(__file__),'output','lambda_depdendance_new_' + parameter_set_name + '.pickle'), 'rb'))
 
             plt.figure()
             for simulation_method, simulation_result in simulation_results.items():
