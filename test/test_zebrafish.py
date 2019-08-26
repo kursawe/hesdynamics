@@ -436,7 +436,7 @@ class TestZebrafish(unittest.TestCase):
 
         my_figure.add_subplot(161)
 #         transcription_rate_bins = np.logspace(-1,2,20)
-        transcription_rate_bins = np.linspace(np.log10(0.6),np.log10(60.0),20)
+        transcription_rate_bins = np.linspace(np.log10(0.6),np.log10(120.0),20)
 #         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
 #                                                        bins = time_delay_bins )
         sns.distplot(np.log10(data_frame['Transcription rate']),
@@ -448,14 +448,14 @@ class TestZebrafish(unittest.TestCase):
                     bins = transcription_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(0.1,100)
-        plt.gca().set_xlim(-0.5,np.log10(60.0))
+        plt.gca().set_xlim(-0.5,np.log10(120.0))
         plt.ylabel("Probability", labelpad = 20)
         plt.xlabel("Transcription rate \n [1/min]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
 #         plt.gca().set_ylim(0,1)
 #         plt.gca().set_ylim(0,1)
 #         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
-        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xticks([0,1,2], [r'$10^0$',r'$10^1$',r'$10^2$'])
 #         plt.yticks([])
  
         my_figure.add_subplot(162)
@@ -472,7 +472,7 @@ class TestZebrafish(unittest.TestCase):
 #         plt.gca().set_xlim(1,200)
 #         plt.gca().set_xlim(-2,1)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-        plt.xticks([-1,0], [r'$10^{-1}$',r'$10^0$'])
+        plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
         plt.xlabel("Translation rate \n [1/min]")
 #         plt.gca().set_ylim(0,1)
 #         plt.gca().set_ylim(0,1.0)
@@ -4364,12 +4364,18 @@ class TestZebrafish(unittest.TestCase):
 
     def xest_reconstruct_further_dual_parameter_variation_matrix(self): 
 #         model = 'standard'
-        model = 'extrinsic_noise_extra'
+#         model = 'extrinsic_noise_extra'
+#         model = 'standard_extra'
+        model = 'transcription_amplification'
         saving_path_root = os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_' + model + '_')
         all_sub_matrices = []
-        for quadrant_index in range(100,135):
-            this_saving_path = saving_path_root + str(quadrant_index) + '.npy'
-            all_sub_matrices.append(np.load(this_saving_path))
+        for quadrant_index in range(100,137):
+            try:
+                this_saving_path = saving_path_root + str(quadrant_index) + '.npy'
+                all_sub_matrices.append(np.load(this_saving_path))
+            except FileNotFoundError:
+                all_sub_matrices.append(np.zeros_like(all_sub_matrices[0]))
+                
             
         this_full_matrix = np.zeros((len(all_sub_matrices[0]),6,25,14))
         for parameter_index in range(len(all_sub_matrices[0])):
@@ -4612,22 +4618,42 @@ class TestZebrafish(unittest.TestCase):
                     fluctuation_rate_results)
 
     def xest_plot_dual_parameter_change(self):
+        
+#         model = 'standard_extra'
+#         model = 'extrinsic_noise_extra'
+        model = 'transcription_amplification'
+        
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
-#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large_extra')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large_extra')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
+
+        if model == 'standard_extra':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large_extra')
+            dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_extra_complete_matrix.npy'))
+        if model == 'extrinsic_noise_extra':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large_extra')
+            dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_extra_complete_matrix.npy'))
+        if model == 'transcription_amplification':
+            saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_transcription_amplification')
+            dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_transcription_amplification_complete_matrix.npy'))
+        else:
+            ValueError('do not recognise model name ' + model)
+
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-
         accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
                                     np.logical_and(model_results[:,0]<2500,
                                     np.logical_and(model_results[:,1]<0.15,
                                     np.logical_and(model_results[:,1]>0.05,
-                                                    model_results[:,2]<150)))))
+                                    np.logical_and(model_results[:,3]>0.1,
+                                                   model_results[:,2]<150))))))
 #                                     np.logical_and(model_results[:,3]>0.1,
 #                                                     model_results[:,2]<150))))))
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
         my_posterior_samples = prior_samples[accepted_indices]
         my_posterior_results = model_results[accepted_indices]
         
@@ -4636,7 +4662,7 @@ class TestZebrafish(unittest.TestCase):
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_final.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_final.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
-        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
+#         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_extra_complete_matrix.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_shifted_more.npy'))
@@ -4737,7 +4763,7 @@ class TestZebrafish(unittest.TestCase):
         print(np.sum(total_condition_mask))
                 
         print(likelihoods)
-        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_likelihoods.npy'),
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_likelihoods_' + model + '.npy'),
                 total_condition_mask)
         
         print(translation_changes)
@@ -4790,7 +4816,7 @@ class TestZebrafish(unittest.TestCase):
         file_name = os.path.join(os.path.dirname(__file__),
 #                                  'output','zebrafish_likelihood_plot_extrinsic_noise')
 #                                  'output','zebrafish_likelihood_plot_shifted_final')
-                                 'output','zebrafish_likelihood_plot_delay_large')
+                                 'output','zebrafish_likelihood_plot_' + model)
  
         plt.savefig(file_name + '.pdf', dpi = 600)
         plt.savefig(file_name + '.eps', dpi = 600)
@@ -5156,9 +5182,9 @@ class TestZebrafish(unittest.TestCase):
                         'time_delay' : (1,12),
                         'hill_coefficient' : (2,6),
                         'protein_degradation_rate' : ( np.log(2)/11.0, np.log(2)/11.0 ),
-                        'mRNA_half_life' : ( 1, 11),
+                        'mRNA_half_life' : ( 1, 5),
                         'extrinsic_noise_rate' : (0.0,0.0),
-                        'transcription_noise_amplification' : (1.0,50.0) }
+                        'transcription_noise_amplification' : (1.0,100.0) }
 
         my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
                                                                 acceptance_ratio,
@@ -5413,7 +5439,7 @@ class TestZebrafish(unittest.TestCase):
 
         my_figure.add_subplot(171)
 #         transcription_rate_bins = np.logspace(-1,2,20)
-        transcription_rate_bins = np.linspace(np.log10(1.0),np.log10(60.0),20)
+        transcription_rate_bins = np.linspace(np.log10(1.0),np.log10(120.0),20)
 #         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
 #                                                        bins = time_delay_bins )
         sns.distplot(np.log10(data_frame['Transcription rate']),
@@ -5425,14 +5451,14 @@ class TestZebrafish(unittest.TestCase):
                     bins = transcription_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(0.1,100)
-        plt.gca().set_xlim(-0.5,np.log10(60.0))
+        plt.gca().set_xlim(-0.5,np.log10(120.0))
         plt.ylabel("Probability", labelpad = 20)
         plt.xlabel("Transcription rate \n [1/min]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
         plt.gca().set_ylim(0,1.2)
 #         plt.gca().set_ylim(0,1)
 #         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
-        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xticks([0,1,2], [r'$10^0$',r'$10^1$',r'$10^2$'])
 #         plt.yticks([])
  
         my_figure.add_subplot(172)
@@ -5447,9 +5473,9 @@ class TestZebrafish(unittest.TestCase):
                      bins = translation_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(1,200)
-        plt.gca().set_xlim(-2,1)
+#         plt.gca().set_xlim(-2,1)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-        plt.xticks([-1,0], [r'$10^{\mathrm{-}1}$',r'$10^0$'])
+        plt.xticks([-1,0,1], [r'$10^{\mathrm{-}1}$',r'$10^0$',r'$10^1$'])
         plt.xlabel("Translation rate \n [1/min]")
         plt.gca().set_ylim(0,1)
 #         plt.gca().set_ylim(0,1.0)
@@ -5584,14 +5610,14 @@ class TestZebrafish(unittest.TestCase):
 #         option = 'mean_period_and_coherence'
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
-        option = 'mean_std_period'
+#         option = 'mean_std_period'
 #         option = 'mean_std_period_coherence'
 #         option = 'mean_std_period_coherence_noise'
 #         option = 'coherence_decrease_translation'
 #         option = 'coherence_decrease_degradation'
 #         option = 'dual_coherence_decrease'
 #         option = 'mean'
-#         option = 'dual_coherence_and_lengthscale_decrease'
+        option = 'dual_coherence_and_lengthscale_decrease'
 #         option = 'mean_std_period_fewer_samples'
 #         option = 'mean_std_period_coherence'
 #         option = 'weird_decrease'
@@ -5752,10 +5778,11 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,1]>0.05,
                                         np.logical_and(model_results[:,3]>0.1,
                                                        model_results[:,2]<150))))))
-            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods.npy')
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods_transcription_amplification.npy')
             conditions = np.load(saving_path)
             positive_indices = np.where(conditions>0)
             accepted_indices = (accepted_indices[0][positive_indices],)
+            import pdb; pdb.set_trace()
         else:
             ValueError('could not identify posterior option')
 #       
@@ -5822,7 +5849,7 @@ class TestZebrafish(unittest.TestCase):
 
         my_figure.add_subplot(171)
 #         transcription_rate_bins = np.logspace(-1,2,20)
-        transcription_rate_bins = np.linspace(np.log10(1.0),np.log10(60.0),20)
+        transcription_rate_bins = np.linspace(np.log10(1.0),np.log10(120.0),20)
 #         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
 #                                                        bins = time_delay_bins )
         sns.distplot(np.log10(data_frame['Transcription rate']),
@@ -5834,14 +5861,14 @@ class TestZebrafish(unittest.TestCase):
                     bins = transcription_rate_bins)
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(0.1,100)
-        plt.gca().set_xlim(-0.5,np.log10(60.0))
+        plt.gca().set_xlim(-0.5,np.log10(120.0))
         plt.ylabel("Probability", labelpad = 20)
         plt.xlabel("Transcription rate \n [1/min]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
         plt.gca().set_ylim(0,1.2)
 #         plt.gca().set_ylim(0,1)
 #         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
-        plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+        plt.xticks([0,1,2], [r'$10^0$',r'$10^1$',r'$10^2$'])
 #         plt.yticks([])
  
         my_figure.add_subplot(172)
