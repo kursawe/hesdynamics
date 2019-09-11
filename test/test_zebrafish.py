@@ -1222,8 +1222,8 @@ class TestZebrafish(unittest.TestCase):
         change = 'increased'
 #         change = 'decreased'
 
-#         plot_option = 'boxplot'
-        plot_option = 'lines'
+        plot_option = 'boxplot'
+#         plot_option = 'lines'
         
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
@@ -1312,8 +1312,9 @@ class TestZebrafish(unittest.TestCase):
                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
                                 np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
                                 np.logical_and(my_posterior_results[:,3]>0.1,
+                                np.logical_and(my_posterior_samples[:,1]*translation_change<40,
 #                                  np.logical_and(these_results_after[:,4]<150,
-                                                these_results_after[:,-1]>1.1*fluctuation_rates_before))))
+                                                these_results_after[:,-1]>1.1*fluctuation_rates_before)))))
 #                                                 these_results_after[:,-1]>fluctuation_rates_before))))
 #                                                 these_fluctuation_rates_after[:,2]>fluctuation_rates_before))))
 #                 condition_mask = these_fluctuation_rates_after[:,2]>fluctuation_rates_before
@@ -1706,17 +1707,31 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_fit_' + change + '_translation_' + plot_option +'.pdf'))
 #         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_' + plot_option +'.pdf'))
 
-        plt.figure()
+        # fano factor
+        plt.figure(figsize = (2.5,1.9))
         plt.hist(np.power(results_after_change[:,1],2)*results_after_change[:,0]/
-                 (np.power(results_before_change[:,1],2)*results_before_change[:,0]))
+                 (np.power(results_before_change[:,1],2)*results_before_change[:,0]),
+                 edgecolor = 'black')
         plt.xlabel('Fano factor MBS/CTRL')
-        plt.ylabel('Posterior probability')
+        plt.ylabel('Probability')
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','Fano_factor_distribution.pdf'))
         fano_factor_distribution = np.power(results_after_change[:,1],2)*results_after_change[:,0]/(
                                    np.power(results_before_change[:,1],2)*results_before_change[:,0])
         print('minimal fano factor is')
         print(np.min(fano_factor_distribution))
+
+        # mRNA decrease
+        plt.figure(figsize = (2.5,1.9))
+        this_data_frame = pd.DataFrame(np.column_stack((results_before_change[:,4],
+                                                        results_after_change[:,4])),
+                                            columns = ['CTRL','MBS'])
+        this_data_frame.boxplot()
+#         sns.violinplot(order = ['CTRL', 'MBS'], data = this_data_frame)
+        plt.ylabel('mRNA number')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output','mrna_change_prediction.pdf'))
+
 
     def xest_investigate_mrna_and_expression_decrease(self):
 
@@ -1863,7 +1878,8 @@ class TestZebrafish(unittest.TestCase):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_large')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay_large')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
+#         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large_extra')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
@@ -1871,7 +1887,8 @@ class TestZebrafish(unittest.TestCase):
                                     np.logical_and(model_results[:,0]<2500,
                                     np.logical_and(model_results[:,1]<0.15,
                                     np.logical_and(model_results[:,1]>0.05,
-                                                   model_results[:,2]<150)))))
+                                    np.logical_and(model_results[:,3]>0.1,
+                                                   model_results[:,2]<150))))))
         my_posterior_samples = prior_samples[accepted_indices]
         my_posterior_results = model_results[accepted_indices]
         
@@ -1879,7 +1896,7 @@ class TestZebrafish(unittest.TestCase):
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_all.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_shifted_more.npy'))
 #         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_standard_large_complete_matrix.npy'))
-        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_large_complete_matrix.npy'))
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_extra_complete_matrix.npy'))
         translation_changes = dual_sweep_results[0,0,:,1]
         degradation_changes = dual_sweep_results[0,:,0,0]
         fluctuation_rates_before = my_posterior_results[:,-1]
@@ -1945,9 +1962,10 @@ class TestZebrafish(unittest.TestCase):
                                 np.logical_and(these_results_after[:,2]>my_posterior_results[:,0]*1.8,
                                 np.logical_and(these_results_after[:,5]<my_posterior_results[:,3],
 #                                  np.logical_and(these_results_after[:,3]<0.2,
-                                np.logical_and(my_posterior_results[:,3]>0.15,
+                                np.logical_and(my_posterior_results[:,3]>0.1,
+                                np.logical_and(my_posterior_samples[:,1]*translation_change<40,
 #                                  np.logical_and(these_results_after[:,4]<150,
-                                                these_results_after[:,-1]>1.1*fluctuation_rates_before))))
+                                                these_results_after[:,-1]>1.1*fluctuation_rates_before)))))
 #                                                 relative_noise_after>1.2*relative_noise_before)))))
 #                                                 these_fluctuation_rates_after[:,2]>fluctuation_rates_before))))
 #                 condition_mask = these_fluctuation_rates_after[:,2]>fluctuation_rates_before
@@ -2037,21 +2055,37 @@ class TestZebrafish(unittest.TestCase):
                                                                 example_parameter_after[7])
 #                                                                 2000)
 
-        plt.figure(figsize = (6.5, 2.5))
-        plt.subplot(121)
-        plt.title('Control')
+        plt.figure(figsize = (2.5, 3.8))
+        plt.subplot(211)
+        plt.title('Control', fontsize = 10)
         plt.plot(example_trace_before[::6,0],
                  example_trace_before[::6,2])
-        plt.ylabel('Hes expression')
-        plt.xlabel('Time')
-        plt.subplot(122)
-        plt.title('MBS')
+        plt.ylabel('Her6 expression')
+        plt.xlabel('Time [min]')
+        plt.subplot(212)
+        plt.title('MBS', fontsize = 10)
         plt.plot(example_trace_after[::6,0],
                  example_trace_after[::6,2])
-        plt.ylabel('Hes expression')
-        plt.xlabel('Time')
+        plt.ylabel('Her6 expression')
+        plt.xlabel('Time [min]')
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','dual_change_example_standard.pdf'))
+#
+#         plt.figure(figsize = (6.5, 2.5))
+#         plt.subplot(121)
+#         plt.title('Control')
+#         plt.plot(example_trace_before[::6,0],
+#                  example_trace_before[::6,2])
+#         plt.ylabel('Hes expression')
+#         plt.xlabel('Time')
+#         plt.subplot(122)
+#         plt.title('MBS')
+#         plt.plot(example_trace_after[::6,0],
+#                  example_trace_after[::6,2])
+#         plt.ylabel('Hes expression')
+#         plt.xlabel('Time')
+#         plt.tight_layout()
+#         plt.savefig(os.path.join(os.path.dirname(__file__),'output','dual_change_example_standard.pdf'))
 #         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_examples.pdf'))
 
     ### PERIOD PREDICTION
@@ -4364,9 +4398,9 @@ class TestZebrafish(unittest.TestCase):
 
     def xest_reconstruct_further_dual_parameter_variation_matrix(self): 
 #         model = 'standard'
-#         model = 'extrinsic_noise_extra'
+        model = 'extrinsic_noise_extra'
 #         model = 'standard_extra'
-        model = 'transcription_amplification'
+#         model = 'transcription_amplification'
         saving_path_root = os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_' + model + '_')
         all_sub_matrices = []
         for quadrant_index in range(100,137):
@@ -4620,8 +4654,8 @@ class TestZebrafish(unittest.TestCase):
     def xest_plot_dual_parameter_change(self):
         
 #         model = 'standard_extra'
-#         model = 'extrinsic_noise_extra'
-        model = 'transcription_amplification'
+        model = 'extrinsic_noise_extra'
+#         model = 'transcription_amplification'
         
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_delay')
@@ -4686,6 +4720,8 @@ class TestZebrafish(unittest.TestCase):
 #         fluctuation_rates_before = dual_sweep_results[:,9,9,-1]
         fluctuation_rates_before = my_posterior_results[:,-1]
 #         print(fluctuation_rates_before)
+        list_of_indices = []
+        corresponding_proportions = []
         total_condition_mask = np.zeros(len(dual_sweep_results))
         for translation_index, translation_change in enumerate(translation_changes):
             for degradation_index, degradation_change in enumerate(degradation_changes):
@@ -4758,14 +4794,31 @@ class TestZebrafish(unittest.TestCase):
 #                                                 these_results_after[:,5]<my_posterior_results[:,3]))
                 
                 total_condition_mask += condition_mask
+
                 likelihoods[degradation_index, translation_index] = np.sum(condition_mask)
+
+                these_indices = np.where(condition_mask)[0]
+                if len(these_indices>0):
+                    for item in these_indices:
+                        list_of_indices.append(item)
+                        corresponding_proportions.append((degradation_change, translation_change))
+
         print('total accepted samples')
         print(np.sum(total_condition_mask))
                 
+        list_of_indices = np.array(list_of_indices)
+        corresponding_proportions = np.array(corresponding_proportions)
         print(likelihoods)
+
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_likelihoods_' + model + '.npy'),
                 total_condition_mask)
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_indices_' + model + '.npy'),
+                list_of_indices)
         
+        np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_change_proportions_' + model + '.npy'),
+                corresponding_proportions)
+
         print(translation_changes)
         translation_step = translation_changes[1] - translation_changes[0]
         left_translation_boundary = translation_changes[0] - 0.5*translation_step
@@ -4794,6 +4847,8 @@ class TestZebrafish(unittest.TestCase):
 #         plt.scatter(np.log(2)/90, np.log(2)/30)
         plt.xlabel("Translation ratio MBS/CTRL", labelpad = 1.3, x = 0.45)
 #         plt.xlabel("Translation ratio MBS/CTRL")
+        plt.xlim(4,)
+        plt.ylim(0.8,)
 #         plt.xlim(0.95,2.05)
 #         plt.ylim(0.25,1.05)
 #         plt.ylim(0.05,1.05)
@@ -4822,6 +4877,67 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(file_name + '.eps', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
 
+    def test_generate_results_without_noise(self):
+        model = 'extrinsic_noise_extra'
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large_extra')
+        dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_extra_complete_matrix.npy'))
+        relevant_indices = np.load(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_indices_' + model + '.npy'))
+        corresponding_proportions = np.load(os.path.join(os.path.dirname(__file__), 'output','zebrafish_dual_sweeps_change_proportions_' + model + '.npy'))
+
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>1000, #protein number
+                                    np.logical_and(model_results[:,0]<2500,
+                                    np.logical_and(model_results[:,1]<0.15,
+                                    np.logical_and(model_results[:,1]>0.05,
+                                    np.logical_and(model_results[:,3]>0.1,
+                                                   model_results[:,2]<150))))))
+#                                     np.logical_and(model_results[:,3]>0.1,
+#                                                     model_results[:,2]<150))))))
+
+        model_results = np.load(saving_path + '.npy' )
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        my_posterior_samples = prior_samples[accepted_indices]
+        my_posterior_results = model_results[accepted_indices]
+        
+        print('number of accepted samples is')
+        print(len(my_posterior_samples))
+        
+        my_selected_posterior_samples = my_posterior_samples[relevant_indices]
+        my_selected_posterior_samples_after = np.copy(my_selected_posterior_samples)
+        my_selected_posterior_samples_after[:,1]*=corresponding_proportions[:,1]
+        my_selected_posterior_samples_after[:,7]*=corresponding_proportions[:,0]
+        
+        print('number of selected samples is')
+        print(len(my_selected_posterior_samples))
+
+        my_no_noise_samples_before = np.copy(my_selected_posterior_samples)
+        my_no_noise_samples_after = np.copy(my_selected_posterior_samples_after)
+        my_no_noise_samples_before[:,7] = 0.0
+        my_no_noise_samples_after[:,7] = 0.0
+
+        my_selected_results_before = my_posterior_results[relevant_indices]
+
+        my_selected_results_after = hes5.calculate_summary_statistics_at_parameters(my_selected_posterior_samples_after,
+                                                                                    number_of_traces_per_sample = 2000)
+        my_no_noise_results_before = hes5.calculate_summary_statistics_at_parameters(my_no_noise_samples_before,
+                                                                                     number_of_traces_per_sample = 2000)
+        my_no_noise_results_after = hes5.calculate_summary_statistics_at_parameters(my_no_noise_samples_after,
+                                                                                    number_of_traces_per_sample = 2000)
+        
+        np.save(os.path.join(os.path.dirname(__file__),'output','zebrafish_noise_comparison_no_noise_before.npy'),
+                my_no_noise_results_before)
+
+        np.save(os.path.join(os.path.dirname(__file__),'output','zebrafish_noise_comparison_no_noise_after.npy'),
+                my_no_noise_results_after)
+        
+        np.save(os.path.join(os.path.dirname(__file__),'output','zebrafish_noise_comparison_actual_before.npy'),
+                my_selected_results_before)
+        
+        np.save(os.path.join(os.path.dirname(__file__),'output','zebrafish_noise_comparison_actual_after.npy'),
+                my_selected_results_after)
+        
     def xest_fit_model_by_optimization(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_large')
         model_results = np.load(saving_path + '.npy' )
@@ -5196,11 +5312,11 @@ class TestZebrafish(unittest.TestCase):
  
 
     def xest_plot_zebrafish_inference_extrinsic_noise(self):
-#         option = 'prior'
+        option = 'prior'
 #         option = 'mean_period_and_coherence'
 #         option = 'mean_longer_periods_and_coherence'
 #         option = 'mean_and_std'
-        option = 'mean_std_period'
+#         option = 'mean_std_period'
 #         option = 'mean_std_period_coherence'
 #         option = 'mean_std_period_coherence_noise'
 #         option = 'coherence_decrease_translation'
@@ -5358,7 +5474,7 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,1]<0.15,
                                         np.logical_and(model_results[:,1]>0.05,
                                                        model_results[:,2]<150)))))
-            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods.npy')
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods_extrinsic_noise_extra.npy')
             conditions = np.load(saving_path)
             positive_indices = np.where(conditions>0)
             accepted_indices = (accepted_indices[0][positive_indices],)
@@ -5369,7 +5485,7 @@ class TestZebrafish(unittest.TestCase):
                                         np.logical_and(model_results[:,1]>0.05,
                                         np.logical_and(model_results[:,3]>0.1,
                                                        model_results[:,2]<150))))))
-            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods.npy')
+            saving_path = os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_likelihoods_extrinsic_noise_extra.npy')
             conditions = np.load(saving_path)
             positive_indices = np.where(conditions>0)
             accepted_indices = (accepted_indices[0][positive_indices],)
@@ -5453,7 +5569,7 @@ class TestZebrafish(unittest.TestCase):
 #         plt.gca().set_xlim(0.1,100)
         plt.gca().set_xlim(-0.5,np.log10(120.0))
         plt.ylabel("Probability", labelpad = 20)
-        plt.xlabel("Transcription rate \n [1/min]")
+        plt.xlabel("Transcription\nrate [1/min]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
         plt.gca().set_ylim(0,1.2)
 #         plt.gca().set_ylim(0,1)
@@ -5476,8 +5592,9 @@ class TestZebrafish(unittest.TestCase):
 #         plt.gca().set_xlim(-2,1)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
         plt.xticks([-1,0,1], [r'$10^{\mathrm{-}1}$',r'$10^0$',r'$10^1$'])
-        plt.xlabel("Translation rate \n [1/min]")
+        plt.xlabel("Translation\nrate [1/min]")
         plt.gca().set_ylim(0,1)
+        plt.gca().set_xlim(-1,1)
 #         plt.gca().set_ylim(0,1.0)
 #         plt.yticks([])
  
@@ -5490,9 +5607,9 @@ class TestZebrafish(unittest.TestCase):
                      rug = False,
                      bins = 20)
 #         plt.gca().set_xlim(1,200)
-        plt.xlabel("Repression\n threshold [1e3]")
+        plt.xlabel("Repression\nthreshold [1e3]")
         plt.gca().set_ylim(0,0.8)
-        plt.gca().set_xlim(0,5)
+        plt.gca().set_xlim(0,4)
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
 #         plt.yticks([])
@@ -5507,12 +5624,12 @@ class TestZebrafish(unittest.TestCase):
                     hist_kws = {'edgecolor' : 'black',
                                 'alpha' : None},
                      bins = time_delay_bins)
-#         plt.gca().set_xlim(1,30)
+        plt.gca().set_xlim(1,10)
 #         plt.gca().set_ylim(0,0.07)
 #         plt.gca().set_ylim(0,0.04)
         plt.gca().locator_params(axis='x', tight = True, nbins=3)
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
-        plt.xlabel(" Transcription delay \n [min]")
+        plt.xlabel(" Transcription\ndelay [min]")
 #         plt.yticks([])
  
         plots_to_shift.append(my_figure.add_subplot(175))
@@ -5591,7 +5708,7 @@ class TestZebrafish(unittest.TestCase):
 #         plt.gca().set_xscale("log")
 #         plt.gca().set_xlim(0.1,100)
 #         plt.gca().set_xlim(-0.5,np.log10(60.0))
-        plt.xlabel("Extrinsic noise\nrate [1/min]")
+        plt.xlabel("Transcription\nnoise rate [1/min]")
         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
         plt.gca().set_ylim(0,0.5)
 #         plt.gca().set_ylim(0,1)
@@ -5604,6 +5721,56 @@ class TestZebrafish(unittest.TestCase):
         
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','inference_for_zebrafish_extrinsic_noise_' + option + '.pdf'))
+        
+        sns.reset_orig()
+        # one for the transcription delay
+        plt.figure(figsize = (2.5, 1.9))
+        sns.distplot(data_frame['Transcription delay'],
+                     kde = False,
+                     rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
+                     bins = time_delay_bins)
+        plt.gca().set_xlim(1,10)
+#         plt.gca().set_ylim(0,0.07)
+#         plt.gca().set_ylim(0,0.04)
+        plt.gca().locator_params(axis='x', tight = True, nbins=3)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        plt.xlabel("Transcription delay [min]")
+        plt.ylabel("Probability")
+        plt.tight_layout()
+# 
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','inferred_delay_distribution_' + option + '.pdf'))
+
+        # one for the extrinsic noise
+        plt.figure(figsize = (2.5, 1.9))
+        sns.distplot(np.log10(data_frame['Extrinsic noise rate']),
+                    kde = False,
+                    rug = False,
+                    norm_hist = True,
+                    hist_kws = {'edgecolor' : 'black',
+                                'alpha' : None},
+                    bins = 20)
+#                     bins = transcription_rate_bins)
+#         plt.gca().set_xscale("log")
+#         plt.gca().set_xlim(0.1,100)
+#         plt.gca().set_xlim(-0.5,np.log10(60.0))
+        plt.xlabel("Transcription noise rate [1/min]", x = 0.4)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+        plt.gca().set_ylim(0,0.5)
+        plt.ylabel("Probability")
+#         plt.gca().set_ylim(0,1)
+        plt.xticks([0,2], [r'$10^0$',r'$10^2$'])
+#         plt.xticks([0,1], [r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        plt.tight_layout()
+# 
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','inferred_extrinsic_noise_distribution_' + option + '.pdf'))
+
 
     def xest_plot_zebrafish_inference_transcription_amplification(self):
 #         option = 'prior'

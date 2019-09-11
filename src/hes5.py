@@ -1469,8 +1469,8 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard',
         power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
         normalized_power_spectrum = power_spectrum.copy()
         normalized_power_spectrum[:,1] = power_spectrum[:,1]/power_integral
-        smoothened_power_spectrum = smoothen_power_spectrum(normalized_power_spectrum)
-        coherence, period = calculate_coherence_and_period_of_power_spectrum(smoothened_power_spectrum)
+        smoothened_power_spectrum = smoothen_power_spectrum(power_spectrum)
+        coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
         if normalize:
             power_spectrum = normalized_power_spectrum
     else:
