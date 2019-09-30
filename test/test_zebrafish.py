@@ -2001,8 +2001,8 @@ class TestZebrafish(unittest.TestCase):
  
 #         print(list_of_indices)
 #         print(corresponding_proportions)
-        print('fluctuation rate increases are')
-        print(fluctuation_rate_increases)
+#         print('fluctuation rate increases are')
+#         print(fluctuation_rate_increases)
         print('maximal increase')
         print(np.max(fluctuation_rate_increases))
 #         fluctuation_rate_order = np.argsort(fluctuation_rate_increases)
@@ -4877,7 +4877,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(file_name + '.eps', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
 
-    def test_generate_results_without_noise(self):
+    def xest_generate_results_without_noise(self):
         model = 'extrinsic_noise_extra'
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large_extra')
         dual_sweep_results = np.load(os.path.join(os.path.dirname(__file__),'output','zebrafish_dual_sweeps_extrinsic_noise_extra_complete_matrix.npy'))
@@ -4901,14 +4901,22 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
         my_posterior_results = model_results[accepted_indices]
         
+#         relevant_indices = relevant_indices[:100]
+#         corresponding_proportions = corresponding_proportions[:100]
         print('number of accepted samples is')
         print(len(my_posterior_samples))
         
         my_selected_posterior_samples = my_posterior_samples[relevant_indices]
         my_selected_posterior_samples_after = np.copy(my_selected_posterior_samples)
         my_selected_posterior_samples_after[:,1]*=corresponding_proportions[:,1]
-        my_selected_posterior_samples_after[:,7]*=corresponding_proportions[:,0]
+        my_selected_posterior_samples_after[:,5]*=corresponding_proportions[:,0]
         
+        np.save(os.path.join(os.path.dirname(__file__),'output','zebrafish_noise_comparison_real_parameters_before.npy'),
+                my_selected_posterior_samples)
+
+        np.save(os.path.join(os.path.dirname(__file__),'output','zebrafish_noise_comparison_real_parameters_after.npy'),
+                my_selected_posterior_samples_after)
+
         print('number of selected samples is')
         print(len(my_selected_posterior_samples))
 
@@ -4937,6 +4945,150 @@ class TestZebrafish(unittest.TestCase):
         
         np.save(os.path.join(os.path.dirname(__file__),'output','zebrafish_noise_comparison_actual_after.npy'),
                 my_selected_results_after)
+        
+    def test_plot_posterior_predictions_without_noise(self):
+        my_no_noise_results_before = np.load(os.path.join(os.path.dirname(__file__),
+                                                          'output','zebrafish_noise_comparison_no_noise_before.npy'))
+
+        my_no_noise_results_after = np.load(os.path.join(os.path.dirname(__file__),
+                                                         'output','zebrafish_noise_comparison_no_noise_after.npy'))
+        
+        my_selected_results_before = np.load(os.path.join(os.path.dirname(__file__),
+                                                          'output', 'zebrafish_noise_comparison_actual_before.npy'))
+        
+        my_selected_results_after = np.load(os.path.join(os.path.dirname(__file__),
+                                                         'output','zebrafish_noise_comparison_actual_after.npy'))
+ 
+        my_selected_parameters_before = np.load(os.path.join(os.path.dirname(__file__),
+                                                         'output','zebrafish_noise_comparison_real_parameters_before.npy'))
+        
+        my_selected_parameters_after = np.load(os.path.join(os.path.dirname(__file__),
+                                                         'output','zebrafish_noise_comparison_real_parameters_after.npy'))
+
+        dictionary_of_indices = { 'Coherence' : 3,
+                                  'Period' : 2,
+                                  'Mean expression' : 0,
+                                  'COV' : 1,
+                                  'Aperiodic lengthscale' : 11}
+        
+        for stats_name in dictionary_of_indices.keys():
+            plt.figure(figsize = (5.0,1.9))
+            axes1 = plt.subplot(121)
+            this_data_frame = pd.DataFrame(np.column_stack((my_no_noise_results_before[:,dictionary_of_indices[stats_name]],
+                                                            my_no_noise_results_after[:,dictionary_of_indices[stats_name]])),
+                                           columns = ['CTRL','MBSm'])
+            this_data_frame.boxplot()
+            plt.title('Without transcriptional noise', fontsize = 10)
+            if stats_name == 'Period':
+                plt.ylim(0,150)
+            plt.ylabel(stats_name)
+
+            plt.subplot(122, sharey = axes1)
+            this_data_frame = pd.DataFrame(np.column_stack((my_selected_results_before[:,dictionary_of_indices[stats_name]],
+                                                            my_selected_results_after[:,dictionary_of_indices[stats_name]])),
+                                           columns = ['CTRL','MBSm'])
+            this_data_frame.boxplot()
+            plt.ylabel(stats_name)
+            plt.title('With transcriptional noise', fontsize = 10)
+            plt.tight_layout()
+            plt.savefig(os.path.join(os.path.dirname(__file__), 'output','no_noise_comparison_' + stats_name.replace(' ','_') + '.pdf'))
+        
+        real_fluctuation_rate_increases = ((my_selected_results_after[:,11]-my_selected_results_before[:,11])/
+                                             my_selected_results_before[:,11])
+
+        maximal_reference_index = np.argmax(real_fluctuation_rate_increases)
+#         maximal_reference_index = np.argmax(relative_noise_increases)
+        example_parameter_before = my_selected_parameters_before[maximal_reference_index]
+        example_parameter_after = my_selected_parameters_after[maximal_reference_index]
+
+        print('parameters before and after')
+        print(example_parameter_before)
+        print(example_parameter_after)
+        
+        print('summary statistics before and after with noise')
+        print(my_selected_results_before[maximal_reference_index])
+        print(my_selected_results_after[maximal_reference_index])
+        print('summary statistics before and after without noise')
+        print(my_no_noise_results_before[maximal_reference_index])
+        print(my_no_noise_results_after[maximal_reference_index])
+#         print(periods_before)
+#         print(periods_after)
+        example_trace_before = hes5.generate_langevin_trajectory( 8*60, #duration 
+                                                                  example_parameter_before[2], #repression_threshold, 
+                                                                  example_parameter_before[4], #hill_coefficient,
+                                                                  example_parameter_before[5], #mRNA_degradation_rate, 
+                                                                  example_parameter_before[6], #protein_degradation_rate, 
+                                                                  example_parameter_before[0], #basal_transcription_rate, 
+                                                                  example_parameter_before[1], #translation_rate,
+                                                                  example_parameter_before[3], #transcription_delay, 
+                                                                  10, #initial_mRNA, 
+                                                                  example_parameter_before[2], #initial_protein,
+                                                                2000,
+                                                                example_parameter_before[7])
+#                                                                 2000)
+
+        example_trace_after = hes5.generate_langevin_trajectory( 8*60, #duration 
+                                                                  example_parameter_after[2], #repression_threshold, 
+                                                                  example_parameter_after[4], #hill_coefficient,
+                                                                  example_parameter_after[5], #mRNA_degradation_rate, 
+                                                                  example_parameter_after[6], #protein_degradation_rate, 
+                                                                  example_parameter_after[0], #basal_transcription_rate, 
+                                                                  example_parameter_after[1], #translation_rate,
+                                                                  example_parameter_after[3], #transcription_delay, 
+                                                                  10, #initial_mRNA, 
+                                                                example_parameter_after[2], #initial_protein,
+                                                                2000,
+                                                                example_parameter_after[7])
+#                                                                 2000)
+
+        example_no_noise_trace_before = hes5.generate_langevin_trajectory( 8*60, #duration 
+                                                                  example_parameter_before[2], #repression_threshold, 
+                                                                  example_parameter_before[4], #hill_coefficient,
+                                                                  example_parameter_before[5], #mRNA_degradation_rate, 
+                                                                  example_parameter_before[6], #protein_degradation_rate, 
+                                                                  example_parameter_before[0], #basal_transcription_rate, 
+                                                                  example_parameter_before[1], #translation_rate,
+                                                                  example_parameter_before[3], #transcription_delay, 
+                                                                  10, #initial_mRNA, 
+                                                                  example_parameter_before[2], #initial_protein,
+                                                                2000,
+                                                                0.0)
+#                                                                 2000)
+
+        example_no_noise_trace_after = hes5.generate_langevin_trajectory( 8*60, #duration 
+                                                                  example_parameter_after[2], #repression_threshold, 
+                                                                  example_parameter_after[4], #hill_coefficient,
+                                                                  example_parameter_after[5], #mRNA_degradation_rate, 
+                                                                  example_parameter_after[6], #protein_degradation_rate, 
+                                                                  example_parameter_after[0], #basal_transcription_rate, 
+                                                                  example_parameter_after[1], #translation_rate,
+                                                                  example_parameter_after[3], #transcription_delay, 
+                                                                  10, #initial_mRNA, 
+                                                                example_parameter_after[2], #initial_protein,
+                                                                2000,
+                                                                0.0)
+#                                                                 2000)
+
+
+        traces_dict = { 'with noise' : [example_no_noise_trace_before, example_no_noise_trace_after],
+                        'without noise' : [example_trace_before, example_trace_after]}
+        for trace_name in traces_dict.keys():
+            plt.figure(figsize = (2.5, 3.8))
+            plt.subplot(211)
+            plt.title('Control', fontsize = 10)
+            plt.plot(traces_dict[trace_name][0][::6,0],
+                     traces_dict[trace_name][0][::6,2])
+            plt.ylabel('Her6 expression')
+            plt.xlabel('Time [min]')
+            plt.subplot(212)
+            plt.title('MBSm', fontsize = 10)
+            plt.plot(traces_dict[trace_name][1][::6,0],
+                     traces_dict[trace_name][1][::6,2])
+            plt.ylabel('Her6 expression')
+            plt.xlabel('Time [min]')
+            plt.tight_layout()
+            plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                     'dual_change_example_' + trace_name.replace(' ','_') + '.pdf'))
         
     def xest_fit_model_by_optimization(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_large')
