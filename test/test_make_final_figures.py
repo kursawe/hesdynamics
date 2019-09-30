@@ -50,7 +50,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
 
-    def test_make_standard_deviation_distribution_plot(self):
+    def xest_make_standard_deviation_distribution_plot(self):
         
 #         string_option = 'divided1'
 #         string_option = 'divided2'
@@ -311,7 +311,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.eps', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
         
-    def xest_make_likelihood_plot(self):
+    def test_make_likelihood_plot(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_massive')
@@ -372,6 +372,8 @@ class TestMakeFinalFigures(unittest.TestCase):
                                                                     accepted_model_results[:,2] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,0,3] < 300,
                                                         my_parameter_sweep_results[:,0,4] > 0.1)))
+            # decrease_indices = np.where(np.logical_and(accepted_model_results[:,3] > 0.2,
+                                                        # my_parameter_sweep_results[:,0,4] < accepted_model_results[:,3]*0.8))
 #             decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
 #                                                                     my_parameter_sweep_results[:,9,3] > 600),
 #                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
@@ -386,6 +388,8 @@ class TestMakeFinalFigures(unittest.TestCase):
                                                                     accepted_model_results[:,2] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,1,3] < 300,
                                                         my_parameter_sweep_results[:,1,4] > 0.1)))
+            # increase_indices = np.where(np.logical_and(accepted_model_results[:,3] > 0.2,
+                                                        # my_parameter_sweep_results[:,1,4] < accepted_model_results[:,3]*0.8))
 #             increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
 #                                                                     my_parameter_sweep_results[:,9,3] > 600),
 #                                         np.logical_and(my_parameter_sweep_results[:,14,3] < 300,
