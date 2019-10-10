@@ -1873,7 +1873,7 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_translation_examples.pdf'))
 #         plt.savefig(os.path.join(os.path.dirname(__file__),'output','zebrafish_' + change + '_degradation_examples.pdf'))
 
-    def xest_plot_dual_sweep_change_examples(self):
+    def test_plot_dual_sweep_change_examples(self):
         
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_large')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise')
@@ -4803,8 +4803,9 @@ class TestZebrafish(unittest.TestCase):
                         list_of_indices.append(item)
                         corresponding_proportions.append((degradation_change, translation_change))
 
-        print('total accepted samples')
+        print('total accepted samples (of prior and in total)')
         print(np.sum(total_condition_mask))
+        print(len(list_of_indices))
                 
         list_of_indices = np.array(list_of_indices)
         corresponding_proportions = np.array(corresponding_proportions)
@@ -4877,6 +4878,85 @@ class TestZebrafish(unittest.TestCase):
         plt.savefig(file_name + '.eps', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
 
+
+        sns.set(font_scale = 1.1, rc = {'ytick.labelsize': 6})
+#         font = {'size'   : 28}
+#         plt.rc('font', **font)
+
+        my_figure = plt.figure(figsize= (3.5,3))
+
+        translation_change_distribution = np.sum(likelihoods, axis = 0)
+        my_figure.add_subplot(121)
+        translation_bar_width = translation_changes[1] - translation_changes[0]
+        translation_integral = np.trapz(translation_change_distribution, translation_changes)
+        plt.bar(translation_changes, translation_change_distribution/translation_integral, align = 'center', 
+                width = translation_bar_width, edgecolor = 'black')
+        # plt.ylabel("Probability", labelpad = 20)
+        plt.ylabel("Probability")
+        plt.xlabel("Translation\nratio\nMBS/CTRL")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1)
+#         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(122)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        degradation_bar_width = degradation_changes[1] - degradation_changes[0]
+        degradation_change_distribution = np.sum(likelihoods, axis = 1)
+        degradation_integral = np.trapz(degradation_change_distribution, degradation_changes)
+        plt.bar(degradation_changes, degradation_change_distribution/degradation_integral, align = 'center',
+                width = degradation_bar_width, edgecolor = 'black')
+#         plt.gca().set_xlim(1,200)
+#         plt.gca().set_xlim(-2,1)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        # plt.xticks([-1,0,1], [r'$10^{\mathrm{-}1}$',r'$10^0$',r'$10^1$'])
+        plt.xlabel("mRNA degradation\nratio\nMBS/CTRL")
+        # plt.gca().set_ylim(0,1)
+        # plt.gca().set_xlim(-1,1)
+#         plt.gca().set_ylim(0,1.0)
+#         plt.yticks([])
+ 
+        plt.tight_layout(w_pad = 0.0001)
+        # plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','inference_for_zebrafish_ratio_changes_' + model + '.pdf'))
+        
+        my_figure = plt.figure(figsize= (3.5,3))
+        my_figure.add_subplot(121)
+        translation_range = translation_changes[-1] - translation_changes[0]
+        plt.bar(translation_changes, 1/translation_range, align = 'center', 
+                width = translation_bar_width, edgecolor = 'black')
+        # plt.ylabel("Probability", labelpad = 20)
+        plt.ylabel("Probability")
+        plt.xlabel("Translation\nratio\nMBS/CTRL")
+        plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
+#         plt.gca().set_ylim(0,1)
+#         plt.xticks([-1,0,1], [r'$10^{-1}$',r'$10^0$',r'$10^1$'])
+#         plt.yticks([])
+ 
+        my_figure.add_subplot(122)
+#         translation_rate_bins = np.logspace(0,2.3,20)
+        degradation_range = degradation_changes[-1] - degradation_changes[0]
+        plt.bar(degradation_changes, 1/degradation_range, align = 'center',
+                width = degradation_bar_width, edgecolor = 'black')
+#         plt.gca().set_xlim(1,200)
+#         plt.gca().set_xlim(-2,1)
+        plt.gca().locator_params(axis='y', tight = True, nbins=2)
+        # plt.xticks([-1,0,1], [r'$10^{\mathrm{-}1}$',r'$10^0$',r'$10^1$'])
+        plt.xlabel("mRNA degradation\nratio\nMBS/CTRL")
+        # plt.gca().set_ylim(0,1)
+        # plt.gca().set_xlim(-1,1)
+#         plt.gca().set_ylim(0,1.0)
+#         plt.yticks([])
+ 
+        plt.tight_layout(w_pad = 0.0001)
+        # plt.tight_layout()
+        
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                    'output','inference_for_zebrafish_ratio_changes_' + model + '_prior.pdf'))
+ 
+        
     def xest_generate_results_without_noise(self):
         model = 'extrinsic_noise_extra'
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_zebrafish_extrinsic_noise_delay_large_extra')
@@ -4946,7 +5026,7 @@ class TestZebrafish(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__),'output','zebrafish_noise_comparison_actual_after.npy'),
                 my_selected_results_after)
         
-    def test_plot_posterior_predictions_without_noise(self):
+    def xest_plot_posterior_predictions_without_noise(self):
         my_no_noise_results_before = np.load(os.path.join(os.path.dirname(__file__),
                                                           'output','zebrafish_noise_comparison_no_noise_before.npy'))
 
@@ -5475,7 +5555,7 @@ class TestZebrafish(unittest.TestCase):
 #         option = 'coherence_decrease_degradation'
 #         option = 'dual_coherence_decrease'
 #         option = 'mean'
-#         option = 'dual_coherence_and_lengthscale_decrease'
+        # option = 'dual_coherence_and_lengthscale_decrease'
 #         option = 'mean_std_period_fewer_samples'
 #         option = 'mean_std_period_coherence'
 #         option = 'weird_decrease'
