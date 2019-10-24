@@ -4,7 +4,6 @@ import scipy.signal
 import scipy.optimize
 import scipy.interpolate
 import multiprocessing as mp
-# import collections
 from numba import jit, autojit
 from numpy import ndarray, number
 import os
@@ -1471,6 +1470,7 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard',
         normalized_power_spectrum[:,1] = power_spectrum[:,1]/power_integral
         smoothened_power_spectrum = smoothen_power_spectrum(power_spectrum)
         coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
+        # coherence, period = calculate_coherence_and_period_of_power_spectrum(smoothened_power_spectrum)
         if normalize:
             power_spectrum = normalized_power_spectrum
     else:
@@ -2413,8 +2413,8 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
     this_fluctuation_rate = approximate_fluctuation_rate_of_traces_theoretically(these_protein_traces, sampling_interval = 6,
                                                                                 sampling_duration = 12*60)
-
     this_high_frequency_weight = calculate_noise_weight_from_power_spectrum(this_power_spectrum)
+
     summary_statistics[0] = this_mean
     summary_statistics[1] = this_std
     summary_statistics[2] = this_period
@@ -2885,7 +2885,7 @@ def smoothen_power_spectrum(power_spectrum):
     smoothened_spectrum[:,0] = power_spectrum[1:,0]
     # figure out how many datapoints we want to consider
     # do this by figuring out how many datapoints fit in a frequency band of width 0.001
-    frequency_window = 0.02
+    frequency_window = 0.001
     frequency_step = power_spectrum[1,0] - power_spectrum[0,0]
     if frequency_step < frequency_window:
         window_length = int(round(frequency_window/frequency_step))
@@ -3077,7 +3077,7 @@ def generate_heterozygous_langevin_trajectory( duration = 720,
         from the other allele, fourth column is protein number from the other allele.
     '''
     total_time = duration + equilibration_time
-    delta_t = 1.0
+    delta_t = 0.5
     sample_times = np.arange(0.0, total_time, delta_t)
     full_trace = np.zeros((len(sample_times), 5))
     full_trace[:,0] = sample_times

@@ -4,7 +4,10 @@ import sys
 import matplotlib as mpl
 import matplotlib.gridspec 
 mpl.use('Agg')
-mpl.rcParams['mathtext.default'] = 'regular'
+# matplotlib.rcParams['text.usetex'] = True
+# mpl.rcParams['ps.fonttype'] = 3
+# mpl.rcParams['pdf.fonttype'] = 3
+# mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
 font = {'size'   : 10,
         'sans-serif' : 'Arial'}
@@ -22,7 +25,7 @@ import hes5
 class TestMakeFinalFigures(unittest.TestCase):
                                  
     def xest_make_period_distribution_plot(self):
-        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
+        hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'data',
                                 'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 #                                   'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 
@@ -48,6 +51,13 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.png', dpi = 600)
 
     def xest_make_standard_deviation_distribution_plot(self):
+        
+#         string_option = 'divided1'
+#         string_option = 'divided2'
+#         string_option = 'empty'
+        string_option = 'relative'
+#         string_option = 'standard'
+#         string_option = 'square_bracket'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_extended')
@@ -76,14 +86,25 @@ class TestMakeFinalFigures(unittest.TestCase):
 #       
         plt.hist(all_standard_deviations,bins = 20, edgecolor = 'black')
         plt.ylabel("Likelihood")
-        plt.xlabel("Standard deviation/mean HES5")
+        if string_option == 'standard':
+            plt.xlabel("Standard deviation/mean HES5")
+        elif string_option == 'square_bracket':
+            plt.xlabel("Standard deviation [mean HES5]")
+        elif string_option == 'divided1':
+            plt.xlabel(r'$\frac{\mathrm{Standard}\ \mathrm{deviation}}{\mathrm{mean}\ \mathrm{HES5}}$')
+        elif string_option == 'divided2':
+            plt.xlabel(r'Standard deviation$\div$' + '\nmean HES5')
+        elif string_option == 'empty':
+            plt.xlabel("   ")
+        elif string_option == 'relative':
+            plt.xlabel('Relative standard deviation')
         plt.xlim(0.03,0.2)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=3)
         plt.gca().locator_params(axis='x', tight = True, nbins=5)
 
         plt.tight_layout()
         file_name = os.path.join(os.path.dirname(__file__), 'output',
-                                   'standard_deviation_predicted_distribution_for_paper')
+                                   'standard_deviation_predicted_distribution_for_paper_' + string_option)
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
         
@@ -213,18 +234,18 @@ class TestMakeFinalFigures(unittest.TestCase):
 
         my_figure = plt.figure( figsize = (2.5, 1.9) )
 
-        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
-#                                                           'extended_degradation_sweep.npy'))
-                                                          'repeated_degradation_sweep.npy'))
-        print(my_degradation_sweep_results[0,:,0])
-        print(np.log(2)/90)
-        my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] - 
-                                                      my_degradation_sweep_results[:,3,4]>
-                                                      my_degradation_sweep_results[:,3,4]*1.0,
-                                                      my_degradation_sweep_results[:,3,4]>0.1))
-        print(len(my_filtered_indices[0]))
-        print(len(my_degradation_sweep_results))
-        my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+        my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'data',
+                                                        'extended_degradation_sweep.npy'))
+#                                                           'repeated_degradation_sweep.npy'))
+#         print(my_degradation_sweep_results[0,:,0])
+#         print(np.log(2)/90)
+#         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] - 
+#                                                       my_degradation_sweep_results[:,3,4]>
+#                                                       my_degradation_sweep_results[:,3,4]*1.0,
+#                                                       my_degradation_sweep_results[:,3,4]>0.1))
+#         print(len(my_filtered_indices[0]))
+#         print(len(my_degradation_sweep_results))
+#         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
         x_coord = -0.3
         y_coord = 1.05
         for results_table in my_degradation_sweep_results:
@@ -234,7 +255,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.gca().locator_params(axis='x', tight = True, nbins=4)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
         plt.gca().set_rasterization_zorder(1)
-        plt.xlabel('HES5 degradation [1/min]')
+        plt.xlabel(r'HES5 degradation [min$^{-1}$]')
         plt.ylabel('Coherence')
         plt.ylim(0,1)
         plt.xlim(0,np.log(2)/15.)
@@ -249,7 +270,8 @@ class TestMakeFinalFigures(unittest.TestCase):
         
     def xest_plot_bifurcation_analysis(self):
 #         option = 'stochastic'
-        option = 'stochastic'
+#         option = 'stochastic'
+        option = 'deterministic'
 
         X = np.load(os.path.join(os.path.dirname(__file__),
                                        'data','oscillation_coherence_protein_degradation_values_' + option + '.npy'))
@@ -258,12 +280,15 @@ class TestMakeFinalFigures(unittest.TestCase):
         expected_coherence = np.load(os.path.join(os.path.dirname(__file__),
                                        'data','oscillation_coherence_values_' + option + '.npy'))
 
+        print('maximal coherence is')
+        print(np.max(expected_coherence))
         this_figure = plt.figure(figsize = (2.5,1.9))
+#         colormesh = plt.pcolormesh(X,Y,expected_coherence, rasterized = True, vmax = 0.22909221814462538)
         colormesh = plt.pcolormesh(X,Y,expected_coherence, rasterized = True)
 #         plt.pcolor(X,Y,expected_coherence)
         plt.scatter(np.log(2)/90, np.log(2)/30)
-        plt.xlabel("Protein degradation [1/min]", labelpad = 1.3)
-        plt.ylabel("mRNA degradation\n[1/min]", y=0.4)
+        plt.xlabel("Protein degradation [min$^{-1}$]", labelpad = 1.3)
+        plt.ylabel("mRNA degradation\n[min$^{-1}$]", y=0.4)
         
         divider = make_axes_locatable(plt.gca())
         cax = divider.new_vertical(size=0.07, pad=0.5, pack_start=True)
@@ -289,7 +314,7 @@ class TestMakeFinalFigures(unittest.TestCase):
     def test_make_likelihood_plot(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_massive')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_massive')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -329,8 +354,8 @@ class TestMakeFinalFigures(unittest.TestCase):
         for parameter_name in parameter_names:
             print('investigating ' + parameter_name)
             my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
-#                                                           'data',
-                                                          'output',
+                                                        'data',
+#                                                           'output',
 #                                                           'narrowed_relative_sweeps_' + 
                                                         'repeated_relative_sweeps_' + 
 #                                                           'extended_relative_sweeps_' + 
@@ -347,6 +372,8 @@ class TestMakeFinalFigures(unittest.TestCase):
                                                                     accepted_model_results[:,2] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,0,3] < 300,
                                                         my_parameter_sweep_results[:,0,4] > 0.1)))
+            # decrease_indices = np.where(np.logical_and(accepted_model_results[:,3] > 0.2,
+                                                        # my_parameter_sweep_results[:,0,4] < accepted_model_results[:,3]*0.8))
 #             decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
 #                                                                     my_parameter_sweep_results[:,9,3] > 600),
 #                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
@@ -361,6 +388,8 @@ class TestMakeFinalFigures(unittest.TestCase):
                                                                     accepted_model_results[:,2] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,1,3] < 300,
                                                         my_parameter_sweep_results[:,1,4] > 0.1)))
+            # increase_indices = np.where(np.logical_and(accepted_model_results[:,3] > 0.2,
+                                                        # my_parameter_sweep_results[:,1,4] < accepted_model_results[:,3]*0.8))
 #             increase_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
 #                                                                     my_parameter_sweep_results[:,9,3] > 600),
 #                                         np.logical_and(my_parameter_sweep_results[:,14,3] < 300,

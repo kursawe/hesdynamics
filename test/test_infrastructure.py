@@ -445,7 +445,7 @@ class TestInfrastructure(unittest.TestCase):
         repression_threshold = 100.0
         hill_coefficient = 5
         
-        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
+        is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold, 
                                                               hill_coefficient = hill_coefficient, 
                                                               mRNA_degradation_rate = mrna_degradation, 
                                                               protein_degradation_rate = protein_degradation, 
@@ -464,7 +464,7 @@ class TestInfrastructure(unittest.TestCase):
         repression_threshold = 60000
         hill_coefficient = 5
         
-        is_oscillatory = hes5.is_parameter_point_oscillatory( repression_threshold = repression_threshold, 
+        is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold, 
                                                               hill_coefficient = hill_coefficient, 
                                                               mRNA_degradation_rate = mrna_degradation, 
                                                               protein_degradation_rate = protein_degradation, 
@@ -473,6 +473,59 @@ class TestInfrastructure(unittest.TestCase):
                                                               transcription_delay = transcription_delay)
 
         self.assert_(not is_oscillatory)
+
+    def test_stochastic_bifurcation(self):
+        ##at this parameter point the system should oscillate
+        protein_degradation = 0.03
+        mrna_degradation = 0.03
+        transcription_delay = 18.5
+        basal_transcription_rate = 1.0
+        translation_rate = 1.0
+        repression_threshold = 100.0
+        hill_coefficient = 5
+        
+        is_oscillatory = hes5.is_parameter_point_stochastically_oscillatory( repression_threshold = repression_threshold, 
+                                                              hill_coefficient = hill_coefficient, 
+                                                              mRNA_degradation_rate = mrna_degradation, 
+                                                              protein_degradation_rate = protein_degradation, 
+                                                              basal_transcription_rate = basal_transcription_rate,
+                                                              translation_rate = translation_rate,
+                                                              transcription_delay = transcription_delay )
+
+        self.assert_(is_oscillatory)
+
+        ## at this parameter point the system should not oscillate stochastically
+        protein_degradation = np.log(2)/90.0
+        mrna_degradation = np.log(2)/30.0
+        transcription_delay = 34
+        basal_transcription_rate = 0.64
+        translation_rate = 17.32
+        repression_threshold = 88288.6
+        hill_coefficient = 5.59
+        
+        is_oscillatory = hes5.is_parameter_point_stochastically_oscillatory( repression_threshold = repression_threshold, 
+                                                              hill_coefficient = hill_coefficient, 
+                                                              mRNA_degradation_rate = mrna_degradation, 
+                                                              protein_degradation_rate = protein_degradation, 
+                                                              basal_transcription_rate = basal_transcription_rate,
+                                                              translation_rate = translation_rate,
+                                                              transcription_delay = transcription_delay)
+
+        self.assert_(not is_oscillatory)
+
+    def test_get_period_values_from_signal(self):
+        time_points = np.linspace(0,1000,100000)
+        signal_values = np.sin(2*np.pi/2*time_points) + 10
+        period_values = hes5.get_period_measurements_from_signal(time_points,signal_values)
+        for period_value in period_values[1:-1]:
+            self.assertAlmostEqual(period_value, 2.0, 3)
+        
+        signal_values = np.sin(2*np.pi/1.42*time_points) + 10
+        period_values = hes5.get_period_measurements_from_signal(time_points,signal_values)
+        print(period_values)
+        # in this case, for whatever weird boundary effect reason the hilbert won't give the right
+        # response on the boundaries, let's check the mean instead
+        self.assertAlmostEqual(np.mean(period_values), 1.42, 2)
 
     def xest_generate_alternative_deterministic_trajectory(self):
         basal_transcription_rate = 5.0
@@ -499,14 +552,14 @@ class TestInfrastructure(unittest.TestCase):
         times = np.arange(DDE.t,DDE.t+1000,1.0)
         results = np.zeros((len(times),3))
         time_index = 0
-        print times
+        print(times)
         for time in times:
             results[time_index,0] = time
             results[time_index,1:] = DDE.integrate(time)
             time_index += 1
             
         my_trajectory = results
-        print my_trajectory
+        print(my_trajectory)
 
         figuresize = (4,2.75)
         my_figure = plt.figure()
@@ -545,14 +598,14 @@ class TestInfrastructure(unittest.TestCase):
         times = np.arange(DDE.t,DDE.t+1000,1.0)
         results = np.zeros((len(times),3))
         time_index = 0
-        print times
+        print(times)
         for time in times:
             results[time_index,0] = time
             results[time_index,1:] = DDE.integrate(time)
             time_index += 1
             
         my_trajectory = results
-        print my_trajectory
+        print(my_trajectory)
 
         figuresize = (4,2.75)
         my_figure = plt.figure()
