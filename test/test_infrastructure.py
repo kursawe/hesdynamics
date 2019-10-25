@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 font = {'size'   : 10}
 plt.rc('font', **font)
 import numpy as np
-from jitcdde import jitcdde,y,t
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
@@ -263,7 +262,8 @@ class TestInfrastructure(unittest.TestCase):
                                                          translation_rate = 29,
                                                          basal_transcription_rate = 11,
                                                          transcription_delay = 29,
-                                                         noise_strength = 10,
+                                                         mRNA_noise_strength = 10,
+                                                         protein_noise_strength = 10,
                                                          initial_mRNA = 3,
                                                          initial_protein = 31400,
                                                          equilibration_time = 1000)
@@ -313,23 +313,22 @@ class TestInfrastructure(unittest.TestCase):
 #                         'mRNA_degradation_rate': (0.001, 0.04),
 #                         'protein_degradation_rate': (0.001, 0.04),
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
+        my_posterior_samples, my_posterior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
                                                                 acceptance_ratio,
                                                                 number_of_traces_per_sample = 200,
                                                                 saving_name = 'test_sampling_results',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'hill',
-                                                                logarithmic = True)
+                                                                logarithmic = True,
+                                                                simulation_timestep = 1.0,
+                                                                simulation_duration = 1500*5)
         
         self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 5))
-
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_hill_abc_logarithmic_prior_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
+                          (total_number_of_samples, 5))
  
+        self.assertEquals(my_posterior_results.shape, 
+                          (total_number_of_samples, 12))
+
     def test_make_logarithmic_degradation_rate_sweep(self):
         number_of_parameter_points = 5
         number_of_trajectories = 10
@@ -522,7 +521,7 @@ class TestInfrastructure(unittest.TestCase):
         
         signal_values = np.sin(2*np.pi/1.42*time_points) + 10
         period_values = hes5.get_period_measurements_from_signal(time_points,signal_values)
-        print(period_values)
+        # print(period_values)
         # in this case, for whatever weird boundary effect reason the hilbert won't give the right
         # response on the boundaries, let's check the mean instead
         self.assertAlmostEqual(np.mean(period_values), 1.42, 2)

@@ -4,15 +4,16 @@ import scipy.signal
 import scipy.optimize
 import scipy.interpolate
 import multiprocessing as mp
-from numba import jit, autojit
+from numba import jit
 from numpy import ndarray, number
 import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import seaborn.apionly as sns
+# import seaborn.apionly as sns
 import pandas as pd
 import socket
 import jitcdde
+import warnings
 import logging
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
 try:
@@ -691,7 +692,7 @@ def measure_period_and_amplitude_of_signal(x_values, signal_values):
     
     return np.mean(peak_distances), np.mean(peak_amplitudes), np.std(peak_amplitudes)
 
-@autojit(nopython=True)
+@jit(nopython=True)
 def generate_stochastic_trajectory( duration = 720, 
                                     repression_threshold = 10000,
                                     hill_coefficient = 5,
@@ -703,7 +704,7 @@ def generate_stochastic_trajectory( duration = 720,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
-#                                     explicit typing necessary for autojit
+#                                     explicit typing necessary for jit
                                     transcription_schedule = np.array([-1.0]),
                                     sampling_timestep = 1.0,
                                     vary_repression_threshold = False):
@@ -946,7 +947,7 @@ def calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_
 
     return power_spectrum
 
-@autojit(nopython=True)
+@jit(nopython=True)
 def generate_stochastic_trajectory_and_transcription_times( duration = 720, 
                                     repression_threshold = 10000,
                                     hill_coefficient = 5,
@@ -958,7 +959,7 @@ def generate_stochastic_trajectory_and_transcription_times( duration = 720,
                                     initial_mRNA = 0,
                                     initial_protein = 0,
                                     equilibration_time = 0.0,
-                                    #explicit typing necessary for autojit
+                                    #explicit typing necessary for jit
                                     transcription_schedule = np.array([-1.0]),
                                     sampling_timestep = 1.0,
                                     vary_repression_threshold = False):
@@ -1048,7 +1049,7 @@ def generate_stochastic_trajectory_and_transcription_times( duration = 720,
     # set up the gillespie algorithm: We first
     # need a list where we store any delayed reaction times
 #     delayed_transcription_times = collections.deque()
-    # this requires a bit of faff for autojit to compile
+    # this requires a bit of faff for jit to compile
     delayed_transcription_times = [-1.0]
     if transcription_schedule[0] < 0:
         delayed_transcription_times.pop(0)
@@ -1315,7 +1316,7 @@ def generate_multiple_trajectories( number_of_trajectories = 10,
  
     return mRNA_trajectories, protein_trajectories
 
-@autojit(nopython = True)
+@jit(nopython = True)
 def identify_reaction(random_number, base_propensity, propensities):
     '''Choose a reaction from a set of possiblities using a random number and the corresponding
     reaction propensities. To be used, for example, in a Gillespie SSA. 
@@ -1396,7 +1397,8 @@ def get_period_measurements_from_signal(time_points, signal, smoothen = False):
     return period_values
 
 def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard', 
-                                             normalize = True):
+                                             normalize = True,
+                                             power_spectrum_smoothing_window = 0.001):
     '''Calculate the power spectrum, coherence, and period of a set
     of trajectories. Works by applying discrete fourier transforms to the mean
     of the trajectories. We define the power spectrum as the square of the
@@ -1428,6 +1430,11 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard',
         Only applies if method is 'standard'. Will be ignored otherwise.
         The zero-frequency entry will be removed from the power spectrum if normalize is true.
     
+    power_spectrum_smoothing_window : float
+        When coherence and period are calculated from the power spectrum, the spectrum is temporarilly smoothed using a savitzki golay filter 
+        to reduce the impact of sampling noise. This parameter allows the user to define the size of that window in frequency space.
+        The units are 1/min.
+
     Result:
     ------
     
@@ -1468,9 +1475,8 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard',
         power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
         normalized_power_spectrum = power_spectrum.copy()
         normalized_power_spectrum[:,1] = power_spectrum[:,1]/power_integral
-        smoothened_power_spectrum = smoothen_power_spectrum(power_spectrum)
-        coherence, period = calculate_coherence_and_period_of_power_spectrum(power_spectrum)
-        # coherence, period = calculate_coherence_and_period_of_power_spectrum(smoothened_power_spectrum)
+        smoothened_power_spectrum = smoothen_power_spectrum(power_spectrum, power_spectrum_smoothing_window)
+        coherence, period = calculate_coherence_and_period_of_power_spectrum(smoothened_power_spectrum)
         if normalize:
             power_spectrum = normalized_power_spectrum
     else:
@@ -1532,14 +1538,15 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
 
     power_integral = np.trapz(power_spectrum[1:,1], power_spectrum[1:,0])
     normalized_power_spectrum = power_spectrum[1:].copy()
-    normalized_power_spectrum[:,1] = power_spectrum[1:,1]/power_integral
+    if np.sum(normalized_power_spectrum[1:,1])!=0.0:
+        normalized_power_spectrum[:,1] = power_spectrum[1:,1]/power_integral
     coherence, period = calculate_coherence_and_period_of_power_spectrum(normalized_power_spectrum)
     if normalize:
         power_spectrum = normalized_power_spectrum
 
     return power_spectrum, coherence, period
  
-def generate_posterior_samples( total_number_of_samples, 
+def generate_lookup_tables_for_abc( total_number_of_samples, 
                                 acceptance_ratio,
                                 number_of_traces_per_sample = 10,
                                 number_of_cpus = number_of_available_cores,
@@ -1552,10 +1559,15 @@ def generate_posterior_samples( total_number_of_samples,
                                                 'protein_degradation_rate': (np.log(2)/500, np.log(2)/5)},
                                 prior_dimension = 'hill',
                                 model = 'langevin',
-                                logarithmic = True ):
-    '''Draw samples from the posterior using normal ABC. Posterior is calculated
-    using ABC and the summary statistics mean and relative standard deviation.
-    Also saves all sampled model results.
+                                logarithmic = True,
+                                simulation_timestep = 0.5,
+                                simulation_duration = 1500,
+                                power_spectrum_smoothing_window = 0.001):
+    '''Generate a prior distribution of parameter combinations. For each parameter combination, calculate summary statistics.
+    The table containing all parameter combinations is saved under test/output/[saving_name]_parameters.npy. The table containing all summary statistics
+    is saved as test/output/[saving_name].npy. The order in both tables is the same, i.e. the summary statistics in table row 'n' correspond
+    to the parameter combination in table row 'n'. For information on the order of parameters in one combination, see 'generate_prior_samples'.
+    For the order of summary statistics, see 'calculate_langevin_summary_statistics_at_parameters' (This only applies if the model 'langevin' is selected).
     
     Parameters
     ----------
@@ -1592,15 +1604,29 @@ def generate_posterior_samples( total_number_of_samples,
         options are 'langevin', 'gillespie', 'agnostic'
 
     logarithmic : bool
-        if True then logarithmic priors will be used on the translation and transcription rate constants
+        if True then logarithmic priors will be used on the translation, transcription and extrinsic noise rate constants
         
+    simulation_timestep : float
+        The discretisation time step of the simulation. Only applies if the model is 'langevin' or 'agnostic'.
+
+    simulation_duration : float
+        The duration of the simulated time window for each trace.
+
+    power_spectrum_smoothing_window : float
+        When coherence and period are calculated from the power spectrum, the spectrum is first smoothed using a savitzki golay filter 
+        to reduce the impact of sampling noise. This parameter allows the user to define the size of that window in frequency space.
+        The units are 1/min.
+
     Returns
     -------
     
-    posterior_samples : ndarray
-        samples from the posterior distribution, are repression_threshold, hill_coefficient,
-                                    mRNA_degradation_rate, protein_degradation_rate, basal_transcription_rate,
-                                    translation_rate, transcription_delay
+    prior_samples : ndarray
+        samples from the prior distribution. Each line contains a different parameter combination. The order of parameters in each line
+        is described in generate_prior_samples().
+
+    model_results : ndarray
+        summary statistics at each parameter combination in prior_samples, in the same order. The order of summary statistics in each line is 
+        described in calculate_langevin_summary_statistics_at_parameters(). 
     '''
     if model == 'langevin' or model == 'agnostic':
         use_langevin = True
@@ -1617,21 +1643,17 @@ def generate_posterior_samples( total_number_of_samples,
     model_results = calculate_summary_statistics_at_parameters( prior_samples, 
                                                                 number_of_traces_per_sample, 
                                                                 number_of_cpus,
-                                                                model )
+                                                                model,
+                                                                simulation_timestep,
+                                                                simulation_duration,
+                                                                power_spectrum_smoothing_window )
 
     saving_path = os.path.join(os.path.dirname(__file__),'..','test','output',saving_name)
         
     np.save(saving_path + '.npy', model_results)
     np.save(saving_path + '_parameters.npy', prior_samples)
 
-    # calculate distances to data
-    distance_table = calculate_distances_to_data(model_results)
-    
-    posterior_samples = select_posterior_samples( prior_samples, 
-                                                  distance_table, 
-                                                  acceptance_ratio )
-    
-    return posterior_samples
+    return prior_samples, model_results
 
 def plot_posterior_distributions( posterior_samples, logarithmic = True ):
     '''Plot the posterior samples in a pair plot. Only works if there are
@@ -1949,7 +1971,7 @@ def calculate_heterozygous_summary_statistics_at_parameter_point(parameter_value
     these_full_protein_traces = np.zeros_like(these_protein_traces_1)
     these_full_protein_traces[:,0] = these_protein_traces_1[:,0]
     these_full_protein_traces[:,1:] = these_protein_traces_1[:,1:] + these_protein_traces_2[:,1:]
-    _,this_full_coherence, this_full_period = calculate_power_spectrum_of_trajectories(these_full_protein_traces)
+    _,this_full_coherence, this_full_period = calculate_power_spectrum_of_trajectories(these_full_protein_traces, power_spectrum_smoothing_window=0.001)
 
     these_full_mrna_traces = np.zeros_like(these_mrna_traces_1)
     these_full_mrna_traces[:,0] = these_mrna_traces_1[:,0]
@@ -1959,12 +1981,12 @@ def calculate_heterozygous_summary_statistics_at_parameter_point(parameter_value
     this_full_std = np.std(these_full_protein_traces[:,1:])/this_full_mean
     this_full_mean_mRNA = np.mean(these_full_mrna_traces[:,1:])
 
-    _,this_allele_coherence_1, this_allele_period_1 = calculate_power_spectrum_of_trajectories(these_protein_traces_1)
+    _,this_allele_coherence_1, this_allele_period_1 = calculate_power_spectrum_of_trajectories(these_protein_traces_1, power_spectrum_smoothing_window=0.001)
     this_allele_mean_1 = np.mean(these_protein_traces_1[:,1:])
     this_allele_std_1 = np.std(these_protein_traces_1[:,1:])/this_allele_mean_1
     this_allele_mean_mRNA_1 = np.mean(these_mrna_traces_1[:,1:])
     
-    _,this_allele_coherence_2, this_allele_period_2 = calculate_power_spectrum_of_trajectories(these_protein_traces_2)
+    _,this_allele_coherence_2, this_allele_period_2 = calculate_power_spectrum_of_trajectories(these_protein_traces_2, power_spectrum_smoothing_window=0.001)
     this_allele_mean_2 = np.mean(these_protein_traces_2[:,1:])
     this_allele_std_2 = np.std(these_protein_traces_2[:,1:])/this_allele_mean_2
     this_allele_mean_mRNA_2 = np.mean(these_mrna_traces_2[:,1:])
@@ -1992,7 +2014,9 @@ def calculate_heterozygous_summary_statistics_at_parameter_point(parameter_value
 def calculate_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 10,
                                                number_of_cpus = number_of_available_cores, 
                                                model = 'langevin',
-                                               timestep = 0.5):
+                                               timestep = 0.5,
+                                               simulation_duration = 1500,
+                                               power_spectrum_smoothing_window = 0.001):
     '''Calculate the mean, relative standard deviation, period, and coherence
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
@@ -2016,10 +2040,19 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
     model : string
         options are 'langevin', 'gillespie', 'agnostic', 'gillespie_sequential'
         gillespie_sequential means that traces from different parameters will be calculated in parallel,
-        rather than multiple traces from the same parameter
+        rather than multiple traces from the same parameter. For the Gillespie model options, not all summary statistics are implemented
+        and some of the function parameters are ignored. Use these at your own peril.
         
     timestep : double
         discretization timestep of the numerical scheme. Will be ignored if model is not 'langevin'
+
+    simulation_duration : float
+        The duration of the simulated time window for each trace.
+
+    power_spectrum_smoothing_window : float
+        When coherence and period are calculated from the power spectrum, the spectrum is first smoothed using a savitzki golay filter 
+        to reduce the impact of sampling noise. This parameter allows the user to define the size of that window in frequency space.
+        The units are 1/min.
 
     Returns
     -------
@@ -2029,8 +2062,13 @@ def calculate_summary_statistics_at_parameters(parameter_values, number_of_trace
         parameter set in parameter_values
     '''
     if model == 'langevin' or model == 'agnostic' or model == 'gillespie_sequential':
-        summary_statistics = calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample,
-                                                            number_of_cpus, model, timestep)
+        summary_statistics = calculate_langevin_summary_statistics_at_parameters(parameter_values, 
+                                                                                 number_of_traces_per_sample,
+                                                                                 number_of_cpus, 
+                                                                                 model, 
+                                                                                 timestep,
+                                                                                 simulation_duration,
+                                                                                 power_spectrum_smoothing_window)
     else:
         if parameter_values.shape[1] != 4:
             raise ValueError("Gillespie inference on full parameter space is not implemented.")
@@ -2085,7 +2123,7 @@ def calculate_gillespie_summary_statistics_at_parameters(parameter_values, numbe
                                                         initial_protein = parameter_value[2],
                                                         equilibration_time = 2000,
                                                         number_of_cpus = number_of_cpus)
-        _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces)
+        _,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces, power_spectrum_smoothing_window=0.001)
         this_mean = np.mean(these_protein_traces[:,1:])
         this_std = np.std(these_protein_traces[:,1:])/this_mean
         summary_statistics[parameter_index,0] = this_mean
@@ -2098,7 +2136,9 @@ def calculate_gillespie_summary_statistics_at_parameters(parameter_values, numbe
 def calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 100,
                                                          number_of_cpus = number_of_available_cores,
                                                          model = 'langevin',
-                                                         timestep = 0.5):
+                                                         timestep = 0.5,
+                                                         simulation_duration = 1500,
+                                                         power_spectrum_smoothing_window = 0.001):
     '''Calculate the mean, relative standard deviation, period, coherence, and mean mrna
     of protein traces at each parameter point in parameter_values. 
     Will assume the arguments to be of the order described in
@@ -2125,6 +2165,14 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
     timestep : double
         discretization timestep of the numerical scheme. Will be ignored if model is not 'langevin'
 
+    simulation_duration : float
+        The duration of the simulated time window for each trace.
+
+    power_spectrum_smoothing_window : float
+        When coherence and period are calculated from the power spectrum, the spectrum is first smoothed using a savitzki golay filter 
+        to reduce the impact of sampling noise. This parameter allows the user to define the size of that window in frequency space.
+        The units are 1/min.
+
     Returns
     -------
     
@@ -2137,8 +2185,12 @@ def calculate_langevin_summary_statistics_at_parameters(parameter_values, number
     pool_of_processes = mp.Pool(processes = number_of_cpus)
 
     process_results = [ pool_of_processes.apply_async(calculate_langevin_summary_statistics_at_parameter_point, 
-                                                      args=(parameter_value, number_of_traces_per_sample,
-                                                            model,timestep))
+                                                      args=(parameter_value, 
+                                                            number_of_traces_per_sample,
+                                                            model,
+                                                            timestep,
+                                                            simulation_duration,
+                                                            power_spectrum_smoothing_window))
                         for parameter_value in parameter_values ]
 
     ## Let the pool know that these are all so that the pool will exit afterwards
@@ -2303,7 +2355,10 @@ def get_full_parameter_for_reduced_parameter(reduced_parameter):
     return full_parameter
 
 def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, number_of_traces = 100,
-                                                             model = 'langevin', timestep = 0.5):
+                                                             model = 'langevin', 
+                                                             timestep = 0.5,
+                                                             simulation_duration = 1500,
+                                                             power_spectrum_smoothing_window = 0.001):
     '''Calculate the mean, relative standard deviation, period, coherence and mean mRNA
     of protein traces at one parameter point using the langevin equation. 
     Will assume the arguments to be of the order described in
@@ -2336,7 +2391,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     full_parameter = get_full_parameter_for_reduced_parameter(parameter_value)
     if model == 'langevin':
         these_mrna_traces, these_protein_traces = generate_multiple_langevin_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                           1500, #duration 
+                                                                                           simulation_duration, #duration 
                                                                                            full_parameter[2], #repression_threshold, 
                                                                                            full_parameter[4], #hill_coefficient,
                                                                                            full_parameter[5], #mRNA_degradation_rate, 
@@ -2352,7 +2407,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            timestep) 
     elif model == 'agnostic':
         these_mrna_traces, these_protein_traces = generate_multiple_agnostic_trajectories( number_of_traces, # number_of_trajectories 
-                                                                                           1500, #duration 
+                                                                                           simulation_duration, #duration 
                                                                                            full_parameter[2], #repression_threshold, 
                                                                                            full_parameter[4], #hill_coefficient,
                                                                                            full_parameter[5], #mRNA_degradation_rate, 
@@ -2367,7 +2422,7 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
                                                                                            1000)
     elif model == 'gillespie_sequential':
         these_mrna_traces, these_protein_traces = generate_multiple_trajectories( number_of_trajectories = number_of_traces, # number_of_trajectories 
-                                                                                  duration = 1500, #duration 
+                                                                                  duration = simulation_duration, #duration 
                                                                                   repression_threshold = full_parameter[2], #repression_threshold, 
                                                                                   hill_coefficient = full_parameter[4], #hill_coefficient,
                                                                                   mRNA_degradation_rate = full_parameter[5], #mRNA_degradation_rate, 
@@ -2401,7 +2456,9 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
 #                                           these_mrna_traces[:,1],
 #                                           these_protein_traces[:,1])).transpose()
     summary_statistics = np.zeros(12)
-    this_power_spectrum,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces, normalize = False)
+    this_power_spectrum,this_coherence, this_period = calculate_power_spectrum_of_trajectories(these_protein_traces, 
+                                                                                               normalize = False,
+                                                                                               power_spectrum_smoothing_window = power_spectrum_smoothing_window)
     this_mean = np.mean(these_protein_traces[:,1:])
     this_std = np.std(these_protein_traces[:,1:])/this_mean
     this_mean_mRNA = np.mean(these_mrna_traces[:,1:])
@@ -2410,9 +2467,11 @@ def calculate_langevin_summary_statistics_at_parameter_point(parameter_value, nu
     this_deterministic_std = np.std(this_deterministic_trace[:,2])/this_deterministic_mean
     deterministic_protein_trace = np.vstack((this_deterministic_trace[:,0] - 2000, 
                                             this_deterministic_trace[:,2])).transpose()
-    _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace)
+    _,this_deterministic_coherence, this_deterministic_period = calculate_power_spectrum_of_trajectories(deterministic_protein_trace,
+                                                                                                         normalize = False,
+                                                                                                         power_spectrum_smoothing_window = power_spectrum_smoothing_window)
     this_fluctuation_rate = approximate_fluctuation_rate_of_traces_theoretically(these_protein_traces, sampling_interval = 6,
-                                                                                sampling_duration = 12*60)
+                                                                                 sampling_duration = 12*60)
     this_high_frequency_weight = calculate_noise_weight_from_power_spectrum(this_power_spectrum)
 
     summary_statistics[0] = this_mean
@@ -2865,8 +2924,9 @@ def calculate_coherence_and_period_of_power_spectrum(power_spectrum):
     
     return coherence, period
     
-def smoothen_power_spectrum(power_spectrum):
-    """Smoothes a power spectrum using a sliding mean.
+def smoothen_power_spectrum(power_spectrum, power_spectrum_smoothing_window = 0.001):
+    """Smoothes a power spectrum using a savitzki golay filter. The number of frequency steps to use is rounded from
+    the power_spectrum_smoothing_window.
     
     Parameters:
     -----------
@@ -2874,6 +2934,10 @@ def smoothen_power_spectrum(power_spectrum):
     power_spectrum : ndarray
         first column contains frequencies, second column contains the power spectrum
        
+    power_spectrum_smoothing_window : float
+        The size of the smoothing window in frequency space.
+        The units are 1/min.
+
     Returns:
     --------
     
@@ -2885,7 +2949,7 @@ def smoothen_power_spectrum(power_spectrum):
     smoothened_spectrum[:,0] = power_spectrum[1:,0]
     # figure out how many datapoints we want to consider
     # do this by figuring out how many datapoints fit in a frequency band of width 0.001
-    frequency_window = 0.001
+    frequency_window = power_spectrum_smoothing_window
     frequency_step = power_spectrum[1,0] - power_spectrum[0,0]
     if frequency_step < frequency_window:
         window_length = int(round(frequency_window/frequency_step))
@@ -2998,7 +3062,7 @@ def ode_root_function(x, characteristic_constant, hill_coefficient):
     
     return function_value
 
-@autojit(nopython = True)
+@jit(nopython = True)
 def generate_heterozygous_langevin_trajectory( duration = 720, 
                                     repression_threshold = 10000,
                                     hill_coefficient = 5,
@@ -3151,7 +3215,7 @@ def generate_heterozygous_langevin_trajectory( duration = 720,
     
     return trace 
  
-@autojit(nopython = True)
+@jit(nopython = True)
 def generate_langevin_trajectory( duration = 720, 
                                   repression_threshold = 10000,
                                   hill_coefficient = 5,
@@ -3306,7 +3370,7 @@ def generate_langevin_trajectory( duration = 720,
     
     return trace_to_return
 
-@autojit(nopython = True)
+@jit(nopython = True)
 def generate_time_dependent_langevin_trajectory( duration = 720, 
                                   repression_threshold = np.array([10000]*720),
                                   hill_coefficient = np.array([5]*720),
@@ -3458,7 +3522,7 @@ def generate_time_dependent_langevin_trajectory( duration = 720,
     
     return trace 
 
-@autojit(nopython = True)
+@jit(nopython = True)
 def generate_agnostic_noise_trajectory( duration = 720, 
                                         repression_threshold = 10000,
                                         hill_coefficient = 5,
@@ -3843,7 +3907,7 @@ def generate_multiple_heterozygous_langevin_trajectories( number_of_trajectories
  
     return mRNA_trajectories_1, protein_trajectories_1, mRNA_trajectories_2, protein_trajectories_2
 
-## autojitting this function does not seem to improve runtimes further
+## jitting this function does not seem to improve runtimes further
 def generate_multiple_langevin_trajectories( number_of_trajectories = 10,
                                     duration = 720, 
                                     repression_threshold = 10000,
@@ -3977,7 +4041,10 @@ def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
                                                number_of_sweep_values = 20,
                                                number_of_traces_per_parameter = 200,
                                                relative = False,
-                                               relative_range = (0.1,2.0)):
+                                               relative_range = (0.1,2.0),
+                                               simulation_timestep = 1.0,
+                                               simulation_duration = 1500*5,
+                                               power_spectrum_smoothing_window = 0.001):
     '''Conduct a parameter sweep in reasonable ranges of each of the parameter points in
     parameter_samples. The parameter_samples are four-dimensional, as produced, for example, by 
     generate_prior_samples() with the 'reduced' dimension. At each parameter point the function
@@ -4003,9 +4070,23 @@ def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
         number of traces that should be used to calculate summary statistics
         
     relative : bool
-        If true x values will not be parameter values but percentage values in changes from 10% to
-        200%
+        If true x values will not be parameter values but percentage values in changes specified in relative_range
+
+    relative_range : tuple of two floats
+        the proportion ranges that is considered. The number_of_sweep_values will be evenly spaced between relative_range[0]*actual_parameter_value to 
+        relative_range[1]*actual_parameter_value
+
+    simulation_timestep : float
+        The discretisation time step of the simulation. 
         
+    simulation_duration : float
+        The duration of the simulated time window for each trace.
+
+    power_spectrum_smoothing_window : float
+        When coherence and period are calculated from the power spectrum, the spectrum is first smoothed using a savitzki golay filter 
+        to reduce the impact of sampling noise. This parameter allows the user to define the size of that window in frequency space.
+        The units are 1/min.
+
     Results:
     --------
     
@@ -4034,7 +4115,10 @@ def conduct_all_parameter_sweeps_at_parameters(parameter_samples,
                                                               number_of_sweep_values,
                                                               number_of_traces_per_parameter,
                                                               relative,
-                                                              relative_range)
+                                                              relative_range,
+                                                              simulation_timestep,
+                                                              simulation_duration,
+                                                              power_spectrum_smoothing_window)
 
         sweep_results[parameter_name] = these_results   
         
@@ -4045,7 +4129,10 @@ def conduct_dual_parameter_sweep_at_parameters(parameter_samples,
                                                translation_range = (0.1,2.0),
                                                degradation_interval_number = 20,
                                                translation_interval_number = 20,
-                                               number_of_traces_per_parameter = 200):
+                                               number_of_traces_per_parameter = 200,
+                                               simulation_timestep = 0.5,
+                                               simulation_duration = 1500,
+                                               power_spectrum_smoothing_window = 0.02):
     '''Conduct a simultaneous (dual) parameter sweep of the mRNA degradation rate and
     the translation rate at each of the parameter points in
     parameter_samples. The parameter_samples are seven-dimensional, as produced, for example, by 
@@ -4081,6 +4168,17 @@ def conduct_dual_parameter_sweep_at_parameters(parameter_samples,
     number_of_traces_per_parameter : int
         number of traces that should be used to calculate summary statistics
         
+    simulation_timestep : float
+        The discretisation time step of the simulation. 
+        
+    simulation_duration : float
+        The duration of the simulated time window for each trace.
+
+    power_spectrum_smoothing_window : float
+        When coherence and period are calculated from the power spectrum, the spectrum is first smoothed using a savitzki golay filter 
+        to reduce the impact of sampling noise. This parameter allows the user to define the size of that window in frequency space.
+        The units are 1/min.
+
     Results:
     --------
     
@@ -4108,7 +4206,10 @@ def conduct_dual_parameter_sweep_at_parameters(parameter_samples,
     all_summary_statistics = calculate_summary_statistics_at_parameters(parameter_values = all_parameter_values, 
                                                                         number_of_traces_per_sample = number_of_traces_per_parameter,
                                                                         number_of_cpus = number_of_available_cores, 
-                                                                        model = 'langevin')
+                                                                        model = 'langevin',
+                                                                        timestep = simulation_timestep,
+                                                                        simulation_duration = simulation_duration,
+                                                                        power_spectrum_smoothing_window = power_spectrum_smoothing_window)
     
     # unpack and wrap the results in the output format
     sweep_results = np.zeros((parameter_samples.shape[0], 
@@ -4140,10 +4241,12 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
                                           number_of_sweep_values = 20,
                                           number_of_traces_per_parameter = 200,
                                           relative = False,
-                                          relative_range = (0.1,2.0)):
+                                          relative_range = (0.1,2.0),
+                                          simulation_timestep = 1.0,
+                                          simulation_duration = 1500*5,
+                                          power_spectrum_smoothing_window = 0.001):
     '''Conduct a parameter sweep of the parameter_name parameter at each of the parameter points in
-    parameter_samples. The parameter_samples are four-dimensional, as produced, for example, by 
-    generate_prior_samples() with the 'reduced' dimension. At each parameter point the function
+    parameter_samples. At each parameter point the function
     will sweep over number_sweep_values of parameter_name, and from 
     number_of_trajectories langevin traces the summary statistics [mean expression
     standard_deviation, period, coherence] will be returned. Parameter ranges are hardcoded and
@@ -4164,8 +4267,22 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
         number of traces that should be used to calculate summary statistics
         
     relative : bool
-        If true x values will not be parameter values but percentage values in changes from 10% to
-        200%
+        If true x values will not be parameter values but percentage values in changes specified in relative_range
+
+    relative_range : tuple of two floats
+        the proportion ranges that is considered. The number_of_sweep_values will be evenly spaced between relative_range[0]*actual_parameter_value to 
+        relative_range[1]*actual_parameter_value
+
+    simulation_timestep : float
+        The discretisation time step of the simulation. 
+        
+    simulation_duration : float
+        The duration of the simulated time window for each trace.
+
+    power_spectrum_smoothing_window : float
+        When coherence and period are calculated from the power spectrum, the spectrum is first smoothed using a savitzki golay filter 
+        to reduce the impact of sampling noise. This parameter allows the user to define the size of that window in frequency space.
+        The units are 1/min.
 
     Results:
     --------
@@ -4186,7 +4303,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
 
     # first: make a table of 7d parameters
     total_number_of_parameters_required = parameter_samples.shape[0]*number_of_sweep_values
-    all_parameter_values = np.zeros((total_number_of_parameters_required, parameter_samples.shape[1])) 
+    all_parameter_values = np.zeros((total_number_of_parameters_required, 7)) 
     parameter_sample_index = 0
     index_of_parameter_name = parameter_indices_and_ranges[parameter_name][0]
     if not relative:
@@ -4246,7 +4363,10 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     all_summary_statistics = calculate_summary_statistics_at_parameters(parameter_values = all_parameter_values, 
                                                                         number_of_traces_per_sample = number_of_traces_per_parameter,
                                                                         number_of_cpus = number_of_available_cores, 
-                                                                        model = 'langevin')
+                                                                        model = 'langevin',
+                                                                        timestep = simulation_timestep,
+                                                                        simulation_duration = simulation_duration,
+                                                                        power_spectrum_smoothing_window=power_spectrum_smoothing_window)
     
     # unpack and wrap the results in the output format
     sweep_results = np.zeros((parameter_samples.shape[0], number_of_sweep_values, 13))
@@ -4425,9 +4545,9 @@ def calculate_autocorrelation_from_power_spectrum(power_spectrum):
     
     autocorrelation = np.real(complex_autocorrelation)
 #     autocorrelation[:,1] /= np.sqrt(number_of_time_samples) 
-    if np.sum(np.imag(complex_autocorrelation)) != 0.0:
-       print('WARNING: autocorrelation has complex component')
-       print(complex_autocorrelation)
+    if np.abs(np.sum(np.imag(complex_autocorrelation))) > 1e-7:
+        print('WARNING: autocorrelation has complex component')
+        print(complex_autocorrelation)
     
     return autocorrelation
 
