@@ -21,7 +21,7 @@ import seaborn as sns
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # make sure we find the right python module
-sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
+sys.path.append(os.path.join(os.path.dirname(__file__),'..','..','src'))
 import hes5
 
 class TestMakeFinalFigures(unittest.TestCase):

@@ -11,7 +11,7 @@ plt.rc('font', **font)
 import numpy as np
 
 # make sure we find the right python module
-sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
+sys.path.append(os.path.join(os.path.dirname(__file__),'..','..','src'))
 import hes5
 
 import seaborn as sns

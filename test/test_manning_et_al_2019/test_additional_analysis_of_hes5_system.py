@@ -16,7 +16,7 @@ import seaborn as sns
 # import xlrd
 
 # make sure we find the right python module
-sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
+sys.path.append(os.path.join(os.path.dirname(__file__),'..','..','src'))
 import hes5
 
 class TestSimpleHes5ABC(unittest.TestCase):
