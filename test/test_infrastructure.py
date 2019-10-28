@@ -1,6 +1,7 @@
 import unittest
 import os.path
 import sys
+os.environ["OMP_NUM_THREADS"] = "1"
 import matplotlib as mpl
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
@@ -195,7 +196,7 @@ class TestInfrastructure(unittest.TestCase):
                                                          equilibration_time = 1000)
         end = time.clock()
         
-        print('needed ' + str(end-start) + ' seconds')
+#         print('needed ' + str(end-start) + ' seconds')
 
         
         figuresize = (4,2.5)
@@ -320,10 +321,10 @@ class TestInfrastructure(unittest.TestCase):
                                                                 simulation_timestep = 1.0,
                                                                 simulation_duration = 1500*5)
         
-        self.assertEquals(my_posterior_samples.shape, 
+        self.assertEquals(my_prior_samples.shape, 
                           (total_number_of_samples, 5))
  
-        self.assertEquals(my_posterior_results.shape, 
+        self.assertEquals(my_prior_results.shape, 
                           (total_number_of_samples, 12))
 
     def test_make_logarithmic_degradation_rate_sweep(self):
@@ -343,8 +344,6 @@ class TestInfrastructure(unittest.TestCase):
                                                    model_results[:,1]>0.05)))) #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print('number of accepted samples is')
-        print(len(my_posterior_samples))
 
         my_sweep_results = hes5.conduct_parameter_sweep_at_parameters('protein_degradation_rate',
                                           my_posterior_samples,
@@ -372,8 +371,6 @@ class TestInfrastructure(unittest.TestCase):
                                                    model_results[:,1]>0.05)))) #standard deviation
 
         my_posterior_samples = prior_samples[accepted_indices]
-        print('number of accepted samples is')
-        print(len(my_posterior_samples))
 
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,

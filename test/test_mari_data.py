@@ -1,4 +1,5 @@
 import unittest
+os.environ["OMP_NUM_THREADS"] = "1"
 import os.path
 import sys
 import matplotlib as mpl

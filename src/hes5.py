@@ -19,13 +19,13 @@ logging.getLogger("tensorflow").setLevel(logging.WARNING)
 try:
     import gpflow
 except ImportError:
-    print('Could not import gpflow. Gpflow will not be available for GP regression')
+    print('Could not import gpflow. Gpflow will not be available for GP regression. This will not affect any functions used in our publications.')
 import sklearn.gaussian_process as gp
 import GPy
 try:
     import george
 except ImportError:
-    print('Could not import george. George will not be available for GP regression')
+    print('Could not import george. George will not be available for GP regression. This will not affect any functions used in our publications.')
 
 domain_name = socket.getfqdn()
 if domain_name == 'jochen-ThinkPad-S1-Yoga-12':
@@ -1474,7 +1474,8 @@ def calculate_power_spectrum_of_trajectories(trajectories, method = 'standard',
 
         power_integral = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
         normalized_power_spectrum = power_spectrum.copy()
-        normalized_power_spectrum[:,1] = power_spectrum[:,1]/power_integral
+        if power_integral > 0.0:
+            normalized_power_spectrum[:,1] = power_spectrum[:,1]/power_integral
         smoothened_power_spectrum = smoothen_power_spectrum(power_spectrum, power_spectrum_smoothing_window)
         coherence, period = calculate_coherence_and_period_of_power_spectrum(smoothened_power_spectrum)
         if normalize:
@@ -1697,7 +1698,6 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
                                              'Hill coefficient',
                                              'Noise_strength'])
     elif posterior_samples.shape[1] == 7:
-        print('hello')
         data_frame = pd.DataFrame( data = posterior_samples,
                                    columns= ['Transcription rate', 
                                              'Translation rate', 
@@ -2913,7 +2913,10 @@ def calculate_coherence_and_period_of_power_spectrum(power_spectrum):
     interpolation_values = power_spectrum_interpolation(integration_axis)
     coherence_area = np.trapz(interpolation_values, integration_axis)
     full_area = np.trapz(power_spectrum[:,1], power_spectrum[:,0])
-    coherence = coherence_area/full_area
+    if full_area > 0.0:
+        coherence = coherence_area/full_area
+    else:
+        coherence = 0.0
     
     # calculate period: 
     period = 1./max_power_frequency
