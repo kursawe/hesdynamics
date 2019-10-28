@@ -180,10 +180,8 @@ class TestZebrafish(unittest.TestCase):
         total_number_of_samples = 2000000
 #         total_number_of_samples = 5
 #         total_number_of_samples = 100
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (1.0,120),
                         'translation_rate' : (0.1,40),
@@ -193,16 +191,16 @@ class TestZebrafish(unittest.TestCase):
                         'protein_degradation_rate' : ( np.log(2)/11.0, np.log(2)/11.0 ),
                         'mRNA_half_life' : ( 1, 11) }
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 2000,
-                                                                saving_name = 'sampling_results_zebrafish_delay_large_extra',
-                                                                prior_bounds = prior_bounds,
-                                                                prior_dimension = 'full',
-                                                                logarithmic = True )
+        my_prior_samples, my_prior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                                  number_of_traces_per_sample = 2000,
+                                                                                  saving_name = 'sampling_results_zebrafish_delay_large_extra',
+                                                                                  prior_bounds = prior_bounds,
+                                                                                  prior_dimension = 'full',
+                                                                                  logarithmic = True,
+                                                                                  power_spectrum_smoothing_window = 0.02 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 7))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 7))
         
     def xest_plot_zebrafish_inference(self):
 #         option = 'prior'
@@ -1119,7 +1117,8 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples_changed_degradation = np.copy(my_posterior_samples)
         my_posterior_samples_changed_degradation[:,5]*=1.5
         new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_degradation, 
-                                                                        number_of_traces_per_sample=200 )
+                                                                        number_of_traces_per_sample=2000,
+                                                                        power_spectrum_smoothing_window = 0.02 )
         old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
         new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_degradation, sampling_duration = 12*60)  
 
@@ -1161,7 +1160,8 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples_changed_degradation = np.copy(my_posterior_samples)
         my_posterior_samples_changed_degradation[:,5]*=0.5
         new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_degradation, 
-                                                                        number_of_traces_per_sample=200 )
+                                                                        number_of_traces_per_sample=200,
+                                                                        power_spectrum_smoothing_window = 0.02 )
 #         old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
 #         new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_degradation, sampling_duration = 12*60)  
 
@@ -1202,7 +1202,8 @@ class TestZebrafish(unittest.TestCase):
         my_posterior_samples_changed_translation[:,1]*=1.5
 
         new_model_results = hes5.calculate_summary_statistics_at_parameters( my_posterior_samples_changed_translation, 
-                                                                        number_of_traces_per_sample=200 )
+                                                                        number_of_traces_per_sample=200,
+                                                                        power_spectrum_smoothing_window = 0.02 )
 #         old_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples, sampling_duration = 12*60) 
 #         print('got here too')
 #         new_lengthscales = hes5.calculate_fluctuation_rates_at_parameters(my_posterior_samples_changed_translation, sampling_duration = 12*60)  
@@ -2134,8 +2135,10 @@ class TestZebrafish(unittest.TestCase):
                                                                 example_parameter_after[7])
 #                                                                 2000)
 
-        power_spectrum_before,coherence_before,period_before = hes5.calculate_power_spectrum_of_trajectories(example_protein_traces_before, normalize = True)
-        power_spectrum_after,coherence_after,period_after = hes5.calculate_power_spectrum_of_trajectories(example_protein_traces_after, normalize = True)
+        power_spectrum_before,coherence_before,period_before = hes5.calculate_power_spectrum_of_trajectories(example_protein_traces_before, normalize = True,
+                                                                                                             power_spectrum_smoothing_window = 0.02)
+        power_spectrum_after,coherence_after,period_after = hes5.calculate_power_spectrum_of_trajectories(example_protein_traces_after, normalize = True,
+                                                                                                          power_spectrum_smoothing_window = 0.02)
 
         frequency_cutoff = 1.0/40.0
         first_left_index = np.min(np.where(power_spectrum_before[:,0]>frequency_cutoff))
@@ -2219,8 +2222,8 @@ class TestZebrafish(unittest.TestCase):
 #         print(relative_noise_before[list_of_indices[maximal_reference_index]])
 #         import pdb; pdb.set_trace()
 
-        smoothened_power_spectrum_before = hes5.smoothen_power_spectrum(power_spectrum_before)
-        smoothened_power_spectrum_after = hes5.smoothen_power_spectrum(power_spectrum_after)
+        smoothened_power_spectrum_before = hes5.smoothen_power_spectrum(power_spectrum_before, power_spectrum_smoothing_window = 0.02)
+        smoothened_power_spectrum_after = hes5.smoothen_power_spectrum(power_spectrum_after, power_spectrum_smoothing_window = 0.02)
         plt.figure(figsize = (4.5, 2.5))
         plt.plot(power_spectrum_before[:,0],
                  power_spectrum_before[:,1], lw = 0.5, label = 'CTRL')
@@ -3812,7 +3815,8 @@ class TestZebrafish(unittest.TestCase):
             new_parameters[noise_index,-2] = mRNA_noise
             new_parameters[noise_index,-1] = protein_noise_strength
             
-        new_summary_stats = hes5.calculate_summary_statistics_at_parameters(new_parameters, model = 'agnostic')
+        new_summary_stats = hes5.calculate_summary_statistics_at_parameters(new_parameters, model = 'agnostic',
+                                                                            power_spectrum_smoothing_window = 0.02)
         
         plt.figure(figsize = (4.5, 6.5))
         plt.subplot(511)
@@ -4087,7 +4091,10 @@ class TestZebrafish(unittest.TestCase):
                                                                                  number_of_parameter_points,
                                                                                  number_of_trajectories,
                                                                                  relative = True,
-                                                                                 relative_range = (0.1,5.0))
+                                                                                 relative_range = (0.1,5.0),
+                                                                                 simulation_duration = 1500,
+                                                                                 simulation_timestep = 0.5,
+                                                                                 power_spectrum_smoothing_window = 0.02)
         
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_relative_sweeps_protein_degradation_rate.npy'),
                 my_parameter_sweep_results)
@@ -4125,7 +4132,10 @@ class TestZebrafish(unittest.TestCase):
                                                                                  number_of_parameter_points,
                                                                                  number_of_trajectories,
                                                                                  relative = True,
-                                                                                 relative_range = (0.1,3.0))
+                                                                                 relative_range = (0.1,3.0),
+                                                                                 simulation_duration = 1500,
+                                                                                 simulation_timestep = 0.5,
+                                                                                 power_spectrum_smoothing_window = 0.02)
         
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_relative_sweeps_time_delay.npy'),
                 my_parameter_sweep_results)
@@ -4157,7 +4167,10 @@ class TestZebrafish(unittest.TestCase):
                                                                                      number_of_parameter_points,
                                                                                      number_of_trajectories,
                                                                                      relative = True,
-                                                                                     relative_range = (0.1,2.0))
+                                                                                     relative_range = (0.1,2.0),
+                                                                                     simulation_timestep = 0.5,
+                                                                                     simulation_duration = 1500,
+                                                                                     power_spectrum_smoothing_window = 0.02)
         
         for parameter_name in my_parameter_sweep_results:
             np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_relative_sweeps_' + parameter_name + '.npy'),
@@ -5008,11 +5021,14 @@ class TestZebrafish(unittest.TestCase):
         my_selected_results_before = my_posterior_results[relevant_indices]
 
         my_selected_results_after = hes5.calculate_summary_statistics_at_parameters(my_selected_posterior_samples_after,
-                                                                                    number_of_traces_per_sample = 2000)
+                                                                                    number_of_traces_per_sample = 2000,
+                                                                                    power_spectrum_smoothing_window = 0.02)
         my_no_noise_results_before = hes5.calculate_summary_statistics_at_parameters(my_no_noise_samples_before,
-                                                                                     number_of_traces_per_sample = 2000)
+                                                                                     number_of_traces_per_sample = 2000,
+                                                                                     power_spectrum_smoothing_window = 0.02)
         my_no_noise_results_after = hes5.calculate_summary_statistics_at_parameters(my_no_noise_samples_after,
-                                                                                    number_of_traces_per_sample = 2000)
+                                                                                    number_of_traces_per_sample = 2000,
+                                                                                    power_spectrum_smoothing_window = 0.02)
         
         np.save(os.path.join(os.path.dirname(__file__),'output','zebrafish_noise_comparison_no_noise_before.npy'),
                 my_no_noise_results_before)
@@ -5233,7 +5249,7 @@ class TestZebrafish(unittest.TestCase):
         full_initial_parameter[:7] = example_parameter_before
         full_initial_parameter[7:] = [degradation_proportion_after, translation_proportion_after]
 
-        mean_expression_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[0]
+        mean_expression_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2], number_of_traces = 2000)[0]
         mean_expression_before_constraint = scipy.optimize.NonlinearConstraint(mean_expression_before,
                                                                                1000,2500)
         def relative_expression_after(parameter):
@@ -5241,7 +5257,7 @@ class TestZebrafish(unittest.TestCase):
             parameter_after = parameter[:-2].copy()
             parameter_after[5]*=parameter[-2]
             parameter_after[1]*=parameter[-1]
-            this_mean_expression_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter_after[:-2])[0]
+            this_mean_expression_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter_after[:-2], number_of_traces = 2000)[0]
             relative_expression_after = this_mean_expression_after/this_mean_expression_before
             print('relative_expression_after is')
             print(parameter)
@@ -5250,14 +5266,14 @@ class TestZebrafish(unittest.TestCase):
         mean_expression_after_constraint = scipy.optimize.NonlinearConstraint(relative_expression_after,
                                                                               1.8,2.2)
         
-        period_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[2]
+        period_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2], number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)[2]
         period_before_constraint = scipy.optimize.NonlinearConstraint(period_before,
                                                                       0,150)
         def period_after(parameter):
             parameter_after = parameter[:-2].copy()
             parameter_after[5]*=parameter[-2]
             parameter_after[1]*=parameter[-1]
-            period_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[2]
+            period_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2], number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)[2]
             print('period after is')
             print(parameter)
             print(period_after)
@@ -5273,13 +5289,13 @@ class TestZebrafish(unittest.TestCase):
             print(this_period_after - this_period_before)
             return this_period_after - this_period_before
 
-        coherence_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[3]
+        coherence_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2], number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)[3]
         def coherence_difference_after(parameter):
             this_coherence_before = coherence_before(parameter)
             parameter_after = parameter[:-2].copy()
             parameter_after[5]*=parameter[-2]
             parameter_after[1]*=parameter[-1]
-            this_coherence_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[3]
+            this_coherence_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2], number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)[3]
             print('coherence_difference_after is')
             print(parameter)
             print(this_coherence_after - this_coherence_before)
@@ -5287,13 +5303,13 @@ class TestZebrafish(unittest.TestCase):
         coherence_after_constraint = scipy.optimize.NonlinearConstraint(coherence_difference_after,
                                                                         -100,0)
         
-        fluctuation_rate_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[-1]
+        fluctuation_rate_before = lambda parameter : hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2], number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)[-1]
         def fluctuation_rate_difference(parameter):
             this_fluctuation_rate_before = fluctuation_rate_before(parameter)
             parameter_after = parameter[:-2].copy()
             parameter_after[5]*=parameter[-2]
             parameter_after[1]*=parameter[-1]
-            this_fluctuation_rate_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])[-1]
+            this_fluctuation_rate_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2], number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)[-1]
             print('fluctuation_rate_difference is')
             print(parameter)
             print(- (this_fluctuation_rate_after - this_fluctuation_rate_before))
@@ -5305,8 +5321,8 @@ class TestZebrafish(unittest.TestCase):
             parameter_after = parameter[:-2].copy()
             parameter_after[5]*=parameter[-2]
             parameter_after[1]*=parameter[-1]
-            summary_statistics_before = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])
-            summary_statistics_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter_after)
+            summary_statistics_before = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2], number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)
+            summary_statistics_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter_after, number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)
             print('next parameter and summary stats are')
             print(parameter)
             print(summary_statistics_before)
@@ -5353,8 +5369,8 @@ class TestZebrafish(unittest.TestCase):
             parameter_after = parameter[:-2].copy()
             parameter_after[5]*=parameter[-2]
             parameter_after[1]*=parameter[-1]
-            summary_statistics_before = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2])
-            summary_statistics_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter_after)
+            summary_statistics_before = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter[:-2], number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)
+            summary_statistics_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter_after, number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)
             print('next parameter and summary stats are')
             print(parameter)
             print(summary_statistics_before)
@@ -5444,8 +5460,8 @@ class TestZebrafish(unittest.TestCase):
         this_parameter_after = this_parameter[:-2].copy()
         this_parameter_after[5]*=this_parameter[-2]
         this_parameter_after[1]*=this_parameter[-1]
-        results_before = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter[:-2])
-        results_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter_after)
+        results_before = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter[:-2], number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)
+        results_after = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter_after, number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)
         print(results_before)
         print(results_after)
         
@@ -5482,7 +5498,7 @@ class TestZebrafish(unittest.TestCase):
         
         print('attempting to calculate summary statistics from model')
         this_parameter = np.array([9,26,2000,18,3,np.log(2)/8,np.log(2)/11,10])
-        these_summary_statistics = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter)
+        these_summary_statistics = hes5.calculate_langevin_summary_statistics_at_parameter_point(this_parameter, number_of_traces = 2000, power_spectrum_smoothing_window = 0.02)
         print(these_summary_statistics)
     
     def xest_perform_abc_with_extrinsic_noise(self):
@@ -5491,10 +5507,8 @@ class TestZebrafish(unittest.TestCase):
         total_number_of_samples = 2000000
 #         total_number_of_samples = 5
 #         total_number_of_samples = 100
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (1.0,120),
                         'translation_rate' : (0.1,40),
@@ -5505,13 +5519,13 @@ class TestZebrafish(unittest.TestCase):
                         'mRNA_half_life' : ( 1, 11),
                         'extrinsic_noise_rate' : (0.1,7000) }
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 2000,
-                                                                saving_name = 'sampling_results_zebrafish_extrinsic_noise_delay_large_extra',
-                                                                prior_bounds = prior_bounds,
-                                                                prior_dimension = 'extrinsic_noise',
-                                                                logarithmic = True )
+        my_prior_samples, my_prior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 2000,
+                                                                    saving_name = 'sampling_results_zebrafish_extrinsic_noise_delay_large_extra',
+                                                                    prior_bounds = prior_bounds,
+                                                                    prior_dimension = 'extrinsic_noise',
+                                                                    logarithmic = True,
+                                                                    power_spectrum_smoothing_window = 0.02 )
  
     def xest_a_perform_abc_with_transcription_noise_amplification(self):
         print('starting zebrafish abc')
@@ -5519,10 +5533,8 @@ class TestZebrafish(unittest.TestCase):
         total_number_of_samples = 2000000
 #         total_number_of_samples = 5
 #         total_number_of_samples = 100
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (1.0,120),
                         'translation_rate' : (0.1,40),
@@ -5534,14 +5546,13 @@ class TestZebrafish(unittest.TestCase):
                         'extrinsic_noise_rate' : (0.0,0.0),
                         'transcription_noise_amplification' : (1.0,100.0) }
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
+        my_prior_samples, my_prior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
                                                                 number_of_traces_per_sample = 2000,
                                                                 saving_name = 'sampling_results_zebrafish_transcription_amplification',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'transcription_noise_amplification',
-                                                                logarithmic = True )
- 
+                                                                logarithmic = True,
+                                                                power_spectrum_smoothing_window = 0.02 )
 
     def xest_plot_zebrafish_inference_extrinsic_noise(self):
         option = 'prior'
@@ -6594,7 +6605,8 @@ class TestZebrafish(unittest.TestCase):
         
         my_adjusted_results = hes5.calculate_summary_statistics_at_parameters(parameter_values = my_adjusted_parameters,
                                                                             number_of_traces_per_sample = 400,
-                                                                            model = 'langevin' )
+                                                                            model = 'langevin',
+                                                                            power_spectrum_smoothing_window = 0.02 )
         np.save(os.path.join(os.path.dirname(__file__), 'output','zebrafish_double_experiment_adjusted_results.npy'),
                 my_adjusted_results)
         
@@ -6892,7 +6904,7 @@ class TestZebrafish(unittest.TestCase):
 #         posterior_samples = posterior_samples[:10,:]
 #         posterior_results = posterior_results[:10,:]
         posterior_samples[:,3] -= 1
-        these_repeated_results = hes5.calculate_summary_statistics_at_parameters(posterior_samples)
+        these_repeated_results = hes5.calculate_summary_statistics_at_parameters(posterior_samples, number_of_traces_per_sample = 2000, power_spectrum_smoothing_window = 0.02)
 #         gillespie_results = hes5.calculate_summary_statistics_at_parameters(posterior_samples, model = 'gillespie_sequential')
 
         saving_path = os.path.join(os.path.dirname(__file__),'output','new_zebrafish_posterior_results')
@@ -6952,8 +6964,8 @@ class TestZebrafish(unittest.TestCase):
         for timestep_index, timestep in enumerate(timesteps):
             these_summary_statistics = hes5.calculate_langevin_summary_statistics_at_parameter_point(sample_parameter, 
                                                                                        number_of_traces = 2000,
-                                                                                       timestep = timestep
-                                                                                       )
+                                                                                       timestep = timestep, 
+                                                                                       power_spectrum_smoothing_window = 0.02)
             summary_statistics[timestep_index] = these_summary_statistics
 
         summary_statistic_names = ['Mean Protein #',

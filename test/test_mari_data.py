@@ -28,10 +28,8 @@ class TestNSQuiescence(unittest.TestCase):
         total_number_of_samples = 200000
         
         ## this needs to go - it has no impact on the prior
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (0.1,60),
                         'translation_rate' : (0.01,40),
@@ -43,22 +41,16 @@ class TestNSQuiescence(unittest.TestCase):
                         'mRNA_degradation_rate' : (np.log(2)/20,np.log(2)/20)}
 
         # generate prior samples should be the name of this function
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
+        my_prior_samples, my_prior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
                                                                 number_of_traces_per_sample = 200,
                                                                 saving_name = 'sampling_results_quiescense',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'full',
-                                                                logarithmic = True )
+                                                                logarithmic = True,
+                                                                simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 5))
-
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_extended_abc_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 5))
 
     def xest_plot_posterior_distributions(self):
         
@@ -609,7 +601,8 @@ class TestNSQuiescence(unittest.TestCase):
         my_parameter_sweep_results = hes5.conduct_all_parameter_sweeps_at_parameters(my_posterior_samples,
                                                                                      number_of_parameter_points,
                                                                                      number_of_trajectories,
-                                                                                     relative = True)
+                                                                                     relative = True,
+                                                                                     simulation_duration = 1500*5)
         
         for parameter_name in my_parameter_sweep_results:
             np.save(os.path.join(os.path.dirname(__file__), 'output','maris_relative_sweeps_' + parameter_name + '.npy'),

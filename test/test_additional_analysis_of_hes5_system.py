@@ -22,38 +22,22 @@ class TestSimpleHes5ABC(unittest.TestCase):
     def xest_make_abc(self):
         ## generate posterior samples
         total_number_of_samples = 2000
-        acceptance_ratio = 0.03
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                use_langevin = False )
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                use_langevin = False)
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 4))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 4))
 
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
-        
     def xest_make_abc_on_cluster(self):
         ## generate posterior samples
         total_number_of_samples = 20000
-        acceptance_ratio = 0.03
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
                                                                 number_of_traces_per_sample = 16,
                                                                 number_of_cpus = 16,
                                                                 use_langevin = False )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 4))
-
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 4))
  
     def xest_plot_abc_differently(self):
         ## generate posterior samples
@@ -119,52 +103,38 @@ class TestSimpleHes5ABC(unittest.TestCase):
     def xest_make_langevin_abc(self):
         ## generate posterior samples
         total_number_of_samples = 20000
-        acceptance_ratio = 0.02
 #         total_number_of_samples = 20
-#         acceptance_ratio = 0.5
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_langevin_200reps' )
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 200,
+                                                                    saving_name = 'sampling_results_langevin_200reps',
+                                                                    simulation_timestep = 1.0,
+                                                                    simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 4))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 4))
 
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_langevin_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
- 
     def xest_make_langevin_abc_different_prior(self):
         ## generate posterior samples
         total_number_of_samples = 20000
-        acceptance_ratio = 0.02
 
         prior_bounds = {'basal_transcription_rate' : (0,10),
                         'translation_rate' : (0,200),
                         'repression_threshold' : (0,150000),
                         'time_delay' : (5,40)}
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 100,
-                                                                saving_name = 'sampling_results_langevin_small_prior',
-                                                                prior_bounds = prior_bounds )
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 100,
+                                                                    saving_name = 'sampling_results_langevin_small_prior',
+                                                                    prior_bounds = prior_bounds,
+                                                                    simulation_timestep = 1.0,
+                                                                    simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 4))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 4))
 
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_langevin_different_prior' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
- 
     def xest_make_abc_all_parameters(self):
         ## generate posterior samples
         total_number_of_samples = 20000
-        acceptance_ratio = 0.02
 
         prior_bounds = {'basal_transcription_rate' : (0,100),
                         'translation_rate' : (0,200),
@@ -175,29 +145,22 @@ class TestSimpleHes5ABC(unittest.TestCase):
                         'mRNA_degradation_rate': (0.001, 0.04),
                         'protein_degradation_rate': (0.001, 0.04)}
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_all_parameters_200',
-                                                                prior_bounds = prior_bounds,
-                                                                prior_dimension = 'full' )
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 200,
+                                                                    saving_name = 'sampling_results_all_parameters_200',
+                                                                    prior_bounds = prior_bounds,
+                                                                    prior_dimension = 'full',
+                                                                    simulation_timestep = 1.0,
+                                                                    simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 6))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 6))
 
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_langevin_different_prior' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
- 
     def xest_make_hill_abc(self):
         ## generate posterior samples
         total_number_of_samples = 20000
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (0,100),
                         'translation_rate' : (0,200),
@@ -209,24 +172,18 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                         'mRNA_degradation_rate': (0.001, 0.04),
 #                         'protein_degradation_rate': (0.001, 0.04),
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_hill',
-                                                                prior_bounds = prior_bounds,
-                                                                prior_dimension = 'hill')
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 200,
+                                                                    saving_name = 'sampling_results_hill',
+                                                                    prior_bounds = prior_bounds,
+                                                                    prior_dimension = 'hill',
+                                                                    simulation_timestep = 1.0,
+                                                                    simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 5))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 5))
 
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_hill_abc_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
- 
     def xest_pairplot_prior(self):
-#         acceptance_ratio = 0.02
         total_number_of_samples = 200000
         
         prior_bounds = {'basal_transcription_rate' : (0.1,60),
@@ -355,10 +312,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
     def xest_make_abc_logarithmic_prior_vary_bounds(self):
         ## generate posterior samples
         total_number_of_samples = 20000
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (0.1,100),
                         'translation_rate' : (1,200),
@@ -370,30 +325,23 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                         'mRNA_degradation_rate': (0.001, 0.04),
 #                         'protein_degradation_rate': (0.001, 0.04),
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_logarithmic',
-                                                                prior_bounds = prior_bounds,
-                                                                prior_dimension = 'hill',
-                                                                logarithmic = True)
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 200,
+                                                                    saving_name = 'sampling_results_logarithmic',
+                                                                    prior_bounds = prior_bounds,
+                                                                    prior_dimension = 'hill',
+                                                                    logarithmic = True,
+                                                                    simulation_timestep = 1.0,
+                                                                    simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 5))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 5))
 
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_hill_abc_logarithmic_prior_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
- 
     def xest_make_abc_logarithmic_prior(self):
         ## generate posterior samples
         total_number_of_samples = 200000
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (0.1,100),
                         'translation_rate' : (1,200),
@@ -405,23 +353,18 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                         'mRNA_degradation_rate': (0.001, 0.04),
 #                         'protein_degradation_rate': (0.001, 0.04),
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_logarithmic',
-                                                                prior_bounds = prior_bounds,
-                                                                prior_dimension = 'hill',
-                                                                logarithmic = True)
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 200,
+                                                                    saving_name = 'sampling_results_logarithmic',
+                                                                    prior_bounds = prior_bounds,
+                                                                    prior_dimension = 'hill',
+                                                                    logarithmic = True,
+                                                                    simulation_timestep = 1.0,
+                                                                    simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 5))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 5))
 
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_hill_abc_logarithmic_prior_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
- 
     def xest_plot_larger_variation(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
                                    'sampling_results_logarithmic')
@@ -720,10 +663,8 @@ class TestSimpleHes5ABC(unittest.TestCase):
     def xest_upsample_hill_abc(self):
         ## generate posterior samples
         total_number_of_samples = 200000
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (0,4),
                         'translation_rate' : (0,200),
@@ -735,26 +676,20 @@ class TestSimpleHes5ABC(unittest.TestCase):
 #                         'mRNA_degradation_rate': (0.001, 0.04),
 #                         'protein_degradation_rate': (0.001, 0.04),
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_hill_low_transcription',
-                                                                prior_bounds = prior_bounds,
-                                                                prior_dimension = 'hill')
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 200,
+                                                                    saving_name = 'sampling_results_hill_low_transcription',
+                                                                    prior_bounds = prior_bounds,
+                                                                    prior_dimension = 'hill',
+                                                                    simulation_timestep = 1.0,
+                                                                    simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 5))
-
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_hill_abc_low_transcription_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 5))
  
     def xest_make_abc_all_parameters_long_delay(self):
         ## generate posterior samples
         total_number_of_samples = 20000
-        acceptance_ratio = 0.02
 
         prior_bounds = {'basal_transcription_rate' : (0,100),
                         'translation_rate' : (0,200),
@@ -765,21 +700,17 @@ class TestSimpleHes5ABC(unittest.TestCase):
                         'mRNA_degradation_rate': (0.001, 0.04),
                         'protein_degradation_rate': (0.001, 0.04)}
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 100,
-                                                                saving_name = 'sampling_results_all_parameters_long_delay',
-                                                                prior_bounds = prior_bounds,
-                                                                prior_dimension = 'full' )
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 100,
+                                                                    saving_name = 'sampling_results_all_parameters_long_delay',
+                                                                    prior_bounds = prior_bounds,
+                                                                    prior_dimension = 'full',
+                                                                    simulation_timestep = 1.0,
+                                                                    simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 6))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 6))
 
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_full_abc_long_delay.pdf'))
- 
     def xest_plot_langevin_abc_differently(self):
         ## generate posterior samples
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
@@ -1140,7 +1071,6 @@ class TestSimpleHes5ABC(unittest.TestCase):
     def xest_plot_langevin_abc_in_band(self):
         ## generate posterior samples
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_langevin_200reps')
-        acceptance_ratio = 0.02
         total_number_of_samples = 20000
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -6399,7 +6329,6 @@ class TestSimpleHes5ABC(unittest.TestCase):
     def xest_make_agnostic_abc_samples(self):
         ## generate posterior samples
         total_number_of_samples = 200000
-        acceptance_ratio = 0.02
 
         prior_bounds = {'basal_transcription_rate' : (0.1,60),
                         'translation_rate' : (1,40),
@@ -6408,22 +6337,17 @@ class TestSimpleHes5ABC(unittest.TestCase):
                         'hill_coefficient' : (2,6),
                         'noise_strength' : (0,20)}
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
-                                                                number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_agnostic',
-                                                                prior_bounds = prior_bounds,
-                                                                model = 'agnostic',
-                                                                logarithmic = True)
+        my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                    number_of_traces_per_sample = 200,
+                                                                    saving_name = 'sampling_results_agnostic',
+                                                                    prior_bounds = prior_bounds,
+                                                                    model = 'agnostic',
+                                                                    logarithmic = True,
+                                                                    simulation_timestep = 1.0,
+                                                                    simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 6))
-
-        # plot distribution of accepted parameter samples
-        pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output','pairplot_agnostic_abc_' +  str(total_number_of_samples) + '_'
-                                      + str(acceptance_ratio) + '.pdf'))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 6))
         
     def xest_plot_phase_space(self):
         # phase space: we have two options: mrna vs protein or 

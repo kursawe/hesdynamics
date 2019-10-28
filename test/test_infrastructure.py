@@ -298,10 +298,8 @@ class TestInfrastructure(unittest.TestCase):
     def test_make_abc_example(self):
         ## generate posterior samples
         total_number_of_samples = 200
-        acceptance_ratio = 0.1
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (0.1,100),
                         'translation_rate' : (1,200),
@@ -313,8 +311,7 @@ class TestInfrastructure(unittest.TestCase):
 #                         'mRNA_degradation_rate': (0.001, 0.04),
 #                         'protein_degradation_rate': (0.001, 0.04),
 
-        my_posterior_samples, my_posterior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
-                                                                acceptance_ratio,
+        my_prior_samples, my_prior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
                                                                 number_of_traces_per_sample = 200,
                                                                 saving_name = 'test_sampling_results',
                                                                 prior_bounds = prior_bounds,

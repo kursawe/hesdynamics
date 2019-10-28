@@ -1547,7 +1547,6 @@ def calculate_power_spectrum_of_trajectory(trajectory, normalize = True):
     return power_spectrum, coherence, period
  
 def generate_lookup_tables_for_abc( total_number_of_samples, 
-                                acceptance_ratio,
                                 number_of_traces_per_sample = 10,
                                 number_of_cpus = number_of_available_cores,
                                 saving_name = 'sampling_results',
@@ -1575,9 +1574,6 @@ def generate_lookup_tables_for_abc( total_number_of_samples,
     number_of_samples : int
         number of samples to be generated from the posterior
        
-    acceptance_ratio : float
-        ratio of the posterior samples that should be accepted.
-        
     number_of_traces_per_sample : int
         number of traces that should be run per sample to calculate the summary statistics
 
@@ -1610,12 +1606,12 @@ def generate_lookup_tables_for_abc( total_number_of_samples,
         The discretisation time step of the simulation. Only applies if the model is 'langevin' or 'agnostic'.
 
     simulation_duration : float
-        The duration of the simulated time window for each trace.
+        The duration of the simulated time window for each trace. Only applies if the model is 'langevin' or 'agnostic'.
 
     power_spectrum_smoothing_window : float
         When coherence and period are calculated from the power spectrum, the spectrum is first smoothed using a savitzki golay filter 
         to reduce the impact of sampling noise. This parameter allows the user to define the size of that window in frequency space.
-        The units are 1/min.
+        The units are 1/min. Only applies if the model is 'langevin' or 'agnostic'.
 
     Returns
     -------

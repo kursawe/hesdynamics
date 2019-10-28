@@ -21,10 +21,8 @@ class TestMakeMCF7Analysis(unittest.TestCase):
     def xest_make_abc_samples(self):
         ## generate posterior samples
         total_number_of_samples = 200000
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (0.01,60),
                         'translation_rate' : (0.01,1),
@@ -34,30 +32,22 @@ class TestMakeMCF7Analysis(unittest.TestCase):
                         'protein_degradation_rate' : ( np.log(2)/(3.85*60), np.log(2)/(3.85*60) ),
                         'mRNA_degradation_rate' : ( np.log(2)/41.0, np.log(2)/41.0) }
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
+        my_prior_samples, my_prior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
                                                                 number_of_traces_per_sample = 200,
                                                                 saving_name = 'sampling_results_MCF7_altered',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'full',
-                                                                logarithmic = True )
+                                                                logarithmic = True,
+                                                                simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 7))
-
-        # plot distribution of accepted parameter samples
-#         pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-#         pairplot.savefig(os.path.join(os.path.dirname(__file__),
-#                                       'output','pairplot_mcf7_abc_' +  str(total_number_of_samples) + '_'
-#                                       + str(acceptance_ratio) + '.pdf'))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 7))
 
     def xest_make_narrower_abc_samples(self):
         ## generate posterior samples
         total_number_of_samples = 200000
-        acceptance_ratio = 0.02
 
 #         total_number_of_samples = 10
-#         acceptance_ratio = 0.5
 
         prior_bounds = {'basal_transcription_rate' : (0.5,60),
                         'translation_rate' : (0.08,0.4),
@@ -67,16 +57,16 @@ class TestMakeMCF7Analysis(unittest.TestCase):
                         'protein_degradation_rate' : ( np.log(2)/(3.85*60), np.log(2)/(3.85*60) ),
                         'mRNA_degradation_rate' : ( np.log(2)/41.0, np.log(2)/41.0) }
 
-        my_posterior_samples = hes5.generate_posterior_samples( total_number_of_samples,
-                                                                acceptance_ratio,
+        my_prior_samples, my_prior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
                                                                 number_of_traces_per_sample = 200,
                                                                 saving_name = 'sampling_results_MCF7_narrowed',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'full',
-                                                                logarithmic = True )
+                                                                logarithmic = True,
+                                                                simulation_duration = 1500*5 )
         
-        self.assertEquals(my_posterior_samples.shape, 
-                          (int(round(total_number_of_samples*acceptance_ratio)), 7))
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 7))
 
     def test_plot_posterior_distributions(self):
         
@@ -589,7 +579,6 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 #         posterior_samples = posterior_samples[:10,:]
 #         posterior_results = posterior_results[:10,:]
         gillespie_results = hes5.calculate_gillespie_summary_statistics_at_parameters(posterior_samples)
-#         gillespie_results = hes5.calculate_summary_statistics_at_parameters(posterior_samples, model = 'gillespie_sequential')
 
         saving_path = os.path.join(os.path.dirname(__file__),'output','new_gillespie_posterior_results')
         
@@ -642,7 +631,9 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 #         np.save(saving_path + '.npy', gillespie_results)
         gillespie_results = np.load(saving_path + '.npy')
 
-        more_accurate_cle_results = hes5.calculate_summary_statistics_at_parameters(posterior_samples)
+        more_accurate_cle_results = hes5.calculate_summary_statistics_at_parameters(posterior_samples,
+                                                                                    number_of_traces_per_sample = 200,
+                                                                                    simulation_duration = 1500*5)
         gillespie_standard_deviation = gillespie_results[:,1]
 
         error_ratios = posterior_results[:,1]/gillespie_standard_deviation
