@@ -3,6 +3,9 @@ __pycache__/
 *.pyc
 *$py.class
 
+# files in any output folders
+output/
+
 # C extensions
 *.so
 
