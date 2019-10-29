@@ -1,13 +1,6 @@
 # Welcome to the Hesdynamics repository
 
-This repository can be used to simulate gene expression dynamics of self-repressing genes. It includes optimized code for
-
-* deterministic delay differential equations
-* stochastic delay differential equations
-* parameter inference through Approximate Bayesian Computation
-* Further analysis of the model behaviour through
-    * bifurcation analysis
-    * power spectrum analysis
+This repository can be used to simulate gene expression dynamics of self-repressing genes. It includes optimized code for deterministic and stochastic delay differential equations to describe gene expression oscillations, as well as code for parameter inference on these models through Approximate Bayesian Computation. It also contains some further model analysis methods, including bifurcation and power spectrum analysis.
 
 This repository contains supplementary material for the papers
 * Quantitative single-cell live imaging links HES5 dynamics with cell-state and fate in murine neurogenesis, 
@@ -29,7 +22,7 @@ All computational results in these papers can be re-generated from here.
      <https://www.dropbox.com/sh/5k8wofjk97uu5ux/AADhsd41JVzIL_KJTnnj5ysCa?dl=0>.
      This is to overcome data storage limits imposed by Github.
     - All remaining files in these folders contain additional analysis that was conducted while working towards the paper.
-- The file `test_infrastructure` contains functional tests for the most important functions the `/src/hes5.py`, and can be used to test whether the installation is working.
+- The file `test_infrastructure` contains functional tests for the most important functions in `/src/hes5.py`, and can be used to test whether the installation is working.
 
 ## Dependencies (tested on Ubuntu 16.04):
 
