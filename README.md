@@ -17,12 +17,12 @@ All computational results in these papers can be re-generated from here.
 - `/src/` contains the main Python module for this repository, `hes5.py`. It includes functions to simulate stochastic and deterministic model traces, to calculate summary statistics of expression and power spectra etc.
 - `/test/` contains the code to generate simulated data in the papers, and to make the paper figures. The code that was used in the papers by Manning et al. and Soto et al. is saved in the folders `test_manning_et_al_2019` and `test_soto_et_al_2019`, respectively. Each of these paper-specific folders contains the following files
     - `test_make_final_figures.py`, which can be used to regenerate all figures in the paper from data saved in this repository and 
-    - `test_make_analysis_for_paper.py`, which can be used to generate all data needed in `test_make_final_figures` from scratch by re-running all simulations.
+    - `test_make_analysis_for_paper.py`, which can be used to generate all data needed in `test_make_final_figures.py` from scratch by re-running all simulations.
     - `data/` is a folder that contains simulated data for each paper in the form of Python numpy arrays. In case of the paper by Soto et al., users will need to download this folder from
      <https://www.dropbox.com/sh/5k8wofjk97uu5ux/AADhsd41JVzIL_KJTnnj5ysCa?dl=0>.
      This is to overcome data storage limits imposed by Github.
     - All remaining files in these folders contain additional analysis that was conducted while working towards the paper.
-- The file `test_infrastructure` contains functional tests for the most important functions in `/src/hes5.py`, and can be used to test whether the installation is working.
+- The file `test_infrastructure.py` contains functional tests for the most important functions in `/src/hes5.py`, and can be used to test whether the installation is working.
 
 ## Dependencies (tested on Ubuntu 16.04):
 
