@@ -59,19 +59,19 @@ class TestInfrastructure(unittest.TestCase):
     def test_a_make_abc_samples(self):
         print('making abc samples')
         ## generate posterior samples
-        total_number_of_samples = 1000
+        total_number_of_samples = 100000
 
         #         total_number_of_samples = 10
 
-        prior_bounds = {'basal_transcription_rate': (10,80),
+        prior_bounds = {'basal_transcription_rate': (0,120),
                         'translation_rate': (10,60),
                         'repression_threshold': (0, 40000),
-                        'time_delay': (35, 60),
+                        'time_delay': (5, 40),
                         'hill_coefficient': (2, 6)}
 
         my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc(total_number_of_samples,
                                                                            number_of_traces_per_sample=200,
-                                                                           saving_name='sampling_results_mive',
+                                                                           saving_name='sampling_results_MiVe',
                                                                            prior_bounds=prior_bounds,
                                                                            prior_dimension='hill',
                                                                            logarithmic=True,
@@ -83,7 +83,7 @@ class TestInfrastructure(unittest.TestCase):
 
 
 ####################################################
-    def test_plot_posterior_distributions(self):
+    def xest_plot_posterior_distributions(self):
 
         option = 'deterministic'
         protein_low = 5000
