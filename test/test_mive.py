@@ -27,6 +27,7 @@ class TestInfrastructure(unittest.TestCase):
     def xest_make_relative_parameter_variation(self):
         number_of_parameter_points = 2
         number_of_trajectories = 200
+        # this is a test comment to see whether git push still works
         #         number_of_parameter_points = 2
         #         number_of_trajectories = 2
 
