@@ -20,6 +20,8 @@ All computational results in these papers can be re-generated from here.
     - `test_make_analysis_for_paper.py`, which can be used to generate all data needed in `test_make_final_figures.py` from scratch by re-running all simulations.
     - `data/` is a folder that contains simulated data for each paper in the form of Python numpy arrays. In case of the paper by Soto et al., users will need to download this folder from
      <https://www.dropbox.com/sh/5k8wofjk97uu5ux/AADhsd41JVzIL_KJTnnj5ysCa?dl=0>.
+     In case of the paper by Manning et al., users will need to download this folder from
+     <https://www.dropbox.com/sh/r7taosaoy821l1x/AABQHAWfX-uNGbqMRkAFw-r6a?dl=0>.
      This is to overcome data storage limits imposed by Github.
     - All remaining files in these folders contain additional analysis that was conducted while working towards the paper.
 - The file `test_infrastructure.py` contains functional tests for the most important functions in `/src/hes5.py`, and can be used to test whether the installation is working.
@@ -47,8 +49,10 @@ nosetests -s test_infrastructure.py
 
 This will run all functions in `test/test_infrastructure.py` whose name starts with `test_`, and it is possible to toggle whether individual functions are run by renaming them, for example by replacing `test_` with `xest_`. The same concept applies to all python modules in the `/test` folder. The file `test_infrastructure` contains a few functional tests for main functions in `src/hes5.py`, and the nosetests command above can be used to see whether the project is correctly set up.
 
-Before running any tests in the subfolder `test/test_soto_et_al_2019`, we advice to first download the folder `/test/test_soto_et_al_2019/data` using this link:
-<https://www.dropbox.com/sh/5k8wofjk97uu5ux/AADhsd41JVzIL_KJTnnj5ysCa?dl=0>
+Before running any tests in the subfolders `test/test_soto_et_al_2019` and `test/test_manning_et_al_2019`, we advice to first download the folders `/test/test_soto_et_al_2019/data` and `/test/test_manning_et_al_2019/data` using the links
+<https://www.dropbox.com/sh/5k8wofjk97uu5ux/AADhsd41JVzIL_KJTnnj5ysCa?dl=0> and
+<https://www.dropbox.com/sh/r7taosaoy821l1x/AABQHAWfX-uNGbqMRkAFw-r6a?dl=0>, respectively.
+
 
 For any questions concerning this repository, please email Jochen Kursawe at `jochen dot kursawe at st-andrews dot ac dot uk`
 
