@@ -4,12 +4,14 @@ import os.path
 
 import sys
 
+
 os.environ["OMP_NUM_THREADS"] = "1"
 import matplotlib as mpl
 
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
+import matplotlib.rcsetup as rc
 
 font = {'size': 10,
         'sans-serif': 'Arial'}
@@ -64,7 +66,7 @@ class TestInfrastructure(unittest.TestCase):
                                  'repeated_relative_sweeps_mive_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def xest_a_make_abc_samples(self):
+    def test_a_make_abc_samples(self):
         print('making abc samples')
         ## generate posterior samples
         total_number_of_samples = 100000
@@ -72,15 +74,15 @@ class TestInfrastructure(unittest.TestCase):
 
         #         total_number_of_samples = 10
 
-        prior_bounds = {'basal_transcription_rate': (0.1, 120),
-                        'translation_rate': (0.1, 60),
-                        'repression_threshold': (0.1, 40000),
+        prior_bounds = {'basal_transcription_rate': (0.01, 120),
+                        'translation_rate': (0.01, 60),
+                        'repression_threshold': (0.01, 40000),
                         'time_delay': (5, 40),
                         'hill_coefficient': (2, 6)}
 
         my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc(total_number_of_samples,
                                                                            number_of_traces_per_sample=200,
-                                                                           saving_name='sampling_results_MiVe',
+                                                                           saving_name='sampling_results_MiVe_expanded',
                                                                            prior_bounds=prior_bounds,
                                                                            prior_dimension='hill',
                                                                            logarithmic=True,
@@ -91,7 +93,7 @@ class TestInfrastructure(unittest.TestCase):
                           (total_number_of_samples, 5))
 
     ####################################################
-    def test_plot_posterior_distributions(self):
+    def xest_plot_posterior_distributions(self):
 
         option = 'first_filter'
         protein_low = 11000
@@ -155,7 +157,7 @@ class TestInfrastructure(unittest.TestCase):
                                                 'Transcription delay',
                                                 'Hill coefficient'])
 
-        performance_frame = pd.DataFrame(data=my_posterior_performances[:,range(0,5)],
+        performance_frame = pd.DataFrame(data=my_posterior_performances[:, range(0, 5)],
                                          columns=['Mean protein stochastic',
                                                   'STD stochastic',
                                                   'Period stochastic',
@@ -179,11 +181,79 @@ class TestInfrastructure(unittest.TestCase):
         font = {'size': 28}
         plt.rc('font', **font)
 
-
-
         my_parameter_pairplot = sns.pairplot(parameter_frame)
         my_parameter_pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                                   'output', 'parameterPairplot_MiVe_' + option)) #+ '.pdf'))
+                                                   'output', 'parameterPairplot_MiVe_' + option))  # + '.pdf'))
         my_performance_pairplot = sns.pairplot(performance_frame)
         my_performance_pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                                     'output', 'performancePairplot_MiVe_' + option)) # + '.pdf'))
+                                                     'output', 'performancePairplot_MiVe_' + option))  # + '.pdf'))
+
+    def xest_plot_model_traces(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sweeping_results_MiVe_')
+        # Plot design
+        font = {'family': 'serif',
+                'weight': 'light',
+                'size': 8}
+        mpl.rc('font', **font)  # pass in the font dict as kwargs
+        # Generate langevin traces sweeping parameters
+        parameter_bounds = {'basal_transcription_rate': (0.5, 3),
+                        'translation_rate': (0.5, 10),
+                        'repression_threshold': (0.01, 40000),
+                        'transcription_delay': (5, 40),
+                        'hill_coefficient': (2, 6)}
+        parameter_bounds = pd.DataFrame(parameter_bounds)
+        parameter_defaults = {'basal_transcription_rate': [1],
+                              'translation_rate': [1],
+                              'repression_threshold': [10000],
+                              'transcription_delay': [29],
+                              'hill_coefficient': [5]}
+        parameter_defaults = pd.DataFrame(parameter_defaults)
+        noPartitions = 3
+        # Transcription rate
+        l=[]
+        for parameter in parameter_bounds.columns:
+            grid = np.linspace(parameter_bounds.loc[0, parameter], parameter_bounds.loc[1, parameter], noPartitions)
+            parameters = parameter_defaults
+            plt.figure(parameter)
+            for i in range(0,noPartitions):
+                parameterValue = grid[i]
+                parameters.loc[0,parameter] = parameterValue
+                trace = hes5.generate_langevin_trajectory(duration=2000,
+                                                          repression_threshold=parameters.loc[0,'repression_threshold'],
+                                                          hill_coefficient=parameters.loc[0,'hill_coefficient'],
+                                                          mRNA_degradation_rate=np.log(2) / 30,
+                                                          protein_degradation_rate=np.log(2) / 90,
+                                                          basal_transcription_rate=parameters.loc[0,'basal_transcription_rate'],
+                                                          translation_rate=parameters.loc[0,'translation_rate'],
+                                                          transcription_delay=parameters.loc[0,'transcription_delay'],
+                                                          initial_mRNA=0,
+                                                          initial_protein=0,
+                                                          equilibration_time=0.0,
+                                                          extrinsic_noise_rate=0.0,
+                                                          transcription_noise_amplification=1.0,
+                                                          timestep=0.5
+                                                          )
+                trace = pd.DataFrame({'time': trace[:,0],
+                                      'mRNA': trace[:,1],
+                                      'protein': trace[:,2]})
+                plt.subplot(2,1,1)
+                line, = plt.plot(trace.loc[:, 'time'], trace.loc[:, 'mRNA'])
+                l.append(line)
+                #plt.title(str(round(parameterValue,2)))
+                #plt.xlabel('time')
+                if i==0:
+                    plt.ylabel('mRNA')
+                plt.subplot(2, 1,2)
+                plt.plot(trace.loc[:, 'time'], trace.loc[:, 'protein'])
+                #plt.title(parameter + ' = ' + str(parameterValue))
+                plt.xlabel('time')
+                if i==0:
+                    plt.ylabel('protein')
+            plt.suptitle((parameter.replace('_',' ')).upper())
+            plt.subplots_adjust(left=0.125, bottom=0.1, right=0.8, top=0.8, wspace=0.6, hspace=0.4)
+            plt.figlegend((l[0],l[1],l[2]),(str(grid[0]),str(grid[1]),str(grid[2])),  loc ='upper right')
+            plt.savefig(saving_path + parameter)
+
+        # Repression threshold
+        # Transcription delay
+        # Hill coefficient
