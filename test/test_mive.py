@@ -4,7 +4,6 @@ import os.path
 
 import sys
 
-
 os.environ["OMP_NUM_THREADS"] = "1"
 import matplotlib as mpl
 
@@ -66,7 +65,7 @@ class TestInfrastructure(unittest.TestCase):
                                  'repeated_relative_sweeps_mive_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
 
-    def test_a_make_abc_samples(self):
+    def xest_a_make_abc_samples(self):
         print('making abc samples')
         ## generate posterior samples
         total_number_of_samples = 100000
@@ -92,78 +91,85 @@ class TestInfrastructure(unittest.TestCase):
         self.assertEquals(my_prior_samples.shape,
                           (total_number_of_samples, 5))
 
-    ####################################################
-    def xest_plot_posterior_distributions(self):
-
-        option = 'first_filter'
-        protein_low = 11000
-        protein_high = 30000
-
+    def test_plot_posterior_distributions(self):
+        #Load data
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                    #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                    #                                     'sampling_results_repeated')
                                    #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                    #                                     'sampling_results_massive')
-                                   'sampling_results_MiVe')
-        model_results = np.load(saving_path + '.npy')
-        prior_samples = np.load(saving_path + '_parameters.npy')
+                                   'sampling_results_MiVe_expanded')
+        prior_performances = np.load(saving_path + '.npy')
+        prior_parameters = np.load(saving_path + '_parameters.npy')
 
+        protein_low = 11000
+        protein_high = 29000
+
+
+        option = 'priors'
         if option == 'full':
-            accepted_indices = np.where(np.logical_and(model_results[:, 0] > protein_low,  # protein number
-                                                       np.logical_and(model_results[:, 0] < protein_high,
+            accepted_indices = np.where(np.logical_and(prior_performances[:, 0] > protein_low,  # protein number
+                                                       np.logical_and(prior_performances[:, 0] < protein_high,
                                                                       # protein_number
-                                                                      np.logical_and(model_results[:, 1] < 0.15,
+                                                                      np.logical_and(prior_performances[:, 1] < 0.15,
                                                                                      # standard deviation
-                                                                                     model_results[:,
+                                                                                     prior_performances[:,
                                                                                      1] > 0.05))))  # standard deviation
-        #                                         np.logical_and(model_results[:,1]>0.05,  #standard deviation
-        #                                                     prior_samples[:,3]>20))))) #time_delay
+        #                                         np.logical_and(prior_performances[:,1]>0.05,  #standard deviation
+        #                                                     prior_parameters[:,3]>20))))) #time_delay
 
-        elif option == 'first_filter':
-            accepted_indices = np.where(np.logical_and(model_results[:, 0] > protein_low,  # protein number
-                                                       np.logical_and(model_results[:, 0] < protein_high,
-                                                                      # protein_number
-                                                                      #                                          np.logical_and(model_results[:,6]<0.15,  #standard deviation
-                                                                      model_results[:, 1] > 0.05)))
-        elif option == 'no_filter':
-            accepted_indices = np.where(model_results[:, 0] > 0)  # protein number
+        elif option == 'posteriors':
+            accepted_indices = np.where(np.logical_and(prior_performances[:, 0] > protein_low,  # protein number
+                                                       prior_performances[:, 0] < protein_high))
+            # protein_number
+            #                                          np.logical_and(prior_performances[:,6]<0.15,  #standard deviation
+            # prior_performances[:, 1] > 0.05)))
+        elif option == 'priors':
+            accepted_indices = np.where(prior_performances[:, 0] > 0)  # protein number
 
         else:
             ValueError('could not identify posterior option')
         #
-        my_posterior_samples = prior_samples[accepted_indices]
-        my_posterior_performances = model_results[accepted_indices]
+        my_posterior_parameters = prior_parameters[accepted_indices]
+        performances = prior_performances[accepted_indices]
 
-        # pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
-        # pairplot.savefig(os.path.join(os.path.dirname(__file__),
-        #                              'output','pairplot_extended_abc_mive' + option + '.pdf'))
-
-        print('Number of accepted samples is ')
-        print(len(my_posterior_samples))
-
-        my_posterior_samples[:, 2] /= 10000
-
-        data_frame = pd.DataFrame(data=my_posterior_samples,
-                                  columns=['Transcription rate',
-                                           'Translation rate',
-                                           'Repression threshold/1e4',
-                                           'Transcription delay',
-                                           'Hill coefficient'])
-
-        parameter_frame = pd.DataFrame(data=my_posterior_samples,
+        # Organise data
+        my_posterior_parameters[:, 2] /= 10000 #Repression threshold 1e-4
+        parameter_frame = pd.DataFrame(data=my_posterior_parameters,
                                        columns=['Transcription rate',
                                                 'Translation rate',
-                                                'Repression threshold/1e4',
+                                                'Repression threshold 1e-4',
                                                 'Transcription delay',
                                                 'Hill coefficient'])
-
-        performance_frame = pd.DataFrame(data=my_posterior_performances[:, range(0, 5)],
+        performance_frame = pd.DataFrame(data=performances[:, range(0, 5)],
                                          columns=['Mean protein stochastic',
                                                   'STD stochastic',
                                                   'Period stochastic',
                                                   'Coherence stochastic',
                                                   'Mean mRNA stochastic'])
-        # performance_frame = pd.DataFrame(data=my_posterior_performances,
+        parameter_bounds = pd.DataFrame({'Transcription rate': (0.01, 120),
+                                         'Translation rate': (0.01, 60),
+                                         'Repression threshold 1e-4': (0.000001, 4),
+                                         'Transcription delay': (5, 40),
+                                         'Hill coefficient': (2, 6)})
+
+        performance_bounds = pd.DataFrame({'Mean protein stochastic': (11000, 29000),
+                                           'STD stochastic':(performances[:, 1].min(), performances[:, 1].max()),
+                                           'Period stochastic':(performances[:, 2].min(), performances[:, 2].max()),
+                                           'Coherence stochastic':(performances[:, 3].min(), performances[:, 3].max()),
+                                           'Mean mRNA stochastic':(performances[:, 4].min(), performances[:, 4].max())})
+
+        parameter_pairplot = hes5.plot_posterior_distributions_MiVe(parameter_frame, parameter_bounds)
+        parameter_pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                      'output', 'Parameter_pairplot_extended_abc_MiVe_' + option + '.png'))
+        performance_pairplot = hes5.plot_posterior_distributions_MiVe(performance_frame,performance_bounds,logarithmic = False)
+        performance_pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                                'output', 'Performances_pairplot_extended_abc_MiVe_' + option + '.png'))
+
+        print('Number of accepted samples is ')
+        print(len(my_posterior_parameters))
+
+         # performance_frame = pd.DataFrame(data=performances,
         #                                  columns=['Mean protein stochastic',
         #                                           'STD stochastic',
         #                                           'Period stochastic',
@@ -177,16 +183,7 @@ class TestInfrastructure(unittest.TestCase):
         #                                           'High frequency weight',
         #                                           'Fluctuation weight'])
 
-        sns.set(font_scale=1.3, rc={'ytick.labelsize': 6})
-        font = {'size': 28}
-        plt.rc('font', **font)
 
-        my_parameter_pairplot = sns.pairplot(parameter_frame)
-        my_parameter_pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                                   'output', 'parameterPairplot_MiVe_' + option))  # + '.pdf'))
-        my_performance_pairplot = sns.pairplot(performance_frame)
-        my_performance_pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                                     'output', 'performancePairplot_MiVe_' + option))  # + '.pdf'))
 
     def xest_plot_model_traces(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sweeping_results_MiVe_')
@@ -197,10 +194,10 @@ class TestInfrastructure(unittest.TestCase):
         mpl.rc('font', **font)  # pass in the font dict as kwargs
         # Generate langevin traces sweeping parameters
         parameter_bounds = {'basal_transcription_rate': (0.5, 3),
-                        'translation_rate': (0.5, 10),
-                        'repression_threshold': (0.01, 40000),
-                        'transcription_delay': (5, 40),
-                        'hill_coefficient': (2, 6)}
+                            'translation_rate': (0.5, 10),
+                            'repression_threshold': (0.01, 40000),
+                            'transcription_delay': (5, 40),
+                            'hill_coefficient': (2, 6)}
         parameter_bounds = pd.DataFrame(parameter_bounds)
         parameter_defaults = {'basal_transcription_rate': [1],
                               'translation_rate': [1],
@@ -210,22 +207,24 @@ class TestInfrastructure(unittest.TestCase):
         parameter_defaults = pd.DataFrame(parameter_defaults)
         noPartitions = 3
         # Transcription rate
-        l=[]
+        l = []
         for parameter in parameter_bounds.columns:
             grid = np.linspace(parameter_bounds.loc[0, parameter], parameter_bounds.loc[1, parameter], noPartitions)
             parameters = parameter_defaults
             plt.figure(parameter)
-            for i in range(0,noPartitions):
+            for i in range(0, noPartitions):
                 parameterValue = grid[i]
-                parameters.loc[0,parameter] = parameterValue
+                parameters.loc[0, parameter] = parameterValue
                 trace = hes5.generate_langevin_trajectory(duration=2000,
-                                                          repression_threshold=parameters.loc[0,'repression_threshold'],
-                                                          hill_coefficient=parameters.loc[0,'hill_coefficient'],
+                                                          repression_threshold=parameters.loc[
+                                                              0, 'repression_threshold'],
+                                                          hill_coefficient=parameters.loc[0, 'hill_coefficient'],
                                                           mRNA_degradation_rate=np.log(2) / 30,
                                                           protein_degradation_rate=np.log(2) / 90,
-                                                          basal_transcription_rate=parameters.loc[0,'basal_transcription_rate'],
-                                                          translation_rate=parameters.loc[0,'translation_rate'],
-                                                          transcription_delay=parameters.loc[0,'transcription_delay'],
+                                                          basal_transcription_rate=parameters.loc[
+                                                              0, 'basal_transcription_rate'],
+                                                          translation_rate=parameters.loc[0, 'translation_rate'],
+                                                          transcription_delay=parameters.loc[0, 'transcription_delay'],
                                                           initial_mRNA=0,
                                                           initial_protein=0,
                                                           equilibration_time=0.0,
@@ -233,25 +232,25 @@ class TestInfrastructure(unittest.TestCase):
                                                           transcription_noise_amplification=1.0,
                                                           timestep=0.5
                                                           )
-                trace = pd.DataFrame({'time': trace[:,0],
-                                      'mRNA': trace[:,1],
-                                      'protein': trace[:,2]})
-                plt.subplot(2,1,1)
+                trace = pd.DataFrame({'time': trace[:, 0],
+                                      'mRNA': trace[:, 1],
+                                      'protein': trace[:, 2]})
+                plt.subplot(2, 1, 1)
                 line, = plt.plot(trace.loc[:, 'time'], trace.loc[:, 'mRNA'])
                 l.append(line)
-                #plt.title(str(round(parameterValue,2)))
-                #plt.xlabel('time')
-                if i==0:
+                # plt.title(str(round(parameterValue,2)))
+                # plt.xlabel('time')
+                if i == 0:
                     plt.ylabel('mRNA')
-                plt.subplot(2, 1,2)
+                plt.subplot(2, 1, 2)
                 plt.plot(trace.loc[:, 'time'], trace.loc[:, 'protein'])
-                #plt.title(parameter + ' = ' + str(parameterValue))
+                # plt.title(parameter + ' = ' + str(parameterValue))
                 plt.xlabel('time')
-                if i==0:
+                if i == 0:
                     plt.ylabel('protein')
-            plt.suptitle((parameter.replace('_',' ')).upper())
+            plt.suptitle((parameter.replace('_', ' ')).upper())
             plt.subplots_adjust(left=0.125, bottom=0.1, right=0.8, top=0.8, wspace=0.6, hspace=0.4)
-            plt.figlegend((l[0],l[1],l[2]),(str(grid[0]),str(grid[1]),str(grid[2])),  loc ='upper right')
+            plt.figlegend((l[0], l[1], l[2]), (str(grid[0]), str(grid[1]), str(grid[2])), loc='upper right')
             plt.savefig(saving_path + parameter)
 
         # Repression threshold

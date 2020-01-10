@@ -14,6 +14,7 @@ import pandas as pd
 import socket
 import jitcdde
 import warnings
+import seaborn as sns
 import logging
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
 try:
@@ -1786,6 +1787,132 @@ def plot_posterior_distributions( posterior_samples, logarithmic = True ):
     sns.reset_orig()
 
     return pairplot
+
+
+def plot_posterior_distributions_MiVe(data_frame, prior_bounds, logarithmic=True):
+    '''Plot the posterior samples in a pair plot. Only works if there are
+    more than four samples present
+    **MiVe: Generalized function to plot performance DataFrame object in the same manner
+    **MiVe: Extended parameter ranges and changed upper triangle of pair grid
+    scatter plots with contour plots
+    Parameters
+    ----------
+
+    data_frame : pd.DataFrame
+        The samples from which the pairplot should be generated.
+        Each row contains a parameter
+    prior_bounds : pd.DataFrame
+        The bounds that were used to generate the prior samples
+        Each parameter has a lower bound on row 0 and an upper bound on row 1
+    logarithmic : bool
+        if bool then the transcription and translation rate axes have logarithmic scales
+
+    Returns
+    -------
+
+    paiplot : matplotlib figure handle
+       The handle for the pairplot on which the use can call 'save'
+    '''
+    sns.set()
+
+    pairplot = sns.PairGrid(data_frame)
+    pairplot.map_diag(sns.distplot, kde=False, rug=False)
+    pairplot.map_lower(sns.regplot, scatter_kws={'alpha': 0.4, 'rasterized': True}, fit_reg=False)
+    pairplot.map_upper(sns.kdeplot)
+    pairplot.set(xlim=(0, None), ylim=(0, None))
+    if logarithmic:
+        for artist in pairplot.diag_axes[0].get_children():
+            try:
+                artist.remove()
+            except:
+                pass
+        for artist in pairplot.diag_axes[1].get_children():
+            try:
+                artist.remove()
+            except:
+                pass
+        transcription_rate_bins = np.logspace(np.log10(prior_bounds.loc[0,'Transcription rate']),
+                                              np.log10(prior_bounds.loc[1,'Transcription rate']), 20)
+        translation_rate_bins = np.logspace(np.log10(prior_bounds.loc[0,'Translation rate']),
+                                              np.log10(prior_bounds.loc[1,'Translation rate']), 20)
+        plt.sca(pairplot.diag_axes[0]) #Current figure updated to the parent of diag_axes[0] => to pairplot?
+        transcription_histogram, _ = np.histogram(data_frame['Transcription rate'],
+                                                  bins=transcription_rate_bins)
+        sns.distplot(data_frame['Transcription rate'],
+                     kde=False,
+                     rug=False,
+                     bins=transcription_rate_bins)
+        #                  ax = pairplot.diag_axes[0])
+        #         pairplot.diag_axes[0].set_ylim(0,np.max(transcription_histogram)*1.2)
+        plt.gca().set_xlim(0.5, 100)
+
+        plt.sca(pairplot.diag_axes[1])
+        sns.distplot(data_frame['Translation rate'],
+                     kde=False,
+                     rug=False,
+                     bins=translation_rate_bins)
+        plt.gca().set_xlim(1, 200)
+        #
+        pairplot.axes[-1, 0].set_xscale("log")
+        pairplot.axes[-1, 0].set_xlim(0.1, 100)
+        pairplot.axes[-1, 1].set_xscale("log")
+        pairplot.axes[-1, 1].set_xlim(1, 200)
+        pairplot.axes[0, 0].set_yscale("log")
+        pairplot.axes[0, 0].set_ylim(0.1, 100)
+        pairplot.axes[1, 0].set_yscale("log")
+        pairplot.axes[1, 0].set_ylim(1, 200)
+    if prior_bounds.columns[2] == 'Transcription delay':
+        for artist in pairplot.diag_axes[3].get_children():
+            try:
+                artist.remove()
+            except:
+                pass
+        plt.sca(pairplot.diag_axes[3])
+        time_delay_bins = np.linspace(5, 40, 10)
+        time_delay_histogram, _ = np.histogram(data_frame['Transcription delay'],
+                                               bins=time_delay_bins)
+        sns.distplot(data_frame['Transcription delay'],
+                     kde=False,
+                     rug=False,
+                     bins=time_delay_bins)
+        #                  ax = pairplot.diag_axes[0])
+        #         pairplot.diag_axes[0].set_ylim(0,np.max(transcription_histogram)*1.2)
+        plt.gca().set_xlim(5, 40)
+
+    # pairplot.axes[-1, 2].set_xlim(0, 10)
+    # pairplot.axes[-1, 3].set_xlim(5, 40)
+
+    #Set all ranges according to prior bounds
+    lowermargin = 0.5
+    uppermargin = 1.3
+    for i in range(0,data_frame.shape[1]):
+        if pairplot.axes[-1,i].get_xscale == 'log':
+               pairplot.axes[-1,i].set_xlim(lowermargin*np.log10(prior_bounds.loc[0,pairplot.axes[-1,i].get_xlabel()]),
+                                            uppermargin*np.log10(prior_bounds.loc[1,pairplot.axes[-1,i].get_xlabel()]))
+        else:
+            pairplot.axes[-1,i].set_xlim(lowermargin*prior_bounds.loc[0,pairplot.axes[-1,i].get_xlabel()],
+                                         uppermargin*prior_bounds.loc[1,pairplot.axes[-1,i].get_xlabel()])
+        if pairplot.axes[i,0].get_yscale == 'log':
+            pairplot.axes[i,0].set_ylim(lowermargin*np.log10(prior_bounds.loc[0,pairplot.axes[i,0].get_ylabel()]),
+                                        uppermargin*np.log10(prior_bounds.loc[1,pairplot.axes[i,0].get_ylabel()]))
+        else:
+            pairplot.axes[i,0].set_ylim(lowermargin*prior_bounds.loc[0,pairplot.axes[i,0].get_ylabel()],
+                                        uppermargin*prior_bounds.loc[1,pairplot.axes[i,0].get_ylabel()])
+
+    #     if posterior_samples.shape[1] == 6:
+    #         pairplot.axes[-1,4].locator_params(axis = 'x', nbins = 5)
+    #         pairplot.axes[-1,5].locator_params(axis = 'x', nbins = 5)
+    #         pairplot.axes[-1,4].set_xlim(0,0.04)
+    #         pairplot.axes[-1,5].set_xlim(0,0.04)
+
+    #     pairplot = sns.PairGrid(data_frame)
+    #     pairplot.map_diag(sns.kdeplot)
+    #     pairplot.map_offdiag(sns.kdeplot, cmap="Blues_d", n_levels=10)
+
+    sns.reset_orig()
+
+    return pairplot
+
 
 def select_posterior_samples(prior_samples, distance_table, acceptance_ratio):
     '''Collect the parameter values of all prior_samples whose distance_table entries are 
