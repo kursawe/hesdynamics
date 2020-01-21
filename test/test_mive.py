@@ -33,7 +33,7 @@ import hes5
 class TestInfrastructure(unittest.TestCase):
 
     def xest_make_relative_parameter_variation(self):
-        number_of_parameter_points = 2
+        number_of_parameter_points = 20
         number_of_trajectories = 200
         # this is a test comment to see whether git push still works
         #         number_of_parameter_points = 2
@@ -41,16 +41,19 @@ class TestInfrastructure(unittest.TestCase):
 
         #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_all_parameters')
         #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_mive')
+        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_MiVe_expanded')
         model_results = np.load(saving_path + '.npy')
         prior_samples = np.load(saving_path + '_parameters.npy')
 
         accepted_indices = np.where(np.logical_and(model_results[:, 0] > 5000,  # protein number
                                                    np.logical_and(model_results[:, 0] < 65000,  # protein_number
                                                                   #                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
-                                                                  model_results[:, 1] > 0.05)))  # standard deviation
+                                                                  np.logical_and(model_results[:, 1] > 0.07,
+                                                                                 model_results[:,
+                                                                                 1] < 0.19))))  # standard deviation
 
-        my_posterior_samples = prior_samples[accepted_indices][:10]
+        my_posterior_samples = prior_samples[accepted_indices]
+
         print('number of accepted samples is')
         print(len(my_posterior_samples))
 
@@ -62,8 +65,114 @@ class TestInfrastructure(unittest.TestCase):
 
         for parameter_name in my_parameter_sweep_results:
             np.save(os.path.join(os.path.dirname(__file__), 'output',
-                                 'repeated_relative_sweeps_mive_' + parameter_name + '.npy'),
+                                 'repeated_relative_sweeps_MiVe_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
+            # print(parameter_name + ' ' + str(my_parameter_sweep_results[parameter_name]))
+
+    def test_plot_ss_curves(self):
+
+        parameters = {'basal_transcription_rate',
+                      'translation_rate',
+                      'repression_threshold',
+                      'time_delay',
+                      'hill_coefficient'}
+        # definde performances as an ordered list rather than an unordered set to be able to index later
+        performances = ['Protein',
+                        'Std',
+                        'Period',
+                        'Coherence',
+                        'mRNA']
+        layout = {'pad': 1.5,
+                  'w_pad': 1.5,
+                  'h_pad': 1.5,
+                  'rect': (0, 0, 1, 1)}
+        for parameter in parameters:
+            # my_figure = plt.figure(figsize=(2.5, 1.9))
+
+            this_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                                                'repeated_relative_sweeps_MiVe_' + parameter + '.npy'))
+            #                                                           'repeated_degradation_sweep.npy'))
+            #         print(my_degradation_sweep_results[0,:,0])
+            #         print(np.log(2)/90)
+            #         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] -
+            #                                                       my_degradation_sweep_results[:,3,4]>
+            #                                                       my_degradation_sweep_results[:,3,4]*1.0,
+            #                                                       my_degradation_sweep_results[:,3,4]>0.1))
+            #         print(len(my_filtered_indices[0]))
+            #         print(len(my_degradation_sweep_results))
+            #         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
+            x_coord = -0.3
+            y_coord = 1.05
+            print(parameter)
+            print(this_parameter_sweep_results.shape)
+            # lis = list(enumerate(this_parameter_sweep_results[:3,:,:]))
+            fig, axs = plt.subplots(5, 1, sharex=True)
+            fig.set_tight_layout(layout)
+            for i, results_table in enumerate(this_parameter_sweep_results[:, :, :]):
+                for j, performance in enumerate(performances, 1):
+                    # plt.subplot(5, 1, j)
+                    axs[j - 1].plot(results_table[:, 0],
+                                    results_table[:, j])  # , color='C0', alpha=0.02, zorder=0)
+                    # plt.axvline(np.log(2) / 90, color='black')
+                    # plt.gca().locator_params(axis='x', tight=True, nbins=4)
+                    # plt.gca().locator_params(axis='y', tight=True, nbins=3)
+                    # plt.gca().set_rasterization_zorder(1)
+                    axs[j - 1].set_ylabel(performance)
+                    # plt.ylim(0, 1)
+                    # plt.xlim(0, np.log(2) / 15.)
+                    #         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
+
+                plt.xlabel(parameter)
+                file_name = os.path.join(os.path.dirname(__file__),
+                                         'output', 'performance_curves_allPP_' + parameter)
+                # plt.savefig(file_name + '.pdf', dpi=600)
+                fig.savefig(file_name + '.png', dpi=600)
+
+    def test_ss_curves_cluster(self):
+
+        parameters = {'basal_transcription_rate',
+                      'translation_rate',
+                      'repression_threshold',
+                      'time_delay',
+                      'hill_coefficient'}
+        # definde performances as an ordered list rather than an unordered set to be able to index later
+        performances = ['Protein',
+                        'Std',
+                        'Period',
+                        'Coherence',
+                        'mRNA']
+        layout = {'pad': 1.5,
+                  'w_pad': 1.5,
+                  'h_pad': 1.5,
+                  'rect': (0, 0, 1, 1)}
+        eps = 1e-15
+        dif = np.zeros((19, 5))
+        first_der = np.zeros((19, 5), dtype=bool)
+        second_der = np.zeros((18, 5), dtype=bool)
+        monotony = np.zeros((13267, 5))
+        # For each parameter
+        for parameter in parameters:
+            this_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
+                                                                'repeated_relative_sweeps_MiVe_' + parameter + '.npy'))
+            # For each initial parameter point
+            for i, results_table in enumerate(this_parameter_sweep_results[:, 1:, :5]):
+                ###Check if column 1 is the second sweep value
+                dif = results_table[1:, :] - results_table[:-1, :]
+                first_der = np.where(dif < -eps, -1, dif)
+                first_der = np.where(dif > eps, 1, dif)
+                second_der = first_der[1:, :] - first_der[:-1, :]
+
+
+                # file_name = os.path.join(os.path.dirname(__file__),
+                'output', 'performance_curves_allPP_' + parameter)
+                # plt.savefig(file_name + '.pdf', dpi=600)
+                # fig.savefig(file_name + '.png', dpi=600)
+
+        def xest_open_sweeps(self):
+            saving_path = os.path.join(os.path.dirname(__file__), 'output', 'repeated_relative_sweeps_MiVe_')
+            sweeper = np.load(saving_path + 'repression_threshold.npy')
+            for key, value in sweeper.iteritems():
+                print(key, value)
 
     def xest_a_make_abc_samples(self):
         print('making abc samples')
@@ -91,8 +200,8 @@ class TestInfrastructure(unittest.TestCase):
         self.assertEquals(my_prior_samples.shape,
                           (total_number_of_samples, 5))
 
-    def test_plot_posterior_distributions(self):
-        #Load data
+    def xest_plot_posterior_distributions(self):
+        # Load data
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                    #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                    #                                     'sampling_results_repeated')
@@ -104,9 +213,10 @@ class TestInfrastructure(unittest.TestCase):
 
         protein_low = 11000
         protein_high = 29000
+        std_low = 0.07
+        std_high = 0.19
 
-
-        option = 'priors'
+        option = 'posteriors_2'
         if option == 'full':
             accepted_indices = np.where(np.logical_and(prior_performances[:, 0] > protein_low,  # protein number
                                                        np.logical_and(prior_performances[:, 0] < protein_high,
@@ -117,6 +227,18 @@ class TestInfrastructure(unittest.TestCase):
                                                                                      1] > 0.05))))  # standard deviation
         #                                         np.logical_and(prior_performances[:,1]>0.05,  #standard deviation
         #                                                     prior_parameters[:,3]>20))))) #time_delay
+
+        elif option == 'posteriors_2':
+            accepted_indices = np.where(np.logical_and(prior_performances[:, 0] > protein_low,  # protein number
+                                                       np.logical_and(prior_performances[:, 0] < protein_high,
+                                                                      # protein_number
+                                                                      np.logical_and(
+                                                                          prior_performances[:, 1] < std_high,
+                                                                          # standard deviation
+                                                                          prior_performances[:,
+                                                                          1] > std_low))))  # standard deviation
+            #                                         np.logical_and(prior_performances[:,1]>0.05,  #standard deviation
+            #                                                     prior_parameters[:,3]>20))))) #time_delay
 
         elif option == 'posteriors':
             accepted_indices = np.where(np.logical_and(prior_performances[:, 0] > protein_low,  # protein number
@@ -134,7 +256,7 @@ class TestInfrastructure(unittest.TestCase):
         performances = prior_performances[accepted_indices]
 
         # Organise data
-        my_posterior_parameters[:, 2] /= 10000 #Repression threshold 1e-4
+        my_posterior_parameters[:, 2] /= 10000  # Repression threshold 1e-4
         parameter_frame = pd.DataFrame(data=my_posterior_parameters,
                                        columns=['Transcription rate',
                                                 'Translation rate',
@@ -154,22 +276,26 @@ class TestInfrastructure(unittest.TestCase):
                                          'Hill coefficient': (2, 6)})
 
         performance_bounds = pd.DataFrame({'Mean protein stochastic': (11000, 29000),
-                                           'STD stochastic':(performances[:, 1].min(), performances[:, 1].max()),
-                                           'Period stochastic':(performances[:, 2].min(), performances[:, 2].max()),
-                                           'Coherence stochastic':(performances[:, 3].min(), performances[:, 3].max()),
-                                           'Mean mRNA stochastic':(performances[:, 4].min(), performances[:, 4].max())})
+                                           'STD stochastic': (performances[:, 1].min(), performances[:, 1].max()),
+                                           'Period stochastic': (performances[:, 2].min(), performances[:, 2].max()),
+                                           'Coherence stochastic': (performances[:, 3].min(), performances[:, 3].max()),
+                                           'Mean mRNA stochastic': (
+                                               performances[:, 4].min(), performances[:, 4].max())})
 
         parameter_pairplot = hes5.plot_posterior_distributions_MiVe(parameter_frame, parameter_bounds)
         parameter_pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                      'output', 'Parameter_pairplot_extended_abc_MiVe_' + option + '.png'))
-        performance_pairplot = hes5.plot_posterior_distributions_MiVe(performance_frame,performance_bounds,logarithmic = False)
+                                                'output', 'Parameter_pairplot_extended_abc_MiVe_' + option + '.png'))
+        performance_pairplot = hes5.plot_posterior_distributions_MiVe(performance_frame, performance_bounds,
+                                                                      logarithmic=False)
         performance_pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                                'output', 'Performances_pairplot_extended_abc_MiVe_' + option + '.png'))
+                                                  'output',
+                                                  'Performances_pairplot_extended_abc_MiVe_' + option + '.png'))
 
         print('Number of accepted samples is ')
         print(len(my_posterior_parameters))
+        # Save posterior parameter set and corresponding performances
 
-         # performance_frame = pd.DataFrame(data=performances,
+        # performance_frame = pd.DataFrame(data=performances,
         #                                  columns=['Mean protein stochastic',
         #                                           'STD stochastic',
         #                                           'Period stochastic',
@@ -182,8 +308,6 @@ class TestInfrastructure(unittest.TestCase):
         #                                           'Mean mRNA deterministic',
         #                                           'High frequency weight',
         #                                           'Fluctuation weight'])
-
-
 
     def xest_plot_model_traces(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sweeping_results_MiVe_')
