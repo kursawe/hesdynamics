@@ -69,7 +69,7 @@ class TestInfrastructure(unittest.TestCase):
                     my_parameter_sweep_results[parameter_name])
             # print(parameter_name + ' ' + str(my_parameter_sweep_results[parameter_name]))
 
-    def test_plot_ss_curves(self):
+    def xest_plot_ss_curves(self):
 
         parameters = {'basal_transcription_rate',
                       'translation_rate',
@@ -129,50 +129,118 @@ class TestInfrastructure(unittest.TestCase):
                 fig.savefig(file_name + '.png', dpi=600)
 
     def test_ss_curves_cluster(self):
-
-        parameters = {'basal_transcription_rate',
+        ##Consider defining parameters and performance names globally in the future/in a separate file
+        ##Consider gathering plotting parameters such as layout into a separate file
+        #All model parameters as a list - order is important
+        parameters = ['basal_transcription_rate',
                       'translation_rate',
                       'repression_threshold',
                       'time_delay',
-                      'hill_coefficient'}
-        # definde performances as an ordered list rather than an unordered set to be able to index later
+                      'hill_coefficient']
+        #Indexes of parameters we choose to look at - transcription rate & repression thd
+        chosen_param = np.array([0])
+        # define performances as an ordered list rather than an unordered set to be able to index later
         performances = ['Protein',
                         'Std',
                         'Period',
                         'Coherence',
                         'mRNA']
-        layout = {'pad': 1.5,
-                  'w_pad': 1.5,
-                  'h_pad': 1.5,
-                  'rect': (0, 0, 1, 1)}
-        eps = 1e-15
-        dif = np.zeros((19, 5))
-        first_der = np.zeros((19, 5), dtype=bool)
-        second_der = np.zeros((18, 5), dtype=bool)
-        monotony = np.zeros((13267, 5))
+
+        eps = 1e-15 #Define the smallest detectable change
+        #Define path to retrieve parameter points
+        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_MiVe_expanded')
+        model_results = np.load(saving_path + '.npy')
+        prior_samples = np.load(saving_path + '_parameters.npy')
+
+        accepted_indices = np.where(np.logical_and(model_results[:, 0] > 5000,  # protein number
+                                                   np.logical_and(model_results[:, 0] < 65000,  # protein_number
+                                                                  #                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
+                                                                  np.logical_and(model_results[:, 1] > 0.07,
+                                                                                 model_results[:,
+                                                                                 1] < 0.19))))  # standard deviation
+
+        parameter_points = prior_samples[accepted_indices]
+        parameter_points[:, 0:2] = np.log10(parameter_points[:, 0:2])
+        print('number of accepted samples is')
+        print(len(parameter_points))
+        hzd_std = []
         # For each parameter
-        for parameter in parameters:
+        for parameter in (parameters[idx] for idx in chosen_param):
             this_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
                                                                 'repeated_relative_sweeps_MiVe_' + parameter + '.npy'))
             # For each initial parameter point
-            for i, results_table in enumerate(this_parameter_sweep_results[:, 1:, :5]):
-                ###Check if column 1 is the second sweep value
-                dif = results_table[1:, :] - results_table[:-1, :]
-                first_der = np.where(dif < -eps, -1, dif)
-                first_der = np.where(dif > eps, 1, dif)
-                second_der = first_der[1:, :] - first_der[:-1, :]
+            for i, results_table in enumerate(this_parameter_sweep_results[:, :, 1:6]):
+                if i==0:
+                    #Define descriptors for the traces
+                    dif = np.zeros((this_parameter_sweep_results.shape[0],results_table.shape[0]-1,results_table.shape[1]))
+                    first_der = np.zeros((this_parameter_sweep_results.shape[0],dif.shape[1],dif.shape[2]))
+                    second_der = np.zeros((this_parameter_sweep_results.shape[0],first_der.shape[1]-1,first_der.shape[2]))
+                    monotony = np.zeros((this_parameter_sweep_results.shape[0],results_table.shape[1]))
+                #dif[k] = trace[k]-trace[k-1]
+                dif[i,:,:] = results_table[1:, :] - results_table[:-1, :]
+                #first_der is actually sign:
+                #           -1 Decrease
+                #            0 Constant
+                #           +1 Increase
+                first_der[i,:,:] = np.where(dif[i,:,:] < -eps, -1, 1)
+                #first_der = np.where(dif > eps, 1, first_der)
+                first_der[i,:,:] = np.where(np.logical_and(dif[i,:,:] > -eps,dif[i,:,:] < eps), 0, first_der[i,:,:])
+                #second_der is change of sign
+                #           -2 Was increasing now decreasing
+                #           -1 Was constant now decrease/Was increasing now constant
+                #            0 Was any now the same
+                #           +1 Was decreasing now constant/was constant now increasing
+                #           +2 Was decreasing now increasing
+                second_der[i,:,:] = first_der[i,1:, :] - first_der[i,:-1, :]
+                #monotony: note that constant is not marked
+                #           -1 Non-increasing
+                #            0 Mixed
+                #           +1 Non-decreasing
+                #For all summary statistics
+                for k,ss in enumerate(first_der[i,:,:].T):
+                    monotony[i,k] = -1 if (ss != 1).all() & (ss==-1).any() else 0
+                    if (ss != -1).all() & (ss == 1).any(): monotony[i,k] = +1
+            #Gather all columns of monotony(std)==0
+            hzd_std = first_der[np.where(monotony[:,1] == 0)][:,:, 1]
+            hzd_std_df = pd.DataFrame(data=hzd_std)
+            duplicates = hzd_std_df.duplicated()
+            falses = duplicates.value_counts()
+            #std = [first_der[ind] for ind in np.where(monotony.T[1] == 0)]
+            for i,ind in enumerate(np.where(monotony[:,1] == 0)):
+                if i==0:
+                    hzd_std = first_der[ind][:, 1].T
+                else:
+                    np.concatenate(hzd_std,first_der[ind][:,1])
+            #Produce clustering based on each SS monontony
+            for i,perf_monotony,performance in zip(range(monotony.shape[1]+1),monotony.T,performances[0:2]):#enumerate(monotony.T):
+                #Create dataframe for pairplot: all PP concatenated with corresponding column in monotony
+                df_columns = parameters + [performance]
+                indexes = np.where(perf_monotony == 0)
+                #pps = parameter_points[indexes]
+                this_performance_df = pd.DataFrame(data = np.concatenate((parameter_points[indexes],
+                                                                          np.array([perf_monotony[indexes]]).T),
+                                                                         axis = 1),
+                                                   columns = df_columns)
 
+                #Create pairplot
+                fig = sns.pairplot(this_performance_df)#,hue=performance)
+                #Save figure
+                fig.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                         'effectsOf_'+parameter+'_sweep_on_'+performance+'_hzd'))
+            #Save trace descriptors at parameter
+            #file_name = os.path.join(os.path.dirname(__file__),'output','performance_curve_descriptors_'+parameter)
+            #np.save(file_name)
 
                 # file_name = os.path.join(os.path.dirname(__file__),
-                'output', 'performance_curves_allPP_' + parameter)
+                #'output', 'performance_curves_allPP_' + parameter)
                 # plt.savefig(file_name + '.pdf', dpi=600)
                 # fig.savefig(file_name + '.png', dpi=600)
 
-        def xest_open_sweeps(self):
-            saving_path = os.path.join(os.path.dirname(__file__), 'output', 'repeated_relative_sweeps_MiVe_')
-            sweeper = np.load(saving_path + 'repression_threshold.npy')
-            for key, value in sweeper.iteritems():
-                print(key, value)
+    def xest_open_sweeps(self):
+        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'repeated_relative_sweeps_MiVe_')
+        sweeper = np.load(saving_path + 'repression_threshold.npy')
+        for key, value in sweeper.iteritems():
+            print(key, value)
 
     def xest_a_make_abc_samples(self):
         print('making abc samples')
