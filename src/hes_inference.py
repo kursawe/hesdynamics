@@ -50,6 +50,94 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
     """
     time_delay = model_parameters[6]
     number_of_observations = protein_at_observations.shape[0]
+    observation_time_step = protein_at_observations[1,0]-protein_at_observations[0,0]
+    # This is the time step dt in the forward euler scheme
+    discretisation_time_step = 1.0
+    # This is the delay as an integer multiple of the discretization timestep so that we can index with it
+    discrete_delay = int(np.around(time_delay/discretisation_time_step))
+    number_of_hidden_states = int(np.around(observation_time_step/discretisation_time_step))
+    initial_number_of_states = discrete_delay + 1
+    total_number_of_states = initial_number_of_states + (number_of_observations - 1)*number_of_hidden_states
+    # scaling factors for mRNA and protein respectively. For example, observation might be fluorescence,
+    # so the scaling would correspond to how light intensity relates to molecule number.
+    observation_transform = np.array([0.0,1.0])
+
+    state_space_mean, state_space_variance, predicted_observation_distributions = kalman_filter_state_space_initialisation(protein_at_observations,
+                                                                                                                           model_parameters,
+                                                                                                                           measurement_variance)
+    # loop through observations and at each observation apply the Kalman prediction step and then the update step
+    # for observation_index, current_observation in enumerate(protein_at_observations[1:]):
+    for observation_index in range(len(protein_at_observations)-1):
+        current_observation = protein_at_observations[1+observation_index,:]
+        state_space_mean, state_space_variance = kalman_prediction_step(state_space_mean,
+                                                                        state_space_variance,
+                                                                        current_observation,
+                                                                        model_parameters,
+                                                                        observation_time_step)
+
+        current_number_of_states = int(np.around(current_observation[0]/observation_time_step))*number_of_hidden_states + initial_number_of_states
+
+        predicted_observation_distributions[observation_index + 1] = kalman_observation_distribution_parameters(predicted_observation_distributions,
+                                                                                                                current_observation,
+                                                                                                                state_space_mean,
+                                                                                                                state_space_variance,
+                                                                                                                current_number_of_states,
+                                                                                                                total_number_of_states,
+                                                                                                                measurement_variance,
+                                                                                                                observation_index)
+
+        state_space_mean, state_space_variance = kalman_update_step(state_space_mean,
+                                                                    state_space_variance,
+                                                                    current_observation,
+                                                                    time_delay,
+                                                                    observation_time_step,
+                                                                    measurement_variance)
+
+    return state_space_mean, state_space_variance, predicted_observation_distributions
+
+def kalman_filter_state_space_initialisation(protein_at_observations,model_parameters,measurement_variance = 10):
+    """
+    A function for initialisation of the state space mean and variance, and update for the "negative" times that
+     are a result of the time delay. Initialises the negative times using the steady state of the deterministic system,
+     and then updates them with kalman_update_step.
+
+    Parameters
+    ----------
+
+    protein_at_observations : numpy array.
+        Observed protein. The dimension is n x 2, where n is the number of observation time points.
+        The first column is the time, and the second column is the observed protein copy number at
+        that time. The filter assumes that observations are generated with a fixed, regular time interval.
+
+    model_parameters : numpy array.
+        An array containing the model parameters in the following order:
+        repression_threshold, hill_coefficient, mRNA_degradation_rate,
+        protein_degradation_rate, basal_transcription_rate, translation_rate,
+        transcription_delay.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    Returns
+    -------
+
+    state_space_mean : numpy array.
+        An array of dimension n x 3, where n is the number of inferred time points.
+        The first column is time, the second column is the mean mRNA, and the third
+        column is the mean protein. Time points are generated every minute
+
+    state_space_variance : numpy array.
+        An array of dimension 2n x 2n.
+              [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
+                cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
+
+    predicted_observation_distributions : numpy array.
+        An array of dimension n x 3 where n is the number of observation time points.
+        The first column is time, the second and third columns are the mean and variance
+        of the distribution of the expected observations at each time point, respectively.
+    """
+    time_delay = model_parameters[6]
+    number_of_observations = protein_at_observations.shape[0]
 
     # This is the time step dt in the forward euler scheme
     discretisation_time_step = 1.0
@@ -125,43 +213,87 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
                                                                 time_delay,
                                                                 observation_time_step,
                                                                 measurement_variance)
-    ## loop through observations and at each observation apply the Kalman prediction step and then the update step
-#     for observation_index, current_observation in enumerate(protein_at_observations[1:]):
-    for observation_index in range(len(protein_at_observations)-1):
-        current_observation = protein_at_observations[1+observation_index,:]
-        state_space_mean, state_space_variance = kalman_prediction_step(state_space_mean,
-                                                                        state_space_variance,
-                                                                        current_observation,
-                                                                        model_parameters,
-                                                                        observation_time_step)
-
-        current_number_of_states = int(np.around(current_observation[0]/observation_time_step))*number_of_hidden_states + initial_number_of_states
-
-        predicted_observation_distributions[observation_index+1,0] = current_observation[0]
-        predicted_observation_distributions[observation_index+1,1] = observation_transform.dot(state_space_mean[current_number_of_states-1,1:3])
-
-        # not using np.ix_-like indexing to make it numba-ready
-        last_predicted_covariance_matrix = np.zeros((2,2))
-        for short_row_index, long_row_index in enumerate([current_number_of_states-1,
-                                                          total_number_of_states+current_number_of_states-1]):
-            for short_column_index, long_column_index in enumerate([current_number_of_states -1,
-                                                                    total_number_of_states+current_number_of_states-1]):
-                last_predicted_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
-                                                                                                     long_column_index]
-
-        predicted_observation_distributions[observation_index+1,2] = (observation_transform.dot(
-                                                                         last_predicted_covariance_matrix).dot(observation_transform.transpose())
-                                                                         +
-                                                                         measurement_variance)
-
-        state_space_mean, state_space_variance = kalman_update_step(state_space_mean,
-                                                                    state_space_variance,
-                                                                    current_observation,
-                                                                    time_delay,
-                                                                    observation_time_step,
-                                                                    measurement_variance)
 
     return state_space_mean, state_space_variance, predicted_observation_distributions
+
+@jit(nopython = True)
+def kalman_observation_distribution_parameters(predicted_observation_distributions,
+                                               current_observation,
+                                               state_space_mean,
+                                               state_space_variance,
+                                               current_number_of_states,
+                                               total_number_of_states,
+                                               measurement_variance,
+                                               observation_index):
+    """
+    A function which updates the mean and variance for the distributions which describe the likelihood of
+    our observations, given some model parameters.
+
+    Parameters
+    ----------
+
+    predicted_observation_distributions : numpy array.
+        An array of dimension n x 3 where n is the number of observation time points.
+        The first column is time, the second and third columns are the mean and variance
+        of the distribution of the expected observations at each time point, respectively
+
+    current_observation : int.
+        Observed protein at the current time. The dimension is 1 x 2.
+        The first column is the time, and the second column is the observed protein copy number at
+        that time
+
+    state_space_mean : numpy array
+        An array of dimension n x 3, where n is the number of inferred time points.
+        The first column is time, the second column is the mean mRNA, and the third
+        column is the mean protein. Time points are generated every minute
+
+    state_space_variance : numpy array.
+        An array of dimension 2n x 2n.
+              [ cov( mRNA(t0:tn),mRNA(t0:tn) ),    cov( protein(t0:tn),mRNA(t0:tn) ),
+                cov( mRNA(t0:tn),protein(t0:tn) ), cov( protein(t0:tn),protein(t0:tn) ]
+
+    current_number_of_states : float.
+        The current number of (hidden and observed) states upto the current observation time point.
+        This includes the initial states (with negative time).
+
+    total_number_of_states : float.
+        The total number of states that will be predicted by the kalman_filter function
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    observation_index : int.
+        The index for the current observation time in the main kalman_filter loop
+
+    Returns
+    -------
+
+    predicted_observation_distributions[observation_index + 1] : numpy array.
+        An array of dimension 1 x 3.
+        The first column is time, the second and third columns are the mean and variance
+        of the distribution of the expected observations at the current time point, respectively.
+    """
+
+    observation_transform = np.array([0.0,1.0])
+
+    predicted_observation_distributions[observation_index+1,0] = current_observation[0]
+    predicted_observation_distributions[observation_index+1,1] = observation_transform.dot(state_space_mean[current_number_of_states-1,1:3])
+
+    # not using np.ix_-like indexing to make it numba-ready
+    last_predicted_covariance_matrix = np.zeros((2,2))
+    for short_row_index, long_row_index in enumerate([current_number_of_states-1,
+                                                      total_number_of_states+current_number_of_states-1]):
+        for short_column_index, long_column_index in enumerate([current_number_of_states -1,
+                                                                total_number_of_states+current_number_of_states-1]):
+            last_predicted_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
+                                                                                                 long_column_index]
+
+    predicted_observation_distributions[observation_index+1,2] = (observation_transform.dot(
+                                                                     last_predicted_covariance_matrix).dot(observation_transform.transpose())
+                                                                     +
+                                                                     measurement_variance)
+
+    return predicted_observation_distributions[observation_index + 1]
 
 @jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
