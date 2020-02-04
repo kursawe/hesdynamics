@@ -239,6 +239,9 @@ class TestInfrastructure(unittest.TestCase):
     def test_ss_curves_cluster_linearCorr(self):
         ##Consider defining parameters and performance names globally in the future/in a separate file
         ##Consider gathering plotting parameters such as layout into a separate file
+        minWinSz = 3 #Minimum window size
+        constants = [] #List of the summary statistics that remained constant for this parameter sweep: [p, pp, ss]
+        rho = 0.1 #Penalising factor for window size -  the smaller the window the bigger the penalty
         #All model parameters as a list - order is important
         parameters = ['basal_transcription_rate',
                       'translation_rate',
@@ -253,60 +256,68 @@ class TestInfrastructure(unittest.TestCase):
                         'Period',
                         'Coherence',
                         'mRNA']
-
         #Define path to retrieve parameter points
         saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_MiVe_expanded')
         model_results = np.load(saving_path + '.npy')
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        accepted_indices = np.where(np.logical_and(model_results[:, 0] > 5000,  # protein number
-                                                   np.logical_and(model_results[:, 0] < 65000,  # protein_number
-                                                                  #                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
-                                                                  np.logical_and(model_results[:, 1] > 0.07,
-                                                                                 model_results[:,
-                                                                                 1] < 0.19))))  # standard deviation
+        mask1 = (model_results[:,0] > 5000) * (model_results[:,0] < 65000) * \
+               (model_results[:,1] > 0.07) * (model_results[:,1] < 0.19)
 
-        parameter_points = prior_samples[accepted_indices]
+        mask2 = (model_results[:,0] > 11000) * (model_results[:,0] < 30000) * \
+               (model_results[:,1] > 0.07) * (model_results[:,1] < 0.19) * \
+               (model_results[:,2] <2000)
+        accepted_indices = np.where(mask1)[0] #indices of filter used for the sweeps
+        accepted_indices2 = np.where(mask2)[0] #indices of desired filter
+        index_dict = dict((value,idx) for idx,value in enumerate(list(accepted_indices)))
+        reindex = [index_dict[x] for x in accepted_indices2] #indexes of desired filter in the sweep results
+
+        parameter_points = prior_samples[accepted_indices2]
         parameter_points[:, 0:2] = np.log10(parameter_points[:, 0:2])
         print('number of accepted samples is')
         print(len(parameter_points))
         hzd_std = []
+
         # For each parameter
-        for parameter in (parameters[idx] for idx in chosen_param):
+        for h,parameter in enumerate((parameters[idx] for idx in chosen_param)):
             this_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
                                                                 'repeated_relative_sweeps_MiVe_' + parameter + '.npy'))
+            if h == 0:
+                # Define 5D matrix to store linear correlation indexes parameter x pp x ss x wSize x wStartIndex
+                windowSweep = np.zeros((chosen_param.shape[0],
+                                        accepted_indices2.shape[0], len(performances),
+                                        this_parameter_sweep_results.shape[1] - minWinSz + 1,
+                                        this_parameter_sweep_results.shape[1] - minWinSz + 1))
+                # Define 4D matrix to store mean squares of the linear correlation indexes for each wSize
+                windowMS = np.zeros((chosen_param.shape[0],accepted_indices2.shape[0], len(performances),
+                                     this_parameter_sweep_results.shape[1] - minWinSz + 1))
             # For each initial parameter point
-            for i, results_table in enumerate(this_parameter_sweep_results[:, :, 1:6]):
-                if i==0:
-                    #Define descriptors for the traces
-                    dif = np.zeros((this_parameter_sweep_results.shape[0],results_table.shape[0]-1,results_table.shape[1]))
-                    first_der = np.zeros((this_parameter_sweep_results.shape[0],dif.shape[1],dif.shape[2]))
-                    second_der = np.zeros((this_parameter_sweep_results.shape[0],first_der.shape[1]-1,first_der.shape[2]))
-                    monotony = np.zeros((this_parameter_sweep_results.shape[0],results_table.shape[1]))
-                #dif[k] = trace[k]-trace[k-1]
-                dif[i,:,:] = results_table[1:, :] - results_table[:-1, :]
-                #first_der is actually sign:
-                #           -1 Decrease
-                #            0 Constant
-                #           +1 Increase
-                first_der[i,:,:] = np.where(dif[i,:,:] < -eps, -1, 1)
-                #first_der = np.where(dif > eps, 1, first_der)
-                first_der[i,:,:] = np.where(np.logical_and(dif[i,:,:] > -eps,dif[i,:,:] < eps), 0, first_der[i,:,:])
-                #second_der is change of sign
-                #           -2 Was increasing now decreasing
-                #           -1 Was constant now decrease/Was increasing now constant
-                #            0 Was any now the same
-                #           +1 Was decreasing now constant/was constant now increasing
-                #           +2 Was decreasing now increasing
-                second_der[i,:,:] = first_der[i,1:, :] - first_der[i,:-1, :]
-                #monotony: note that constant is not marked
-                #           -1 Non-increasing
-                #            0 Mixed
-                #           +1 Non-decreasing
-                #For all summary statistics
-                for k,ss in enumerate(first_der[i,:,:].T):
-                    monotony[i,k] = -1 if (ss != 1).all() & (ss==-1).any() else 0
-                    if (ss != -1).all() & (ss == 1).any(): monotony[i,k] = +1
+            for i, results_table in enumerate(this_parameter_sweep_results[reindex, :, 0:6]):
+                # For each summary statistic
+                for j, this_ss_sweep in enumerate(results_table[:,1:6].T):
+                    this_p_sweep = results_table[:, j]
+                    # For all window sizes
+                    for k,wSize in enumerate(range(minWinSz, this_ss_sweep.shape[0]+1)):
+                        wMask = np.concatenate((np.ones((1,wSize)),
+                                                np.zeros((1,this_ss_sweep.shape[0]-wSize)))
+                                               ,axis=1).astype(bool).flatten()
+                        # Sweep window over this_ss_sweep and compute linear corr of this_ss_sweeps(wMask)
+                        for l in range(0,this_ss_sweep.shape[0]-wSize+1): #while wMask[0,-1]!= 1:
+                            #a=wMask[0:0,-1:-1]
+                            aux = np.corrcoef(this_p_sweep[wMask],this_ss_sweep[wMask])[0,1]
+                            aux2 = np.cov(this_p_sweep[wMask],this_ss_sweep[wMask])
+                            if np.isnan(aux) & ([h,i,j] not in constants):
+                                constants.append([h,i,j])
+                            windowSweep[h,i,j,k,l]=np.corrcoef(this_p_sweep[wMask],this_ss_sweep[wMask])[0,1]
+                            wMask = np.insert(wMask[:-1],0,wMask[-1])
+                        # Compute mean sum of squares for the window size & penalize on small window size
+                        windowMS[h, i, j, k] = sum(pow(windowSweep[h, i, j, k, :], 2)) / \
+                                                   (this_ss_sweep.shape[0] - wSize + 1) - \
+                                               rho*(this_ss_sweep.shape[0]-wSize)/(this_ss_sweep.shape[0]-minWinSz)
+
+
+
+
             #Gather all columns of monotony(std)==0
             hzd_std = first_der[np.where(monotony[:,1] == 0)][:,:, 1]
             hzd_std_df = pd.DataFrame(data=hzd_std)
