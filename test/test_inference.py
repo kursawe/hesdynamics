@@ -22,7 +22,7 @@ number_of_cpus = mp.cpu_count()
 
 class TestInference(unittest.TestCase):
 
-    def xest_check_kalman_filter_not_broken(self):
+    def test_check_kalman_filter_not_broken(self):
 
         # load in some saved observations and correct kalman filter predictions
         saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
@@ -469,26 +469,21 @@ class TestInference(unittest.TestCase):
         prediction_distributions             = np.load(saving_path + '_prediction_distributions.npy')
 
         # run the current kalman filter using the same parameters and observations, then compare
-        # parameters = [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
+        parameters = [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
         #
         # state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(fixed_protein_observations,
         #                                                                                                           parameters,measurement_variance=10000)
 
-        my_figure = plt.figure()
-        plt.scatter(np.arange(0,900,10),protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
-        plt.plot(true_data[:,0],true_data[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
-        plt.legend(fontsize='x-small')
-        plt.title('Predicted Protein')
-        plt.xlabel('Time')
-        plt.ylabel('Protein Copy Numbers')
-        plt.tight_layout()
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','kalman_test_gif_0.png'))
-
-        for i in range(900):
-            plt.scatter(i,prediction_mean[i+29,2])
-            my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                           'output','kalman_test_gif_' + str(i) + '.png'))
+        # my_figure = plt.figure()
+        # plt.scatter(np.arange(0,900,10),protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
+        # plt.plot(true_data[:,0],true_data[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
+        # plt.legend(fontsize='x-small')
+        # plt.title('Predicted Protein')
+        # plt.xlabel('Time')
+        # plt.ylabel('Protein Copy Numbers')
+        # plt.tight_layout()
+        for value in hes_inference.kalman_filter(protein_at_observations,parameters,measurement_variance=10000):
+            print(value)
 
     def xest_identify_oscillatory_parameters(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
@@ -496,9 +491,9 @@ class TestInference(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        coherence_band = [0.4,0.5]
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>5000, #protein number
-                                    np.logical_and(model_results[:,0]<10000, #protein_number
+        coherence_band = [0.0,0.1]
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>20000, #protein number
+                                    np.logical_and(model_results[:,0]<60000, #protein_number
                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
                                     np.logical_and(model_results[:,3]>coherence_band[0], #standard deviation
                                                    model_results[:,3]<coherence_band[1])))))#coherence
@@ -593,17 +588,100 @@ class TestInference(unittest.TestCase):
         for i in range(len(initial_states)):
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk_180_ps3_ds2_{cap}.npy').format(cap=i),list_of_random_walks[i])
 
-    def test_summary_statistics_from_inferred_parameters(self):
+    def xest_summary_statistics_from_inferred_parameters(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','parallel_random_walk_')
-        random_walk = np.load(saving_path + '90_ps1_ds1_0.npy')
+        random_walk = np.load(saving_path + '360_ps3_ds4_4.npy')
+        random_walk = random_walk[100000:,:]
 
-        parameter_values = np.zeros((7,10))
-        parameter_values = random_walk[200000:200100,:]
+        # select inferred parameter values and calculate mean mRNAs from them
+        parameter_values = random_walk[:250000:100,:]
         parameter_values[:,[4,5]] = np.power(10,parameter_values[:,[4,5]])
         summary_statistics = hes_inference.calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 100,
                                                                                                number_of_cpus = 12)
-        mean_mRNA = summary_statistics[:,4]
+        # compute mean mRNA from true parameter values
+        true_parameter_values = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30])
+        true_summary_statistics = hes_inference.calculate_langevin_summary_statistics_at_parameter_point(true_parameter_values, number_of_traces = 100)
+        inferred_mean_mRNA = summary_statistics[:,4]
+        true_mean_mRNA = true_summary_statistics[4]
+
+        # compute mean mRNA from mean inferred parameter values
+        mean_inferred_parameters = np.mean(random_walk,axis=0)
+        mean_summary_statistics = hes_inference.calculate_langevin_summary_statistics_at_parameter_point(mean_inferred_parameters, number_of_traces = 100)
+        mean_parameters_mRNA = mean_summary_statistics[4]
+
+        # compute mean mRNA from most likely inferred parameter values
+        from scipy.stats import gaussian_kde as gkde
+        most_likely_inferred_parameters = np.amax(gkde(np.transpose(random_walk)).dataset,axis=1)
+        most_likely_summary_statistics = hes_inference.calculate_langevin_summary_statistics_at_parameter_point(most_likely_inferred_parameters, number_of_traces = 100)
+        most_likely_parameters_mRNA = most_likely_summary_statistics[4]
+
+        # plot results on a histogram
+        my_figure = plt.figure()
+        plt.hist(inferred_mean_mRNA,25)
+        plt.axvline(true_mean_mRNA,label='True mean mRNA',color='#F69454')
+        plt.axvline(mean_parameters_mRNA,label='Inferred mean mRNA from mean parameters',color='#20948B')
+        plt.axvline(most_likely_parameters_mRNA,label='Inferred mean mRNA from most likely parameters',color='#BA1E1B')
+        plt.xlabel('Number of mRNA')
+        plt.ylabel('Number of occurrences')
+        plt.title('mean mRNA using parameters inferred from PS3_DS4')
+        plt.legend(fontsize='x-small')
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','mRNA_histogram_ps3.pdf'))
+
+    def xest_generate_langevin_trace(self):
+        langevin_trajectory_data = hes5.generate_langevin_trajectory(duration = 720,
+                                                                repression_threshold = 3581,
+                                                                hill_coefficient = 4.87,
+                                                                mRNA_degradation_rate = 0.03,
+                                                                protein_degradation_rate = 0.08,
+                                                                basal_transcription_rate = 1.5,
+                                                                translation_rate = 9.7,
+                                                                transcription_delay = 36,
+                                                                initial_mRNA = 3,
+                                                                initial_protein = 100,
+                                                                equilibration_time = 0.0)
+
+        my_dpi=96
+        my_figure = plt.figure(figsize=(1680/my_dpi, 1200/my_dpi), dpi=my_dpi)
+        # plt.plot(langevin_trajectory_data[:,0],langevin_trajectory_data[:,1],label='mRNA',linewidth=0.89,zorder=1)
+        plt.plot(langevin_trajectory_data[:,0],0.03*langevin_trajectory_data[:,2],label='protein',linewidth=8,zorder=2,color='#2f3c7e')
+        # plt.title('Protein and mRNA expression from the Langevin equation')
+        plt.xlabel('Time',fontsize=80)
+        plt.ylabel('Gene expression',fontsize=80)
+        plt.title('Cell 1', fontsize=80)
+        plt.xticks([])
+        plt.yticks([])
+        plt.tight_layout()
+
+        my_figure.patch.set_facecolor('#8aaae5')
+        ax = plt.gca()
+        ax.set_facecolor('#8aaae5')
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','langevin_trajectory.png'),facecolor=my_figure.get_facecolor(),dpi=my_dpi)
+
+    def xest_temp(self):
+        true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
+
+        ## the F constant matrix is left out for now
+        protein_at_observations = true_data[0:900:10,(0,2)]
+        protein_at_observations[:,1] += np.random.randn(90)*100
+        protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
+
+        parameters = [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
+
+        ## apply kalman filter to the data
+        state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(protein_at_observations,parameters,
+                                                                                                                  measurement_variance=10000)
 
         my_figure = plt.figure()
-        plt.hist(mean_mRNA,20)
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','mRNA_histogram.pdf'))
+        plt.scatter(protein_at_observations[:,0],protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=3)
+        plt.scatter(predicted_observation_distributions[:,0],predicted_observation_distributions[:,1],marker='o',s=4,c='#98DBC6',label='likelihood',zorder=2)
+        plt.plot(np.arange(0,900,1),true_data[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
+        plt.errorbar(predicted_observation_distributions[:,0],predicted_observation_distributions[:,1],
+                     yerr=np.sqrt(predicted_observation_distributions[:,2]),ecolor='#98DBC6',alpha=0.6,linestyle="None",zorder=1)
+        plt.legend(fontsize='x-small')
+        plt.title('Protein likelihood')
+        plt.xlabel('Time')
+        plt.ylabel('Protein copy number')
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','kalman_likelihood_vs_observations.pdf'))
