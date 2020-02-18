@@ -1831,14 +1831,14 @@ def plot_posterior_distributions_MiVe(data_frame, prior_bounds, logarithmic=True
                 artist.remove()
             except:
                 pass
-        transcription_rate_bins = np.logspace(np.log10(prior_bounds.loc[0,'Transcription rate']),
-                                              np.log10(prior_bounds.loc[1,'Transcription rate']), 20)
-        translation_rate_bins = np.logspace(np.log10(prior_bounds.loc[0,'Translation rate']),
-                                              np.log10(prior_bounds.loc[1,'Translation rate']), 20)
+        transcription_rate_bins = np.logspace(np.log10(prior_bounds.loc[0,'Transcription rate [m/min]']),
+                                              np.log10(prior_bounds.loc[1,'Transcription rate [m/min]']), 20)
+        translation_rate_bins = np.logspace(np.log10(prior_bounds.loc[0,'Translation rate [m/min]']),
+                                              np.log10(prior_bounds.loc[1,'Translation rate [m/min]']), 20)
         plt.sca(pairplot.diag_axes[0]) #Current figure updated to the parent of diag_axes[0] => to pairplot?
-        transcription_histogram, _ = np.histogram(data_frame['Transcription rate'],
+        transcription_histogram, _ = np.histogram(data_frame['Transcription rate [m/min]'],
                                                   bins=transcription_rate_bins)
-        sns.distplot(data_frame['Transcription rate'],
+        sns.distplot(data_frame['Transcription rate [m/min]'],
                      kde=False,
                      rug=False,
                      bins=transcription_rate_bins)
@@ -1847,20 +1847,28 @@ def plot_posterior_distributions_MiVe(data_frame, prior_bounds, logarithmic=True
         plt.gca().set_xlim(0.5, 100)
 
         plt.sca(pairplot.diag_axes[1])
-        sns.distplot(data_frame['Translation rate'],
+        sns.distplot(data_frame['Translation rate [m/min]'],
                      kde=False,
                      rug=False,
                      bins=translation_rate_bins)
         plt.gca().set_xlim(1, 200)
         #
-        pairplot.axes[-1, 0].set_xscale("log")
-        pairplot.axes[-1, 0].set_xlim(0.1, 100)
-        pairplot.axes[-1, 1].set_xscale("log")
-        pairplot.axes[-1, 1].set_xlim(1, 200)
-        pairplot.axes[0, 0].set_yscale("log")
-        pairplot.axes[0, 0].set_ylim(0.1, 100)
-        pairplot.axes[1, 0].set_yscale("log")
-        pairplot.axes[1, 0].set_ylim(1, 200)
+        for i in range(0,5):
+            pairplot.axes[-i,0].set_xscale("log");
+            pairplot.axes[-i,1].set_xscale("log");
+            pairplot.axes[0,i].set_yscale("log");
+            pairplot.axes[1,i].set_yscale("log");
+            pairplot.axes[-1,i].set_xticklabels(pairplot.axes[-1,i].get_xticks(),rotation=30);
+        pairplot.axes[-1, -1].set_xticklabels(np.arange(10,70,25), rotation=30);
+        #pairplot.axes[i,0].set_yticklabels(pairplot.axes[i,0].get_ylabel(),rotation=45);
+        # pairplot.axes[-1, 0].set_xscale("log")
+        # #pairplot.axes[-1, 0].set_xlim(0.1, 100)
+        # pairplot.axes[-1, 1].set_xscale("log")
+        # #pairplot.axes[-1, 1].set_xlim(1, 200)
+        # pairplot.axes[0, 0].set_yscale("log")
+        # #pairplot.axes[0, 0].set_ylim(0.1, 100)
+        # pairplot.axes[1, 0].set_yscale("log")
+        # #pairplot.axes[1, 0].set_ylim(1, 200)
     if prior_bounds.columns[2] == 'Transcription delay':
         for artist in pairplot.diag_axes[3].get_children():
             try:
@@ -1883,18 +1891,20 @@ def plot_posterior_distributions_MiVe(data_frame, prior_bounds, logarithmic=True
     # pairplot.axes[-1, 3].set_xlim(5, 40)
 
     #Set all ranges according to prior bounds
-    lowermargin = 0.5
-    uppermargin = 1.3
+    lowermargin = 0.9
+    uppermargin = 1.1
+    lowermargin2 = 0.95
+    uppermargin2 = 1.5
     for i in range(0,data_frame.shape[1]):
         if pairplot.axes[-1,i].get_xscale == 'log':
-               pairplot.axes[-1,i].set_xlim(lowermargin*np.log10(prior_bounds.loc[0,pairplot.axes[-1,i].get_xlabel()]),
-                                            uppermargin*np.log10(prior_bounds.loc[1,pairplot.axes[-1,i].get_xlabel()]))
+               pairplot.axes[-1,i].set_xlim(lowermargin2*np.log10(prior_bounds.loc[0,pairplot.axes[-1,i].get_xlabel()]),
+                                            uppermargin2*np.log10(prior_bounds.loc[1,pairplot.axes[-1,i].get_xlabel()]))
         else:
             pairplot.axes[-1,i].set_xlim(lowermargin*prior_bounds.loc[0,pairplot.axes[-1,i].get_xlabel()],
                                          uppermargin*prior_bounds.loc[1,pairplot.axes[-1,i].get_xlabel()])
         if pairplot.axes[i,0].get_yscale == 'log':
-            pairplot.axes[i,0].set_ylim(lowermargin*np.log10(prior_bounds.loc[0,pairplot.axes[i,0].get_ylabel()]),
-                                        uppermargin*np.log10(prior_bounds.loc[1,pairplot.axes[i,0].get_ylabel()]))
+            pairplot.axes[i,0].set_ylim(lowermargin2*np.log10(prior_bounds.loc[0,pairplot.axes[i,0].get_ylabel()]),
+                                        uppermargin2*np.log10(prior_bounds.loc[1,pairplot.axes[i,0].get_ylabel()]))
         else:
             pairplot.axes[i,0].set_ylim(lowermargin*prior_bounds.loc[0,pairplot.axes[i,0].get_ylabel()],
                                         uppermargin*prior_bounds.loc[1,pairplot.axes[i,0].get_ylabel()])

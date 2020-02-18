@@ -32,9 +32,9 @@ import hes5
 
 class TestInfrastructure(unittest.TestCase):
 
-    def xest_make_relative_parameter_variation(self):
-        number_of_parameter_points = 20
-        number_of_trajectories = 200
+    def test_make_relative_parameter_variation(self):
+        number_of_parameter_points = 2
+        number_of_trajectories = 2
         # this is a test comment to see whether git push still works
         #         number_of_parameter_points = 2
         #         number_of_trajectories = 2
@@ -45,13 +45,16 @@ class TestInfrastructure(unittest.TestCase):
         model_results = np.load(saving_path + '.npy')
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        accepted_indices = np.where(np.logical_and(model_results[:, 0] > 5000,  # protein number
-                                                   np.logical_and(model_results[:, 0] < 65000,  # protein_number
-                                                                  #                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
-                                                                  np.logical_and(model_results[:, 1] > 0.07,
-                                                                                 model_results[:,
-                                                                                 1] < 0.19))))  # standard deviation
+        protein_low = 19000
+        protein_high = 39000
+        std_low = 0.16
+        std_high = 0.28
+        per_high=2000
 
+        mask2 = (model_results[:, 0] > protein_low) * (model_results[:, 0] < protein_high) * \
+                (model_results[:, 1] > std_low) * (model_results[:, 1] < std_high) * \
+                (model_results[:, 2] < per_high)
+        accepted_indices = np.where(mask2)[0]  # indices of filter used for the sweeps
         my_posterior_samples = prior_samples[accepted_indices]
 
         print('number of accepted samples is')
@@ -64,19 +67,21 @@ class TestInfrastructure(unittest.TestCase):
                                                                                      relative_range=(0.5, 1.5))
 
         for parameter_name in my_parameter_sweep_results:
-            np.save(os.path.join(os.path.dirname(__file__), 'output',
-                                 'repeated_relative_sweeps_MiVe_' + parameter_name + '.npy'),
+            np.save(os.path.join(os.path.dirname(__file__), 'data',
+                                 'repeated_relative_sweeps_MiVe_updated_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
             # print(parameter_name + ' ' + str(my_parameter_sweep_results[parameter_name]))
 
     def xest_plot_ss_curves(self):
 
-        parameters = {'basal_transcription_rate',
+        parameters = ['basal_transcription_rate',
                       'translation_rate',
                       'repression_threshold',
                       'time_delay',
-                      'hill_coefficient'}
-        # definde performances as an ordered list rather than an unordered set to be able to index later
+                      'hill_coefficient']
+        #Indexes of parameters we choose to look at - transcription rate & repression thd
+        chosen_param = np.array([0,2])
+        # Define performances as an ordered list rather than an unordered set to be able to index later
         performances = ['Protein',
                         'Std',
                         'Period',
@@ -86,49 +91,48 @@ class TestInfrastructure(unittest.TestCase):
                   'w_pad': 1.5,
                   'h_pad': 1.5,
                   'rect': (0, 0, 1, 1)}
-        for parameter in parameters:
-            # my_figure = plt.figure(figsize=(2.5, 1.9))
+        #Define path to retrieve parameter points
+        saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sampling_results_MiVe_expanded')
+        model_results = np.load(saving_path + '.npy')
+        prior_samples = np.load(saving_path + '_parameters.npy')
+        #Reindex parameter sweeps
+        mask1 = (model_results[:,0] > 5000) * (model_results[:,0] < 65000) * \
+               (model_results[:,1] > 0.07) * (model_results[:,1] < 0.19)
 
+        mask2 = (model_results[:,0] > 11000) * (model_results[:,0] < 30000) * \
+               (model_results[:,1] > 0.07) * (model_results[:,1] < 0.19) * \
+               (model_results[:,2] <2000) * \
+                (model_results[:,3] > 0.1) * (model_results[:,3] < 0.2)
+        accepted_indices = np.where(mask1)[0] #indices of filter used for the sweeps
+        accepted_indices2 = np.where(mask2)[0] #indices of desired filter
+        index_dict = dict((value,idx) for idx,value in enumerate(list(accepted_indices)))
+        reindex = [index_dict[x] for x in accepted_indices2] #indexes of desired filter in the sweep results
+
+        for parameter in (parameters[idx] for idx in chosen_param):
             this_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
                                                                 'repeated_relative_sweeps_MiVe_' + parameter + '.npy'))
-            #                                                           'repeated_degradation_sweep.npy'))
-            #         print(my_degradation_sweep_results[0,:,0])
-            #         print(np.log(2)/90)
-            #         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] -
-            #                                                       my_degradation_sweep_results[:,3,4]>
-            #                                                       my_degradation_sweep_results[:,3,4]*1.0,
-            #                                                       my_degradation_sweep_results[:,3,4]>0.1))
-            #         print(len(my_filtered_indices[0]))
-            #         print(len(my_degradation_sweep_results))
-            #         my_degradation_sweep_results = my_degradation_sweep_results[my_filtered_indices]
-            x_coord = -0.3
-            y_coord = 1.05
+
             print(parameter)
             print(this_parameter_sweep_results.shape)
+            print(len(reindex))
             # lis = list(enumerate(this_parameter_sweep_results[:3,:,:]))
             fig, axs = plt.subplots(5, 1, sharex=True)
             fig.set_tight_layout(layout)
-            for i, results_table in enumerate(this_parameter_sweep_results[:, :, :]):
+            for i, results_table in enumerate(this_parameter_sweep_results[reindex, :, :]):
+                mask3 = results_table[:,3]<5000 # period hazard filter
                 for j, performance in enumerate(performances, 1):
                     # plt.subplot(5, 1, j)
                     axs[j - 1].plot(results_table[:, 0],
-                                    results_table[:, j])  # , color='C0', alpha=0.02, zorder=0)
-                    # plt.axvline(np.log(2) / 90, color='black')
-                    # plt.gca().locator_params(axis='x', tight=True, nbins=4)
-                    # plt.gca().locator_params(axis='y', tight=True, nbins=3)
-                    # plt.gca().set_rasterization_zorder(1)
+                                    results_table[:, j], color='C0', alpha=0.02, zorder=0)
+                    plt.gca().set_rasterization_zorder(1)
                     axs[j - 1].set_ylabel(performance)
-                    # plt.ylim(0, 1)
-                    # plt.xlim(0, np.log(2) / 15.)
-                    #         plt.gca().text(x_coord, y_coord, 'A', transform=plt.gca().transAxes)
-
                 plt.xlabel(parameter)
-                file_name = os.path.join(os.path.dirname(__file__),
-                                         'output', 'performance_curves_allPP_' + parameter)
-                # plt.savefig(file_name + '.pdf', dpi=600)
-                fig.savefig(file_name + '.png', dpi=600)
+            file_name = os.path.join(os.path.dirname(__file__),
+                                     'output', 'performance_curves_allPP_coh01g02l_' + parameter)
+            # plt.savefig(file_name + '.pdf', dpi=600)
+            fig.savefig(file_name + '.png', dpi=600)
 
-    def test_ss_curves_cluster(self):
+    def xest_ss_curves_cluster(self):
         ##Consider defining parameters and performance names globally in the future/in a separate file
         ##Consider gathering plotting parameters such as layout into a separate file
         #All model parameters as a list - order is important
@@ -236,7 +240,7 @@ class TestInfrastructure(unittest.TestCase):
                 # plt.savefig(file_name + '.pdf', dpi=600)
                 # fig.savefig(file_name + '.png', dpi=600)
 
-    def test_ss_curves_cluster_linearCorr(self):
+    def xest_ss_curves_cluster_linearCorr(self):
         ##Consider defining parameters and performance names globally in the future/in a separate file
         ##Consider gathering plotting parameters such as layout into a separate file
         minWinSz = 3 #Minimum window size
@@ -397,57 +401,40 @@ class TestInfrastructure(unittest.TestCase):
         prior_performances = np.load(saving_path + '.npy')
         prior_parameters = np.load(saving_path + '_parameters.npy')
 
-        protein_low = 11000
-        protein_high = 29000
-        std_low = 0.07
-        std_high = 0.19
+        protein_low = 19000
+        protein_high = 39000
+        std_low = 0.16
+        std_high = 0.28
+        per_high=2000
+        options = ['Prior','Posterios']
 
-        option = 'priors'
-        if option == 'full':
-            accepted_indices = np.where(np.logical_and(prior_performances[:, 0] > protein_low,  # protein number
-                                                       np.logical_and(prior_performances[:, 0] < protein_high,
-                                                                      # protein_number
-                                                                      np.logical_and(prior_performances[:, 1] < 0.15,
-                                                                                     # standard deviation
-                                                                                     prior_performances[:,
-                                                                                     1] > 0.05))))  # standard deviation
-        #                                         np.logical_and(prior_performances[:,1]>0.05,  #standard deviation
-        #                                                     prior_parameters[:,3]>20))))) #time_delay
+        option = 'Priors'
+        if option == 'Posterior':
+            mask2 = (prior_performances[:, 0] > protein_low) * (prior_performances[:, 0] < protein_high) * \
+                    (prior_performances[:, 1] > std_low) * (prior_performances[:, 1] < std_high) * \
+                    (prior_performances[:, 2] < per_high)
+            accepted_indices = np.where(mask2)[0]  # indices of filter used for the sweeps
 
-        elif option == 'posteriors_2':
-            accepted_indices = np.where(np.logical_and(prior_performances[:, 0] > protein_low,  # protein number
-                                                       np.logical_and(prior_performances[:, 0] < protein_high,
-                                                                      # protein_number
-                                                                      np.logical_and(
-                                                                          prior_performances[:, 1] < std_high,
-                                                                          # standard deviation
-                                                                          prior_performances[:,
-                                                                          1] > std_low))))  # standard deviation
-            #                                         np.logical_and(prior_performances[:,1]>0.05,  #standard deviation
-            #                                                     prior_parameters[:,3]>20))))) #time_delay
-
-        elif option == 'posteriors':
-            accepted_indices = np.where(np.logical_and(prior_performances[:, 0] > protein_low,  # protein number
-                                                       prior_performances[:, 0] < protein_high))
-            # protein_number
-            #                                          np.logical_and(prior_performances[:,6]<0.15,  #standard deviation
-            # prior_performances[:, 1] > 0.05)))
-        elif option == 'priors':
+        elif option == 'posteriors_1':
+            mask1 = (prior_performances[:, 0] > protein_low) * (prior_performances[:, 0] < protein_high) * \
+                    (prior_performances[:, 2] < per_high)
+            accepted_indices = np.where(mask1)[0]  # indices of filter used for the sweeps
+        elif option == 'Priors':
             accepted_indices = np.where(prior_performances[:, 0] > 0)  # protein number
 
         else:
             ValueError('could not identify posterior option')
         #
-        my_posterior_parameters = prior_parameters[accepted_indices]
+        parameters = prior_parameters[accepted_indices]
         performances = prior_performances[accepted_indices]
 
         # Organise data
-        my_posterior_parameters[:, 2] /= 10000  # Repression threshold 1e-4
-        parameter_frame = pd.DataFrame(data=my_posterior_parameters,
-                                       columns=['Transcription rate',
-                                                'Translation rate',
-                                                'Repression threshold 1e-4',
-                                                'Transcription delay',
+        parameters[:, 2] /= 10000  # Repression threshold 1e-4
+        parameter_frame = pd.DataFrame(data=parameters,
+                                       columns=['Transcription rate [m/min]',
+                                                'Translation rate [m/min]',
+                                                'Repression threshold (1e-4)',
+                                                'Transcription delay [min]',
                                                 'Hill coefficient'])
         performance_frame = pd.DataFrame(data=performances[:, range(0, 5)],
                                          columns=['Mean protein stochastic',
@@ -455,18 +442,18 @@ class TestInfrastructure(unittest.TestCase):
                                                   'Period stochastic',
                                                   'Coherence stochastic',
                                                   'Mean mRNA stochastic'])
-        parameter_bounds = pd.DataFrame({'Transcription rate': (0.01, 120),
-                                         'Translation rate': (0.01, 60),
-                                         'Repression threshold 1e-4': (0.000001, 4),
-                                         'Transcription delay': (5, 40),
+        parameter_bounds = pd.DataFrame({'Transcription rate [m/min]': (parameters[:, 0].min(), parameters[:, 0].max()),
+                                         'Translation rate [m/min]': (parameters[:, 1].min(), parameters[:, 1].max()),
+                                         'Repression threshold (1e-4)': (parameters[:, 2].min(), parameters[:, 2].max()),
+                                         'Transcription delay [min]': (parameters[:, 3].min(), parameters[:, 3].max()),
                                          'Hill coefficient': (2, 6)})
 
-        performance_bounds = pd.DataFrame({'Mean protein stochastic': (11000, 29000),
+        performance_bounds = pd.DataFrame({'Mean protein stochastic': (protein_low, protein_high),
                                            'STD stochastic': (performances[:, 1].min(), performances[:, 1].max()),
-                                           'Period stochastic': (performances[:, 2].min(), performances[:, 2].max()),
+                                           'Period stochastic': (performances[:, 2].min(), 300),
                                            'Coherence stochastic': (performances[:, 3].min(), performances[:, 3].max()),
                                            'Mean mRNA stochastic': (
-                                               performances[:, 4].min(), performances[:, 4].max())})
+                                               performances[:, 4].min(), 20)})
         ##########################################
         #quantile_performance = performance_frame.quantile(0.75)
         #selection = performance_frame[performance_frame<quantile_performance]
@@ -474,15 +461,15 @@ class TestInfrastructure(unittest.TestCase):
         ############################################
         parameter_pairplot = hes5.plot_posterior_distributions_MiVe(parameter_frame, parameter_bounds)
         parameter_pairplot.savefig(os.path.join(os.path.dirname(__file__),
-                                                'output', 'Parameter_pairplot_extended_abc_MiVe_' + option + '.png'))
+                                                'output', 'Parameter_pairplot_extended_abc_MiVe_updated_full2_' + option + '.png'))
         performance_pairplot = hes5.plot_posterior_distributions_MiVe(performance_frame, performance_bounds,
                                                                       logarithmic=False)
         performance_pairplot.savefig(os.path.join(os.path.dirname(__file__),
                                                   'output',
-                                                  'Performances_pairplot_extended_abc_MiVe_' + option + '.png'))
+                                                  'Performances_pairplot_extended_abc_MiVe_updated_full2_' + option + '.png'))
 
         print('Number of accepted samples is ')
-        print(len(my_posterior_parameters))
+        print(len(parameters))
         # Save posterior parameter set and corresponding performances
 
         # performance_frame = pd.DataFrame(data=performances,
@@ -498,6 +485,88 @@ class TestInfrastructure(unittest.TestCase):
         #                                           'Mean mRNA deterministic',
         #                                           'High frequency weight',
         #                                           'Fluctuation weight'])
+    def xest_plot_posterior_distributions2(self):
+        # Load data
+        saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   #                                     'sampling_results_repeated')
+                                   #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
+                                   #                                     'sampling_results_massive')
+                                   'sampling_results_MiVe_expanded')
+        prior_performances = np.load(saving_path + '.npy')
+        prior_parameters = np.load(saving_path + '_parameters.npy')
+
+        protein_low = 19000
+        protein_high = 39000
+        std_low = 0.16
+        std_high = 0.28
+        per_high=2000
+        options = ['Posterior']
+        labels = ['Prior' for i in range(len(prior_parameters))]
+        for option in options:
+            #option = 'posteriors_2'
+            if option == 'Posterior':
+                mask2 = (prior_performances[:, 0] > protein_low) * (prior_performances[:, 0] < protein_high) * \
+                        (prior_performances[:, 1] > std_low) * (prior_performances[:, 1] < std_high) * \
+                        (prior_performances[:, 2] < per_high)
+                accepted_indices = np.where(mask2)[0]  # indices of filter used for the sweeps
+
+            elif option == 'posteriors_1':
+                mask1 = (prior_performances[:, 0] > protein_low) * (prior_performances[:, 0] < protein_high) * \
+                        (prior_performances[:, 2] < per_high)
+                accepted_indices = np.where(mask1)[0]  # indices of filter used for the sweeps
+            elif option == 'Priors':
+                accepted_indices = np.where(prior_performances[:, 0] > 0)  # protein number
+
+            else:
+                ValueError('could not identify posterior option')
+            #
+            parameters = np.concatenate(prior_parameters,prior_parameters[accepted_indices])
+            performances = np.concatenate(prior_performances,prior_performances[accepted_indices])
+            labels = labels+[option for i in range(len(accepted_indices))]
+
+        # Organise data
+        parameters[:, 2] /= 10000  # Repression threshold 1e-4
+        parameter_frame = pd.DataFrame(data=parameters,
+                                       columns=['Transcription rate [m/min]',
+                                                'Translation rate [m/min]',
+                                                'Repression threshold (1e-4)',
+                                                'Transcription delay [min]',
+                                                'Hill coefficient'])
+        performance_frame = pd.DataFrame(data=performances[:, range(0, 5)],
+                                         columns=['Mean protein stochastic',
+                                                  'STD stochastic',
+                                                  'Period stochastic',
+                                                  'Coherence stochastic',
+                                                  'Mean mRNA stochastic'])
+        parameter_bounds = pd.DataFrame({'Transcription rate [m/min]': (parameters[:, 0].min(), parameters[:, 0].max()),
+                                         'Translation rate [m/min]': (10, 60),
+                                         'Repression threshold (1e-4)': (0.000001, 4),
+                                         'Transcription delay [min]': (5, 40),
+                                         'Hill coefficient': (2, 6)})
+
+        performance_bounds = pd.DataFrame({'Mean protein stochastic': (protein_low, protein_high),
+                                           'STD stochastic': (performances[:, 1].min(), performances[:, 1].max()),
+                                           'Period stochastic': (performances[:, 2].min(), 300),
+                                           'Coherence stochastic': (performances[:, 3].min(), performances[:, 3].max()),
+                                           'Mean mRNA stochastic': (
+                                               performances[:, 4].min(), 20)})
+        ##########################################
+        #quantile_performance = performance_frame.quantile(0.75)
+        #selection = performance_frame[performance_frame<quantile_performance]
+        #selection2 = np.percentile(performance_frame.
+        ############################################
+        parameter_pairplot = hes5.plot_posterior_distributions_MiVe(parameter_frame, parameter_bounds)
+        parameter_pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                                'output', 'Parameter_pairplot_extended_abc_MiVe_updated_full2_' + option + '.png'))
+        performance_pairplot = hes5.plot_posterior_distributions_MiVe(performance_frame, performance_bounds,
+                                                                      logarithmic=False)
+        performance_pairplot.savefig(os.path.join(os.path.dirname(__file__),
+                                                  'output',
+                                                  'Performances_pairplot_extended_abc_MiVe_updated_full2_' + option + '.png'))
+
+        print('Number of accepted samples is ')
+        print(len(parameters))
 
     def xest_plot_model_traces(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output', 'sweeping_results_MiVe_')
