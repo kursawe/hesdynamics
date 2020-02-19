@@ -319,8 +319,6 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
     state_space_mean_derivative[:initial_number_of_states,6,1] = 0
     state_space_mean_derivative[:initial_number_of_states,6,0] = 0
 
-    print(state_space_mean_derivative[:initial_number_of_states])
-
     state_space_variance_derivative = np.zeros((7,2*total_number_of_states,2*total_number_of_states))
     # update the past ("negative time")
     state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative = kalman_update_step(state_space_mean,
@@ -790,6 +788,7 @@ def kalman_update_step(state_space_mean,
     updated_shortened_covariance_matrix = ( shortened_covariance_matrix -
                                             np.dot(adaptation_coefficient.reshape((2*(discrete_delay+1),1)),observation_transform.reshape((1,2))).dot(
                                                 shortened_covariance_matrix_final_to_past))
+
     # ensure that the diagonal entries are non negative
     np.fill_diagonal(updated_shortened_covariance_matrix,np.maximum(np.diag(updated_shortened_covariance_matrix),0))
 
@@ -887,24 +886,24 @@ def kalman_update_step(state_space_mean,
     # funny indexing with 0:2 instead of (0,1) to make numba happy
     state_space_mean_derivative[current_number_of_states-(discrete_delay+1):current_number_of_states,:,0:2] = updated_state_space_mean_derivative
 
-    """
-    # This is P*
-    updated_shortened_covariance_matrix = ( shortened_covariance_matrix -
-                                            np.dot(adaptation_coefficient.reshape((2*(discrete_delay+1),1)),observation_transform.reshape((1,2))).dot(
-                                                shortened_covariance_matrix_final_to_past))
-    # ensure that the diagonal entries are non negative
-    np.fill_diagonal(updated_shortened_covariance_matrix,np.maximum(np.diag(updated_shortened_covariance_matrix),0))
-
+    # This is d_P*/d_theta
+    updated_shortened_covariance_derivative_matrix = np.zeros((7,all_indices_up_to_delay.shape[0],all_indices_up_to_delay.shape[0]))
+    for parameter_index in range(7):
+        updated_shortened_covariance_derivative_matrix[parameter_index] = ( shortened_covariance_derivative_matrix[parameter_index] -
+                                                                            np.dot(adaptation_coefficient_derivative[parameter_index].reshape((2*(discrete_delay+1),1)),
+                                                                                   observation_transform.reshape((1,2))).dot(shortened_covariance_matrix_final_to_past) -
+                                                                            np.dot(adaptation_coefficient.reshape((2*(discrete_delay+1),1)),
+                                                                                   observation_transform.reshape((1,2))).dot(shortened_covariance_derivative_matrix_final_to_past[parameter_index]))
     # Fill in updated values
     # replacing the following line with a loop for numba
     # state_space_variance[all_indices_up_to_delay,
     #                    all_indices_up_to_delay.transpose()] = updated_shortened_covariance_matrix
-    for shortened_row_index, long_row_index in enumerate(all_indices_up_to_delay):
-        for shortened_column_index, long_column_index in enumerate(all_indices_up_to_delay):
-            state_space_variance[long_row_index,long_column_index] = updated_shortened_covariance_matrix[shortened_row_index,
-                                                                                                         shortened_column_index]
-
-    """
+    for parameter_index in range(7):
+        for shortened_row_index, long_row_index in enumerate(all_indices_up_to_delay):
+            for shortened_column_index, long_column_index in enumerate(all_indices_up_to_delay):
+                state_space_variance_derivative[parameter_index,long_row_index,long_column_index] = updated_shortened_covariance_derivative_matrix[parameter_index,
+                                                                                                                                                   shortened_row_index,
+                                                                                                                                                   shortened_column_index]
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
