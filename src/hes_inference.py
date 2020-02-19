@@ -2,7 +2,7 @@ import math
 import numpy as np
 import hes5
 from numpy import number
-from numba import jit, autojit
+from numba import jit
 from scipy.stats import gamma, multivariate_normal, uniform
 import multiprocessing as mp
 
@@ -87,7 +87,6 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
                                                                                                                                       current_observation,
                                                                                                                                       model_parameters,
                                                                                                                                       observation_time_step)
-
         current_number_of_states = int(np.around(current_observation[0]/observation_time_step))*number_of_hidden_states + initial_number_of_states
 
         predicted_observation_distributions[observation_index + 1] = kalman_observation_distribution_parameters(predicted_observation_distributions,
@@ -319,6 +318,8 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
 
     state_space_mean_derivative[:initial_number_of_states,6,1] = 0
     state_space_mean_derivative[:initial_number_of_states,6,0] = 0
+
+    print(state_space_mean_derivative[:initial_number_of_states])
 
     state_space_variance_derivative = np.zeros((7,2*total_number_of_states,2*total_number_of_states))
     # update the past ("negative time")
@@ -774,6 +775,7 @@ def kalman_update_step(state_space_mean,
                                          adaptation_coefficient*(current_observation[1] -
                                                                  observation_transform.dot(
                                                                      predicted_final_state_space_mean)) )
+    # print(updated_stacked_state_space_mean.shape)
     # ensures the the mean mRNA and Protein are non negative
     updated_stacked_state_space_mean = np.maximum(updated_stacked_state_space_mean,0)
 
@@ -858,17 +860,12 @@ def kalman_update_step(state_space_mean,
                                                                                                                                                    long_column_index]
 
     # need derivative of the adaptation_coefficient
-    print("shortened_covariance_derivative_matrix_past_to_final: ",shortened_covariance_derivative_matrix_past_to_final[0].shape)
-    print("np.transpose(observation_transform): ",np.transpose(observation_transform).shape)
-    print("helper_inverse: ",helper_inverse)
-    print("predicted_final_covariance_derivative_matrix: ",predicted_final_covariance_derivative_matrix.shape)
-    print("test",shortened_covariance_derivative_matrix_past_to_final[0].dot(np.transpose(np.array([[0,1]]))).shape)
-    observation_transform = observation_transform.reshape((1,2))
-    adaptation_coefficient_derivative = np.zeros((7,all_indices_up_to_delay.shape[0],1))
+    # observation_transform = observation_transform.reshape((1,2))
+    adaptation_coefficient_derivative = np.zeros((7,all_indices_up_to_delay.shape[0]))
     for parameter_index in range(7):
         adaptation_coefficient_derivative[parameter_index] = (shortened_covariance_derivative_matrix_past_to_final[parameter_index].dot(np.transpose(observation_transform))*helper_inverse -
-                                         (shortened_covariance_matrix_past_to_final[parameter_index].dot(np.transpose(observation_transform))).dot(observation_transform).dot(
-                                         predicted_final_covariance_derivative_matrix[parameter_index]).dot(np.transpose(observation_transform))*np.power(helper_inverse,2) )
+                                                             (shortened_covariance_matrix_past_to_final[parameter_index].dot(np.transpose(observation_transform).dot(observation_transform.dot(
+                                                              predicted_final_covariance_derivative_matrix[parameter_index].dot(np.transpose(observation_transform))))))*np.power(helper_inverse,2) )
 
     # This is d_rho*
     updated_stacked_state_space_mean_derivative = np.zeros((7,2*(discrete_delay+1)))
@@ -880,10 +877,11 @@ def kalman_update_step(state_space_mean,
                                                                          predicted_final_state_space_mean_derivative[parameter_index])) )
 
     # unstack the rho into two columns, one with mRNA and one with protein
+
     updated_state_space_mean_derivative = np.zeros(((discrete_delay+1),7,2))
     for parameter_index in range(7):
-        updated_state_space_mean_derivative[parameter_index] = np.column_stack((updated_stacked_state_space_mean[parameter_index,:(discrete_delay+1)],
-                                                                                updated_stacked_state_space_mean[parameter_index,(discrete_delay+1):]))
+        updated_state_space_mean_derivative[:,parameter_index,:] = np.column_stack((updated_stacked_state_space_mean_derivative[parameter_index,:(discrete_delay+1)],
+                                                                                    updated_stacked_state_space_mean_derivative[parameter_index,(discrete_delay+1):]))
 
     # Fill in the updated values
     # funny indexing with 0:2 instead of (0,1) to make numba happy
