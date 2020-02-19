@@ -333,7 +333,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_observation_distribution_parameters(predicted_observation_distributions,
                                                current_observation,
                                                state_space_mean,
@@ -412,7 +412,7 @@ def kalman_observation_distribution_parameters(predicted_observation_distributio
 
     return predicted_observation_distributions[observation_index + 1]
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -640,7 +640,7 @@ def kalman_prediction_step(state_space_mean,
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_update_step(state_space_mean,
                        state_space_variance,
                        state_space_mean_derivative,
@@ -834,15 +834,18 @@ def kalman_update_step(state_space_mean,
                                                                                                                                                      long_row_index,
                                                                                                                                                      long_column_index]
     # extract d_P(t+Deltat-delay:t+deltat,t+Deltat)/d_theta, replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_derivative_matrix_past_to_final = shortened_covariance_derivative_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:]
+    shortened_covariance_derivative_matrix_past_to_final = shortened_covariance_derivative_matrix[:,:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)]
 
     # and d_P(t+Deltat,t+Deltat-delay:t+deltat)/d_theta, replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_derivative_matrix_final_to_past = shortened_covariance_derivative_matrix[:,:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)]
+    shortened_covariance_derivative_matrix_final_to_past = shortened_covariance_derivative_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:]
 
     # This is the derivative of P(t+Deltat,t+Deltat) in the paper
     # using np.ix_-like indexing
-    predicted_final_covariance_derivative_matrix = state_space_variance_derivative[[[current_number_of_states-1],[total_number_of_states+current_number_of_states-1]],
-                                                                                  [[current_number_of_states-1,total_number_of_states+current_number_of_states-1]]]
+    # predicted_final_covariance_derivative_matrix = np.zeros((7,2,2))
+    # for parameter_index in range(7):
+    #     predicted_final_covariance_derivative_matrix[parameter_index] = state_space_variance_derivative[parameter_index][[[current_number_of_states-1],
+    #                                                                                                                      [total_number_of_states+current_number_of_states-1]],
+    #                                                                                                                      [[current_number_of_states-1,total_number_of_states+current_number_of_states-1]]]
     # funny indexing to get numba to work properly
     predicted_final_covariance_derivative_matrix = np.zeros((7,2,2))
     for parameter_index in range(7):
@@ -855,9 +858,17 @@ def kalman_update_step(state_space_mean,
                                                                                                                                                    long_column_index]
 
     # need derivative of the adaptation_coefficient
-    adaptation_coefficient_derivative = (shortened_covariance_derivative_matrix_past_to_final.dot(np.transpose(observation_transform))*helper_inverse -
-                                         shortened_covariance_matrix_past_to_final.dot(np.transpose(observation_transform)).dot(observation_transform).dot(
-                                         predicted_final_covariance_derivative_matrix).dot(np.transpose(observation_transform))*np.power(helper_inverse,2) )
+    print("shortened_covariance_derivative_matrix_past_to_final: ",shortened_covariance_derivative_matrix_past_to_final[0].shape)
+    print("np.transpose(observation_transform): ",np.transpose(observation_transform).shape)
+    print("helper_inverse: ",helper_inverse)
+    print("predicted_final_covariance_derivative_matrix: ",predicted_final_covariance_derivative_matrix.shape)
+    print("test",shortened_covariance_derivative_matrix_past_to_final[0].dot(np.transpose(np.array([[0,1]]))).shape)
+    observation_transform = observation_transform.reshape((1,2))
+    adaptation_coefficient_derivative = np.zeros((7,all_indices_up_to_delay.shape[0],1))
+    for parameter_index in range(7):
+        adaptation_coefficient_derivative[parameter_index] = (shortened_covariance_derivative_matrix_past_to_final[parameter_index].dot(np.transpose(observation_transform))*helper_inverse -
+                                         (shortened_covariance_matrix_past_to_final[parameter_index].dot(np.transpose(observation_transform))).dot(observation_transform).dot(
+                                         predicted_final_covariance_derivative_matrix[parameter_index]).dot(np.transpose(observation_transform))*np.power(helper_inverse,2) )
 
     # This is d_rho*
     updated_stacked_state_space_mean_derivative = np.zeros((7,2*(discrete_delay+1)))
