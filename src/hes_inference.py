@@ -330,7 +330,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
                                                                                                                               time_delay,
                                                                                                                               observation_time_step,
                                                                                                                               measurement_variance)
-                                                                                                                              
+
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions
 
 # @jit(nopython = True)
@@ -950,8 +950,10 @@ def kalman_update_step(state_space_mean,
                                                      + measurement_variance )
 
     # This is C in the paper
+    # import pdb; pdb.set_trace()
     adaptation_coefficient = shortened_covariance_matrix_past_to_final.dot(
                                 np.transpose(observation_transform) )*helper_inverse
+    # import pdb; pdb.set_trace()
     # This is rho*
     updated_stacked_state_space_mean = ( stacked_state_space_mean +
                                          adaptation_coefficient*(current_observation[1] -
@@ -1045,14 +1047,16 @@ def kalman_update_step(state_space_mean,
     # need derivative of the adaptation_coefficient
     # observation_transform = observation_transform.reshape((1,2))
     adaptation_coefficient_derivative = np.zeros((7,all_indices_up_to_delay.shape[0]))
+    # import pdb; pdb.set_trace()
     for parameter_index in range(7):
-        adaptation_coefficient_derivative[parameter_index] = (shortened_covariance_derivative_matrix_past_to_final[parameter_index].dot(np.transpose(observation_transform))*helper_inverse -
-                                                             (shortened_covariance_matrix_past_to_final[parameter_index].dot(np.transpose(observation_transform).dot(observation_transform.dot(
-                                                              predicted_final_covariance_derivative_matrix[parameter_index].dot(np.transpose(observation_transform))))))*np.power(helper_inverse,2) )
+        adaptation_coefficient_derivative[parameter_index] = (shortened_covariance_derivative_matrix_past_to_final[parameter_index].dot(np.transpose(observation_transform.reshape(1,2)))*helper_inverse -
+                                                             (shortened_covariance_matrix_past_to_final.dot(np.transpose(observation_transform.reshape((1,2))).dot(observation_transform.reshape((1,2)).dot(
+                                                             predicted_final_covariance_derivative_matrix[parameter_index].dot(np.transpose(observation_transform.reshape((1,2))))))))*np.power(helper_inverse,2) ).reshape(all_indices_up_to_delay.shape[0])
 
     # This is d_rho*
     updated_stacked_state_space_mean_derivative = np.zeros((7,2*(discrete_delay+1)))
     for parameter_index in range(7):
+        # import pdb; pdb.set_trace()
         updated_stacked_state_space_mean_derivative[parameter_index] = ( stacked_state_space_mean_derivative[parameter_index] +
                                                                          adaptation_coefficient_derivative[parameter_index]*(current_observation[1] -
                                                                          observation_transform.dot(predicted_final_state_space_mean)) -
