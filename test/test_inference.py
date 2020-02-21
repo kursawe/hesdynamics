@@ -35,13 +35,14 @@ class TestInference(unittest.TestCase):
         # run the current kalman filter using the same parameters and observations, then compare
         parameters = [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
 
-        state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions = hes_inference.kalman_filter(fixed_protein_observations,
-                                                                                                                                                                                 parameters,
-                                                                                                                                                                                 measurement_variance=10000)
+        state_space_mean, state_space_variance,_,_,predicted_observation_distributions = hes_inference.kalman_filter(fixed_protein_observations,
+                                                                                                                     parameters,
+                                                                                                                     measurement_variance=10000)
+
         # np.testing.assert_almost_equal(state_space_mean,true_kalman_prediction_mean)
         # np.testing.assert_almost_equal(state_space_variance,true_kalman_prediction_variance)
         # np.testing.assert_almost_equal(predicted_observation_distributions,true_kalman_prediction_distributions)
-
+        # import pdb; pdb.set_trace()
         # If above tests fail, comment them out to look at the plot below. Could be useful for identifying problems.
         number_of_states = state_space_mean.shape[0]
         protein_covariance_matrix = state_space_variance[number_of_states:,number_of_states:]
@@ -497,7 +498,7 @@ class TestInference(unittest.TestCase):
 
     def xest_identify_oscillatory_parameters(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
-                                   'test_sampling_results')
+                                   'sampling_results_extended')
         model_results = np.load(saving_path + '.npy')
         prior_samples = np.load(saving_path + '_parameters.npy')
 
