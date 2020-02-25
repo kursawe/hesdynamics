@@ -23,7 +23,6 @@ number_of_cpus = mp.cpu_count()
 class TestInference(unittest.TestCase):
 
     def test_check_kalman_filter_not_broken(self):
-
         # load in some saved observations and correct kalman filter predictions
         saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         fixed_langevin_trace                 = np.load(saving_path + '_true_data.npy')
@@ -512,8 +511,8 @@ class TestInference(unittest.TestCase):
         my_posterior_samples = prior_samples[accepted_indices]
         my_model_results = model_results[accepted_indices]
 
-        this_parameter = my_posterior_samples[3]
-        this_results = my_model_results[3]
+        this_parameter = my_posterior_samples[0]
+        this_results = my_model_results[0]
 
         print('this basal transcription rate')
         print(this_parameter[0])
@@ -525,6 +524,8 @@ class TestInference(unittest.TestCase):
         print(this_parameter[3])
         print('this hill coefficient')
         print(this_parameter[4])
+        print('coherence')
+        print(this_results[3])
 
         this_trace = hes5.generate_langevin_trajectory(
                                                  duration = 1500,

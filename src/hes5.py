@@ -1,4 +1,4 @@
-import PyDDE
+# import PyDDE
 import numpy as np
 import scipy.signal
 import scipy.optimize
@@ -524,7 +524,7 @@ def is_parameter_point_stochastically_oscillatory( repression_threshold = 10000,
         True if in oscillatory regime, false if otherwise
     '''
 
-    power_spectrum = calculate_theoretical_power_spectrum_at_parameter_point(basal_transcription_rate = basal_transcription_rate,
+    power_spectrum = calculate_theoretical_protein_power_spectrum_at_parameter_point(basal_transcription_rate = basal_transcription_rate,
                                                                              translation_rate = translation_rate,
                                                                              repression_threshold = repression_threshold,
                                                                              transcription_delay = transcription_delay,
