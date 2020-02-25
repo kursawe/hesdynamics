@@ -831,6 +831,20 @@ def kalman_prediction_step(state_space_mean,
         next_covariance_derivative_matrix[1] = current_covariance_derivative_matrix[1] + discretisation_time_step*(derivative_of_variance_wrt_hill_coefficient)
 
         # mRNA degradation rate
+        instant_jacobian_derivative_wrt_mRNA_degradation = np.array([[-1,0],[0,0]])
+        delayed_jacobian_derivative_wrt_mRNA_degradation = (np.array([[0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[2,1]],[0,0]]) )
+        instant_noise_derivative_wrt_mRNA_degradation = (np.array([[mRNA_degradation_rate*current_mean_derivative[2,0] + current_mean[0],0],
+                                                                   [0,translation_rate*current_mean_derivative[2,0] + protein_degradation_rate*current_mean_derivative[2,1]]]))
+
+        delayed_noise_derivative_wrt_mRNA_degradation = (np.array([[basal_transcription_rate*(hill_function_derivative_value*past_mean_derivative[2,1]),0],
+                                                                   [0,0]]))
+
+        derivative_of_variance_wrt_mRNA_degradation = ( common_state_space_variance_derivative_element[2] +
+                                                        np.dot(delayed_jacobian_derivative_wrt_mRNA_degradation,covariance_derivative_matrix_past_to_now) +
+                                                        np.dot(covariance_derivative_matrix_now_to_past,np.transpose(delayed_jacobian_derivative_wrt_mRNA_degradation)) +
+                                                        instant_noise_derivative_wrt_mRNA_degradation + delayed_noise_derivative_wrt_mRNA_degradation )
+
+        next_covariance_derivative_matrix[2] = current_covariance_derivative_matrix[2] + discretisation_time_step*(derivative_of_variance_wrt_mRNA_degradation)
         # protein degradation rate
         # basal transcription rate
         # translation rate
