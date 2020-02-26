@@ -333,7 +333,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_observation_distribution_parameters(predicted_observation_distributions,
                                                current_observation,
                                                state_space_mean,
@@ -412,7 +412,7 @@ def kalman_observation_distribution_parameters(predicted_observation_distributio
 
     return predicted_observation_distributions[observation_index + 1]
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -624,6 +624,9 @@ def kalman_prediction_step(state_space_mean,
             covariance_matrix_intermediate_to_next = covariance_matrix_intermediate_to_current + discretisation_time_step*covariance_derivative
 
             # Fill in the big matrix
+            """
+            potential error here, using covariance_matrix_intermediate_to_current rather than covariance_matrix_intermediate_to_next.
+            """
             for short_row_index, long_row_index in enumerate([intermediate_time_index,
                                                               total_number_of_states+intermediate_time_index]):
                 for short_column_index, long_column_index in enumerate([next_time_index,
@@ -663,9 +666,11 @@ def kalman_prediction_step(state_space_mean,
                                                                                                          hill_coefficient),
                                                                                            2))
 
-        repression_derivative = ( instant_jacobian.dot(current_mean_derivative[0].reshape((2,1))) +
-                                  delayed_jacobian.dot(past_mean_derivative[0].reshape((2,1))) +
-                                  np.array([[basal_transcription_rate*hill_function_derivative_value_wrt_repression],[0]]) )
+        # print(instant_jacobian.dot(current_mean_derivative[0].reshape((2,1))))
+        # print(instant_jacobian.dot(current_mean_derivative[0]))
+        repression_derivative = ( instant_jacobian.dot(current_mean_derivative[0]).reshape((2,1)) +
+                                  delayed_jacobian.dot(past_mean_derivative[0]).reshape((2,1)) +
+                                  np.array([[basal_transcription_rate*hill_function_derivative_value_wrt_repression],[0.0]]) )
 
         next_mean_derivative[0] = current_mean_derivative[0] + discretisation_time_step*(repression_derivative.reshape((1,2)))
 
@@ -674,44 +679,44 @@ def kalman_prediction_step(state_space_mean,
                                                                      hill_coefficient)/( np.power(1.0+np.power( past_protein/repression_threshold,
                                                                      hill_coefficient),2))
 
-        hill_coefficient_derivative = ( instant_jacobian.dot(current_mean_derivative[1].reshape((2,1))) +
-                                        delayed_jacobian.dot(past_mean_derivative[1].reshape((2,1))) +
-                                        np.array(([[-basal_transcription_rate*hill_function_derivative_value_wrt_hill_coefficient],[0]])) )
+        hill_coefficient_derivative = ( instant_jacobian.dot(current_mean_derivative[1]).reshape((2,1)) +
+                                        delayed_jacobian.dot(past_mean_derivative[1]).reshape((2,1)) +
+                                        np.array(([[-basal_transcription_rate*hill_function_derivative_value_wrt_hill_coefficient],[0.0]])) )
 
         next_mean_derivative[1] = current_mean_derivative[1] + discretisation_time_step*(hill_coefficient_derivative.reshape((1,2)))
 
         # mRNA degradation rate
-        mRNA_degradation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[2].reshape((2,1))) +
-                                             delayed_jacobian.dot(past_mean_derivative[2].reshape((2,1))) +
-                                             np.array(([[-current_mean[0]],[0]])) )
+        mRNA_degradation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[2]).reshape((2,1)) +
+                                             delayed_jacobian.dot(past_mean_derivative[2]).reshape((2,1)) +
+                                             np.array(([[-current_mean[0]],[0.0]])) )
 
         next_mean_derivative[2] = current_mean_derivative[2] + discretisation_time_step*(mRNA_degradation_rate_derivative.reshape((1,2)))
 
         # protein degradation rate
-        protein_degradation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[3].reshape((2,1))) +
-                                                delayed_jacobian.dot(past_mean_derivative[3].reshape((2,1))) +
-                                                np.array(([[0],[-current_mean[1]]])) )
+        protein_degradation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[3]).reshape((2,1)) +
+                                                delayed_jacobian.dot(past_mean_derivative[3]).reshape((2,1)) +
+                                                np.array(([[0.0],[-current_mean[1]]])) )
 
         next_mean_derivative[3] = current_mean_derivative[3] + discretisation_time_step*(protein_degradation_rate_derivative.reshape((1,2)))
 
         # basal transcription rate
-        basal_transcription_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[4].reshape((2,1))) +
-                                                delayed_jacobian.dot(past_mean_derivative[4].reshape((2,1))) +
-                                                np.array(([[hill_function_value],[0]])) )
+        basal_transcription_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[4]).reshape((2,1)) +
+                                                delayed_jacobian.dot(past_mean_derivative[4]).reshape((2,1)) +
+                                                np.array(([[hill_function_value],[0.0]])) )
 
         next_mean_derivative[4] = current_mean_derivative[4] + discretisation_time_step*(basal_transcription_rate_derivative.reshape((1,2)))
 
         # translation rate
-        translation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[5].reshape((2,1))) +
-                                        delayed_jacobian.dot(past_mean_derivative[5].reshape((2,1))) +
-                                        np.array(([[0],[current_mean[0]]])) )
+        translation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[5]).reshape((2,1)) +
+                                        delayed_jacobian.dot(past_mean_derivative[5]).reshape((2,1)) +
+                                        np.array(([[0.0],[current_mean[0]]])) )
 
         next_mean_derivative[5] = current_mean_derivative[5] + discretisation_time_step*(translation_rate_derivative.reshape((1,2)))
 
         # transcriptional delay
-        transcription_delay_derivative = ( instant_jacobian.dot(current_mean_derivative[6].reshape((2,1))) +
-                                             delayed_jacobian.dot(past_mean_derivative[6].reshape((2,1))) +
-                                             np.array(([[-basal_transcription_rate*hill_function_derivative_value],[0]])) )
+        transcription_delay_derivative = ( instant_jacobian.dot(current_mean_derivative[6]).reshape((2,1)) +
+                                             delayed_jacobian.dot(past_mean_derivative[6]).reshape((2,1)) +
+                                             np.array(([[-basal_transcription_rate*hill_function_derivative_value],[0.0]])) )
 
         next_mean_derivative[6] = current_mean_derivative[6] + discretisation_time_step*(transcription_delay_derivative.reshape((1,2)))
 
@@ -790,14 +795,14 @@ def kalman_prediction_step(state_space_mean,
                                                                        hill_coefficient),3)))
 
         # instant_jacobian_derivative_wrt_repression = 0
-        delayed_jacobian_derivative_wrt_repression = (np.array([[0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[0,1]],[0,0]]) +
-                                                      np.array([[0,basal_transcription_rate*hill_function_second_derivative_value_wrt_repression],[0,0]]) )
+        delayed_jacobian_derivative_wrt_repression = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[0,1]],[0.0,0.0]]) +
+                                                      np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value_wrt_repression],[0.0,0.0]]) )
 
-        instant_noise_derivative_wrt_repression = (np.array([[mRNA_degradation_rate*current_mean_derivative[0,0],0],
-                                                             [0,translation_rate*current_mean_derivative[0,0] + protein_degradation_rate*current_mean_derivative[0,1]]]))
+        instant_noise_derivative_wrt_repression = (np.array([[mRNA_degradation_rate*current_mean_derivative[0,0],0.0],
+                                                             [0.0,translation_rate*current_mean_derivative[0,0] + protein_degradation_rate*current_mean_derivative[0,1]]]))
 
-        delayed_noise_derivative_wrt_repression = (np.array([[basal_transcription_rate*(hill_function_derivative_value*past_mean_derivative[0,1] + hill_function_derivative_value_wrt_repression),0],
-                                                             [0,0]]))
+        delayed_noise_derivative_wrt_repression = (np.array([[basal_transcription_rate*(hill_function_derivative_value*past_mean_derivative[0,1] + hill_function_derivative_value_wrt_repression),0.0],
+                                                             [0.0,0.0]]))
 
         derivative_of_variance_wrt_repression_threshold = ( common_state_space_variance_derivative_element[0] +
                                                             np.dot(delayed_jacobian_derivative_wrt_repression,covariance_matrix_past_to_now) +
@@ -813,14 +818,14 @@ def kalman_prediction_step(state_space_mean,
                                                                         past_protein*np.power(1.0+np.power(past_protein/repression_threshold,hill_coefficient),3))
 
         # instant_jacobian_derivative_wrt_hill_coefficient = 0
-        delayed_jacobian_derivative_wrt_hill_coefficient = (np.array([[0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[1,1]],[0,0]]) +
-                                                            np.array([[0,basal_transcription_rate*hill_function_second_derivative_value_wrt_hill_coefficient],[0,0]]) )
+        delayed_jacobian_derivative_wrt_hill_coefficient = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[1,1]],[0.0,0.0]]) +
+                                                            np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value_wrt_hill_coefficient],[0.0,0.0]]) )
 
-        instant_noise_derivative_wrt_hill_coefficient = (np.array([[mRNA_degradation_rate*current_mean_derivative[1,0],0],
-                                                                   [0,translation_rate*current_mean_derivative[1,0] + protein_degradation_rate*current_mean_derivative[1,1]]]))
+        instant_noise_derivative_wrt_hill_coefficient = (np.array([[mRNA_degradation_rate*current_mean_derivative[1,0],0.0],
+                                                                   [0.0,translation_rate*current_mean_derivative[1,0] + protein_degradation_rate*current_mean_derivative[1,1]]]))
 
-        delayed_noise_derivative_wrt_hill_coefficient = (np.array([[basal_transcription_rate*(hill_function_derivative_value*past_mean_derivative[1,1] + hill_function_derivative_value_wrt_hill_coefficient),0],
-                                                                   [0,0]]))
+        delayed_noise_derivative_wrt_hill_coefficient = (np.array([[basal_transcription_rate*(hill_function_derivative_value*past_mean_derivative[1,1] + hill_function_derivative_value_wrt_hill_coefficient),0.0],
+                                                                   [0.0,0.0]]))
 
         derivative_of_variance_wrt_hill_coefficient = ( common_state_space_variance_derivative_element[1] +
                                                         np.dot(delayed_jacobian_derivative_wrt_hill_coefficient,covariance_matrix_past_to_now) +
@@ -830,17 +835,17 @@ def kalman_prediction_step(state_space_mean,
         next_covariance_derivative_matrix[1] = current_covariance_derivative_matrix[1] + discretisation_time_step*(derivative_of_variance_wrt_hill_coefficient)
 
         # mRNA degradation rate
-        instant_jacobian_derivative_wrt_mRNA_degradation = np.array([[-1,0],[0,0]])
-        delayed_jacobian_derivative_wrt_mRNA_degradation = (np.array([[0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[2,1]],[0,0]]) )
-        instant_noise_derivative_wrt_mRNA_degradation = (np.array([[mRNA_degradation_rate*current_mean_derivative[2,0] + current_mean[0],0],
-                                                                   [0,translation_rate*current_mean_derivative[2,0] + protein_degradation_rate*current_mean_derivative[2,1]]]))
+        instant_jacobian_derivative_wrt_mRNA_degradation = np.array([[-1.0,0.0],[0.0,0.0]])
+        delayed_jacobian_derivative_wrt_mRNA_degradation = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[2,1]],[0.0,0.0]]) )
+        instant_noise_derivative_wrt_mRNA_degradation = (np.array([[mRNA_degradation_rate*current_mean_derivative[2,0] + current_mean[0],0.0],
+                                                                   [0.0,translation_rate*current_mean_derivative[2,0] + protein_degradation_rate*current_mean_derivative[2,1]]]))
 
-        delayed_noise_derivative_wrt_mRNA_degradation = (np.array([[basal_transcription_rate*(hill_function_derivative_value*past_mean_derivative[2,1]),0],
-                                                                   [0,0]]))
+        delayed_noise_derivative_wrt_mRNA_degradation = (np.array([[basal_transcription_rate*(hill_function_derivative_value*past_mean_derivative[2,1]),0.0],
+                                                                   [0.0,0.0]]))
 
         derivative_of_variance_wrt_mRNA_degradation = ( common_state_space_variance_derivative_element[2] +
                                                         np.dot(instant_jacobian_derivative_wrt_mRNA_degradation,current_covariance_matrix) +
-                                                        np.dot(current_covariance_matrix,np.transpose(delayed_jacobian_derivative_wrt_mRNA_degradation)) +
+                                                        np.dot(current_covariance_matrix,np.transpose(instant_jacobian_derivative_wrt_mRNA_degradation)) +
                                                         np.dot(delayed_jacobian_derivative_wrt_mRNA_degradation,covariance_matrix_past_to_now) +
                                                         np.dot(covariance_matrix_now_to_past,np.transpose(delayed_jacobian_derivative_wrt_mRNA_degradation)) +
                                                         instant_noise_derivative_wrt_mRNA_degradation + delayed_noise_derivative_wrt_mRNA_degradation )
@@ -848,17 +853,17 @@ def kalman_prediction_step(state_space_mean,
         next_covariance_derivative_matrix[2] = current_covariance_derivative_matrix[2] + discretisation_time_step*(derivative_of_variance_wrt_mRNA_degradation)
 
         # protein degradation rate
-        instant_jacobian_derivative_wrt_protein_degradation = np.array([[0,0],[0,-1]])
-        delayed_jacobian_derivative_wrt_protein_degradation = (np.array([[0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[3,1]],[0,0]]) )
-        instant_noise_derivative_wrt_protein_degradation = (np.array([[mRNA_degradation_rate*current_mean_derivative[3,0],0],
-                                                                      [0,translation_rate*current_mean_derivative[3,0] + protein_degradation_rate*current_mean_derivative[3,1] + current_mean[1]]]))
+        instant_jacobian_derivative_wrt_protein_degradation = np.array([[0.0,0.0],[0.0,-1.0]])
+        delayed_jacobian_derivative_wrt_protein_degradation = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[3,1]],[0.0,0.0]]) )
+        instant_noise_derivative_wrt_protein_degradation = (np.array([[mRNA_degradation_rate*current_mean_derivative[3,0],0.0],
+                                                                      [0.0,translation_rate*current_mean_derivative[3,0] + protein_degradation_rate*current_mean_derivative[3,1] + current_mean[1]]]))
 
-        delayed_noise_derivative_wrt_protein_degradation = (np.array([[basal_transcription_rate*(hill_function_derivative_value*past_mean_derivative[3,1]),0],
-                                                                      [0,0]]))
+        delayed_noise_derivative_wrt_protein_degradation = (np.array([[basal_transcription_rate*(hill_function_derivative_value*past_mean_derivative[3,1]),0.0],
+                                                                      [0.0,0.0]]))
 
         derivative_of_variance_wrt_protein_degradation = ( common_state_space_variance_derivative_element[3] +
                                                            np.dot(instant_jacobian_derivative_wrt_protein_degradation,current_covariance_matrix) +
-                                                           np.dot(current_covariance_matrix,np.transpose(delayed_jacobian_derivative_wrt_protein_degradation)) +
+                                                           np.dot(current_covariance_matrix,np.transpose(instant_jacobian_derivative_wrt_protein_degradation)) +
                                                            np.dot(delayed_jacobian_derivative_wrt_protein_degradation,covariance_matrix_past_to_now) +
                                                            np.dot(covariance_matrix_now_to_past,np.transpose(delayed_jacobian_derivative_wrt_protein_degradation)) +
                                                            instant_noise_derivative_wrt_protein_degradation + delayed_noise_derivative_wrt_protein_degradation )
@@ -867,13 +872,13 @@ def kalman_prediction_step(state_space_mean,
 
         # basal transcription rate
         # instant_jacobian_derivative_wrt_basal_transcription = 0
-        delayed_jacobian_derivative_wrt_basal_transcription = (np.array([[0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[4,1]],[0,0]]) +
-                                                               np.array([[0,hill_function_derivative_value],[0,0]]) )
-        instant_noise_derivative_wrt_basal_transcription = (np.array([[mRNA_degradation_rate*current_mean_derivative[4,0],0],
-                                                                      [0,translation_rate*current_mean_derivative[4,0] + protein_degradation_rate*current_mean_derivative[4,1]]]))
+        delayed_jacobian_derivative_wrt_basal_transcription = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[4,1]],[0.0,0.0]]) +
+                                                               np.array([[0.0,hill_function_derivative_value],[0.0,0.0]]) )
+        instant_noise_derivative_wrt_basal_transcription = (np.array([[mRNA_degradation_rate*current_mean_derivative[4,0],0.0],
+                                                                      [0.0,translation_rate*current_mean_derivative[4,0] + protein_degradation_rate*current_mean_derivative[4,1]]]))
 
-        delayed_noise_derivative_wrt_basal_transcription = (np.array([[basal_transcription_rate*hill_function_derivative_value*past_mean_derivative[4,1] + hill_function_value,0],
-                                                                      [0,0]]))
+        delayed_noise_derivative_wrt_basal_transcription = (np.array([[basal_transcription_rate*hill_function_derivative_value*past_mean_derivative[4,1] + hill_function_value,0.0],
+                                                                      [0.0,0.0]]))
 
         derivative_of_variance_wrt_basal_transcription = ( common_state_space_variance_derivative_element[4] +
                                                            np.dot(delayed_jacobian_derivative_wrt_basal_transcription,covariance_matrix_past_to_now) +
@@ -883,13 +888,13 @@ def kalman_prediction_step(state_space_mean,
         next_covariance_derivative_matrix[4] = current_covariance_derivative_matrix[4] + discretisation_time_step*(derivative_of_variance_wrt_basal_transcription)
 
         # translation rate
-        instant_jacobian_derivative_wrt_translation_rate = np.array([[0,0],[1,0]])
-        delayed_jacobian_derivative_wrt_translation_rate = (np.array([[0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[5,1]],[0,0]]))
-        instant_noise_derivative_wrt_translation_rate = (np.array([[mRNA_degradation_rate*current_mean_derivative[5,0],0],
-                                                                   [0,translation_rate*current_mean_derivative[5,0] + protein_degradation_rate*current_mean_derivative[5,1] + current_mean[0]]]))
+        instant_jacobian_derivative_wrt_translation_rate = np.array([[0.0,0.0],[1.0,0.0]])
+        delayed_jacobian_derivative_wrt_translation_rate = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[5,1]],[0.0,0.0]]))
+        instant_noise_derivative_wrt_translation_rate = (np.array([[mRNA_degradation_rate*current_mean_derivative[5,0],0.0],
+                                                                   [0.0,translation_rate*current_mean_derivative[5,0] + protein_degradation_rate*current_mean_derivative[5,1] + current_mean[0]]]))
 
-        delayed_noise_derivative_wrt_translation_rate = (np.array([[basal_transcription_rate*hill_function_derivative_value*past_mean_derivative[5,1],0],
-                                                                      [0,0]]))
+        delayed_noise_derivative_wrt_translation_rate = (np.array([[basal_transcription_rate*hill_function_derivative_value*past_mean_derivative[5,1],0.0],
+                                                                      [0.0,0.0]]))
 
         derivative_of_variance_wrt_translation_rate = ( common_state_space_variance_derivative_element[5] +
                                                         np.dot(instant_jacobian_derivative_wrt_translation_rate,current_covariance_matrix) +
@@ -902,15 +907,15 @@ def kalman_prediction_step(state_space_mean,
 
         # transcriptional delay
         # instant_jacobian_derivative_wrt_transcription_delay = 0
-        delayed_jacobian_derivative_wrt_transcription_delay = (np.array([[0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[6,1]],[0,0]]) +
-                                                               np.array([[0,-basal_transcription_rate*hill_function_second_derivative_value],[0,0]]))
-        instant_noise_derivative_wrt_transcription_delay = (np.array([[mRNA_degradation_rate*current_mean_derivative[6,0],0],
-                                                                      [0,translation_rate*current_mean_derivative[6,0] + protein_degradation_rate*current_mean_derivative[6,1]]]))
+        delayed_jacobian_derivative_wrt_transcription_delay = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[6,1]],[0.0,0.0]]) +
+                                                               np.array([[0.0,-basal_transcription_rate*hill_function_second_derivative_value],[0.0,0.0]]))
+        instant_noise_derivative_wrt_transcription_delay = (np.array([[mRNA_degradation_rate*current_mean_derivative[6,0],0.0],
+                                                                      [0.0,translation_rate*current_mean_derivative[6,0] + protein_degradation_rate*current_mean_derivative[6,1]]]))
 
-        delayed_noise_derivative_wrt_transcription_delay = (np.array([[basal_transcription_rate*hill_function_derivative_value*past_mean_derivative[6,1],0],
-                                                                      [0,0]]) +
-                                                            np.array([[-basal_transcription_rate*hill_function_derivative_value,0],
-                                                                      [0,0]]))
+        delayed_noise_derivative_wrt_transcription_delay = (np.array([[basal_transcription_rate*hill_function_derivative_value*past_mean_derivative[6,1],0.0],
+                                                                      [0.0,0.0]]) +
+                                                            np.array([[-basal_transcription_rate*hill_function_derivative_value,0.0],
+                                                                      [0.0,0.0]]))
 
         derivative_of_variance_wrt_transcription_delay = ( common_state_space_variance_derivative_element[6] +
                                                         np.dot(delayed_jacobian_derivative_wrt_transcription_delay,covariance_matrix_past_to_now) +
@@ -929,52 +934,111 @@ def kalman_prediction_step(state_space_mean,
                                                                                                                                           short_row_index,
                                                                                                                                           short_column_index]
 
-        # TODO: 
         ## now we need to update the cross correlations, P(s,t) in the Calderazzo paper
         # the range needs to include t, since we want to propagate P(t,t) into P(t,t+Deltat)
         for intermediate_time_index in range(past_time_index,current_time_index+1):
-            # This corresponds to P(s,t) in the Calderazzo paper
+            # This corresponds to d_P(s,t)/d_theta in the Calderazzo paper
             # for loops instead of np.ix_-like indexing
-            covariance_matrix_intermediate_to_current = np.zeros((2,2))
-            for short_row_index, long_row_index in enumerate([intermediate_time_index,
-                                                              total_number_of_states+intermediate_time_index]):
-                for short_column_index, long_column_index in enumerate([current_time_index,
-                                                                        total_number_of_states+current_time_index]):
-                    covariance_matrix_intermediate_to_current[short_row_index,short_column_index] = state_space_variance[long_row_index,
-                                                                                                                         long_column_index]
-            # This corresponds to P(s,t-tau)
-            covariance_matrix_intermediate_to_past = np.zeros((2,2))
-            for short_row_index, long_row_index in enumerate([intermediate_time_index,
-                                                              total_number_of_states+intermediate_time_index]):
-                for short_column_index, long_column_index in enumerate([past_time_index,
-                                                                        total_number_of_states+past_time_index]):
-                    covariance_matrix_intermediate_to_past[short_row_index,short_column_index] = state_space_variance[long_row_index,
-                                                                                                                         long_column_index]
+            covariance_matrix_derivative_intermediate_to_current = np.zeros((7,2,2))
+            for parameter_index in range(7):
+                for short_row_index, long_row_index in enumerate([intermediate_time_index,
+                                                                  total_number_of_states+intermediate_time_index]):
+                    for short_column_index, long_column_index in enumerate([current_time_index,
+                                                                            total_number_of_states+current_time_index]):
+                        covariance_matrix_derivative_intermediate_to_current[parameter_index,short_row_index,short_column_index] = state_space_variance_derivative[parameter_index,
+                                                                                                                                                                   long_row_index,
+                                                                                                                                                                   long_column_index]
+            # This corresponds to d_P(s,t-tau)/d_theta
+            covariance_matrix_derivative_intermediate_to_past = np.zeros((7,2,2))
+            for parameter_index in range(7):
+                for short_row_index, long_row_index in enumerate([intermediate_time_index,
+                                                                  total_number_of_states+intermediate_time_index]):
+                    for short_column_index, long_column_index in enumerate([past_time_index,
+                                                                            total_number_of_states+past_time_index]):
+                        covariance_matrix_derivative_intermediate_to_past[parameter_index,short_row_index,short_column_index] = state_space_variance_derivative[parameter_index,
+                                                                                                                                                                long_row_index,
+                                                                                                                                                                long_column_index]
 
-            covariance_derivative = ( covariance_matrix_intermediate_to_current.dot( np.transpose(instant_jacobian)) +
-                                      covariance_matrix_intermediate_to_past.dot( np.transpose(delayed_jacobian)))
+            # This corresponds to d_P(s,t+Deltat)/d_theta in the Calderazzo paper
+            covariance_matrix_derivative_intermediate_to_next = np.zeros((7,2,2))
 
-            # This corresponds to P(s,t+Deltat) in the Calderazzo paper
-            covariance_matrix_intermediate_to_next = covariance_matrix_intermediate_to_current + discretisation_time_step*covariance_derivative
+            # Again, this derivative is slightly different for each parameter, meaning it's difficult to
+            # code this part with a loop. For each parameter we divide it in to it's constituent parts. There is one
+            # main part in common for every derivative which is defined here as common_intermediate_state_space_variance_derivative_element
+            common_intermediate_state_space_variance_derivative_element = np.zeros((7,2,2))
+            for parameter_index in range(7):
+                common_intermediate_state_space_variance_derivative_element[parameter_index] = ( np.dot(covariance_matrix_derivative_intermediate_to_current[parameter_index],
+                                                                                                        np.transpose(instant_jacobian)) +
+                                                                                                 np.dot(covariance_matrix_derivative_intermediate_to_past[parameter_index],
+                                                                                                        np.transpose(delayed_jacobian)) )
+            # repression threshold
+            derivative_of_intermediate_variance_wrt_repression_threshold = ( common_intermediate_state_space_variance_derivative_element[0] +
+                                                                             np.dot(covariance_matrix_intermediate_to_past,np.transpose(delayed_jacobian_derivative_wrt_repression)) )
+
+            covariance_matrix_derivative_intermediate_to_next[0] = covariance_matrix_derivative_intermediate_to_current[0] + discretisation_time_step*(derivative_of_intermediate_variance_wrt_repression_threshold)
+
+            # hill coefficient
+            derivative_of_intermediate_variance_wrt_hill_coefficient = ( common_intermediate_state_space_variance_derivative_element[1] +
+                                                                         np.dot(covariance_matrix_intermediate_to_past,np.transpose(delayed_jacobian_derivative_wrt_hill_coefficient)))
+
+            covariance_matrix_derivative_intermediate_to_next[1] = covariance_matrix_derivative_intermediate_to_current[1] + discretisation_time_step*(derivative_of_intermediate_variance_wrt_hill_coefficient)
+
+            # mRNA degradation rate
+            derivative_of_intermediate_variance_wrt_mRNA_degradation = ( common_intermediate_state_space_variance_derivative_element[2] +
+                                                                         np.dot(covariance_matrix_intermediate_to_current,np.transpose(instant_jacobian_derivative_wrt_mRNA_degradation)) +
+                                                                         np.dot(covariance_matrix_intermediate_to_past,np.transpose(delayed_jacobian_derivative_wrt_mRNA_degradation)) )
+
+            covariance_matrix_derivative_intermediate_to_next[2] = covariance_matrix_derivative_intermediate_to_current[2] + discretisation_time_step*(derivative_of_intermediate_variance_wrt_mRNA_degradation)
+
+            # protein degradation rate
+            derivative_of_intermediate_variance_wrt_protein_degradation = ( common_intermediate_state_space_variance_derivative_element[3] +
+                                                                            np.dot(covariance_matrix_intermediate_to_current,np.transpose(instant_jacobian_derivative_wrt_protein_degradation)) +
+                                                                            np.dot(covariance_matrix_intermediate_to_past,np.transpose(delayed_jacobian_derivative_wrt_protein_degradation)) )
+
+            covariance_matrix_derivative_intermediate_to_next[3] = covariance_matrix_derivative_intermediate_to_current[3] + discretisation_time_step*(derivative_of_intermediate_variance_wrt_protein_degradation)
+
+            # basal transcription rate
+            derivative_of_intermediate_variance_wrt_basal_transcription = ( common_intermediate_state_space_variance_derivative_element[4] +
+                                                                            np.dot(covariance_matrix_intermediate_to_past,np.transpose(delayed_jacobian_derivative_wrt_basal_transcription)) )
+
+            covariance_matrix_derivative_intermediate_to_next[4] = covariance_matrix_derivative_intermediate_to_current[4] + discretisation_time_step*(derivative_of_intermediate_variance_wrt_basal_transcription)
+
+            # translation rate
+            derivative_of_intermediate_variance_wrt_translation_rate = ( common_intermediate_state_space_variance_derivative_element[5] +
+                                                                         np.dot(covariance_matrix_intermediate_to_current,np.transpose(instant_jacobian_derivative_wrt_translation_rate)) +
+                                                                         np.dot(covariance_matrix_intermediate_to_past,np.transpose(delayed_jacobian_derivative_wrt_translation_rate)) )
+
+            covariance_matrix_derivative_intermediate_to_next[5] = covariance_matrix_derivative_intermediate_to_current[5] + discretisation_time_step*(derivative_of_intermediate_variance_wrt_translation_rate)
+
+            # transcriptional delay
+            derivative_of_intermediate_variance_wrt_transcription_delay = ( common_intermediate_state_space_variance_derivative_element[6] +
+                                                                            np.dot(covariance_matrix_intermediate_to_past,np.transpose(delayed_jacobian_derivative_wrt_transcription_delay)) )
+
+            covariance_matrix_derivative_intermediate_to_next[6] = covariance_matrix_derivative_intermediate_to_current[6] + discretisation_time_step*(derivative_of_intermediate_variance_wrt_transcription_delay)
 
             # Fill in the big matrix
-            for short_row_index, long_row_index in enumerate([intermediate_time_index,
-                                                              total_number_of_states+intermediate_time_index]):
-                for short_column_index, long_column_index in enumerate([next_time_index,
+            for parameter_index in range(7):
+                for short_row_index, long_row_index in enumerate([intermediate_time_index,
+                                                                  total_number_of_states+intermediate_time_index]):
+                    for short_column_index, long_column_index in enumerate([next_time_index,
                                                                         total_number_of_states+next_time_index]):
-                    state_space_variance[long_row_index,long_column_index] = covariance_matrix_intermediate_to_current[short_row_index,
-                                                                                                                       short_column_index]
-            # Fill in the big matrix with transpose arguments, i.e. P(t+Deltat, s) - works if initialised symmetrically
-            for short_row_index, long_row_index in enumerate([next_time_index,
-                                                              total_number_of_states+next_time_index]):
-                for short_column_index, long_column_index in enumerate([intermediate_time_index,
-                                                                        total_number_of_states+intermediate_time_index]):
-                    state_space_variance[long_row_index,long_column_index] = covariance_matrix_intermediate_to_current[short_column_index,
-                                                                                                                       short_row_index]
+                        state_space_variance_derivative[parameter_index,long_row_index,long_column_index] = covariance_matrix_derivative_intermediate_to_next[parameter_index,
+                                                                                                                                                              short_row_index,
+                                                                                                                                                              short_column_index]
+
+            # Fill in the big matrix with transpose arguments, i.e. d_P(t+Deltat, s)/d_theta - works if initialised symmetrically
+            for parameter_index in range(7):
+                for short_row_index, long_row_index in enumerate([next_time_index,
+                                                                  total_number_of_states+next_time_index]):
+                    for short_column_index, long_column_index in enumerate([intermediate_time_index,
+                                                                            total_number_of_states+intermediate_time_index]):
+                        state_space_variance_derivative[parameter_index,long_row_index,long_column_index] = covariance_matrix_derivative_intermediate_to_next[parameter_index,
+                                                                                                                                                              short_column_index,
+                                                                                                                                                              short_row_index]
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_update_step(state_space_mean,
                        state_space_variance,
                        state_space_mean_derivative,
@@ -1103,14 +1167,13 @@ def kalman_update_step(state_space_mean,
     # This is C in the paper
     # import pdb; pdb.set_trace()
     adaptation_coefficient = shortened_covariance_matrix_past_to_final.dot(
-                                np.transpose(observation_transform) )*helper_inverse
+                                np.transpose(observation_transform.reshape((1,2))) )*helper_inverse
     # import pdb; pdb.set_trace()
     # This is rho*
     updated_stacked_state_space_mean = ( stacked_state_space_mean +
-                                         adaptation_coefficient*(current_observation[1] -
-                                                                 observation_transform.dot(
-                                                                     predicted_final_state_space_mean)) )
-    # print(updated_stacked_state_space_mean.shape)
+                                         (adaptation_coefficient*(current_observation[1] -
+                                                                 observation_transform.reshape((1,2)).dot(
+                                                                     predicted_final_state_space_mean.reshape((2,1))))[0][0]).reshape(60) )
     # ensures the the mean mRNA and Protein are non negative
     updated_stacked_state_space_mean = np.maximum(updated_stacked_state_space_mean,0)
 
@@ -1210,8 +1273,8 @@ def kalman_update_step(state_space_mean,
         # import pdb; pdb.set_trace()
         updated_stacked_state_space_mean_derivative[parameter_index] = ( stacked_state_space_mean_derivative[parameter_index] +
                                                                          adaptation_coefficient_derivative[parameter_index]*(current_observation[1] -
-                                                                         observation_transform.dot(predicted_final_state_space_mean)) -
-                                                                         adaptation_coefficient.dot(observation_transform.dot(
+                                                                         observation_transform.reshape((1,2)).dot(predicted_final_state_space_mean.reshape((2,1))))[0][0] -
+                                                                         adaptation_coefficient.dot(observation_transform.reshape((1,2)).dot(
                                                                          predicted_final_state_space_mean_derivative[parameter_index])) )
 
     # unstack the rho into two columns, one with mRNA and one with protein
