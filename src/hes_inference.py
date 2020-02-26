@@ -196,31 +196,34 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
     state_space_variance = np.zeros((2*(total_number_of_states),2*(total_number_of_states)))
 
     # set the mRNA variance at nagative times to the LNA approximation
-    LNA_mRNA_variance = np.power(hes5.calculate_approximate_mRNA_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
-                                                                                                   hill_coefficient=model_parameters[1],
-                                                                                                   mRNA_degradation_rate=model_parameters[2],
-                                                                                                   protein_degradation_rate=model_parameters[3],
-                                                                                                   basal_transcription_rate=model_parameters[4],
-                                                                                                   translation_rate=model_parameters[5],
-                                                                                                   transcription_delay=model_parameters[6]),2)
+    # LNA_mRNA_variance = np.power(hes5.calculate_approximate_mRNA_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
+    #                                                                                                hill_coefficient=model_parameters[1],
+    #                                                                                                mRNA_degradation_rate=model_parameters[2],
+    #                                                                                                protein_degradation_rate=model_parameters[3],
+    #                                                                                                basal_transcription_rate=model_parameters[4],
+    #                                                                                                translation_rate=model_parameters[5],
+    #                                                                                                transcription_delay=model_parameters[6]),2)
     # the top left block of the matrix corresponds to the mRNA covariance, see docstring above
-    np.fill_diagonal( state_space_variance[:initial_number_of_states,:initial_number_of_states] ,
-                    LNA_mRNA_variance)
+    initial_mRNA_scaling = 20.0
+    initial_mRNA_variance = state_space_mean[0,1]*initial_mRNA_scaling
+    np.fill_diagonal( state_space_variance[:initial_number_of_states,:initial_number_of_states] , initial_mRNA_variance)
     # potential solution for numba:
 #     np.fill_diagonal( state_space_variance[:initial_number_of_states,:initial_number_of_states] ,
 #                     1.0)
 
     # set the protein variance at nagative times to the LNA approximation
-    LNA_protein_variance = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
-                                                                                                   hill_coefficient=model_parameters[1],
-                                                                                                   mRNA_degradation_rate=model_parameters[2],
-                                                                                                   protein_degradation_rate=model_parameters[3],
-                                                                                                   basal_transcription_rate=model_parameters[4],
-                                                                                                   translation_rate=model_parameters[5],
-                                                                                                   transcription_delay=model_parameters[6]),2)
-    # the bottom right block of the matrix corresponds to the mRNA covariance, see docstring above
+    # LNA_protein_variance = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
+    #                                                                                                hill_coefficient=model_parameters[1],
+    #                                                                                                mRNA_degradation_rate=model_parameters[2],
+    #                                                                                                protein_degradation_rate=model_parameters[3],
+    #                                                                                                basal_transcription_rate=model_parameters[4],
+    #                                                                                                translation_rate=model_parameters[5],
+    #                                                                                                transcription_delay=model_parameters[6]),2)
+    # # the bottom right block of the matrix corresponds to the mRNA covariance, see docstring above
+    initial_protein_scaling = 100.0
+    initial_protein_variance = state_space_mean[0,2]*initial_protein_scaling
     np.fill_diagonal( state_space_variance[total_number_of_states:total_number_of_states + initial_number_of_states,
-                                            total_number_of_states:total_number_of_states + initial_number_of_states] , LNA_protein_variance )
+                                           total_number_of_states:total_number_of_states + initial_number_of_states] , initial_protein_variance )
     # potential solution for numba:
 #     np.fill_diagonal( state_space_variance[total_number_of_states:total_number_of_states + initial_number_of_states,
 #                                             total_number_of_states:total_number_of_states + initial_number_of_states] , 1.0 )
@@ -238,7 +241,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
         for short_column_index, long_column_index in enumerate([initial_number_of_states -1,
                                                                 total_number_of_states+initial_number_of_states-1]):
             last_predicted_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
-                                                                                                 long_column_index]
+                                                                                                        long_column_index]
 
     predicted_observation_distributions[0,2] = (observation_transform.dot(
                                                                      last_predicted_covariance_matrix).dot(observation_transform.transpose())
@@ -321,6 +324,14 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
     state_space_mean_derivative[:initial_number_of_states,6,0] = 0
 
     state_space_variance_derivative = np.zeros((7,2*total_number_of_states,2*total_number_of_states))
+    for parameter_index in range(7):
+        np.fill_diagonal(state_space_variance_derivative[parameter_index,:initial_number_of_states,:initial_number_of_states],
+                         initial_mRNA_scaling*state_space_mean_derivative[0,parameter_index,0])
+        np.fill_diagonal(state_space_variance_derivative[parameter_index,
+                                                         total_number_of_states:total_number_of_states + initial_number_of_states,
+                                                         total_number_of_states:total_number_of_states + initial_number_of_states],
+                         initial_protein_scaling*state_space_mean_derivative[0,parameter_index,1])
+    # import pdb; pdb.set_trace()
     # update the past ("negative time")
     state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative = kalman_update_step(state_space_mean,
                                                                                                                               state_space_variance,
@@ -1341,8 +1352,8 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     from scipy.stats import norm
 
     _, _, _, _, predicted_observation_distributions = kalman_filter(protein_at_observations,
-                                                              model_parameters,
-                                                              measurement_variance)
+                                                                    model_parameters,
+                                                                    measurement_variance)
     observations = protein_at_observations[:,1]
     mean = predicted_observation_distributions[:,1]
     sd = np.sqrt(predicted_observation_distributions[:,2])
