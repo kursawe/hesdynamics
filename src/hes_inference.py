@@ -58,6 +58,16 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
         An array of dimension n x 3 where n is the number of observation time points.
         The first column is time, the second and third columns are the mean and variance
         of the distribution of the expected observations at each time point, respectively.
+
+    predicted_observation_mean_derivatives : numpy array.
+        An array of dimension n x m x 2, where n is the number of observation time points,
+        and m is the number of parameters. This gives the (non-updated) predicted derivative of the state
+        space mean at each observation time point, wrt each parameter
+
+    predicted_observation_variance_derivatives : numpy array.
+        An array of dimension n x m x 2 x 2, where n is the number of observation time points,
+        and m is the number of parameters. This gives the (non-updated) predicted derivative of the state
+        space variance at each observation time point, wrt each parameter
     """
     time_delay = model_parameters[6]
     number_of_observations = protein_at_observations.shape[0]
@@ -73,9 +83,9 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
     # so the scaling would correspond to how light intensity relates to molecule number.
     observation_transform = np.array([0.0,1.0])
 
-    state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions = kalman_filter_state_space_initialisation(protein_at_observations,
-                                                                                                                                                                                         model_parameters,
-                                                                                                                                                                                         measurement_variance)
+    state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = kalman_filter_state_space_initialisation(protein_at_observations,
+                                                                                                                                                                                                                                                                             model_parameters,
+                                                                                                                                                                                                                                                                             measurement_variance)
     # loop through observations and at each observation apply the Kalman prediction step and then the update step
     # for observation_index, current_observation in enumerate(protein_at_observations[1:]):
     for observation_index in range(len(protein_at_observations)-1):
@@ -90,6 +100,8 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
                                                                                                                                       observation_time_step)
         current_number_of_states = int(np.around(current_observation[0]/observation_time_step))*number_of_hidden_states + initial_number_of_states
 
+        # between the prediction and update steps we record the mean and sd for our likelihood, and the derivatives of the mean and variance for the
+        # derivative of the likelihood wrt the parameters
         predicted_observation_distributions[observation_index + 1] = kalman_observation_distribution_parameters(predicted_observation_distributions,
                                                                                                                 current_observation,
                                                                                                                 state_space_mean,
@@ -98,6 +110,15 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
                                                                                                                 total_number_of_states,
                                                                                                                 measurement_variance,
                                                                                                                 observation_index)
+
+        predicted_observation_mean_derivatives[observation_index + 1], predicted_observation_variance_derivatives[observation_index + 1] = kalman_observation_derivatives(predicted_observation_mean_derivatives,
+                                                                                                                                                                          predicted_observation_variance_derivatives,
+                                                                                                                                                                          current_observation,
+                                                                                                                                                                          state_space_mean_derivative,
+                                                                                                                                                                          state_space_variance_derivative,
+                                                                                                                                                                          current_number_of_states,
+                                                                                                                                                                          total_number_of_states,
+                                                                                                                                                                          observation_index)
 
         state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative = kalman_update_step(state_space_mean,
                                                                                                                                   state_space_variance,
@@ -108,7 +129,7 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
                                                                                                                                   observation_time_step,
                                                                                                                                   measurement_variance)
 
-    return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions
+    return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
 def kalman_filter_state_space_initialisation(protein_at_observations,model_parameters,measurement_variance = 10):
     """
@@ -160,7 +181,17 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
     predicted_observation_distributions : numpy array.
         An array of dimension n x 3 where n is the number of observation time points.
         The first column is time, the second and third columns are the mean and variance
-        of the distribution of the expected observations at each time point, respectively.
+        of the distribution of the expected observations at each time point, respectively
+
+    predicted_observation_mean_derivatives : numpy array.
+        An array of dimension n x m x 2, where n is the number of observation time points,
+        and m is the number of parameters. This gives the (non-updated) predicted derivative of the state
+        space mean at each observation time point, wrt each parameter
+
+    predicted_observation_variance_derivatives : numpy array.
+        An array of dimension n x m x 2 x 2, where n is the number of observation time points,
+        and m is the number of parameters. This gives the (non-updated) predicted derivative of the state
+        space variance at each observation time point, wrt each parameter
     """
     time_delay = model_parameters[6]
     number_of_observations = protein_at_observations.shape[0]
@@ -196,41 +227,41 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
     state_space_variance = np.zeros((2*(total_number_of_states),2*(total_number_of_states)))
 
     # set the mRNA variance at nagative times to the LNA approximation
-    # LNA_mRNA_variance = np.power(hes5.calculate_approximate_mRNA_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
-    #                                                                                                hill_coefficient=model_parameters[1],
-    #                                                                                                mRNA_degradation_rate=model_parameters[2],
-    #                                                                                                protein_degradation_rate=model_parameters[3],
-    #                                                                                                basal_transcription_rate=model_parameters[4],
-    #                                                                                                translation_rate=model_parameters[5],
-    #                                                                                                transcription_delay=model_parameters[6]),2)
+    LNA_mRNA_variance = np.power(hes5.calculate_approximate_mRNA_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
+                                                                                                   hill_coefficient=model_parameters[1],
+                                                                                                   mRNA_degradation_rate=model_parameters[2],
+                                                                                                   protein_degradation_rate=model_parameters[3],
+                                                                                                   basal_transcription_rate=model_parameters[4],
+                                                                                                   translation_rate=model_parameters[5],
+                                                                                                   transcription_delay=model_parameters[6]),2)
     # the top left block of the matrix corresponds to the mRNA covariance, see docstring above
     initial_mRNA_scaling = 20.0
     initial_mRNA_variance = state_space_mean[0,1]*initial_mRNA_scaling
-    np.fill_diagonal( state_space_variance[:initial_number_of_states,:initial_number_of_states] , initial_mRNA_variance)
+    np.fill_diagonal( state_space_variance[:initial_number_of_states,:initial_number_of_states] , LNA_mRNA_variance)
     # potential solution for numba:
 #     np.fill_diagonal( state_space_variance[:initial_number_of_states,:initial_number_of_states] ,
 #                     1.0)
 
     # set the protein variance at nagative times to the LNA approximation
-    # LNA_protein_variance = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
-    #                                                                                                hill_coefficient=model_parameters[1],
-    #                                                                                                mRNA_degradation_rate=model_parameters[2],
-    #                                                                                                protein_degradation_rate=model_parameters[3],
-    #                                                                                                basal_transcription_rate=model_parameters[4],
-    #                                                                                                translation_rate=model_parameters[5],
-    #                                                                                                transcription_delay=model_parameters[6]),2)
+    LNA_protein_variance = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
+                                                                                                   hill_coefficient=model_parameters[1],
+                                                                                                   mRNA_degradation_rate=model_parameters[2],
+                                                                                                   protein_degradation_rate=model_parameters[3],
+                                                                                                   basal_transcription_rate=model_parameters[4],
+                                                                                                   translation_rate=model_parameters[5],
+                                                                                                   transcription_delay=model_parameters[6]),2)
     # # the bottom right block of the matrix corresponds to the mRNA covariance, see docstring above
     initial_protein_scaling = 100.0
     initial_protein_variance = state_space_mean[0,2]*initial_protein_scaling
     np.fill_diagonal( state_space_variance[total_number_of_states:total_number_of_states + initial_number_of_states,
-                                           total_number_of_states:total_number_of_states + initial_number_of_states] , initial_protein_variance )
+                                           total_number_of_states:total_number_of_states + initial_number_of_states] , LNA_protein_variance )
     # potential solution for numba:
 #     np.fill_diagonal( state_space_variance[total_number_of_states:total_number_of_states + initial_number_of_states,
 #                                             total_number_of_states:total_number_of_states + initial_number_of_states] , 1.0 )
 
     observation_transform = np.array([0.0,1.0])
 
-    predicted_observation_distributions = np.zeros((protein_at_observations.shape[0],3))
+    predicted_observation_distributions = np.zeros((number_of_observations,3))
     predicted_observation_distributions[0,0] = 0
     predicted_observation_distributions[0,1] = observation_transform.dot(state_space_mean[initial_number_of_states-1,1:3])
 
@@ -332,6 +363,20 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
                                                          total_number_of_states:total_number_of_states + initial_number_of_states],
                          initial_protein_scaling*state_space_mean_derivative[0,parameter_index,1])
     # import pdb; pdb.set_trace()
+
+    predicted_observation_mean_derivatives = np.zeros((number_of_observations,7,2))
+    predicted_observation_mean_derivatives[0] = state_space_mean_derivative[initial_number_of_states-1]
+
+    predicted_observation_variance_derivatives = np.zeros((number_of_observations,7,2,2))
+    for parameter_index in range(7):
+        for short_row_index, long_row_index in enumerate([initial_number_of_states-1,
+                                                          total_number_of_states+initial_number_of_states-1]):
+            for short_column_index, long_column_index in enumerate([initial_number_of_states -1,
+                                                                    total_number_of_states+initial_number_of_states-1]):
+                predicted_observation_variance_derivatives[0,parameter_index,short_row_index,short_column_index] = state_space_variance_derivative[parameter_index,
+                                                                                                                                                   long_row_index,
+                                                                                                                                                   long_column_index]
+
     # update the past ("negative time")
     state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative = kalman_update_step(state_space_mean,
                                                                                                                               state_space_variance,
@@ -342,9 +387,9 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
                                                                                                                               observation_time_step,
                                                                                                                               measurement_variance)
 
-    return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions
+    return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_observation_distribution_parameters(predicted_observation_distributions,
                                                current_observation,
                                                state_space_mean,
@@ -423,7 +468,81 @@ def kalman_observation_distribution_parameters(predicted_observation_distributio
 
     return predicted_observation_distributions[observation_index + 1]
 
-@jit(nopython = True)
+def kalman_observation_derivatives(predicted_observation_mean_derivatives,
+                                   predicted_observation_variance_derivatives,
+                                   current_observation,
+                                   state_space_mean_derivative,
+                                   state_space_variance_derivative,
+                                   current_number_of_states,
+                                   total_number_of_states,
+                                   observation_index):
+    """
+
+    Parameters
+    ----------
+
+    predicted_observation_mean_derivatives : numpy array.
+        An array of dimension n x m x 2, where n is the number of observation time points,
+        and m is the number of parameters. This gives the (non-updated) predicted derivative of the state
+        space mean at each observation time point, wrt each parameter
+
+    predicted_observation_variance_derivatives : numpy array.
+        An array of dimension n x m x 2 x 2, where n is the number of observation time points,
+        and m is the number of parameters. This gives the (non-updated) predicted derivative of the state
+        space variance at each observation time point, wrt each parameter
+
+    current_observation : numpy array.
+        A 1 x 2 array which describes the observation of protein at the current time point. The first
+        column is time, and the second column is the protein level
+
+    state_space_mean_derivative : numpy array.
+        An array of dimension n x m x 2, where n is the number of inferred time points,
+        and m is the number of parameters. The m columns in the second dimension are the
+        derivative of the state mean with respect to each parameter. The two elements in
+        the third dimension represent the derivative of mRNA and protein respectively
+
+    state_space_variance_derivative : numpy array.
+        An array of dimension 7 x 2n x 2n.
+              [ d[cov( mRNA(t0:tn),mRNA(t0:tn) )]/d_theta,    d[cov( protein(t0:tn),mRNA(t0:tn) )]/d_theta,
+                d[cov( mRNA(t0:tn),protein(t0:tn) )/]d_theta, d[cov( protein(t0:tn),protein(t0:tn) )]/d_theta ]
+
+    current_number_of_states : float.
+        The current number of (hidden and observed) states upto the current observation time point.
+        This includes the initial states (with negative time).
+
+    total_number_of_states : float.
+        The total number of (observed and hidden) states, used to index the variance matrix
+
+    observation_index : int.
+        The index for the current observation time in the main kalman_filter loop
+
+    Returns
+    -------
+
+        predicted_observation_mean_derivatives[observation_index + 1] : numpy array.
+            An array of dimension 7 x 2, which contains the derivative of the mean mRNA
+            and protein wrt each parameter at the current observation time point
+
+
+        predicted_observation_variance_derivatives[observation_index + 1] : numpy array.
+            An array of dimension 7 x 2 x 2, which describes the derivative of the state
+            space variance wrt each parameter for the current time point
+    """
+
+    predicted_observation_mean_derivatives[observation_index+1] = state_space_mean_derivative[current_number_of_states-1]
+
+    for parameter_index in range(7):
+        for short_row_index, long_row_index in enumerate([current_number_of_states-1,
+                                                          total_number_of_states+current_number_of_states-1]):
+            for short_column_index, long_column_index in enumerate([current_number_of_states-1,
+                                                                    total_number_of_states+current_number_of_states-1]):
+                predicted_observation_variance_derivatives[observation_index+1,parameter_index,short_row_index,short_column_index] = state_space_variance_derivative[parameter_index,
+                                                                                                                                                   long_row_index,
+                                                                                                                                                   long_column_index]
+
+    return predicted_observation_mean_derivatives[observation_index + 1], predicted_observation_variance_derivatives[observation_index + 1]
+
+# @jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -1049,7 +1168,7 @@ def kalman_prediction_step(state_space_mean,
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_update_step(state_space_mean,
                        state_space_variance,
                        state_space_mean_derivative,
