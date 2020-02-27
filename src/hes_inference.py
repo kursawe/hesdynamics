@@ -278,6 +278,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
                                                                      last_predicted_covariance_matrix).dot(observation_transform.transpose())
                                                                      +
                                                                      measurement_variance)
+    # import pdb; pdb.set_trace()
 
     ####################################################################
     ####################################################################
@@ -761,15 +762,15 @@ def kalman_prediction_step(state_space_mean,
                                                               total_number_of_states+intermediate_time_index]):
                 for short_column_index, long_column_index in enumerate([next_time_index,
                                                                         total_number_of_states+next_time_index]):
-                    state_space_variance[long_row_index,long_column_index] = covariance_matrix_intermediate_to_current[short_row_index,
-                                                                                                                       short_column_index]
+                    state_space_variance[long_row_index,long_column_index] = covariance_matrix_intermediate_to_next[short_row_index,
+                                                                                                                    short_column_index]
             # Fill in the big matrix with transpose arguments, i.e. P(t+Deltat, s) - works if initialised symmetrically
             for short_row_index, long_row_index in enumerate([next_time_index,
                                                               total_number_of_states+next_time_index]):
                 for short_column_index, long_column_index in enumerate([intermediate_time_index,
                                                                         total_number_of_states+intermediate_time_index]):
-                    state_space_variance[long_row_index,long_column_index] = covariance_matrix_intermediate_to_current[short_column_index,
-                                                                                                                       short_row_index]
+                    state_space_variance[long_row_index,long_column_index] = covariance_matrix_intermediate_to_next[short_column_index,
+                                                                                                                    short_row_index]
 
     #################################
     ####
@@ -1470,9 +1471,9 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     """
     from scipy.stats import norm
 
-    _, _, _, _, predicted_observation_distributions = kalman_filter(protein_at_observations,
-                                                                    model_parameters,
-                                                                    measurement_variance)
+    _, _, _, _, predicted_observation_distributions, _, _ = kalman_filter(protein_at_observations,
+                                                                          model_parameters,
+                                                                          measurement_variance)
     observations = protein_at_observations[:,1]
     mean = predicted_observation_distributions[:,1]
     sd = np.sqrt(predicted_observation_distributions[:,2])
@@ -1480,6 +1481,75 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     log_likelihood = np.sum(norm.logpdf(observations,mean,sd))
 
     return log_likelihood
+
+def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,model_parameters,measurement_variance = 10):
+    """
+    Calculates the log of the likelihood, and the derivative of the negative log likelihood wrt each parameter, of our data given the
+    paramters, using the Kalman filter. It uses the predicted_observation_distributions, predicted_observation_mean_derivatives, and
+    predicted_observation_variance_derivatives from the kalman_filter function. It returns the log likelihood as in the
+    calculate_log_likelihood_at_parameter_point function, and also returns an array of the derivative wrt each parameter.
+
+    Parameters
+    ----------
+
+    protein_at_observations : numpy array.
+        Observed protein. The dimension is n x 2, where n is the number of observation time points.
+        The first column is the time, and the second column is the observed protein copy number at
+        that time.
+
+    model_parameters : numpy array.
+        An array containing the moderowl parameters in the following order:
+        repression_threshold, hill_coefficient, mRNA_degradation_rate,
+        protein_degradation_rate, basal_transcription_rate, translation_rate,
+        transcription_delay.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    Returns
+    -------
+
+    log_likelihood : float.
+        The log of the likelihood of the data.
+    """
+    from scipy.stats import norm
+
+    _, _, _, _, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = kalman_filter(protein_at_observations,
+                                                                                                                                                        model_parameters,
+                                                                                                                                                        measurement_variance)
+    # calculate log likelihood as before
+    number_of_observations = protein_at_observations.shape[0]
+    observations = protein_at_observations[:,1]
+    mean = predicted_observation_distributions[:,1]
+    sd = np.sqrt(predicted_observation_distributions[:,2])
+
+    log_likelihood = np.sum(norm.logpdf(observations,mean,sd))
+
+    # now for the computation of the derivative of the negative log likelihood. An expression of this can be found
+    # at equation (28) in Mbalawata, Särkkä, Haario (2013)
+    observation_transform = np.array([[0.0,1.0]])
+    helper_inverse = 1.0/predicted_observation_distributions[:,2]
+    negative_log_likelihood_derivative = np.zeros(7)
+
+    for parameter_index in range(7):
+        for time_index in range(number_of_observations):
+            negative_log_likelihood_derivative[parameter_index] += 0.5*(helper_inverse[time_index]*np.trace(observation_transform.dot(
+                                                                                                            predicted_observation_variance_derivatives[time_index,parameter_index].dot(
+                                                                                                            np.transpose(observation_transform))))
+                                                                         -
+                                                                         helper_inverse[time_index]*np.transpose(observation_transform.dot(
+                                                                                                                 predicted_observation_mean_derivatives[time_index,parameter_index]))[0]*
+                                                                                                     (observations[time_index] - mean[time_index])
+                                                                         -
+                                                                         np.power(helper_inverse[time_index],2)*np.power(observations[time_index] - mean[time_index],2)*
+                                                                         observation_transform.dot(
+                                                                         predicted_observation_variance_derivatives[time_index,parameter_index].dot(
+                                                                         np.transpose(observation_transform)))
+                                                                         -
+                                                                         helper_inverse[time_index]*(observations[time_index] - mean[time_index])*
+                                                                         observation_transform.dot(predicted_observation_mean_derivatives[time_index,parameter_index])[0])
+
+    return log_likelihood, negative_log_likelihood_derivative
 
 
 def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,acceptance_tuner,parameter_covariance,initial_state,**kwargs):

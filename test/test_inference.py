@@ -37,9 +37,16 @@ class TestInference(unittest.TestCase):
         state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative,predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,
                                                                                                                                                                                                                                                                    parameters,
                                                                                                                                                                                                                                                                    measurement_variance=10000)
+        # log_likelihood, negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
+        #                                                                                                                               parameters,
+        #                                                                                                                               measurement_variance=10000)
+
         np.testing.assert_almost_equal(state_space_mean,true_kalman_prediction_mean)
         np.testing.assert_almost_equal(state_space_variance,true_kalman_prediction_variance)
         np.testing.assert_almost_equal(predicted_observation_distributions,true_kalman_prediction_distributions)
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_test_trace_prediction_mean.npy'),state_space_mean)
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_test_trace_prediction_variance.npy'),state_space_variance)
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_test_trace_prediction_distributions.npy'),predicted_observation_distributions)
         # import pdb; pdb.set_trace()
         # If above tests fail, comment them out to look at the plot below. Could be useful for identifying problems.
         # number_of_states = state_space_mean.shape[0]
