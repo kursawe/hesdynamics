@@ -17,10 +17,10 @@ import warnings
 import seaborn as sns
 import logging
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
-try:
-    import gpflow
-except ImportError:
-    print('Could not import gpflow. Gpflow will not be available for GP regression. This will not affect any functions used in our publications.')
+# try:
+#     import gpflow
+# except ImportError:
+#     print('Could not import gpflow. Gpflow will not be available for GP regression. This will not affect any functions used in our publications.')
 import sklearn.gaussian_process as gp
 import GPy
 try:
