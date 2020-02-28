@@ -8,6 +8,7 @@ import multiprocessing as mp
 
 #discretisation_time_step=1.0
 # @jit(nopython=True)
+# @profile
 def kalman_filter(protein_at_observations,model_parameters,measurement_variance = 10):
     """
     Perform Kalman-Bucy filter based on observation of protein
@@ -544,6 +545,7 @@ def kalman_observation_derivatives(predicted_observation_mean_derivatives,
     return predicted_observation_mean_derivatives[observation_index + 1], predicted_observation_variance_derivatives[observation_index + 1]
 
 # @jit(nopython = True)
+# @profile
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -639,6 +641,40 @@ def kalman_prediction_step(state_space_mean,
 
     ## next_time_index corresponds to 't+Deltat' in the propagation equation on page 5 of the supplementary
     ## material in the calderazzo paper
+
+    # we initialise all our matrices outside of the main for loop for improved performance
+    # this is P(t,t)
+    current_covariance_matrix = np.zeros((2,2))
+    # this is P(t-\tau,t) in page 5 of the supplementary material of Calderazzo et. al.
+    covariance_matrix_past_to_now = np.zeros((2,2))
+    # this is P(t,t-\tau) in page 5 of the supplementary material of Calderazzo et. al.
+    covariance_matrix_now_to_past = np.zeros((2,2))
+    # This corresponds to P(s,t) in the Calderazzo paper
+    covariance_matrix_intermediate_to_current = np.zeros((2,2))
+    # This corresponds to P(s,t-tau)
+    covariance_matrix_intermediate_to_past = np.zeros((2,2))
+
+    # this is d_rho(t)/d_theta
+    next_mean_derivative = np.zeros((7,2))
+    # this is d_P(t,t)/d_theta
+    current_covariance_derivative_matrix = np.zeros((7,2,2))
+    # this is d_P(t-\tau,t)/d_theta
+    covariance_derivative_matrix_past_to_now = np.zeros((7,2,2))
+    # this is d_P(t,t-\tau)/d_theta
+    covariance_derivative_matrix_now_to_past = np.zeros((7,2,2))
+    # d_P(t+Deltat,t+Deltat)/d_theta
+    next_covariance_derivative_matrix = np.zeros((7,2,2))
+    # initialisation for the common part of the derivative of P(t,t) for each parameter
+    common_state_space_variance_derivative_element = np.zeros((7,2,2))
+    # This corresponds to d_P(s,t)/d_theta in the Calderazzo paper
+    covariance_matrix_derivative_intermediate_to_current = np.zeros((7,2,2))
+    # This corresponds to d_P(s,t-tau)/d_theta
+    covariance_matrix_derivative_intermediate_to_past = np.zeros((7,2,2))
+    # This corresponds to d_P(s,t+Deltat)/d_theta in the Calderazzo paper
+    covariance_matrix_derivative_intermediate_to_next = np.zeros((7,2,2))
+    # initialisation for the common part of the derivative of P(s,t) for each parameter
+    common_intermediate_state_space_variance_derivative_element = np.zeros((7,2,2))
+
     for next_time_index in range(current_number_of_states, current_number_of_states + number_of_hidden_states):
         current_time_index = next_time_index - 1 # this corresponds to t
         past_time_index = current_time_index - discrete_delay # this corresponds to t-tau
@@ -665,7 +701,6 @@ def kalman_prediction_step(state_space_mean,
         state_space_mean[next_time_index,1:3] = next_mean
 
         # in the next lines we use for loop instead of np.ix_-like indexing for numba
-        current_covariance_matrix = np.zeros((2,2))
         for short_row_index, long_row_index in enumerate([current_time_index,
                                                           total_number_of_states+current_time_index]):
             for short_column_index, long_column_index in enumerate([current_time_index,
@@ -673,8 +708,7 @@ def kalman_prediction_step(state_space_mean,
                 current_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                      long_column_index]
 
-        # this is P(t-\tau,t) in page 5 of the supplementary material of Calderazzo et. al.
-        covariance_matrix_past_to_now = np.zeros((2,2))
+        # this is P(t-\tau,t) in page 5 of the supplementary material of Calderazzo et. al
         for short_row_index, long_row_index in enumerate([past_time_index,
                                                           total_number_of_states+past_time_index]):
             for short_column_index, long_column_index in enumerate([current_time_index,
@@ -683,7 +717,6 @@ def kalman_prediction_step(state_space_mean,
                                                                                                      long_column_index]
 
         # this is P(t,t-\tau) in page 5 of the supplementary material of Calderazzo et. al.
-        covariance_matrix_now_to_past = np.zeros((2,2))
         for short_row_index, long_row_index in enumerate([current_time_index,
                                                           total_number_of_states+current_time_index]):
             for short_column_index, long_column_index in enumerate([past_time_index,
@@ -731,8 +764,6 @@ def kalman_prediction_step(state_space_mean,
         # the range needs to include t, since we want to propagate P(t,t) into P(t,t+Deltat)
         for intermediate_time_index in range(past_time_index,current_time_index+1):
             # This corresponds to P(s,t) in the Calderazzo paper
-            # for loops instead of np.ix_-like indexing
-            covariance_matrix_intermediate_to_current = np.zeros((2,2))
             for short_row_index, long_row_index in enumerate([intermediate_time_index,
                                                               total_number_of_states+intermediate_time_index]):
                 for short_column_index, long_column_index in enumerate([current_time_index,
@@ -740,7 +771,6 @@ def kalman_prediction_step(state_space_mean,
                     covariance_matrix_intermediate_to_current[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                                          long_column_index]
             # This corresponds to P(s,t-tau)
-            covariance_matrix_intermediate_to_past = np.zeros((2,2))
             for short_row_index, long_row_index in enumerate([intermediate_time_index,
                                                               total_number_of_states+intermediate_time_index]):
                 for short_column_index, long_column_index in enumerate([past_time_index,
@@ -755,9 +785,6 @@ def kalman_prediction_step(state_space_mean,
             covariance_matrix_intermediate_to_next = covariance_matrix_intermediate_to_current + discretisation_time_step*covariance_derivative
 
             # Fill in the big matrix
-            """
-            potential error here, using covariance_matrix_intermediate_to_current rather than covariance_matrix_intermediate_to_next.
-            """
             for short_row_index, long_row_index in enumerate([intermediate_time_index,
                                                               total_number_of_states+intermediate_time_index]):
                 for short_column_index, long_column_index in enumerate([next_time_index,
@@ -788,8 +815,6 @@ def kalman_prediction_step(state_space_mean,
         past_protein_derivative = state_space_mean_derivative[past_time_index,:,1]
 
         # calculate predictions for derivative of mean wrt each parameter
-        next_mean_derivative = np.zeros((7,2))
-
         # repression threshold
         hill_function_derivative_value_wrt_repression = hill_coefficient*np.power(past_protein/repression_threshold,
                                                                                   hill_coefficient)/( repression_threshold*
@@ -860,7 +885,6 @@ def kalman_prediction_step(state_space_mean,
 
         # in the next lines we use for loop instead of np.ix_-like indexing for numba
         # this is d_P(t,t)/d_theta
-        current_covariance_derivative_matrix = np.zeros((7,2,2))
         for parameter_index in range(7):
             for short_row_index, long_row_index in enumerate([current_time_index,
                                                               total_number_of_states+current_time_index]):
@@ -871,7 +895,6 @@ def kalman_prediction_step(state_space_mean,
                                                                                                                                                long_column_index]
 
         # this is d_P(t-\tau,t)/d_theta
-        covariance_derivative_matrix_past_to_now = np.zeros((7,2,2))
         for parameter_index in range(7):
             for short_row_index, long_row_index in enumerate([past_time_index,
                                                               total_number_of_states+past_time_index]):
@@ -882,7 +905,6 @@ def kalman_prediction_step(state_space_mean,
                                                                                                                                                    long_column_index]
 
         # this is d_P(t,t-\tau)/d_theta
-        covariance_derivative_matrix_now_to_past = np.zeros((7,2,2))
         for parameter_index in range(7):
             for short_row_index, long_row_index in enumerate([current_time_index,
                                                               total_number_of_states+current_time_index]):
@@ -891,14 +913,11 @@ def kalman_prediction_step(state_space_mean,
                     covariance_derivative_matrix_now_to_past[parameter_index,short_row_index,short_column_index] = state_space_variance_derivative[parameter_index,
                                                                                                                                                    long_row_index,
                                                                                                                                                    long_column_index]
-        # d_P(t+Deltat,t+Deltat)/d_theta
-        next_covariance_derivative_matrix = np.zeros((7,2,2))
+        ## d_P(t+Deltat,t+Deltat)/d_theta
 
         # the derivative is quite long and slightly different for each parameter, meaning it's difficult to
         # code this part with a loop. For each parameter we divide it in to it's constituent parts. There is one
         # main part in common for every derivative which is defined here as common_state_space_variance_derivative_element
-
-        common_state_space_variance_derivative_element = np.zeros((7,2,2))
         for parameter_index in range(7):
             common_state_space_variance_derivative_element[parameter_index] = ( np.dot(instant_jacobian,
                                                                                        current_covariance_derivative_matrix[parameter_index]) +
@@ -1065,12 +1084,11 @@ def kalman_prediction_step(state_space_mean,
                                                                                                                                           short_row_index,
                                                                                                                                           short_column_index]
 
-        ## now we need to update the cross correlations, P(s,t) in the Calderazzo paper
-        # the range needs to include t, since we want to propagate P(t,t) into P(t,t+Deltat)
+        ## now we need to update the cross correlations, d_P(s,t)/d_theta in the Calderazzo paper
+        # the range needs to include t, since we want to propagate d_P(t,t)/d_theta into d_P(t,t+Deltat)/d_theta
         for intermediate_time_index in range(past_time_index,current_time_index+1):
             # This corresponds to d_P(s,t)/d_theta in the Calderazzo paper
             # for loops instead of np.ix_-like indexing
-            covariance_matrix_derivative_intermediate_to_current = np.zeros((7,2,2))
             for parameter_index in range(7):
                 for short_row_index, long_row_index in enumerate([intermediate_time_index,
                                                                   total_number_of_states+intermediate_time_index]):
@@ -1080,7 +1098,6 @@ def kalman_prediction_step(state_space_mean,
                                                                                                                                                                    long_row_index,
                                                                                                                                                                    long_column_index]
             # This corresponds to d_P(s,t-tau)/d_theta
-            covariance_matrix_derivative_intermediate_to_past = np.zeros((7,2,2))
             for parameter_index in range(7):
                 for short_row_index, long_row_index in enumerate([intermediate_time_index,
                                                                   total_number_of_states+intermediate_time_index]):
@@ -1090,13 +1107,9 @@ def kalman_prediction_step(state_space_mean,
                                                                                                                                                                 long_row_index,
                                                                                                                                                                 long_column_index]
 
-            # This corresponds to d_P(s,t+Deltat)/d_theta in the Calderazzo paper
-            covariance_matrix_derivative_intermediate_to_next = np.zeros((7,2,2))
-
             # Again, this derivative is slightly different for each parameter, meaning it's difficult to
             # code this part with a loop. For each parameter we divide it in to it's constituent parts. There is one
             # main part in common for every derivative which is defined here as common_intermediate_state_space_variance_derivative_element
-            common_intermediate_state_space_variance_derivative_element = np.zeros((7,2,2))
             for parameter_index in range(7):
                 common_intermediate_state_space_variance_derivative_element[parameter_index] = ( np.dot(covariance_matrix_derivative_intermediate_to_current[parameter_index],
                                                                                                         np.transpose(instant_jacobian)) +
@@ -1270,10 +1283,11 @@ def kalman_update_step(state_space_mean,
             shortened_covariance_matrix[shortened_row_index,shortened_column_index] = state_space_variance[long_row_index,
                                                                                                            long_column_index]
     # extract P(t+Deltat-delay:t+deltat,t+Deltat), replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_matrix_past_to_final = shortened_covariance_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)]
+    shortened_covariance_matrix_past_to_final = np.ascontiguousarray(shortened_covariance_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)])
+    # print(shortened_covariance_matrix_past_to_final.flags)
 
     # and P(t+Deltat,t+Deltat-delay:t+deltat), replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_matrix_final_to_past = shortened_covariance_matrix[discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:]
+    shortened_covariance_matrix_final_to_past = np.ascontiguousarray(shortened_covariance_matrix[discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:])
 
     # This is F in the paper
     observation_transform = np.array([0.0,1.0])
@@ -1366,10 +1380,10 @@ def kalman_update_step(state_space_mean,
                                                                                                                                                      long_row_index,
                                                                                                                                                      long_column_index]
     # extract d_P(t+Deltat-delay:t+deltat,t+Deltat)/d_theta, replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_derivative_matrix_past_to_final = shortened_covariance_derivative_matrix[:,:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)]
+    shortened_covariance_derivative_matrix_past_to_final = np.ascontiguousarray(shortened_covariance_derivative_matrix[:,:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)])
 
     # and d_P(t+Deltat,t+Deltat-delay:t+deltat)/d_theta, replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_derivative_matrix_final_to_past = shortened_covariance_derivative_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:]
+    shortened_covariance_derivative_matrix_final_to_past = np.ascontiguousarray(shortened_covariance_derivative_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:])
 
     # This is the derivative of P(t+Deltat,t+Deltat) in the paper
     # using np.ix_-like indexing
@@ -1407,6 +1421,7 @@ def kalman_update_step(state_space_mean,
                                                                          observation_transform.reshape((1,2)).dot(predicted_final_state_space_mean.reshape((2,1))))[0][0] -
                                                                          adaptation_coefficient.dot(observation_transform.reshape((1,2)).dot(
                                                                          predicted_final_state_space_mean_derivative[parameter_index])) )
+    # import pdb; pdb.set_trace()
 
     # unstack the rho into two columns, one with mRNA and one with protein
 

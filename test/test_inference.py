@@ -30,20 +30,22 @@ class TestInference(unittest.TestCase):
         true_kalman_prediction_mean          = np.load(saving_path + '_prediction_mean.npy')
         true_kalman_prediction_variance      = np.load(saving_path + '_prediction_variance.npy')
         true_kalman_prediction_distributions = np.load(saving_path + '_prediction_distributions.npy')
+        true_kalman_negative_log_likelihood_derivative = np.load(saving_path + '_negative_log_likelihood_derivative.npy')
 
         # run the current kalman filter using the same parameters and observations, then compare
         parameters = [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
 
-        state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative,predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,
-                                                                                                                                                                                                                                                                   parameters,
-                                                                                                                                                                                                                                                                   measurement_variance=10000)
-        # log_likelihood, negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
-        #                                                                                                                               parameters,
-        #                                                                                                                               measurement_variance=10000)
+        # state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative,predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,
+        #                                                                                                                                                                                                                                                            parameters,
+        #                                                                                                                                                                                                                                                            measurement_variance=10000)
+        log_likelihood, negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
+                                                                                                                                      parameters,
+                                                                                                                                      measurement_variance=10000)
 
-        np.testing.assert_almost_equal(state_space_mean,true_kalman_prediction_mean)
-        np.testing.assert_almost_equal(state_space_variance,true_kalman_prediction_variance)
-        np.testing.assert_almost_equal(predicted_observation_distributions,true_kalman_prediction_distributions)
+        # np.testing.assert_almost_equal(state_space_mean,true_kalman_prediction_mean)
+        # np.testing.assert_almost_equal(state_space_variance,true_kalman_prediction_variance)
+        # np.testing.assert_almost_equal(predicted_observation_distributions,true_kalman_prediction_distributions)
+        np.testing.assert_almost_equal(true_kalman_negative_log_likelihood_derivative,negative_log_likelihood_derivative)
         # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_test_trace_prediction_mean.npy'),state_space_mean)
         # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_test_trace_prediction_variance.npy'),state_space_variance)
         # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_test_trace_prediction_distributions.npy'),predicted_observation_distributions)
