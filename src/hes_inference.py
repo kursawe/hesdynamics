@@ -1280,11 +1280,13 @@ def kalman_update_step(state_space_mean,
             shortened_covariance_matrix[shortened_row_index,shortened_column_index] = state_space_variance[long_row_index,
                                                                                                            long_column_index]
     # extract P(t+Deltat-delay:t+deltat,t+Deltat), replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_matrix_past_to_final = np.ascontiguousarray(shortened_covariance_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)])
+    # shortened_covariance_matrix_past_to_final = np.ascontiguousarray(shortened_covariance_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)])
+    shortened_covariance_matrix_past_to_final = shortened_covariance_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)]
     # print(shortened_covariance_matrix_past_to_final.flags)
 
     # and P(t+Deltat,t+Deltat-delay:t+deltat), replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_matrix_final_to_past = np.ascontiguousarray(shortened_covariance_matrix[discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:])
+    # shortened_covariance_matrix_final_to_past = np.ascontiguousarray(shortened_covariance_matrix[discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:])
+    shortened_covariance_matrix_final_to_past = shortened_covariance_matrix[discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:]
 
     # This is F in the paper
     observation_transform = np.array([0.0,1.0])
@@ -1377,10 +1379,12 @@ def kalman_update_step(state_space_mean,
                                                                                                                                                      long_row_index,
                                                                                                                                                      long_column_index]
     # extract d_P(t+Deltat-delay:t+deltat,t+Deltat)/d_theta, replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_derivative_matrix_past_to_final = np.ascontiguousarray(shortened_covariance_derivative_matrix[:,:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)])
+    # shortened_covariance_derivative_matrix_past_to_final = np.ascontiguousarray(shortened_covariance_derivative_matrix[:,:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)])
+    shortened_covariance_derivative_matrix_past_to_final = shortened_covariance_derivative_matrix[:,:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)]
 
     # and d_P(t+Deltat,t+Deltat-delay:t+deltat)/d_theta, replacing ((discrete_delay),-1) with a splice for numba
-    shortened_covariance_derivative_matrix_final_to_past = np.ascontiguousarray(shortened_covariance_derivative_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:])
+    # shortened_covariance_derivative_matrix_final_to_past = np.ascontiguousarray(shortened_covariance_derivative_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:])
+    shortened_covariance_derivative_matrix_final_to_past = shortened_covariance_derivative_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:]
 
     # This is the derivative of P(t+Deltat,t+Deltat) in the paper
     # using np.ix_-like indexing
