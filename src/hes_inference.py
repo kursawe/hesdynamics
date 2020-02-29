@@ -388,7 +388,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_observation_distribution_parameters(predicted_observation_distributions,
                                                current_observation,
                                                state_space_mean,
@@ -467,7 +467,7 @@ def kalman_observation_distribution_parameters(predicted_observation_distributio
 
     return predicted_observation_distributions[observation_index + 1]
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_observation_derivatives(predicted_observation_mean_derivatives,
                                    predicted_observation_variance_derivatives,
                                    current_observation,
@@ -542,7 +542,7 @@ def kalman_observation_derivatives(predicted_observation_mean_derivatives,
 
     return predicted_observation_mean_derivatives[observation_index + 1], predicted_observation_variance_derivatives[observation_index + 1]
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -1179,7 +1179,7 @@ def kalman_prediction_step(state_space_mean,
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_update_step(state_space_mean,
                        state_space_variance,
                        state_space_mean_derivative,
@@ -1317,7 +1317,7 @@ def kalman_update_step(state_space_mean,
     updated_stacked_state_space_mean = ( stacked_state_space_mean +
                                          (adaptation_coefficient*(current_observation[1] -
                                                                  observation_transform.reshape((1,2)).dot(
-                                                                     predicted_final_state_space_mean.reshape((2,1))))[0][0]).reshape(60) )
+                                                                     predicted_final_state_space_mean.reshape((2,1))))[0][0]).reshape(all_indices_up_to_delay.shape[0]) )
     # ensures the the mean mRNA and Protein are non negative
     updated_stacked_state_space_mean = np.maximum(updated_stacked_state_space_mean,0)
 
@@ -1768,6 +1768,89 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             random_walk[step_index,:] = current_state
         acceptance_rate = float(acceptance_count)/iterations
     return random_walk, acceptance_rate, acceptance_tuner
+
+def kalman_hmc(iterations,protein_at_observations,measurement_variance,initial_epsilon,number_of_leapfrog_steps,initial_parameters):
+    """
+    A basic random walk metropolis algorithm that infers parameters for a given
+    set of protein observations. The likelihood is calculated using the
+    calculate_likelihood_at_parameter_point function, and uninformative normal
+    priors are assumed.
+
+    Parameters
+    ----------
+
+    iterations : float.
+        The number of iterations desired.
+
+    protein_at_observations : numpy array.
+        An array containing protein observations over a given length of time.
+
+    Returns
+    -------
+
+    """
+    mass_matrix = np.identity(7)
+    current_position = initial_parameters
+    cholesky_mass_matrix = np.linalg.cholesky(mass_matrix)
+    inverse_mass_matrix = np.linalg.inv(mass_matrix)
+
+    output = np.zeros((iterations,7))
+    for step_index in range(iterations):
+        epsilon = np.random.normal(initial_epsilon,np.sqrt(0.2*initial_epsilon))
+        position = current_position
+        position[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
+        momentum = cholesky_mass_matrix.dot(np.random.normal(0,1,len(position)))
+        current_momentum = momentum
+
+        print('momentum',momentum)
+        print('position',position)
+
+        # simulate hamiltonian dynamics
+        _, negative_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
+                                                                                                           position,
+                                                                                                           measurement_variance)
+
+        momentum = momentum - epsilon*negative_log_likelihood_derivative/2 # half step for momentum
+
+        for leapfrog_step_index in range(number_of_leapfrog_steps):
+            position = position + epsilon*inverse_mass_matrix.dot(momentum)
+            position[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
+            print('momentum',momentum)
+            print('position',position)
+            if leapfrog_step_index != (number_of_leapfrog_steps - 1):
+                _, negative_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
+                                                                                                                   position,
+                                                                                                                   measurement_variance)
+                momentum = momentum - epsilon*negative_log_likelihood_derivative/2
+
+        _, negative_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
+                                                                                                           position,
+                                                                                                           measurement_variance)
+        momentum = momentum - epsilon*negative_log_likelihood_derivative/2 # half step for momentum
+
+        # acceptance/rejection Metropolis step
+        current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,
+                                                                             current_position,
+                                                                             measurement_variance)
+
+        current_kinetic_energy = current_momentum.dot(inverse_mass_matrix.dot(current_momentum))/2
+
+        proposed_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,
+                                                                              position,
+                                                                              measurement_variance)
+
+        proposed_kinetic_energy = momentum.dot(inverse_mass_matrix.dot(momentum))/2
+
+        if (np.random.uniform() < np.exp(current_log_likelihood -
+                                         proposed_log_likelihood +
+                                         current_kinetic_energy -
+                                         proposed_kinetic_energy)):
+            current_position = position
+
+        output[step_index] = current_position
+
+    return output
+
 
 def calculate_langevin_summary_statistics_at_parameter_point(parameter_values, number_of_traces = 100):
     '''Calculate the mean, relative standard deviation, period, coherence and mean mRNA

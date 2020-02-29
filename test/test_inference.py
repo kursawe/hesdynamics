@@ -22,7 +22,7 @@ number_of_cpus = mp.cpu_count()
 
 class TestInference(unittest.TestCase):
 
-    def test_check_kalman_filter_not_broken(self):
+    def xest_check_kalman_filter_not_broken(self):
         # load in some saved observations and correct kalman filter predictions
         saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         fixed_langevin_trace                 = np.load(saving_path + '_true_data.npy')
@@ -34,21 +34,15 @@ class TestInference(unittest.TestCase):
 
         # run the current kalman filter using the same parameters and observations, then compare
         parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
-        import time
 
-        for i in range(151):
-            if i == 1:
-                start_time = time.time()
-            state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative,predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,
-                                                                                                                                                                                                                                                                   parameters,
-                                                                                                                                                                                                                                                                   measurement_variance=10000)
-            print(i)
-        end_time = time.time()
-        print(end_time-start_time)
-        # log_likelihood, negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
-        #                                                                                                                               parameters,
-        #                                                                                                                               measurement_variance=10000)
+        # state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative,predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,
+        #                                                                                                                                                                                                                                                            parameters,
+        #                                                                                                                                                                                                                                                            measurement_variance=10000)
+        log_likelihood, negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
+                                                                                                                                      parameters,
+                                                                                                                                      measurement_variance=10000)
 
+        print(log_likelihood)
         # np.testing.assert_almost_equal(state_space_mean,true_kalman_prediction_mean)
         # np.testing.assert_almost_equal(state_space_variance,true_kalman_prediction_variance)
         # np.testing.assert_almost_equal(predicted_observation_distributions,true_kalman_prediction_distributions)
@@ -106,6 +100,20 @@ class TestInference(unittest.TestCase):
         #
         # from scipy.stats import norm
         # print(np.sum(norm.logpdf(observations,mean,sd)))
+
+    def test_kalman_hmc(self):
+        saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
+        protein_at_observations = np.load(saving_path + '_observations.npy')
+        # run the current kalman filter using the same parameters and observations, then compare
+        iterations = 5
+        measurement_variance = 10000
+        initial_epsilon = 0.01
+        number_of_leapfrog_steps = 10
+        initial_parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
+
+        output = hes_inference.kalman_hmc(iterations,protein_at_observations,measurement_variance,initial_epsilon,number_of_leapfrog_steps,initial_parameters)
+
+        print(output)
 
 
     def xest_relationship_between_steady_state_mean_and_variance(self):
