@@ -225,34 +225,31 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
     state_space_variance = np.zeros((2*(total_number_of_states),2*(total_number_of_states)))
 
     # set the mRNA variance at nagative times to the LNA approximation
-    LNA_mRNA_variance = np.power(hes5.calculate_approximate_mRNA_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
-                                                                                                   hill_coefficient=model_parameters[1],
-                                                                                                   mRNA_degradation_rate=model_parameters[2],
-                                                                                                   protein_degradation_rate=model_parameters[3],
-                                                                                                   basal_transcription_rate=model_parameters[4],
-                                                                                                   translation_rate=model_parameters[5],
-                                                                                                   transcription_delay=model_parameters[6]),2)
+    # LNA_mRNA_variance = np.power(hes5.calculate_approximate_mRNA_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
+    #                                                                                                hill_coefficient=model_parameters[1],
+    #                                                                                                mRNA_degradation_rate=model_parameters[2],
+    #                                                                                                protein_degradation_rate=model_parameters[3],
+    #                                                                                                basal_transcription_rate=model_parameters[4],
+    #                                                                                                translation_rate=model_parameters[5],
+    #                                                                                                transcription_delay=model_parameters[6]),2)
     # the top left block of the matrix corresponds to the mRNA covariance, see docstring above
     initial_mRNA_scaling = 20.0
     initial_mRNA_variance = state_space_mean[0,1]*initial_mRNA_scaling
-    np.fill_diagonal( state_space_variance[:initial_number_of_states,:initial_number_of_states] , LNA_mRNA_variance)
-    # potential solution for numba:
-#     np.fill_diagonal( state_space_variance[:initial_number_of_states,:initial_number_of_states] ,
-#                     1.0)
+    np.fill_diagonal( state_space_variance[:initial_number_of_states,:initial_number_of_states] , initial_mRNA_variance)
 
     # set the protein variance at nagative times to the LNA approximation
-    LNA_protein_variance = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
-                                                                                                   hill_coefficient=model_parameters[1],
-                                                                                                   mRNA_degradation_rate=model_parameters[2],
-                                                                                                   protein_degradation_rate=model_parameters[3],
-                                                                                                   basal_transcription_rate=model_parameters[4],
-                                                                                                   translation_rate=model_parameters[5],
-                                                                                                   transcription_delay=model_parameters[6]),2)
+    # LNA_protein_variance = np.power(hes5.calculate_approximate_protein_standard_deviation_at_parameter_point(repression_threshold=model_parameters[0],
+    #                                                                                                hill_coefficient=model_parameters[1],
+    #                                                                                                mRNA_degradation_rate=model_parameters[2],
+    #                                                                                                protein_degradation_rate=model_parameters[3],
+    #                                                                                                basal_transcription_rate=model_parameters[4],
+    #                                                                                                translation_rate=model_parameters[5],
+    #                                                                                                transcription_delay=model_parameters[6]),2)
     # # the bottom right block of the matrix corresponds to the mRNA covariance, see docstring above
     initial_protein_scaling = 100.0
     initial_protein_variance = state_space_mean[0,2]*initial_protein_scaling
     np.fill_diagonal( state_space_variance[total_number_of_states:total_number_of_states + initial_number_of_states,
-                                           total_number_of_states:total_number_of_states + initial_number_of_states] , LNA_protein_variance )
+                                           total_number_of_states:total_number_of_states + initial_number_of_states] , initial_protein_variance )
     # potential solution for numba:
 #     np.fill_diagonal( state_space_variance[total_number_of_states:total_number_of_states + initial_number_of_states,
 #                                             total_number_of_states:total_number_of_states + initial_number_of_states] , 1.0 )
@@ -318,38 +315,43 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
     hill_function_derivative_value_wrt_hill_coefficient = np.log(steady_state_protein/repression_threshold)*np.power(steady_state_protein/repression_threshold,
                                                                  hill_coefficient)/( np.power(1.0+np.power( steady_state_protein/repression_threshold,
                                                                  hill_coefficient),2))
-
+    # repression threshold
     state_space_mean_derivative[:initial_number_of_states,0,1] = - (protein_derivative_denominator_scalar*hill_function_derivative_value_wrt_repression/
                                                                     initial_protein_derivative_denominator)
 
     state_space_mean_derivative[:initial_number_of_states,0,0] = (protein_degradation_rate/translation_rate)*state_space_mean_derivative[0,0,1]
 
+    # hill coefficient
     state_space_mean_derivative[:initial_number_of_states,1,1] = - (protein_derivative_denominator_scalar*hill_function_derivative_value_wrt_hill_coefficient/
                                                                     initial_protein_derivative_denominator)
 
     state_space_mean_derivative[:initial_number_of_states,1,0] = (protein_degradation_rate/translation_rate)*state_space_mean_derivative[0,1,1]
 
+    # mRNA degradation
     state_space_mean_derivative[:initial_number_of_states,2,1] = (protein_derivative_denominator_scalar*hill_function_value/
                                                                   mRNA_degradation_rate*initial_protein_derivative_denominator)
 
     state_space_mean_derivative[:initial_number_of_states,2,0] = (protein_degradation_rate/translation_rate)*state_space_mean_derivative[0,2,1]
 
+    # protein degradation
     state_space_mean_derivative[:initial_number_of_states,3,1] = (protein_derivative_denominator_scalar*hill_function_value/
                                                                   protein_degradation_rate*initial_protein_derivative_denominator)
 
     state_space_mean_derivative[:initial_number_of_states,3,0] = (steady_state_protein + protein_degradation_rate*state_space_mean_derivative[0,3,1])/translation_rate
 
+    # basal transcription
     state_space_mean_derivative[:initial_number_of_states,4,1] = -(protein_derivative_denominator_scalar*hill_function_value/
                                                                    basal_transcription_rate*initial_protein_derivative_denominator)
 
     state_space_mean_derivative[:initial_number_of_states,4,0] = (protein_degradation_rate/translation_rate)*state_space_mean_derivative[0,4,1]
 
+    # translation
     state_space_mean_derivative[:initial_number_of_states,5,1] = -(protein_derivative_denominator_scalar*hill_function_value/
                                                                    translation_rate*initial_protein_derivative_denominator)
 
     state_space_mean_derivative[:initial_number_of_states,5,0] = -(protein_degradation_rate/translation_rate)*(steady_state_protein/translation_rate -
                                                                                                                state_space_mean_derivative[0,5,1])
-
+    # transcriptional delay
     state_space_mean_derivative[:initial_number_of_states,6,1] = 0
     state_space_mean_derivative[:initial_number_of_states,6,0] = 0
 
@@ -361,7 +363,6 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
                                                          total_number_of_states:total_number_of_states + initial_number_of_states,
                                                          total_number_of_states:total_number_of_states + initial_number_of_states],
                          initial_protein_scaling*state_space_mean_derivative[0,parameter_index,1])
-    # import pdb; pdb.set_trace()
 
     predicted_observation_mean_derivatives = np.zeros((number_of_observations,7,2))
     predicted_observation_mean_derivatives[0] = state_space_mean_derivative[initial_number_of_states-1]
@@ -388,7 +389,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_observation_distribution_parameters(predicted_observation_distributions,
                                                current_observation,
                                                state_space_mean,
@@ -467,7 +468,7 @@ def kalman_observation_distribution_parameters(predicted_observation_distributio
 
     return predicted_observation_distributions[observation_index + 1]
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_observation_derivatives(predicted_observation_mean_derivatives,
                                    predicted_observation_variance_derivatives,
                                    current_observation,
@@ -542,7 +543,7 @@ def kalman_observation_derivatives(predicted_observation_mean_derivatives,
 
     return predicted_observation_mean_derivatives[observation_index + 1], predicted_observation_variance_derivatives[observation_index + 1]
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -819,8 +820,6 @@ def kalman_prediction_step(state_space_mean,
                                                                                                          hill_coefficient),
                                                                                            2))
 
-        # print(instant_jacobian.dot(current_mean_derivative[0].reshape((2,1))))
-        # print(instant_jacobian.dot(current_mean_derivative[0]))
         repression_derivative = ( instant_jacobian.dot(current_mean_derivative[0]).reshape((2,1)) +
                                   delayed_jacobian.dot(past_mean_derivative[0]).reshape((2,1)) +
                                   np.array([[basal_transcription_rate*hill_function_derivative_value_wrt_repression],[0.0]]) )
@@ -834,7 +833,7 @@ def kalman_prediction_step(state_space_mean,
 
         hill_coefficient_derivative = ( instant_jacobian.dot(current_mean_derivative[1]).reshape((2,1)) +
                                         delayed_jacobian.dot(past_mean_derivative[1]).reshape((2,1)) +
-                                        np.array(([[-basal_transcription_rate*hill_function_derivative_value_wrt_hill_coefficient],[0.0]])) )
+                                        np.array(([[basal_transcription_rate*hill_function_derivative_value_wrt_hill_coefficient],[0.0]])) )
 
         next_mean_derivative[1] = current_mean_derivative[1] + discretisation_time_step*(hill_coefficient_derivative.reshape((1,2)))
 
@@ -868,8 +867,7 @@ def kalman_prediction_step(state_space_mean,
 
         # transcriptional delay
         transcription_delay_derivative = ( instant_jacobian.dot(current_mean_derivative[6]).reshape((2,1)) +
-                                             delayed_jacobian.dot(past_mean_derivative[6]).reshape((2,1)) +
-                                             np.array(([[-basal_transcription_rate*hill_function_derivative_value],[0.0]])) )
+                                           delayed_jacobian.dot(past_mean_derivative[6]).reshape((2,1)) )
 
         next_mean_derivative[6] = current_mean_derivative[6] + discretisation_time_step*(transcription_delay_derivative.reshape((1,2)))
 
@@ -1054,15 +1052,12 @@ def kalman_prediction_step(state_space_mean,
 
         # transcriptional delay
         # instant_jacobian_derivative_wrt_transcription_delay = 0
-        delayed_jacobian_derivative_wrt_transcription_delay = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[6,1]],[0.0,0.0]]) +
-                                                               np.array([[0.0,-basal_transcription_rate*hill_function_second_derivative_value],[0.0,0.0]]))
+        delayed_jacobian_derivative_wrt_transcription_delay = np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[6,1]],[0.0,0.0]])
         instant_noise_derivative_wrt_transcription_delay = (np.array([[mRNA_degradation_rate*current_mean_derivative[6,0],0.0],
                                                                       [0.0,translation_rate*current_mean_derivative[6,0] + protein_degradation_rate*current_mean_derivative[6,1]]]))
 
-        delayed_noise_derivative_wrt_transcription_delay = (np.array([[basal_transcription_rate*hill_function_derivative_value*past_mean_derivative[6,1],0.0],
-                                                                      [0.0,0.0]]) +
-                                                            np.array([[-basal_transcription_rate*hill_function_derivative_value,0.0],
-                                                                      [0.0,0.0]]))
+        delayed_noise_derivative_wrt_transcription_delay = np.array([[basal_transcription_rate*hill_function_derivative_value*past_mean_derivative[6,1],0.0],
+                                                                      [0.0,0.0]])
 
         derivative_of_variance_wrt_transcription_delay = ( common_state_space_variance_derivative_element[6] +
                                                         np.dot(delayed_jacobian_derivative_wrt_transcription_delay,covariance_matrix_past_to_now) +
@@ -1179,7 +1174,7 @@ def kalman_prediction_step(state_space_mean,
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_update_step(state_space_mean,
                        state_space_variance,
                        state_space_mean_derivative,
@@ -1815,8 +1810,11 @@ def kalman_hmc(iterations,protein_at_observations,measurement_variance,initial_e
         for leapfrog_step_index in range(number_of_leapfrog_steps):
             position = position + epsilon*inverse_mass_matrix.dot(momentum)
             position[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
-            print('momentum',momentum)
-            print('position',position)
+            # handling constraint, all parameters must be positive
+            for i in np.where(position < 0):
+                position[i] *= -1
+                momentum[i] *= -1
+
             if leapfrog_step_index != (number_of_leapfrog_steps - 1):
                 _, negative_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
                                                                                                                    position,
