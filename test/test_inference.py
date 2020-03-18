@@ -34,7 +34,6 @@ class TestInference(unittest.TestCase):
 
         # run the current kalman filter using the same parameters and observations, then compare
         parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
-
         state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative,predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,
                                                                                                                                                                                                                                                                    parameters,
                                                                                                                                                                                                                                                                    measurement_variance=10000)
@@ -101,12 +100,12 @@ class TestInference(unittest.TestCase):
         # from scipy.stats import norm
         # print(np.sum(norm.logpdf(observations,mean,sd)))
 
-    def xest_likelihood_derivative_working(self):
+    def test_likelihood_derivative_working(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         fixed_protein_observations = np.load(saving_path + '_observations.npy')
         # run the current kalman filter using the same parameters and observations, then compare
         measurement_variance = 10000
-        step_size = 0.0000000001
+        step_size = 0.0001
         print('---------------------')
         print('step size =',step_size)
         print('---------------------')
@@ -120,16 +119,13 @@ class TestInference(unittest.TestCase):
             shifted_parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
             shifted_parameters[i] += step_size
 
-            log_likelihood, negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations[0],
+            log_likelihood, negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
                                                                                                                                           parameters,
                                                                                                                                           measurement_variance=10000)
 
-            shifted_log_likelihood, _ = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations[0],
+            shifted_log_likelihood, _ = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
                                                                                                                  shifted_parameters,
                                                                                                                  measurement_variance=10000)
-            if i == 6:
-                print(log_likelihood)
-                print(shifted_log_likelihood)
             numerical_derivative = (-shifted_log_likelihood+log_likelihood)/step_size
             print()
             print(parameter_names[i])
@@ -140,12 +136,12 @@ class TestInference(unittest.TestCase):
             print('precentage error:',100*np.abs(numerical_derivative-negative_log_likelihood_derivative[i])/np.abs(numerical_derivative))
             print('----------------------------')
 
-    def test_state_space_mean_derivative_working(self):
+    def xest_state_space_mean_derivative_working(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         fixed_protein_observations = np.load(saving_path + '_observations.npy')
         # run the current kalman filter using the same parameters and observations, then compare
         measurement_variance = 10000
-        step_size = 0.000000001
+        step_size = 0.01
         print('---------------------')
         print('step size =',step_size)
         print('---------------------')
@@ -159,11 +155,11 @@ class TestInference(unittest.TestCase):
             shifted_parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
             shifted_parameters[i] += step_size
 
-            state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations[0],
+            state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,
                                                                                                                                                                                                                                                                         parameters,
                                                                                                                                                                                                                                                                         measurement_variance=10000)
 
-            shifted_state_space_mean, shifted_state_space_variance, _, _, shifted_predicted_observation_distributions, _, _ = hes_inference.kalman_filter(fixed_protein_observations[0],
+            shifted_state_space_mean, shifted_state_space_variance, _, _, shifted_predicted_observation_distributions, _, _ = hes_inference.kalman_filter(fixed_protein_observations,
                                                                                                                 shifted_parameters,
                                                                                                                 measurement_variance=10000)
 
@@ -176,11 +172,11 @@ class TestInference(unittest.TestCase):
             print('state_space_mean_numerical_derivative:',state_space_mean_numerical_derivative[-1,2])
             print('error:',np.abs(state_space_mean_numerical_derivative[-1,2]-state_space_mean_derivative[-1,i,1]))
             print('precentage error:',100*np.abs(state_space_mean_numerical_derivative[-1,2]-state_space_mean_derivative[-1,i,1])/np.abs(state_space_mean_numerical_derivative[-1,2]),'%')
-            print()
-            print('state_space_variance_derivative:',state_space_variance_derivative[i,-1,-1])
-            print('state_space_variance_numerical_derivative:',state_space_variance_numerical_derivative[-1,-1])
-            print('error:',np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1]))
-            print('percentage error:',100*np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1])/np.abs(state_space_variance_numerical_derivative[-1,-1]),'%')
+            # print()
+            # print('state_space_variance_derivative:',state_space_variance_derivative[i,-1,-1])
+            # print('state_space_variance_numerical_derivative:',state_space_variance_numerical_derivative[-1,-1])
+            # print('error:',np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1]))
+            # print('percentage error:',100*np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1])/np.abs(state_space_variance_numerical_derivative[-1,-1]),'%')
             print('----------------------------')
 
 

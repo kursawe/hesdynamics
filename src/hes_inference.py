@@ -1283,7 +1283,8 @@ def kalman_update_step(state_space_mean,
                                           shortened_state_space_mean[:,1]))
 
     # funny indexing with 1:3 instead of (1,2) to make numba happy
-    predicted_final_state_space_mean = state_space_mean[current_number_of_states-1,1:3]
+    predicted_final_state_space_mean = np.copy(state_space_mean[current_number_of_states-1,1:3])
+    # print('predicted_final_state_space_mean 1',predicted_final_state_space_mean)
 
     # extract covariance matrix up to delay
     # corresponds to P(t+Deltat-delay:t+deltat,t+Deltat-delay:t+deltat)
@@ -1413,10 +1414,10 @@ def kalman_update_step(state_space_mean,
                                                              (shortened_covariance_matrix_past_to_final.dot(np.transpose(observation_transform.reshape((1,2))).dot(observation_transform.reshape((1,2)).dot(
                                                              predicted_final_covariance_derivative_matrix[parameter_index].dot(np.transpose(observation_transform.reshape((1,2))))))))*np.power(helper_inverse,2) ).reshape(all_indices_up_to_delay.shape[0])
 
-    # This is d_rho*
+    # This is d_rho*/d_theta
     updated_stacked_state_space_mean_derivative = np.zeros((7,2*(discrete_delay+1)))
+    # print('predicted_final_state_space_mean 2',predicted_final_state_space_mean)
     for parameter_index in range(7):
-        # import pdb; pdb.set_trace()
         updated_stacked_state_space_mean_derivative[parameter_index] = ( stacked_state_space_mean_derivative[parameter_index] +
                                                                          adaptation_coefficient_derivative[parameter_index]*(current_observation[1] -
                                                                          observation_transform.reshape((1,2)).dot(predicted_final_state_space_mean.reshape((2,1))))[0][0] -
