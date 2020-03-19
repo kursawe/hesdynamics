@@ -4904,7 +4904,8 @@ def estimate_fluctuation_rate_of_traces(traces, fix_variance = False):
 def simulate_downstream_response_at_fluctuation_rate(fluctuation_rate,
                                                      number_of_samples,
                                                      include_upstream_feedback,
-                                                     upstream_initial_level = 6.0):
+                                                     upstream_initial_level = 6.0,
+                                                     feedback_delay = 0.0):
     '''Simulate a potential downstream response to a signal with a specific fluctuation rate.
     This function implemetns the network y-|X<-- , i.e y represses X and X self-activates.
                                             \__/
@@ -4932,6 +4933,9 @@ def simulate_downstream_response_at_fluctuation_rate(fluctuation_rate,
         initial level of the upstream signal Y. Currently, this is only implemented for the option
         include_upstream_feedback==True. If this option is false, this value for upstream_initial_level will be
         ignored.
+        
+    feedback_delay : float
+        delay associated with the feedback - repression of y depends on x at time t-feedback_delay
 
     Returns:
     --------
@@ -4948,6 +4952,7 @@ def simulate_downstream_response_at_fluctuation_rate(fluctuation_rate,
     times = np.linspace(0,30,2000)
     input_variance = 1.7
     delta_t = times[1] - times[0]
+    discrete_delay = np.int(np.round(feedback_delay/delta_t))
     if include_upstream_feedback == False:
         ornstein_kernel = ( gp.kernels.ConstantKernel(constant_value=input_variance)*
                             gp.kernels.Matern(nu=0.5, length_scale = 1.0/fluctuation_rate))
@@ -4981,13 +4986,17 @@ def simulate_downstream_response_at_fluctuation_rate(fluctuation_rate,
         y[0] = upstream_initial_level
         index = 0
         for time in times[:-1]:
-           this_x = x[index]
-           this_y = y[index]
-           index+=1
-           dx = 0.5/(1+np.power(this_y/7.9,4)) + 10/(1+np.power(this_x/0.5,-4)) - 3*this_x
-           x[index] = this_x+dx*delta_t
-           y[index] = np.maximum(this_y+ delta_t*upstream_initial_level*fluctuation_rate/(1+np.power(this_x/2.0,4)) - fluctuation_rate*this_y*delta_t +
-                                np.sqrt(2*delta_t*fluctuation_rate*input_variance)*np.random.randn(number_of_samples), 0.0)
+            past_index = index - discrete_delay
+            if past_index < 0:
+                past_index = 0
+            this_x = x[index]
+            this_y = y[index]
+            past_x = x[past_index]
+            index+=1
+            dx = 0.5/(1+np.power(this_y/7.9,4)) + 10/(1+np.power(this_x/0.5,-4)) - 3*this_x
+            x[index] = this_x+dx*delta_t
+            y[index] = np.maximum(this_y+ delta_t*upstream_initial_level*fluctuation_rate/(1+np.power(past_x/2.0,4)) - fluctuation_rate*this_y*delta_t +
+                                 np.sqrt(2*delta_t*fluctuation_rate*input_variance)*np.random.randn(number_of_samples), 0.0)
         return times, y, x
 
 def approximate_fluctuation_rate_of_traces_theoretically(traces, sampling_interval = 1,
