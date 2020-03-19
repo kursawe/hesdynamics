@@ -18,8 +18,7 @@ All computational results in these papers can be re-generated from here.
 - `/test/` contains the code to generate simulated data in the papers, and to make the paper figures. The code that was used in the papers by Manning et al. and Soto et al. is saved in the folders `test_manning_et_al_2019` and `test_soto_et_al_2019`, respectively. Each of these paper-specific folders contains the following files
     - `test_make_final_figures.py`, which can be used to regenerate all figures in the paper from data saved in this repository and 
     - `test_make_analysis_for_paper.py`, which can be used to generate all data needed in `test_make_final_figures.py` from scratch by re-running all simulations.
-    - `data/` is a folder that contains simulated data for each paper in the form of Python numpy arrays. In case of the paper by Soto et al., users will need to download this folder from
-     <https://www.dropbox.com/sh/5k8wofjk97uu5ux/AADhsd41JVzIL_KJTnnj5ysCa?dl=0>.
+    - `data/` is a folder that contains simulated data for each paper in the form of Python numpy arrays. In case of the paper by Soto et al., this folder is empty
      In case of the paper by Manning et al., users will need to download this folder from
      <https://www.dropbox.com/sh/r7taosaoy821l1x/AABQHAWfX-uNGbqMRkAFw-r6a?dl=0>.
      This is to overcome data storage limits imposed by Github.
