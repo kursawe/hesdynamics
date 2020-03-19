@@ -7,14 +7,20 @@ import matplotlib as mpl
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
+import matplotlib.gridspec 
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+font = {'size'   : 10}
+plt.rc('font', **font)
 import numpy as np
+import scipy.optimize
+import pandas as pd
+import seaborn as sns
+import sklearn.gaussian_process as gp
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import Matern, RBF, ConstantKernel
 import logging
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
-try:
-    import gpflow
-except ImportError:
-    print('Could not import gpflow. This may affect GP regression tests.')
-from numba import jit, autojit
+from numba import jit
 
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','..','src'))
@@ -29,11 +35,50 @@ else:
 #     number_of_available_cores = 1
     number_of_available_cores = mp.cpu_count()
 
-class TestMakeAnalysisForRevision(unittest.TestCase):
+class TestMakePaperFigures(unittest.TestCase):
+
+    def test_switching_vs_fluctuation_rate_paper_figure_draft(self):
+        
+#         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
+#         fluctuation_rates = np.linspace(0.5,1.5,21)
+#         fluctuation_rates = np.array([0.05,2.0])
+#         fluctuation_rates = np.logspace(0,3,10)
+        fluctuation_rates = np.linspace(2,100,20)
+        number_of_traces = 1000
+#         number_of_traces = 10
+        percentages = np.zeros_like(fluctuation_rates)
+        activation_times = np.zeros_like(fluctuation_rates)
+        activation_time_deviations = np.zeros_like(fluctuation_rates) 
+
+        for fluctuation_index, fluctuation_rate in enumerate(fluctuation_rates):
+            times, y, x = hes5.simulate_downstream_response_at_fluctuation_rate(fluctuation_rate, number_of_traces,
+                                                                                include_upstream_feedback = False)
+            turned_on_targets = x[-1,:]>2
+            percentages[fluctuation_index] = np.sum(turned_on_targets)/number_of_traces
+            active_level_bools = x>2
+            these_activation_times = np.zeros(number_of_traces)
+            for column_index, column in enumerate(active_level_bools.transpose()):
+                entries = np.nonzero(column)
+                if len(entries[0]) > 0:
+                    minimum_entry = np.min(entries)
+                    time = times[minimum_entry]
+                    these_activation_times[column_index] = time
+                else:
+                    these_activation_times[column_index] = times[-1]
+            activation_times[fluctuation_index] = np.mean(these_activation_times)
+            activation_time_deviations[fluctuation_index] = np.std(these_activation_times)
+
+        plt.figure(figsize = (2.25,2.25))
+        plt.plot(fluctuation_rates, percentages)
+        plt.xlabel('Y aperiodic lengthscale')
+        plt.ylabel('Switching probability')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'stochastic_fluctuation_rate_probability_draft_figure.pdf'))
 
     def test_plot_switching_dynamics_new_model(self):
         
-        number_of_traces = 2
+        number_of_traces = 4
 #         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
 #         fluctuation_rates = np.linspace(0.5,1.5,21)
         color_list = ['C0','C1','C2','C3','C4','C5','C6','C7','C8','C9']
@@ -59,6 +104,80 @@ class TestMakeAnalysisForRevision(unittest.TestCase):
             plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                      'new_stochastic_multiple_fluctuation_rate_dependent_activation_' + 
                                      '{:.2f}'.format(fluctuation_rate) + '.pdf'))
+
+    def test_old_stochastic_flucutation_rate_dependant_activation_figure_draft(self):
+        
+        number_of_traces = 4
+#         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
+#         fluctuation_rates = np.linspace(0.5,1.5,21)
+        color_list = ['C0','C1','C2','C3','C4','C5','C6','C7','C8','C9']
+        fluctuation_rates = [2,7,100]
+        for fluctuation_rate in fluctuation_rates:
+            times, y, x = hes5.simulate_downstream_response_at_fluctuation_rate(fluctuation_rate, number_of_traces,
+                                                                                include_upstream_feedback = False)
+            this_figure = plt.figure(figsize = (4.5,2.25))
+            outer_grid = matplotlib.gridspec.GridSpec(1, 2 )
+            this_left_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(number_of_traces, 1,
+                    subplot_spec=outer_grid[0], hspace=0.0)
+            for subplot_index in range(number_of_traces):
+                this_axis = plt.Subplot(this_figure, this_left_grid[subplot_index])
+                this_figure.add_subplot(this_axis)
+                plt.plot(times,y.transpose()[subplot_index], lw = 0.5, color = color_list[subplot_index] )
+                plt.yticks([2,7], fontsize = 8)
+                plt.ylim(0,10)
+            plt.ylabel('Input Signal Y')
+            plt.xlabel('Time')
+            this_axis.yaxis.set_label_coords(-0.15,2.0)
+            plt.subplot(122)
+            this_axis = plt.Subplot(this_figure, outer_grid[0])
+            for trace_index, x_trace in enumerate(x.transpose()):
+                plt.plot(times, x_trace, color = color_list[trace_index] )
+            plt.ylabel('Downstream Response X')
+            plt.xlabel('Time')
+            plt.ylim(0,4)
+            plt.tight_layout()
+            plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                     'stochastic_multiple_fluctuation_rate_dependent_activation_updated_' + 
+                                     '{:.2f}'.format(fluctuation_rate) + '.pdf'))
+
+    def test_switching_vs_fluctuation_rate_paper_figure_draft_no_feedback(self):
+        
+#         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
+#         fluctuation_rates = np.linspace(0.5,1.5,21)
+#         fluctuation_rates = np.array([0.05,2.0])
+#         fluctuation_rates = np.logspace(0,3,10)
+        fluctuation_rates = np.linspace(2,100,20)
+        number_of_traces = 1000
+#         number_of_traces = 10
+        percentages = np.zeros_like(fluctuation_rates)
+        activation_times = np.zeros_like(fluctuation_rates)
+        activation_time_deviations = np.zeros_like(fluctuation_rates) 
+
+        for fluctuation_index, fluctuation_rate in enumerate(fluctuation_rates):
+            times, y, x = hes5.simulate_downstream_response_at_fluctuation_rate(fluctuation_rate, number_of_traces,
+                                                                                include_upstream_feedback = False)
+            turned_on_targets = x[-1,:]>2
+            percentages[fluctuation_index] = np.sum(turned_on_targets)/number_of_traces
+            active_level_bools = x>2
+            these_activation_times = np.zeros(number_of_traces)
+            for column_index, column in enumerate(active_level_bools.transpose()):
+                entries = np.nonzero(column)
+                if len(entries[0]) > 0:
+                    minimum_entry = np.min(entries)
+                    time = times[minimum_entry]
+                    these_activation_times[column_index] = time
+                else:
+                    these_activation_times[column_index] = times[-1]
+            activation_times[fluctuation_index] = np.mean(these_activation_times)
+            activation_time_deviations[fluctuation_index] = np.std(these_activation_times)
+
+        plt.figure(figsize = (2.25,2.25))
+        plt.plot(fluctuation_rates, percentages)
+        plt.xlabel('Y aperiodic lengthscale')
+        plt.ylabel('Switching probability')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),'output',
+                                 'new_stochastic_fluctuation_rate_probability_draft_figure_no_feedback.pdf'))
 
     def test_switching_vs_fluctuation_rate_paper_figure_draft(self):
         
@@ -142,7 +261,7 @@ class TestMakeAnalysisForRevision(unittest.TestCase):
                                  'levels_probability_draft_figure.pdf'))
 
     def test_switching_dynamics_at_higher_levels_illustration_figure(self):
-        number_of_traces = 2
+        number_of_traces = 4
 #         fluctuation_rates = [0.25,0.5,0.7,1.0,1.5,2.0,10]
 #         fluctuation_rates = np.linspace(0.5,1.5,21)
         color_list = ['C0','C1','C2','C3','C4','C5','C6','C7','C8','C9']
@@ -167,3 +286,4 @@ class TestMakeAnalysisForRevision(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),'output',
                                  'new_stochastic_multiple_fluctuation_rate_dependent_activation_different_level.pdf'))
+
