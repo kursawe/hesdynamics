@@ -133,7 +133,7 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
                                                                                                                                   time_delay,
                                                                                                                                   observation_time_step,
                                                                                                                                   measurement_variance)
-
+    # import pdb; pdb.set_trace()
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
 def kalman_filter_state_space_initialisation(protein_at_observations,model_parameters,measurement_variance = 10):
@@ -859,7 +859,7 @@ def kalman_prediction_step(state_space_mean,
         # mRNA degradation rate
         mRNA_degradation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[2]).reshape((2,1)) +
                                              delayed_jacobian.dot(past_mean_derivative[2]).reshape((2,1)) +
-                                             np.array(([[-current_mean[0]],[0.0]])) )
+                                             np.array(([[-0*current_mean[0]],[0.0]])) )
 
         next_mean_derivative[2] = current_mean_derivative[2] + discretisation_time_step*(mRNA_degradation_rate_derivative.reshape((1,2)))
 
@@ -867,6 +867,7 @@ def kalman_prediction_step(state_space_mean,
         protein_degradation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[3]).reshape((2,1)) +
                                                 delayed_jacobian.dot(past_mean_derivative[3]).reshape((2,1)) +
                                                 np.array(([[0.0],[-current_mean[1]]])) )
+        # import pdb; pdb.set_trace()
 
         next_mean_derivative[3] = current_mean_derivative[3] + discretisation_time_step*(protein_degradation_rate_derivative.reshape((1,2)))
 
@@ -1084,6 +1085,7 @@ def kalman_prediction_step(state_space_mean,
                                                         instant_noise_derivative_wrt_transcription_delay + delayed_noise_derivative_wrt_transcription_delay )
 
         next_covariance_derivative_matrix[6] = current_covariance_derivative_matrix[6] + discretisation_time_step*(derivative_of_variance_wrt_transcription_delay)
+        # import pdb; pdb.set_trace()
 
         # in the next lines we use for loop instead of np.ix_-like indexing for numba
         for parameter_index in range(7):
@@ -1528,6 +1530,9 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
 
     log_likelihood : float.
         The log of the likelihood of the data.
+
+    log_likelihood : numpy array.
+        The derivative of the log likelihood of the data, wrt each model parameter
     """
     from scipy.stats import norm
 
@@ -1571,7 +1576,7 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
                                                                          helper_inverse[time_index]*(observations[time_index] - mean[time_index])*
                                                                          observation_transform.dot(predicted_observation_mean_derivatives[time_index,parameter_index])[0])
 
-    return log_likelihood, negative_log_likelihood_derivative
+    return log_likelihood, -negative_log_likelihood_derivative
 
 
 def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,acceptance_tuner,parameter_covariance,initial_state,**kwargs):
@@ -1866,6 +1871,108 @@ def kalman_hmc(iterations,protein_at_observations,measurement_variance,initial_e
         output[step_index] = current_position
 
     return output
+
+def kalman_mala(protein_at_observations,measurement_variance,number_of_samples,initial_position,step_size,proposal_covariance=np.eye(1),thinning_rate=1):
+    """
+    Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
+    samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
+    x + h/2*proposal_covariance*log_likelihood_gradient + h*sqrt(proposal_covariance)*normal(0,1), where h is the step_size
+
+    Parameters
+    ----------
+
+    protein_at_observations : numpy array
+        Observed protein. The dimension is n x 2, where n is the number of observation time points.
+        The first column is the time, and the second column is the observed protein copy number at
+        that time. The filter assumes that observations are generated with a fixed, regular time interval.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    number_of_samples : integer
+        the number of samples the random walk proposes
+
+    initial_position : numpy array
+        starting value of the Markov chain
+
+    proposal_covariance: numpy array
+        a q x q matrix where q is the number of paramters in the model. For optimal sampling this
+        should represent the covariance structure of the samples
+
+    step size : double
+        a tuning parameter in the proposal step. this is a user defined parameter, change in order to get acceptance ratio ~0.5
+
+    thinning_rate : integer
+        the number of samples out of which you will keep one. this parameter can be increased to reduce autocorrelation if required
+
+    Returns
+    -------
+
+    mcmc_samples : numpy array
+        an N x q matrix of MCMC samples, where N is the number of samples and q is the number of parameters. These
+        are the accepted positions in parameter space
+
+    """
+    # initialise the covariance proposal matrix
+    number_of_parameters = len(initial_position)
+
+    # check if default value is used, and set to q x q identity
+    if np.array_equal(proposal_covariance, np.eye(1)):
+        proposal_covariance = np.eye(number_of_parameters)
+
+    if np.array_equal(proposal_covariance, np.eye(number_of_parameters)):
+        identity = True
+    else:
+        identity = False
+        proposal_cholesky = np.linalg.cholesky(proposal_covariance)
+
+    proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
+
+    # initialise samples matrix and acceptance ratio counter
+    accepted_moves = 0
+    mcmc_samples = np.zeros((number_of_samples,number_of_parameters))
+    mcmc_samples[0] = initial_position
+    number_of_iterations = number_of_samples*thinning_rate
+
+    # initial markov chain
+    current_position = initial_position
+    # TODO:
+    current_log_likelihood, current_log_likelihood_gradient = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
+                                                                                                                         current_position)
+
+    for iteration_index in range(1,number_of_iterations):
+        # progress measure
+        if iteration_index%(number_of_iterations//10)==0:
+            print("Progress: ",100*iteration_index//number_of_iterations,'%')
+
+        if identity:
+            proposal = current_position + step_size*current_log_likelihood_gradient/2 + np.sqrt(step_size)*np.random.normal(size=number_of_parameters)
+        else:
+            proposal = current_position + step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2 + np.sqrt(step_size)*proposal_cholesky.dot(np.random.normal(size=number_of_parameters))
+
+        # compute transition probabilities for acceptance step
+        proposal_log_likelihood, proposal_log_likelihood_gradient = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
+                                                                                                                               proposal)
+        
+        forward_helper_variable = proposal - current_position - step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2
+        backward_helper_variable = current_position - proposal - step_size*proposal_covariance.dot(proposal_log_likelihood_gradient)/2
+
+        transition_kernel_pdf_forward = -np.transpose(forward_helper_variable).dot(proposal_covariance_inverse).dot(forward_helper_variable)/(2*step_size)
+        transition_kernel_pdf_backward = -np.transpose(backward_helper_variable).dot(proposal_covariance_inverse).dot(backward_helper_variable)/(2*step_size)
+
+        # accept-reject step
+        if(np.random.uniform() < np.exp(proposal_log_likelihood - transition_kernel_pdf_forward - current_log_likelihood + transition_kernel_pdf_backward)):
+            current_position = proposal
+            current_log_likelihood = proposal_log_likelihood
+            current_log_likelihood_gradient = proposal_log_likelihood_gradient
+            accepted_moves += 1
+
+        if iteration_index%thinning_rate == 0:
+            mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
+
+    print("Acceptance ratio:",accepted_moves/number_of_iterations)
+    return mcmc_samples
+
 
 
 def calculate_langevin_summary_statistics_at_parameter_point(parameter_values, number_of_traces = 100):

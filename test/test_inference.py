@@ -100,12 +100,12 @@ class TestInference(unittest.TestCase):
         # from scipy.stats import norm
         # print(np.sum(norm.logpdf(observations,mean,sd)))
 
-    def test_likelihood_derivative_working(self):
+    def xest_likelihood_derivative_working(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         fixed_protein_observations = np.load(saving_path + '_observations.npy')
         # run the current kalman filter using the same parameters and observations, then compare
         measurement_variance = 10000
-        step_size = 0.0001
+        step_size = 0.00000001
         print('---------------------')
         print('step size =',step_size)
         print('---------------------')
@@ -141,58 +141,188 @@ class TestInference(unittest.TestCase):
         fixed_protein_observations = np.load(saving_path + '_observations.npy')
         # run the current kalman filter using the same parameters and observations, then compare
         measurement_variance = 10000
-        step_size = 0.01
-        print('---------------------')
-        print('step size =',step_size)
-        print('---------------------')
-        parameter_names = np.array(['repression_threshold','hill_coefficient','mRNA_degradation_rate',
-                                    'protein_degradation_rate','basal_transcription_rate','translation_rate',
-                                    'transcriptional_delay'])
+        step_sizes = [0.001,0.0001,0.00001,0.000001,0.0000001,
+                      0.00000001,0.000000001,0.0000000001,0.00000000001,
+                      0.000000000001,0.0000000000001,0.00000000000001,0.000000000000001]
+        error = np.zeros((7,len(step_sizes)))
+        percentage_error = np.zeros((7,len(step_sizes)))
+        for step_size_index, step_size in enumerate(step_sizes):
+            measurement_variance = 10000
+            print('---------------------')
+            print('step size =',step_size)
+            print('---------------------')
+            parameter_names = np.array(['repression_threshold','hill_coefficient','mRNA_degradation_rate',
+                                        'protein_degradation_rate','basal_transcription_rate','translation_rate',
+                                        'transcriptional_delay'])
 
-        for i in range(7):
+            for i in range(7):
 
-            parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
-            shifted_parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
-            shifted_parameters[i] += step_size
+                parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
+                shifted_parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
+                shifted_parameters[i] += step_size
 
-            state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,
-                                                                                                                                                                                                                                                                        parameters,
-                                                                                                                                                                                                                                                                        measurement_variance=10000)
+                state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations[:5],
+                                                                                                                                                                                                                                                                            parameters,
+                                                                                                                                                                                                                                                                            measurement_variance=10000)
 
-            shifted_state_space_mean, shifted_state_space_variance, _, _, shifted_predicted_observation_distributions, _, _ = hes_inference.kalman_filter(fixed_protein_observations,
-                                                                                                                shifted_parameters,
-                                                                                                                measurement_variance=10000)
+                shifted_state_space_mean, shifted_state_space_variance, _, _, shifted_predicted_observation_distributions, _, _ = hes_inference.kalman_filter(fixed_protein_observations[:5],
+                                                                                                                    shifted_parameters,
+                                                                                                                    measurement_variance=10000)
 
-            state_space_mean_numerical_derivative = (shifted_state_space_mean-state_space_mean)/step_size
-            state_space_variance_numerical_derivative = (shifted_state_space_variance-state_space_variance)/step_size
-            print()
-            print(parameter_names[i])
-            print()
-            print('state_space_mean_derivative:',state_space_mean_derivative[-1,i,1])
-            print('state_space_mean_numerical_derivative:',state_space_mean_numerical_derivative[-1,2])
-            print('error:',np.abs(state_space_mean_numerical_derivative[-1,2]-state_space_mean_derivative[-1,i,1]))
-            print('precentage error:',100*np.abs(state_space_mean_numerical_derivative[-1,2]-state_space_mean_derivative[-1,i,1])/np.abs(state_space_mean_numerical_derivative[-1,2]),'%')
-            # print()
-            # print('state_space_variance_derivative:',state_space_variance_derivative[i,-1,-1])
-            # print('state_space_variance_numerical_derivative:',state_space_variance_numerical_derivative[-1,-1])
-            # print('error:',np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1]))
-            # print('percentage error:',100*np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1])/np.abs(state_space_variance_numerical_derivative[-1,-1]),'%')
-            print('----------------------------')
+                state_space_mean_numerical_derivative = (shifted_state_space_mean-state_space_mean)/step_size
+                state_space_variance_numerical_derivative = (shifted_state_space_variance-state_space_variance)/step_size
+                error[i,step_size_index] = np.abs(state_space_mean_numerical_derivative[-1,2]-state_space_mean_derivative[-1,i,1])
+                percentage_error[i,step_size_index] = 100*error[i,step_size_index]/np.abs(state_space_mean_numerical_derivative[-1,2])
+                # print()
+                # print(parameter_names[i])
+                # print()
+                # print('state_space_mean_derivative:',state_space_mean_derivative[-1,i,1])
+                # print('state_space_mean_numerical_derivative:',state_space_mean_numerical_derivative[-1,2])
+                # print('error:',error)
+                # print('precentage error:',100*error/np.abs(state_space_mean_numerical_derivative[-1,2]),'%')
+                # print()
+                # print('state_space_variance_derivative:',state_space_variance_derivative[i,-1,-1])
+                # print('state_space_variance_numerical_derivative:',state_space_variance_numerical_derivative[-1,-1])
+                # print('error:',np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1]))
+                # print('percentage error:',100*np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1])/np.abs(state_space_variance_numerical_derivative[-1,-1]),'%')
+                # print('----------------------------')
+        fig, ax = plt.subplots(2,4,figsize=(20,10))
+        # ax.set_yscale('log')
+
+        ax[0,0].loglog(step_sizes,error[0],color='red',lw=2,label='error')
+        ax[0,0].loglog(step_sizes,percentage_error[0],color='blue',lw=2,label='percentage error')
+        ax[0,0].legend(loc='upper left', bbox_to_anchor=(0.0,1.0), shadow=True)
+        ax[0,0].set_title('repression threshold error')
+        ax[0,1].loglog(step_sizes,error[1],color='blue',lw=2)
+        ax[0,1].loglog(step_sizes,percentage_error[1],color='red',lw=2)
+        ax[0,1].set_title('hill coefficient error')
+        ax[0,2].loglog(step_sizes,error[2],color='blue',lw=2)
+        ax[0,2].loglog(step_sizes,percentage_error[2],color='red',lw=2)
+        ax[0,2].set_title('mRNA degradation rate error')
+        ax[0,3].loglog(step_sizes,error[3],color='blue',lw=2)
+        ax[0,3].loglog(step_sizes,percentage_error[3],color='red',lw=2)
+        ax[0,3].set_title('protein degradation rate error')
+        ax[1,0].loglog(step_sizes,error[4],color='blue',lw=2)
+        ax[1,0].loglog(step_sizes,percentage_error[4],color='red',lw=2)
+        ax[1,0].set_title('transcription rate error')
+        ax[1,1].loglog(step_sizes,error[5],color='blue',lw=2)
+        ax[1,1].loglog(step_sizes,percentage_error[5],color='red',lw=2)
+        ax[1,1].set_title('translation rate error')
+        ax[1,2].loglog(step_sizes,error[6],color='blue',lw=2)
+        ax[1,2].loglog(step_sizes,percentage_error[6],color='red',lw=2)
+        ax[1,2].set_title('transcriptional delay error')
+        plt.tight_layout()
+        fig.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','error.pdf'))
+
+    def xest_log_likelihood_derivative_working(self):
+        saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
+        fixed_protein_observations = np.load(saving_path + '_observations.npy')
+        # run the current kalman filter using the same parameters and observations, then compare
+        measurement_variance = 10000
+        step_sizes = [100.0,10.0,1.0,0.1,0.01,0.001,0.0001,0.00001,0.000001,0.0000001,
+                      0.00000001,0.000000001,0.0000000001]
+        # step_sizes = [10,1,0.1]
+        error = np.zeros((7,len(step_sizes)))
+        percentage_error = np.zeros((7,len(step_sizes)))
+        for step_size_index, step_size in enumerate(step_sizes):
+            measurement_variance = 10000
+            print('---------------------')
+            print('step size =',step_size)
+            print('---------------------')
+            parameter_names = np.array(['repression_threshold','hill_coefficient','mRNA_degradation_rate',
+                                        'protein_degradation_rate','basal_transcription_rate','translation_rate',
+                                        'transcriptional_delay'])
+
+            for i in range(7):
+
+                parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
+                shifted_parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
+                shifted_parameters[i] += step_size
+
+                log_likelihood, negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,parameters,measurement_variance)
+
+                shifted_log_likelihood, shifted_negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,shifted_parameters,measurement_variance)
+
+                negative_log_likelihood_numerical_derivative = (log_likelihood-shifted_log_likelihood)/step_size
+                error[i,step_size_index] = np.abs(negative_log_likelihood_numerical_derivative-negative_log_likelihood_derivative[i])
+                percentage_error[i,step_size_index] = 100*error[i,step_size_index]/np.abs(negative_log_likelihood_numerical_derivative)
+                # print()
+                # print(parameter_names[i])
+                # print()
+                # print('state_space_mean_derivative:',state_space_mean_derivative[-1,i,1])
+                # print('state_space_mean_numerical_derivative:',state_space_mean_numerical_derivative[-1,2])
+                # print('error:',error)
+                # print('precentage error:',100*error/np.abs(state_space_mean_numerical_derivative[-1,2]),'%')
+                # print()
+                # print('state_space_variance_derivative:',state_space_variance_derivative[i,-1,-1])
+                # print('state_space_variance_numerical_derivative:',state_space_variance_numerical_derivative[-1,-1])
+                # print('error:',np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1]))
+                # print('percentage error:',100*np.abs(state_space_variance_numerical_derivative[-1,-1]-state_space_variance_derivative[i,-1,-1])/np.abs(state_space_variance_numerical_derivative[-1,-1]),'%')
+                # print('----------------------------')
+        fig, ax = plt.subplots(2,4,figsize=(20,10))
+        # ax.set_yscale('log')
+
+        ax[0,0].loglog(step_sizes,error[0],color='red',lw=2,label='error')
+        ax[0,0].loglog(step_sizes,percentage_error[0],color='blue',lw=2,label='percentage error')
+        ax[0,0].legend(loc='upper left', bbox_to_anchor=(0.0,1.0), shadow=True)
+        ax[0,0].set_title('repression threshold error')
+        ax[0,1].loglog(step_sizes,error[1],color='blue',lw=2)
+        ax[0,1].loglog(step_sizes,percentage_error[1],color='red',lw=2)
+        ax[0,1].set_title('hill coefficient error')
+        ax[0,2].loglog(step_sizes,error[2],color='blue',lw=2)
+        ax[0,2].loglog(step_sizes,percentage_error[2],color='red',lw=2)
+        ax[0,2].set_title('mRNA degradation rate error')
+        ax[0,3].loglog(step_sizes,error[3],color='blue',lw=2)
+        ax[0,3].loglog(step_sizes,percentage_error[3],color='red',lw=2)
+        ax[0,3].set_title('protein degradation rate error')
+        ax[1,0].loglog(step_sizes,error[4],color='blue',lw=2)
+        ax[1,0].loglog(step_sizes,percentage_error[4],color='red',lw=2)
+        ax[1,0].set_title('transcription rate error')
+        ax[1,1].loglog(step_sizes,error[5],color='blue',lw=2)
+        ax[1,1].loglog(step_sizes,percentage_error[5],color='red',lw=2)
+        ax[1,1].set_title('translation rate error')
+        ax[1,2].loglog(step_sizes,error[6],color='blue',lw=2)
+        ax[1,2].loglog(step_sizes,percentage_error[6],color='red',lw=2)
+        ax[1,2].set_title('transcriptional delay error')
+        plt.tight_layout()
+        fig.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','error_log_likelihood_derivative_test_half.pdf'))
 
 
-    def xest_kalman_hmc(self):
+    def test_kalman_mala(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         protein_at_observations = np.load(saving_path + '_observations.npy')
         # run the current kalman filter using the same parameters and observations, then compare
-        iterations = 50
+        number_of_samples = 10000
         measurement_variance = 10000
-        initial_epsilon = 0.1
-        number_of_leapfrog_steps = 1
-        initial_parameters = np.array([5000.0,3.0,np.log(2)/30, np.log(2)/90, 2.0, 2.0, 15.0])
+        initial_position = np.array([5000.0,3.0,np.log(2)/30, np.log(2)/90, 2.0, 2.0, 15.0])
+        step_size = 0.001
+        proposal_covariance = np.diag([10000000.0,100.0,0.0001,0.0001,1.0,1.0,100.0])
 
-        output = hes_inference.kalman_hmc(iterations,protein_at_observations,measurement_variance,initial_epsilon,number_of_leapfrog_steps,initial_parameters)
+        output = hes_inference.kalman_mala(protein_at_observations,
+                                           measurement_variance,
+                                           number_of_samples,
+                                           initial_position,
+                                           step_size,
+                                           proposal_covariance=proposal_covariance,
+                                           thinning_rate=1)
 
         print(output)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output.npy'),
+                    output)
+
+    def xest_plot_mala(self):
+        saving_path  = os.path.join(os.path.dirname(__file__), 'output','mala_output')
+        output = np.load(saving_path + '.npy')
+
+        fig, ax = plt.subplots(output.shape[1],1,figsize=(10,8))
+        for i in range(output.shape[1]):
+            ax[i].plot(output[:,i])
+            ax[i].set_xlabel('$\\theta_{}$'.format(i))
+        plt.tight_layout()
+        fig.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','mala_traceplots.pdf'))
 
 
     def xest_relationship_between_steady_state_mean_and_variance(self):
