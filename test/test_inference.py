@@ -1,6 +1,8 @@
 import unittest
 import os.path
 import sys
+import seaborn as sns
+import pandas as pd
 import matplotlib as mpl
 mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
@@ -291,14 +293,16 @@ class TestInference(unittest.TestCase):
 
 
     def test_kalman_mala(self):
-        saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
-        protein_at_observations = np.load(saving_path + '_observations.npy')
+        saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
+        protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
+        mala_output = np.load(saving_path + 'mala_output.npy')
         # run the current kalman filter using the same parameters and observations, then compare
         number_of_samples = 10000
         measurement_variance = 10000
+        # true parameters -- [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
         initial_position = np.array([5000.0,3.0,np.log(2)/30, np.log(2)/90, 2.0, 2.0, 15.0])
-        step_size = 0.001
-        proposal_covariance = np.diag([10000000.0,100.0,0.0001,0.0001,1.0,1.0,100.0])
+        step_size = 0.0011
+        proposal_covariance = np.cov(mala_output.T)
 
         output = hes_inference.kalman_mala(protein_at_observations,
                                            measurement_variance,
@@ -309,12 +313,14 @@ class TestInference(unittest.TestCase):
                                            thinning_rate=1)
 
         print(output)
-        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output.npy'),
-                    output)
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output.npy'),
+        #             output)
 
     def xest_plot_mala(self):
         saving_path  = os.path.join(os.path.dirname(__file__), 'output','mala_output')
         output = np.load(saving_path + '.npy')
+
+        print(np.cov(output.T))
 
         fig, ax = plt.subplots(output.shape[1],1,figsize=(10,8))
         for i in range(output.shape[1]):
@@ -323,6 +329,14 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         fig.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','mala_traceplots.pdf'))
+
+        g = sns.PairGrid(pd.DataFrame(output[1500:],columns=['$\\theta_{}$'.format(i) for i in range(output.shape[1])]))
+        g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
+        g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
+        g = g.map_diag(sns.distplot,color='#20948B')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                 'output','pair_grid_mala.pdf'))
 
 
     def xest_relationship_between_steady_state_mean_and_variance(self):
