@@ -859,7 +859,7 @@ def kalman_prediction_step(state_space_mean,
         # mRNA degradation rate
         mRNA_degradation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[2]).reshape((2,1)) +
                                              delayed_jacobian.dot(past_mean_derivative[2]).reshape((2,1)) +
-                                             np.array(([[-0*current_mean[0]],[0.0]])) )
+                                             np.array(([[-current_mean[0]],[0.0]])) )
 
         next_mean_derivative[2] = current_mean_derivative[2] + discretisation_time_step*(mRNA_degradation_rate_derivative.reshape((1,2)))
 
@@ -1953,7 +1953,7 @@ def kalman_mala(protein_at_observations,measurement_variance,number_of_samples,i
         # compute transition probabilities for acceptance step
         proposal_log_likelihood, proposal_log_likelihood_gradient = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
                                                                                                                                proposal)
-        
+
         forward_helper_variable = proposal - current_position - step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2
         backward_helper_variable = current_position - proposal - step_size*proposal_covariance.dot(proposal_log_likelihood_gradient)/2
 
