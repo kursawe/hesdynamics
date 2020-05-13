@@ -692,6 +692,16 @@ def kalman_prediction_step(state_space_mean,
     # initialisation for the common part of the derivative of P(s,t) for each parameter
     common_intermediate_state_space_variance_derivative_element = np.zeros((7,2,2))
 
+    # derivations for the following are found in Calderazzo et. al. (2018)
+    # g is [[-mRNA_degradation_rate,0],                  *[M(t),
+    #       [translation_rate,-protein_degradation_rate]] [P(t)]
+    # and its derivative will be called instant_jacobian
+    # f is [[basal_transcription_rate*hill_function(past_protein)],0]
+    # and its derivative with respect to the past state will be called delayed_jacobian
+    # the matrix A in the paper will be called variance_of_noise
+    instant_jacobian = np.array([[-mRNA_degradation_rate,0.0],[translation_rate,-protein_degradation_rate]])
+    instant_jacobian_transpose = np.transpose(instant_jacobian)
+
     for next_time_index in range(current_number_of_states, current_number_of_states + number_of_hidden_states):
         current_time_index = next_time_index - 1 # this corresponds to t
         past_time_index = current_time_index - discrete_delay # this corresponds to t-tau
@@ -705,6 +715,10 @@ def kalman_prediction_step(state_space_mean,
                                                                      hill_coefficient - 1)/( repression_threshold*
                                            np.power(1.0+np.power( past_protein/repression_threshold,
                                                                 hill_coefficient),2))
+
+        # jacobian of f is derivative of f with respect to past state ([past_mRNA, past_protein])
+        delayed_jacobian = np.array([[0.0,basal_transcription_rate*hill_function_derivative_value],[0.0,0.0]])
+        delayed_jacobian_transpose = np.transpose(delayed_jacobian)
 
         ## derivative of mean is contributions from instant reactions + contributions from past reactions
         derivative_of_mean = ( np.array([[-mRNA_degradation_rate,0.0],
@@ -740,22 +754,12 @@ def kalman_prediction_step(state_space_mean,
                                                                     total_number_of_states+past_time_index]):
                 covariance_matrix_now_to_past[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                      long_column_index]
-        # derivations for the following are found in Calderazzo et. al. (2018)
-        # g is [[-mRNA_degradation_rate,0],                  *[M(t),
-        #       [translation_rate,-protein_degradation_rate]] [P(t)]
-        # and its derivative will be called instant_jacobian
-        # f is [[basal_transcription_rate*hill_function(past_protein)],0]
-        # and its derivative with respect to the past state will be called delayed_jacobian
-        # the matrix A in the paper will be called variance_of_noise
-        instant_jacobian = np.array([[-mRNA_degradation_rate,0.0],[translation_rate,-protein_degradation_rate]])
-        # jacobian of f is derivative of f with respect to past state ([past_mRNA, past_protein])
-        delayed_jacobian = np.array([[0.0,basal_transcription_rate*hill_function_derivative_value],[0.0,0.0]])
 
         variance_change_current_contribution = ( instant_jacobian.dot(current_covariance_matrix) +
-                                                 np.transpose(instant_jacobian.dot(current_covariance_matrix)) )
+                                                 current_covariance_matrix.dot(instant_jacobian_transpose) )
 
         variance_change_past_contribution = ( delayed_jacobian.dot(covariance_matrix_past_to_now) +
-                                              covariance_matrix_now_to_past.dot(np.transpose(delayed_jacobian)) )
+                                              covariance_matrix_now_to_past.dot(delayed_jacobian_transpose) )
 
         variance_of_noise = np.array([[mRNA_degradation_rate*current_mean[0]+basal_transcription_rate*hill_function_value,0],
                                       [0,translation_rate*current_mean[0]+protein_degradation_rate*current_mean[1]]])
@@ -795,8 +799,8 @@ def kalman_prediction_step(state_space_mean,
                     covariance_matrix_intermediate_to_past[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                                          long_column_index]
 
-            covariance_derivative = ( covariance_matrix_intermediate_to_current.dot( np.transpose(instant_jacobian)) +
-                                      covariance_matrix_intermediate_to_past.dot( np.transpose(delayed_jacobian)))
+            covariance_derivative = ( covariance_matrix_intermediate_to_current.dot( instant_jacobian_transpose) +
+                                      covariance_matrix_intermediate_to_past.dot(delayed_jacobian_transpose))
 
             # This corresponds to P(s,t+Deltat) in the Calderazzo paper
             covariance_matrix_intermediate_to_next = covariance_matrix_intermediate_to_current + discretisation_time_step*covariance_derivative
@@ -936,12 +940,12 @@ def kalman_prediction_step(state_space_mean,
         for parameter_index in range(7):
             common_state_space_variance_derivative_element[parameter_index] = ( np.dot(instant_jacobian,
                                                                                        current_covariance_derivative_matrix[parameter_index]) +
-                                                                                np.dot(np.transpose(current_covariance_derivative_matrix[parameter_index]),
-                                                                                       np.transpose(instant_jacobian)) +
+                                                                                np.dot(current_covariance_derivative_matrix[parameter_index],
+                                                                                       instant_jacobian_transpose) +
                                                                                 np.dot(delayed_jacobian,
                                                                                        covariance_derivative_matrix_past_to_now[parameter_index]) +
                                                                                 np.dot(covariance_derivative_matrix_now_to_past[parameter_index],
-                                                                                       np.transpose(delayed_jacobian)) )
+                                                                                       delayed_jacobian_transpose) )
 
         hill_function_second_derivative_value = hill_coefficient*np.power(past_protein/repression_threshold,
                                                                           hill_coefficient)*(
@@ -962,6 +966,7 @@ def kalman_prediction_step(state_space_mean,
         # instant_jacobian_derivative_wrt_repression = 0
         delayed_jacobian_derivative_wrt_repression = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[0,1]],[0.0,0.0]]) +
                                                       np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value_wrt_repression],[0.0,0.0]]) )
+        delayed_jacobian_derivative_wrt_repression_transpose = np.transpose(delayed_jacobian_derivative_wrt_repression)
 
         instant_noise_derivative_wrt_repression = (np.array([[mRNA_degradation_rate*current_mean_derivative[0,0],0.0],
                                                              [0.0,translation_rate*current_mean_derivative[0,0] + protein_degradation_rate*current_mean_derivative[0,1]]]))
@@ -971,7 +976,7 @@ def kalman_prediction_step(state_space_mean,
 
         derivative_of_variance_wrt_repression_threshold = ( common_state_space_variance_derivative_element[0] +
                                                             np.dot(delayed_jacobian_derivative_wrt_repression,covariance_matrix_past_to_now) +
-                                                            np.dot(covariance_matrix_now_to_past,np.transpose(delayed_jacobian_derivative_wrt_repression)) +
+                                                            np.dot(covariance_matrix_now_to_past,delayed_jacobian_derivative_wrt_repression_transpose) +
                                                             instant_noise_derivative_wrt_repression + delayed_noise_derivative_wrt_repression )
 
         next_covariance_derivative_matrix[0] = current_covariance_derivative_matrix[0] + discretisation_time_step*(derivative_of_variance_wrt_repression_threshold)
@@ -1125,12 +1130,12 @@ def kalman_prediction_step(state_space_mean,
             # main part in common for every derivative which is defined here as common_intermediate_state_space_variance_derivative_element
             for parameter_index in range(7):
                 common_intermediate_state_space_variance_derivative_element[parameter_index] = ( np.dot(covariance_matrix_derivative_intermediate_to_current[parameter_index],
-                                                                                                        np.transpose(instant_jacobian)) +
+                                                                                                        instant_jacobian_transpose) +
                                                                                                  np.dot(covariance_matrix_derivative_intermediate_to_past[parameter_index],
-                                                                                                        np.transpose(delayed_jacobian)) )
+                                                                                                        delayed_jacobian_transpose) )
             # repression threshold
             derivative_of_intermediate_variance_wrt_repression_threshold = ( common_intermediate_state_space_variance_derivative_element[0] +
-                                                                             np.dot(covariance_matrix_intermediate_to_past,np.transpose(delayed_jacobian_derivative_wrt_repression)) )
+                                                                             np.dot(covariance_matrix_intermediate_to_past,delayed_jacobian_derivative_wrt_repression_transpose) )
 
             covariance_matrix_derivative_intermediate_to_next[0] = covariance_matrix_derivative_intermediate_to_current[0] + discretisation_time_step*(derivative_of_intermediate_variance_wrt_repression_threshold)
 
@@ -1531,10 +1536,12 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     log_likelihood : float.
         The log of the likelihood of the data.
 
-    log_likelihood : numpy array.
+    log_likelihood_derivative : numpy array.
         The derivative of the log likelihood of the data, wrt each model parameter
     """
     from scipy.stats import norm
+    if np.any(model_parameters) < 0:
+        return -np.inf, None
 
     _, _, _, _, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = kalman_filter(protein_at_observations,
                                                                                                                                                         model_parameters,
@@ -1556,11 +1563,11 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     # at equation (28) in Mbalawata, Särkkä, Haario (2013)
     observation_transform = np.array([[0.0,1.0]])
     helper_inverse = 1.0/predicted_observation_distributions[:,2]
-    negative_log_likelihood_derivative = np.zeros(7)
+    log_likelihood_derivative = np.zeros(7)
 
     for parameter_index in range(7):
         for time_index in range(number_of_observations):
-            negative_log_likelihood_derivative[parameter_index] += 0.5*(helper_inverse[time_index]*np.trace(observation_transform.dot(
+            log_likelihood_derivative[parameter_index] -= 0.5*(helper_inverse[time_index]*np.trace(observation_transform.dot(
                                                                                                             predicted_observation_variance_derivatives[time_index,parameter_index].dot(
                                                                                                             np.transpose(observation_transform))))
                                                                          -
@@ -1576,7 +1583,7 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
                                                                          helper_inverse[time_index]*(observations[time_index] - mean[time_index])*
                                                                          observation_transform.dot(predicted_observation_mean_derivatives[time_index,parameter_index])[0])
 
-    return log_likelihood, -negative_log_likelihood_derivative
+    return log_likelihood, log_likelihood_derivative
 
 
 def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,acceptance_tuner,parameter_covariance,initial_state,**kwargs):
@@ -1953,6 +1960,11 @@ def kalman_mala(protein_at_observations,measurement_variance,number_of_samples,i
         # compute transition probabilities for acceptance step
         proposal_log_likelihood, proposal_log_likelihood_gradient = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
                                                                                                                                proposal)
+        # if any of the parameters were negative we get -inf for the log likelihood
+        if proposal_log_likelihood == -np.inf:
+            if iteration_index%thinning_rate == 0:
+                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
+            continue
 
         forward_helper_variable = proposal - current_position - step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2
         backward_helper_variable = current_position - proposal - step_size*proposal_covariance.dot(proposal_log_likelihood_gradient)/2
