@@ -1539,7 +1539,7 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     log_likelihood_derivative : numpy array.
         The derivative of the log likelihood of the data, wrt each model parameter
     """
-    from scipy.stats import norm
+    from scipy.stats import norm, gamma
     if np.any(model_parameters) < 0:
         return -np.inf, None
 
@@ -1557,7 +1557,7 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     mean = predicted_observation_distributions[:,1]
     sd = np.sqrt(predicted_observation_distributions[:,2])
 
-    log_likelihood = np.sum(norm.logpdf(observations,mean,sd))
+    log_likelihood = np.sum(norm.logpdf(observations,mean,sd)) + gamma.logpdf(model_parameters[1],a=6,scale=0.7)
 
     # now for the computation of the derivative of the negative log likelihood. An expression of this can be found
     # at equation (28) in Mbalawata, Särkkä, Haario (2013)
@@ -1582,6 +1582,9 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
                                                                          -
                                                                          helper_inverse[time_index]*(observations[time_index] - mean[time_index])*
                                                                          observation_transform.dot(predicted_observation_mean_derivatives[time_index,parameter_index])[0])
+
+    # add log prior derivative for hill coefficient
+    log_likelihood_derivative[1] += 5/model_parameters[1] - 1/0.7
 
     return log_likelihood, log_likelihood_derivative
 
