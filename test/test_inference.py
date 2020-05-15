@@ -107,7 +107,7 @@ class TestInference(unittest.TestCase):
         fixed_protein_observations = np.load(saving_path + '_observations.npy')
         # run the current kalman filter using the same parameters and observations, then compare
         measurement_variance = 10000
-        step_size = 0.00000001
+        step_size = 0.000001
         print('---------------------')
         print('step size =',step_size)
         print('---------------------')
@@ -121,21 +121,21 @@ class TestInference(unittest.TestCase):
             shifted_parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
             shifted_parameters[i] += step_size
 
-            log_likelihood, negative_log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
+            log_likelihood, log_likelihood_derivative = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
                                                                                                                                           parameters,
                                                                                                                                           measurement_variance=10000)
 
             shifted_log_likelihood, _ = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
                                                                                                                  shifted_parameters,
                                                                                                                  measurement_variance=10000)
-            numerical_derivative = (-shifted_log_likelihood+log_likelihood)/step_size
+            numerical_derivative = (shifted_log_likelihood-log_likelihood)/step_size
             print()
             print(parameter_names[i])
             print()
-            print('negative_log_likelihood_derivative:',negative_log_likelihood_derivative[i])
+            print('log_likelihood_derivative:',log_likelihood_derivative[i])
             print('numerical derivative:',numerical_derivative)
-            print('error:',np.abs(numerical_derivative-negative_log_likelihood_derivative[i]))
-            print('precentage error:',100*np.abs(numerical_derivative-negative_log_likelihood_derivative[i])/np.abs(numerical_derivative))
+            print('error:',np.abs(numerical_derivative-log_likelihood_derivative[i]))
+            print('precentage error:',100*np.abs(numerical_derivative-log_likelihood_derivative[i])/np.abs(numerical_derivative))
             print('----------------------------')
 
     def xest_state_space_mean_derivative_working(self):
@@ -295,14 +295,17 @@ class TestInference(unittest.TestCase):
     def test_kalman_mala(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        mala_output = np.load(saving_path + 'mala_output.npy')
+        # mala_output = np.load(saving_path + 'mala_output_1.npy')
         # run the current kalman filter using the same parameters and observations, then compare
-        number_of_samples = 10000
+        number_of_samples = 1000
         measurement_variance = 10000
         # true parameters -- [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
-        initial_position = np.array([5000.0,3.0,np.log(2)/30, np.log(2)/90, 2.0, 2.0, 15.0])
-        step_size = 0.0011
-        proposal_covariance = np.cov(mala_output.T)
+        initial_position = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
+        # step_size = 0.0001
+        # proposal_covariance = np.diag(np.array([10e+8,10e+2,10e-3,10e-4,10e-2,10e-2,10e+3]))
+        step_size = 0.001
+        proposal_covariance = np.diag(np.array([10e+7,0.5*10e+0,10e-5,10e-6,10e-1,10e-3,2*10e+1]))
+        # proposal_covariance = np.cov(mala_output.T)
 
         output = hes_inference.kalman_mala(protein_at_observations,
                                            measurement_variance,
@@ -312,15 +315,13 @@ class TestInference(unittest.TestCase):
                                            proposal_covariance=proposal_covariance,
                                            thinning_rate=1)
 
-        print(output)
-        # np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output.npy'),
-        #             output)
+        # print(output)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output.npy'),
+                 output)
 
     def xest_plot_mala(self):
-        saving_path  = os.path.join(os.path.dirname(__file__), 'output','mala_output')
+        saving_path  = os.path.join(os.path.dirname(__file__), 'output','mala_output_test')
         output = np.load(saving_path + '.npy')
-
-        print(np.cov(output.T))
 
         fig, ax = plt.subplots(output.shape[1],1,figsize=(10,8))
         for i in range(output.shape[1]):
@@ -330,7 +331,7 @@ class TestInference(unittest.TestCase):
         fig.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','mala_traceplots.pdf'))
 
-        g = sns.PairGrid(pd.DataFrame(output[1500:],columns=['$\\theta_{}$'.format(i) for i in range(output.shape[1])]))
+        g = sns.PairGrid(pd.DataFrame(output,columns=['$\\theta_{}$'.format(i) for i in range(output.shape[1])]),diag_sharey=False)
         g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
         g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
         g = g.map_diag(sns.distplot,color='#20948B')
@@ -535,6 +536,39 @@ class TestInference(unittest.TestCase):
                                        'output','kalman_test_protein_vs_mRNA.pdf'))
 
         #print(predicted_observation_distributions)
+
+    def xest_insilico_data_generation(self):
+        ## run a sample simulation to generate example protein data
+        in_silico_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
+
+        ## the F constant matrix is left out for now
+        true_protein_at_observations = in_silico_data[0:900:10,(0,2)]
+        protein_at_observations = np.copy(true_protein_at_observations)
+        protein_at_observations[:,1] += np.random.randn(90)*100
+        protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
+
+        my_figure = plt.figure(figsize=(10,10),fontsize=100)
+        plt.subplot(3,1,1)
+        plt.plot(in_silico_data[:,0],in_silico_data[:,2],c='#F18D9E',label='Protein')
+        plt.title('True Protein time course')
+        plt.xlabel('Time')
+        plt.ylabel('Molecule Copy Numbers')
+
+        plt.subplot(3,1,2)
+        plt.scatter(np.arange(0,900,10),true_protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='true value')
+        plt.title('True Protein')
+        plt.xlabel('Time')
+        plt.ylabel('Molecule Copy Numbers')
+
+        plt.subplot(3,1,3)
+        plt.scatter(np.arange(0,900,10),protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
+        plt.title('Observed Protein')
+        plt.xlabel('Time')
+        plt.ylabel('Protein Copy Numbers')
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','in_silico_data.pdf'))
+
 
 
     def xest_get_likelihood_at_parameters(self):
@@ -794,9 +828,9 @@ class TestInference(unittest.TestCase):
         model_results = np.load(saving_path + '.npy')
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        coherence_band = [0.0,0.1]
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>20000, #protein number
-                                    np.logical_and(model_results[:,0]<60000, #protein_number
+        coherence_band = [0.4,0.5]
+        accepted_indices = np.where(np.logical_and(model_results[:,0]>500, #protein number
+                                    np.logical_and(model_results[:,0]<3000, #protein_number
                                     np.logical_and(model_results[:,1]>0.05,  #standard deviation
                                     np.logical_and(model_results[:,3]>coherence_band[0], #standard deviation
                                                    model_results[:,3]<coherence_band[1])))))#coherence
@@ -820,29 +854,29 @@ class TestInference(unittest.TestCase):
         print('coherence')
         print(this_results[3])
 
-        this_trace = hes5.generate_langevin_trajectory(
-                                                 duration = 1500,
-                                                 repression_threshold = this_parameter[2],
-                                                 mRNA_degradation_rate = np.log(2)/30.0,
-                                                 protein_degradation_rate = np.log(2)/90,
-                                                 transcription_delay = this_parameter[3],
-                                                 basal_transcription_rate = this_parameter[0],
-                                                 translation_rate = this_parameter[1],
-                                                 initial_mRNA = 10,
-                                                 hill_coefficient = this_parameter[4],
-                                                 initial_protein = this_parameter[2],
-                                                 equilibration_time = 1000)
-
-        my_figure = plt.figure(figsize= (2.5,1.9))
-        plt.plot(this_trace[:,0], this_trace[:,2], lw = 1)
-        plt.xlabel("Time [min]")
-        plt.ylabel("Hes expression")
-        plt.gca().locator_params(axis='x', tight = True, nbins=5)
-
-        plt.tight_layout()
-        file_name = os.path.join(os.path.dirname(__file__), 'output',
-                                   'example_oscillatory_trace_for_data')
-        plt.savefig(file_name + '.pdf')
+        # this_trace = hes5.generate_langevin_trajectory(
+        #                                          duration = 1500,
+        #                                          repression_threshold = this_parameter[2],
+        #                                          mRNA_degradation_rate = np.log(2)/30.0,
+        #                                          protein_degradation_rate = np.log(2)/90,
+        #                                          transcription_delay = this_parameter[3],
+        #                                          basal_transcription_rate = this_parameter[0],
+        #                                          translation_rate = this_parameter[1],
+        #                                          initial_mRNA = 10,
+        #                                          hill_coefficient = this_parameter[4],
+        #                                          initial_protein = this_parameter[2],
+        #                                          equilibration_time = 1000)
+        #
+        # my_figure = plt.figure(figsize= (2.5,1.9))
+        # plt.plot(this_trace[:,0], this_trace[:,2], lw = 1)
+        # plt.xlabel("Time [min]")
+        # plt.ylabel("Hes expression")
+        # plt.gca().locator_params(axis='x', tight = True, nbins=5)
+        #
+        # plt.tight_layout()
+        # file_name = os.path.join(os.path.dirname(__file__), 'output',
+        #                            'example_oscillatory_trace_for_data')
+        # plt.savefig(file_name + '.pdf')
 
     def xest_infer_parameters_from_data_set(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')

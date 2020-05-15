@@ -561,7 +561,7 @@ def kalman_observation_derivatives(predicted_observation_mean_derivatives,
 
     return predicted_observation_mean_derivatives[observation_index + 1], predicted_observation_variance_derivatives[observation_index + 1]
 
-# @(nopython = True)
+@jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -1557,7 +1557,9 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     mean = predicted_observation_distributions[:,1]
     sd = np.sqrt(predicted_observation_distributions[:,2])
 
-    log_likelihood = np.sum(norm.logpdf(observations,mean,sd)) + gamma.logpdf(model_parameters[1],a=6,scale=0.7)
+    log_likelihood = ( np.sum(norm.logpdf(observations,mean,sd)) +
+                       gamma.logpdf(model_parameters[1],a=6,scale=0.7) + # hill coefficient prior
+                       gamma.logpdf(model_parameters[6],a=5,scale=6.0) ) # time delay prior
 
     # now for the computation of the derivative of the negative log likelihood. An expression of this can be found
     # at equation (28) in Mbalawata, Särkkä, Haario (2013)
@@ -1584,7 +1586,8 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
                                                                          observation_transform.dot(predicted_observation_mean_derivatives[time_index,parameter_index])[0])
 
     # add log prior derivative for hill coefficient
-    log_likelihood_derivative[1] += 5/model_parameters[1] - 1/0.7
+    log_likelihood_derivative[1] += (6-1)/model_parameters[1] - 1/0.7
+    log_likelihood_derivative[6] += (5-1)/model_parameters[6] - 1/6.0
 
     return log_likelihood, log_likelihood_derivative
 
@@ -1965,6 +1968,8 @@ def kalman_mala(protein_at_observations,measurement_variance,number_of_samples,i
         # compute transition probabilities for acceptance step
         proposal_log_likelihood, proposal_log_likelihood_gradient = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
                                                                                                                                proposal)
+        print("Proposal: ",proposal,"\n")
+        print("log likelihood: ",proposal_log_likelihood,"\n")
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
             if iteration_index%thinning_rate == 0:
