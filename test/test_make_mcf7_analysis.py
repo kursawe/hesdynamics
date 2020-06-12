@@ -77,9 +77,9 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 #         total_number_of_samples = 10
 
         prior_bounds = {'basal_transcription_rate' : (0.01,120),
-                        'translation_rate' : (0.01,1),
-                        'repression_threshold' : (0,7000),
-                        'time_delay' : (5,40),
+                        'translation_rate' : (0.05,1),
+                        'repression_threshold' : (0,8000),
+                        'time_delay' : (5,100),
                         'hill_coefficient' : (2,6),
                         'protein_degradation_rate' : ( np.log(2)/(3.85*60), np.log(2)/(3.85*60) ),
                         'mRNA_degradation_rate' : ( np.log(2)/41.0, np.log(2)/41.0) }
@@ -90,7 +90,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'full',
                                                                 logarithmic = True,
-                                                                simulation_duration = 1500*5 )
+                                                                simulation_duration = 1500*10 )
         
         self.assertEquals(my_prior_samples.shape, 
                           (total_number_of_samples, 7))
@@ -98,10 +98,10 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 
     def xest_plot_posterior_distributions(self):
         
-        option = 'coherence_and_period'
+        option = 'mean'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_MCF7_narrowed')
+                                    'sampling_results_MCF7_circadian')
 #                                    'sampling_results_MCF7')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -125,6 +125,12 @@ class TestMakeMCF7Analysis(unittest.TestCase):
                                         np.logical_and(model_results[:,4]<60, #mrna number
                                                        model_results[:,1]>0.05)))))  #standard deviation
 #                                                        model_results[:,1]>0.05)))  #standard deviation
+        elif option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000,
+                                        np.logical_and(model_results[:,4]>40, #mrna number
+                                                       model_results[:,4]<60))))  #standard deviation
+ 
         elif option == 'prior':
             accepted_indices = range(len(prior_samples))
         elif option == 'coherence_and_hill':
@@ -182,7 +188,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
             ValueError('could not identify posterior option')
 #       
         my_posterior_samples = prior_samples[accepted_indices]
-        print my_posterior_samples[:,1]
+        print(my_posterior_samples[:,1])
         
         print('minimal hill')
         print(np.min(my_posterior_samples[:,4]))
@@ -313,15 +319,34 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 
     def xest_plot_mcf7_period_distribution(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_MCF7_altered')
+                                    'sampling_results_MCF7_circadian')
 #                                    'sampling_results_MCF7')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                    np.logical_and(model_results[:,0]<4000,
-                                    np.logical_and(model_results[:,4]>40,
-                                    np.logical_and(model_results[:,4]<60, #mrna number
-                                                   model_results[:,1]>0.05)))))  #standard deviation
+        
+        option = 'mean'
+#         option = 'mean_and_coherence'
+        
+        if option == 'amplitude':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000,
+                                        np.logical_and(model_results[:,4]>40,
+                                        np.logical_and(model_results[:,4]<60, #mrna number
+                                                       model_results[:,1]>0.05)))))  #standard deviation
+#                                                        model_results[:,1]>0.05)))  #standard deviation
+
+        elif option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000,
+                                        np.logical_and(model_results[:,4]>40, #mrna number
+                                                       model_results[:,4]<60))))  #standard deviation
+        elif option == 'mean_and_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000,
+                                        np.logical_and(model_results[:,4]>40, #mrna number
+                                        np.logical_and(model_results[:,4]<60,
+                                                       model_results[:,3]>0.1)))))  #standard deviationh
+ 
 #                                                    model_results[:,1]>0.05))) #standard deviation
 #                                     np.logical_and(model_results[:,1]>0.05,
 #                                                    model_results[:,3]>0.15)))) #standard deviation
@@ -341,15 +366,15 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         all_periods = my_model_results[:,2]/60
 #         all_periods = my_model_results[:,2]
         print('mean is')
-#         print(np.mean(all_periods[all_periods<10]))
-        print(np.mean(all_periods))
+        print(np.mean(all_periods[all_periods<30]))
+#         print(np.mean(all_periods))
         print('median is')
-#         print(np.median(all_periods[all_periods<10]))
-        print(np.median(all_periods))
+#         print(np.median(all_periods[all_periods<30]))
+#         print(np.median(all_periods))
         print('minimum is')
         print(np.min(all_periods))
-#         period_histogram, bins = np.histogram(all_periods[all_periods<10], bins = 400) 
-        period_histogram, bins = np.histogram(all_periods, bins = 400) 
+        period_histogram, bins = np.histogram(all_periods[all_periods<30], bins = 20) 
+#         period_histogram, bins = np.histogram(all_periods, bins = 20) 
         maximum_index = np.argmax(period_histogram)
         print('max bin is')
 # # # #         print bins[maximum_index]
@@ -358,17 +383,17 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 #         print bins[maximum_index-1]
 # #         sns.distplot(all_periods[np.logical_and(all_periods<1000,
 #                                                 all_periods>100)],
-        sns.distplot(all_periods,
+        sns.distplot(all_periods[all_periods<30],
                      kde = False,
                      rug = False,
                      norm_hist = True,
                      hist_kws = {'edgecolor' : 'black'},
-                     bins = 100)
+                     bins = 20)
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Modelled period [h]")
-        plt.xlim(4,12)
-        plt.ylim(0,0.2)
+#         plt.xlim(4,30)
+#         plt.ylim(0,0.2)
 #         plt.ylim(0,0.0003)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
 #         plt.gca().locator_params(axis='y', tight = True, nbins=2, labelsize = 'small')
@@ -378,19 +403,40 @@ class TestMakeMCF7Analysis(unittest.TestCase):
  
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','mcf7_period_distribution.pdf'))
+                                 'output','mcf7_period_distribution_' + option + '.pdf'))
  
     def xest_plot_mcf7_coherence_distribution(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_MCF7_altered')
+                                    'sampling_results_MCF7_circadian')
 #                                    'sampling_results_MCF7')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
-                                    np.logical_and(model_results[:,0]<4000,
-                                    np.logical_and(model_results[:,4]>40,
-                                    np.logical_and(model_results[:,4]<60, #mrna number
-                                                   model_results[:,1]>0.05)))))  #standard deviation
+
+        option = 'mean'
+        if option == 'amplitude':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000,
+                                        np.logical_and(model_results[:,4]>40,
+                                        np.logical_and(model_results[:,4]<60, #mrna number
+                                                       model_results[:,1]>0.05)))))  #standard deviation
+#                                                        model_results[:,1]>0.05)))  #standard deviation
+
+        elif option == 'mean':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000,
+                                        np.logical_and(model_results[:,4]>40, #mrna number
+                                                       model_results[:,4]<60))))  #standard deviation
+        elif option == 'mean_and_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000,
+                                        np.logical_and(model_results[:,4]>40, #mrna number
+                                        np.logical_and(model_results[:,4]<60,
+                                                       model_results[:,3]>0.1)))))  #standard deviationh
+ 
+#                                                    model_results[:,1]>0.05))) #standard deviation
+#                                     np.logical_and(model_results[:,1]>0.05,
+#                                                    model_results[:,3]>0.15)))) #standard deviation
+
 
         my_posterior_samples = prior_samples[accepted_indices]
         my_model_results = model_results[accepted_indices]
@@ -416,8 +462,8 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 #         plt.gca().set_xlim(-1,2)
         plt.ylabel("Likelihood", labelpad = 20)
         plt.xlabel("Modelled coherence")
-        plt.xlim(0.2,)
-        plt.ylim(0,5)
+#         plt.xlim(0.2,)
+#         plt.ylim(0,5)
 #         plt.xlim(0,20)
 #         plt.ylim(0,0.8)
         plt.gca().locator_params(axis='y', tight = True, nbins=3)
@@ -428,7 +474,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
  
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','mcf7_coherence_distribution.pdf'))
+                                 'output','mcf7_coherence_distribution_' + option + '.pdf'))
  
     def xest_plot_mrna_distribution(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -722,10 +768,10 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         error_ratios = theoretical_standard_deviation / posterior_results[:,1]
         relative_errors = np.abs(error_ratios - 1)
         number_of_poor_samples = np.sum(relative_errors>0.1)
-        print 'ratio of poor approximations is'
-        print number_of_poor_samples/float(len(posterior_samples))
-        print 'total  number is'
-        print number_of_poor_samples
+        print('ratio of poor approximations is')
+        print(number_of_poor_samples/float(len(posterior_samples)))
+        print('total  number is')
+        print(number_of_poor_samples)
         plt.figure(figsize = (4.5,2.5))
         plt.scatter(theoretical_standard_deviation, posterior_results[:,1], s = 0.5)
         plt.plot([0.0,0.25],1.1*np.array([0.0,0.25]), lw = 1, color = 'grey')
@@ -742,13 +788,13 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         outlier_samples = posterior_samples[outlier_mask]
         outlier_results = posterior_results[outlier_mask]
 
-        print 'outlier coherences are'
-        print outlier_results[:,3]
+        print('outlier coherences are')
+        print(outlier_results[:,3])
         outlier_samples[:,2]/=10000
-        print 'minimal outlier coherence is'
-        print np.min(outlier_results[:,3])
-        print 'posterior samples with coherence above 0.44'
-        print np.sum(posterior_results[:,3]>0.5)
+        print('minimal outlier coherence is')
+        print(np.min(outlier_results[:,3]))
+        print('posterior samples with coherence above 0.44')
+        print(np.sum(posterior_results[:,3]>0.5))
 
         data_frame = pd.DataFrame( data = outlier_samples[:,:5],
                                    columns= ['Transcription rate', 
@@ -859,13 +905,13 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         outlier_samples = posterior_samples[outlier_mask]
         outlier_results = posterior_results[outlier_mask]
 
-        print 'outlier coherences are'
-        print outlier_results[:,3]
+        print('outlier coherences are')
+        print(outlier_results[:,3])
         outlier_samples[:,2]/=10000
-        print 'minimal outlier coherence is'
-        print np.min(outlier_results[:,3])
-        print 'posterior samples with coherence above 0.44'
-        print np.sum(posterior_results[:,3]>0.5)
+        print('minimal outlier coherence is')
+        print(np.min(outlier_results[:,3]))
+        print('posterior samples with coherence above 0.44')
+        print(np.sum(posterior_results[:,3]>0.5))
 
         data_frame = pd.DataFrame( data = outlier_samples[:,:5],
                                    columns= ['Transcription rate', 
