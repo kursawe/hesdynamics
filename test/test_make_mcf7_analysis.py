@@ -20,7 +20,7 @@ import hes5
 
 class TestMakeMCF7Analysis(unittest.TestCase):
                                  
-    def xest_make_abc_samples(self):
+    def xest_make_abc_samples_ultradian(self):
         ## generate posterior samples
         total_number_of_samples = 200000
 
@@ -70,7 +70,33 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         self.assertEquals(my_prior_samples.shape, 
                           (total_number_of_samples, 7))
 
-    def test_plot_posterior_distributions(self):
+    def test_make_abc_samples_circadian(self):
+        ## generate posterior samples
+        total_number_of_samples = 200000
+
+#         total_number_of_samples = 10
+
+        prior_bounds = {'basal_transcription_rate' : (0.01,120),
+                        'translation_rate' : (0.01,1),
+                        'repression_threshold' : (0,7000),
+                        'time_delay' : (5,40),
+                        'hill_coefficient' : (2,6),
+                        'protein_degradation_rate' : ( np.log(2)/(3.85*60), np.log(2)/(3.85*60) ),
+                        'mRNA_degradation_rate' : ( np.log(2)/41.0, np.log(2)/41.0) }
+
+        my_prior_samples, my_prior_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
+                                                                number_of_traces_per_sample = 200,
+                                                                saving_name = 'sampling_results_MCF7_circadian',
+                                                                prior_bounds = prior_bounds,
+                                                                prior_dimension = 'full',
+                                                                logarithmic = True,
+                                                                simulation_duration = 1500*5 )
+        
+        self.assertEquals(my_prior_samples.shape, 
+                          (total_number_of_samples, 7))
+
+
+    def xest_plot_posterior_distributions(self):
         
         option = 'coherence_and_period'
 
