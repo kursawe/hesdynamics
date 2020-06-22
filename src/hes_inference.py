@@ -1971,14 +1971,11 @@ def kalman_mala(protein_at_observations,measurement_variance,number_of_samples,i
         else:
             proposal = current_position + step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2 + np.sqrt(step_size)*proposal_cholesky.dot(np.random.normal(size=number_of_parameters))
 
-<<<<<<< HEAD
         print(proposal)
-=======
         ## fix certain parameters to investigate convergence properties
         proposal[[2,3]] = np.copy(initial_position[[2,3]])
         reparameterised_proposal = np.copy(proposal)
         reparameterised_proposal[[4,5]] = np.exp(reparameterised_proposal[[4,5]])
->>>>>>> cb0d362ba13c2cf063e600bc0ade57b1f64d5b7b
 
         # compute transition probabilities for acceptance step
         proposal_log_likelihood, proposal_log_likelihood_gradient = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
