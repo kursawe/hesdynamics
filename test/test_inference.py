@@ -4,7 +4,7 @@ import sys
 import seaborn as sns
 import pandas as pd
 import matplotlib as mpl
-mpl.use('Agg')
+# mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
 font = {'size'   : 10}
@@ -294,18 +294,18 @@ class TestInference(unittest.TestCase):
 
     def test_kalman_mala(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        # mala_output = np.load(saving_path + 'mala_output_1.npy')
+        # protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
+        protein_at_observations = np.load(saving_path + '../output/protein_observations_90_ps3_ds1.npy')
+        mala_output = np.load(saving_path + '../output/mala_output.npy')
         # run the current kalman filter using the same parameters and observations, then compare
-        number_of_samples = 1000
+        number_of_samples = 500
         measurement_variance = 10000
-        # true parameters -- [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
-        initial_position = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
-        # step_size = 0.0001
-        # proposal_covariance = np.diag(np.array([10e+8,10e+2,10e-3,10e-4,10e-2,10e-2,10e+3]))
-        step_size = 0.001
-        proposal_covariance = np.diag(np.array([10e+7,0.5*10e+0,10e-5,10e-6,10e-1,10e-3,2*10e+1]))
-        # proposal_covariance = np.cov(mala_output.T)
+        # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
+        # initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
+        # proposal_covariance = np.diag(np.array([10000,0.05,10e-5,10e-6,0.4,0.5,250]))
+        step_size = 0.075
+        proposal_covariance = np.cov(mala_output.T)
+        initial_position = np.mean(mala_output,axis=0)
 
         output = hes_inference.kalman_mala(protein_at_observations,
                                            measurement_variance,
@@ -315,9 +315,40 @@ class TestInference(unittest.TestCase):
                                            proposal_covariance=proposal_covariance,
                                            thinning_rate=1)
 
-        # print(output)
-        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output.npy'),
-                 output)
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output.npy'),
+        #         output)
+
+        my_figure = plt.figure(figsize=(4,10))
+        plt.subplot(7,1,1)
+        plt.plot(output[:,0],color='#F69454')
+        plt.title('repression_threshold')
+
+        plt.subplot(7,1,2)
+        plt.plot(output[:,1],color='#F69454')
+        plt.title('hill_coefficient')
+
+        plt.subplot(7,1,3)
+        plt.plot(output[:,2],color='#F69454')
+        plt.title('mRNA_degradation_rate')
+
+        plt.subplot(7,1,4)
+        plt.plot(output[:,3],color='#F69454')
+        plt.title('protein_degradation_rate')
+
+        plt.subplot(7,1,5)
+        plt.semilogy(np.exp(output[:,4]),color='#F69454')
+        plt.title('basal_transcription_rate')
+
+        plt.subplot(7,1,6)
+        plt.semilogy(np.exp(output[:,5]),color='#F69454')
+        plt.title('translation_rate')
+
+        plt.subplot(7,1,7)
+        plt.plot(output[:,6],color='#F69454')
+        plt.title('transcription_delay')
+
+        plt.tight_layout()
+        plt.show()
 
     def xest_plot_mala(self):
         saving_path  = os.path.join(os.path.dirname(__file__), 'output','mala_output_test')
@@ -623,16 +654,17 @@ class TestInference(unittest.TestCase):
         print(acceptance_rate)
 
     def xest_kalman_random_walk(self):
-
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
+        protein_at_observations = np.load(saving_path + '../output/protein_observations_90_ps3_ds1.npy')
+        # protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
         #previous_run            = np.load(saving_path + 'random_walk_500.npy')
 
         #previous_random_walk = previous_run[100000:,]
 
-        #true_values = [10000,5,np.log(2)/30,np.log(2)/90,1,1,29]
-        #hyper_parameters = np.array([20.0,500.0,4.0,1.0,5.0,0.01,5.0,0.01,3.0,0.333,3.0,0.333,5.0,4.5]) # gamma
-        hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
+        # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
+        mean_protein = np.mean(protein_at_observations[:,1])
+        initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log10(15.86),np.log10(1.27),30]) # ps3
+        hyper_parameters = np.array([0,2*mean_protein,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
 
         measurement_variance = 10000.0
         iterations = 500
@@ -641,12 +673,12 @@ class TestInference(unittest.TestCase):
         #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                          np.mean(previous_random_walk[:,6])])
         #covariance    = np.cov(previous_random_walk.T)
-        initial_state = np.array([500.0,3.0,np.log(2)/30,np.log(2)/90,0.5,0.5,17.0])
-        covariance    = np.diag(np.array([25000000.0,0.1,0,0,0.034,0.034,4.5]))
+        initial_state = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log10(15.86),np.log10(8.27),30]) # ps3
+        covariance    = np.diag(np.array([25000000.0,0.1,0.2,0.2,4.5]))
 
-        random_walk, acceptance_rate = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
+        random_walk, acceptance_rate, _ = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,0.3,covariance,initial_state)
         print('acceptance rate was', acceptance_rate)
-        np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk.npy'),random_walk)
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk.npy'),random_walk)
 
         my_figure = plt.figure(figsize=(4,10))
         plt.subplot(7,1,1)
@@ -666,11 +698,11 @@ class TestInference(unittest.TestCase):
         plt.title('protein_degradation_rate')
 
         plt.subplot(7,1,5)
-        plt.plot(np.arange(0,iterations),np.power(10,random_walk[:,4]),color='#F69454')
+        plt.semilogy(np.arange(0,iterations),np.power(10,random_walk[:,4]),color='#F69454')
         plt.title('basal_transcription_rate')
 
         plt.subplot(7,1,6)
-        plt.plot(np.arange(0,iterations),np.power(10,random_walk[:,5]),color='#F69454')
+        plt.semilogy(np.arange(0,iterations),np.power(10,random_walk[:,5]),color='#F69454')
         plt.title('translation_rate')
 
         plt.subplot(7,1,7)
@@ -678,8 +710,9 @@ class TestInference(unittest.TestCase):
         plt.title('transcription_delay')
 
         plt.tight_layout()
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','random_walk.pdf'))
+        plt.show()
+        # my_figure.savefig(os.path.join(os.path.dirname(__file__),
+        #                                'output','random_walk.pdf'))
 
     def xest_compute_likelihood_in_parallel(self):
 
