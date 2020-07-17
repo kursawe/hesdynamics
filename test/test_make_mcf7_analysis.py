@@ -70,7 +70,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         self.assertEquals(my_prior_samples.shape, 
                           (total_number_of_samples, 7))
 
-    def test_make_abc_samples_circadian(self):
+    def xest_make_abc_samples_circadian(self):
         ## generate posterior samples
         total_number_of_samples = 200000
 
@@ -98,7 +98,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 
     def xest_plot_posterior_distributions(self):
         
-        option = 'mean'
+        option = 'mean_and_coherence'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
                                     'sampling_results_MCF7_circadian')
@@ -131,6 +131,13 @@ class TestMakeMCF7Analysis(unittest.TestCase):
                                         np.logical_and(model_results[:,4]>40, #mrna number
                                                        model_results[:,4]<60))))  #standard deviation
  
+        elif option == 'mean_and_coherence':
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
+                                        np.logical_and(model_results[:,0]<4000,
+                                        np.logical_and(model_results[:,4]>40, #mrna number
+                                        np.logical_and(model_results[:,4]<60,
+                                                       model_results[:,3]>0.1)))))  #standard deviationh
+ 
         elif option == 'prior':
             accepted_indices = range(len(prior_samples))
         elif option == 'coherence_and_hill':
@@ -162,7 +169,7 @@ class TestMakeMCF7Analysis(unittest.TestCase):
 #                                         np.logical_and(model_results[:,4]>40,
 #                                         np.logical_and(model_results[:,4]>60, #mrna number
                                         np.logical_and(model_results[:,1]>0.05,
-                                                       model_results[:,3]>0.15)))) #standard deviation
+                                                       model_results[:,3]>0.1)))) #standard deviation
         elif option == 'mean':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                                        model_results[:,0]<65000)) #protein_number
@@ -324,8 +331,8 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
         
-        option = 'mean'
-#         option = 'mean_and_coherence'
+#         option = 'mean'
+        option = 'mean_and_coherence'
         
         if option == 'amplitude':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
@@ -412,7 +419,8 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
 
-        option = 'mean'
+#         option = 'mean'
+        option = 'mean_and_coherence'
         if option == 'amplitude':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>2000, #protein number
                                         np.logical_and(model_results[:,0]<4000,
@@ -517,10 +525,10 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                  'output','mcf7_mrna_distribution.pdf'))
  
-    def xest_investigate_individual_mcf7_trace(self):
+    def test_investigate_individual_mcf7_trace(self):
 
         saving_path = os.path.join(os.path.dirname(__file__), 'output',
-                                    'sampling_results_MCF7_altered')
+                                    'sampling_results_MCF7_circadian')
 #                                    'sampling_results_MCF7')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
@@ -530,9 +538,11 @@ class TestMakeMCF7Analysis(unittest.TestCase):
                                     np.logical_and(model_results[:,4]>40,
                                     np.logical_and(model_results[:,4]<60, #mrna number
 #                                     np.logical_and(model_results[:,1]>0.05,
-                                    np.logical_and(model_results[:,3]>0.3,
+#                                     np.logical_and(model_results[:,2]>16*60,
+#                                     np.logical_and(model_results[:,2]<30*60,
+                                    np.logical_and(model_results[:,3]>0.2,
 #                                                    prior_samples[:,4]<5)))))))  #standard deviation
-                                                    model_results[:,1]>0.05))))))  #standard deviation
+                                                    model_results[:,1]>0.00))))))  #standard deviation
 #                                                     model_results[:,1]>0.05)))))  #standard deviation
  
         my_posterior_samples = prior_samples[accepted_indices]
@@ -574,6 +584,34 @@ class TestMakeMCF7Analysis(unittest.TestCase):
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','stochastic_mcf7_trajectory.pdf'))
+        
+        _,these_trajectories = hes5.generate_multiple_trajectories( duration = 1500*10,
+                                                                  number_of_trajectories = 200,
+                                                             basal_transcription_rate = my_sample[0],
+                                                             translation_rate = my_sample[1],
+                                                             repression_threshold = my_sample[2],
+                                                             transcription_delay = my_sample[3],
+                                                             hill_coefficient = my_sample[4],
+                                                             mRNA_degradation_rate = my_sample[5],
+                                                             protein_degradation_rate = my_sample[6],
+                                                             initial_mRNA = 3,
+                                                             initial_protein = my_sample[2],
+                                                             equilibration_time = 2000 )
+        
+        this_power_spectrum,_,_ = hes5.calculate_power_spectrum_of_trajectories(these_trajectories)
+        smoothened_power_spectrum = hes5.smoothen_power_spectrum(this_power_spectrum,0.001)
+        
+        plt.figure(figsize = figuresize)
+        my_figure = plt.figure()
+        plt.plot(this_power_spectrum[:,0]*60,this_power_spectrum[:,1])
+        plt.plot(smoothened_power_spectrum[:,0]*60,smoothened_power_spectrum[:,1])
+        plt.axvline(1/17.)
+        plt.axvline(1/24.)
+        plt.xlabel('Frequency 1/h')
+        plt.ylabel('power')
+        plt.xlim(0,0.2)
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','example_mcf_7_power_spectrum.pdf'))
         
     def xest_plot_deterministic_trace_at_inferred_parameter(self):
 
