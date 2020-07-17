@@ -1936,6 +1936,66 @@ def kalman_mala(protein_at_observations,
         are the accepted positions in parameter space
 
     """
+    
+    def observation_specific_likelihood_function(proposed_position):
+        reparameterised_current_position = np.copy(proposed_position)
+        reparameterised_current_position[[4,5]] = np.exp(proposed_position[[4,5]])
+        log_likelihood, log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
+                                                                                                               reparameterised_current_position,
+                                                                                                               measurement_variance)
+        log_likelihood_derivative[4] = reparameterised_current_position[4]*log_likelihood_derivative[4]
+        log_likelihood_derivative[5] = reparameterised_current_position[5]*log_likelihood_derivative[5]
+        
+        return log_likelihood, log_likelihood_derivative
+
+    mcmc_samples = generic_mala(observation_specific_likelihood_function,
+                                number_of_samples,
+                                initial_position,
+                                step_size,
+                                proposal_covariance,
+                                thinning_rate) 
+
+    return mcmc_samples
+
+def generic_mala(likelihood_and_derivative_calculator,
+                 number_of_samples,
+                initial_position,
+                step_size,
+                proposal_covariance=np.eye(1),
+                thinning_rate=1):
+    '''Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
+    samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
+    x + h/2*proposal_covariance*log_likelihood_gradient + h*sqrt(proposal_covariance)*normal(0,1), where h is the step_size
+    
+    Parameters:
+    -----------
+    
+    likelihood_and_derivative_calculator : function 
+        a function which takes in a parameter and returns a log likelihood and its derivative, in that order
+
+    number_of_samples : integer
+        the number of samples the random walk proposes
+
+    initial_position : numpy array
+        starting value of the Markov chain
+
+    proposal_covariance: numpy array
+        a q x q matrix where q is the number of paramters in the model. For optimal sampling this
+        should represent the covariance structure of the samples
+
+    step size : double
+        a tuning parameter in the proposal step. this is a user defined parameter, change in order to get acceptance ratio ~0.5
+
+    thinning_rate : integer
+        the number of samples out of which you will keep one. this parameter can be increased to reduce autocorrelation if required
+
+    Returns:
+    -------
+
+    mcmc_samples : numpy array
+        an N x q matrix of MCMC samples, where N is the number of samples and q is the number of parameters. These
+        are the accepted positions in parameter space
+    '''
     # initialise the covariance proposal matrix
     number_of_parameters = len(initial_position)
 
@@ -1950,6 +2010,7 @@ def kalman_mala(protein_at_observations,
         proposal_cholesky = np.linalg.cholesky(proposal_covariance)
 
     proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
+    
 
     # initialise samples matrix and acceptance ratio counter
     accepted_moves = 0
@@ -1959,14 +2020,8 @@ def kalman_mala(protein_at_observations,
 
     # initial markov chain
     current_position = np.copy(initial_position)
-    reparameterised_current_position = np.copy(initial_position)
-    reparameterised_current_position[[4,5]] = np.exp(current_position[[4,5]])
 
-    current_log_likelihood, current_log_likelihood_gradient = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
-                                                                                                                         reparameterised_current_position,
-                                                                                                                         measurement_variance)
-    current_log_likelihood_gradient[4] = reparameterised_current_position[4]*current_log_likelihood_gradient[4]
-    current_log_likelihood_gradient[5] = reparameterised_current_position[5]*current_log_likelihood_gradient[5]
+    current_log_likelihood, current_log_likelihood_gradient = likelihood_and_derivative_calculator(current_position)
 
     for iteration_index in range(1,number_of_iterations):
         # progress measure
@@ -1981,14 +2036,13 @@ def kalman_mala(protein_at_observations,
         print(proposal)
         print(accepted_moves/iteration_index)
         ## fix certain parameters to investigate convergence properties
-        proposal[[1,2,3,4,5,6]] = np.copy(initial_position[[1,2,3,4,5,6]])
-        reparameterised_proposal = np.copy(proposal)
-        reparameterised_proposal[[4,5]] = np.exp(reparameterised_proposal[[4,5]])
+#         proposal[[1,2,3,4,5,6]] = np.copy(initial_position[[1,2,3,4,5,6]])
+        #TODO: use this somewhere in a likelihood/derivative wrapper function
+#         reparameterised_proposal = np.copy(proposal)
+#         reparameterised_proposal[[4,5]] = np.exp(reparameterised_proposal[[4,5]])
 
         # compute transition probabilities for acceptance step
-        proposal_log_likelihood, proposal_log_likelihood_gradient = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
-                                                                                                                               reparameterised_proposal,
-                                                                                                                               measurement_variance)
+        proposal_log_likelihood, proposal_log_likelihood_gradient = likelihood_and_derivative_calculator(proposal)
 
         print("Proposal: ",proposal,"\n")
         print("log likelihood: ",proposal_log_likelihood,"\n")
@@ -1998,8 +2052,9 @@ def kalman_mala(protein_at_observations,
                 mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
             continue
 
-        proposal_log_likelihood_gradient[4] = reparameterised_proposal[4]*proposal_log_likelihood_gradient[4]
-        proposal_log_likelihood_gradient[5] = reparameterised_proposal[5]*proposal_log_likelihood_gradient[5]
+#Todo: check this stuff
+#         proposal_log_likelihood_gradient[4] = reparameterised_proposal[4]*proposal_log_likelihood_gradient[4]
+#         proposal_log_likelihood_gradient[5] = reparameterised_proposal[5]*proposal_log_likelihood_gradient[5]
 
         forward_helper_variable = proposal - current_position - step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2
         backward_helper_variable = current_position - proposal - step_size*proposal_covariance.dot(proposal_log_likelihood_gradient)/2
@@ -2018,8 +2073,8 @@ def kalman_mala(protein_at_observations,
             mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
 
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
+    
     return mcmc_samples
-
 
 
 def calculate_langevin_summary_statistics_at_parameter_point(parameter_values, number_of_traces = 100):
