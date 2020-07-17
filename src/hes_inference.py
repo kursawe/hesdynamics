@@ -1745,7 +1745,8 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         for step_index in range(1,iterations):
             new_state = np.zeros(7)
             new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5))
-            new_state[[0,1,2,3,4,6]] = np.copy(initial_state[[0,1,2,3,4,6]])
+            # fix certain parameters
+            new_state[[0,2,3,4,5,6]] = np.copy(initial_state[[0,2,3,4,5,6]])
 
             positive_new_parameters = new_state[[0,1,2,3,6]]
             if all(item > 0 for item in positive_new_parameters) == True:
@@ -1888,7 +1889,13 @@ def kalman_hmc(iterations,protein_at_observations,measurement_variance,initial_e
 
     return output
 
-def kalman_mala(protein_at_observations,measurement_variance,number_of_samples,initial_position,step_size,proposal_covariance=np.eye(1),thinning_rate=1):
+def kalman_mala(protein_at_observations,
+                measurement_variance,
+                number_of_samples,
+                initial_position,
+                step_size,
+                proposal_covariance=np.eye(1),
+                thinning_rate=1):
     """
     Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
     samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
@@ -1972,8 +1979,9 @@ def kalman_mala(protein_at_observations,measurement_variance,number_of_samples,i
             proposal = current_position + step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2 + np.sqrt(step_size)*proposal_cholesky.dot(np.random.normal(size=number_of_parameters))
 
         print(proposal)
+        print(accepted_moves/iteration_index)
         ## fix certain parameters to investigate convergence properties
-        proposal[[2,3]] = np.copy(initial_position[[2,3]])
+        proposal[[1,2,3,4,5,6]] = np.copy(initial_position[[1,2,3,4,5,6]])
         reparameterised_proposal = np.copy(proposal)
         reparameterised_proposal[[4,5]] = np.exp(reparameterised_proposal[[4,5]])
 
