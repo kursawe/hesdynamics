@@ -1542,13 +1542,14 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     from scipy.stats import norm, gamma, uniform
 
     mean_protein = np.mean(protein_at_observations[:,1])
+    number_of_parameters = model_parameters.shape[0]
 
     if ((uniform(0,2*mean_protein).pdf(model_parameters[0]) == 0) or
         (uniform(2,6-2).pdf(model_parameters[1]) == 0) or
         (uniform(0.01,60-0.01).pdf(model_parameters[4]) == 0) or
         (uniform(1,40-1).pdf(model_parameters[5]) == 0) or
         (uniform(5,40-5).pdf(model_parameters[6]) == 0) ):
-        return -np.inf, None
+        return -np.inf, np.zeros(number_of_parameters)
 
     _, _, _, _, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = kalman_filter(protein_at_observations,
                                                                                                                                                         model_parameters,
@@ -1569,9 +1570,9 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     # at equation (28) in Mbalawata, Särkkä, Haario (2013)
     observation_transform = np.array([[0.0,1.0]])
     helper_inverse = 1.0/predicted_observation_distributions[:,2]
-    log_likelihood_derivative = np.zeros(7)
+    log_likelihood_derivative = np.zeros(number_of_parameters)
 
-    for parameter_index in range(7):
+    for parameter_index in range(number_of_parameters):
         for time_index in range(number_of_observations):
             log_likelihood_derivative[parameter_index] -= 0.5*(helper_inverse[time_index]*np.trace(observation_transform.dot(
                                                                                                             predicted_observation_variance_derivatives[time_index,parameter_index].dot(
@@ -1889,13 +1890,125 @@ def kalman_hmc(iterations,protein_at_observations,measurement_variance,initial_e
 
     return output
 
+def generic_mala(likelihood_and_derivative_calculator,
+                 number_of_samples,
+                 initial_position,
+                 step_size,
+                 proposal_covariance=np.eye(1),
+                 thinning_rate=1,
+                 parameters_to_fix=None):
+    '''Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
+    samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
+    x + h/2*proposal_covariance*log_likelihood_gradient + h*sqrt(proposal_covariance)*normal(0,1), where h is the step_size
+
+    Parameters:
+    -----------
+
+    likelihood_and_derivative_calculator : function
+        a function which takes in a parameter and returns a log likelihood and its derivative, in that order
+
+    number_of_samples : integer
+        the number of samples the random walk proposes
+
+    initial_position : numpy array
+        starting value of the Markov chain
+
+    proposal_covariance: numpy array
+        a q x q matrix where q is the number of paramters in the model. For optimal sampling this
+        should represent the covariance structure of the samples
+
+    step size : double
+        a tuning parameter in the proposal step. this is a user defined parameter, change in order to get acceptance ratio ~0.5
+
+    thinning_rate : integer
+        the number of samples out of which you will keep one. this parameter can be increased to reduce autocorrelation if required
+
+    parameters_to_fix : list
+        a list of parameter indices which specify the parameters you want to remain constant throughout the algorithm
+
+    Returns:
+    -------
+
+    mcmc_samples : numpy array
+        an N x q matrix of MCMC samples, where N is the number of samples and q is the number of parameters. These
+        are the accepted positions in parameter space
+    '''
+    # initialise the covariance proposal matrix
+    number_of_parameters = len(initial_position)
+    # check if default value is used, and set to q x q identity
+    if np.array_equal(proposal_covariance, np.eye(1)):
+        proposal_covariance = np.eye(number_of_parameters)
+
+    if np.array_equal(proposal_covariance, np.eye(number_of_parameters)):
+        identity = True
+    else:
+        identity = False
+        proposal_cholesky = np.linalg.cholesky(proposal_covariance + 1e-8*np.eye(number_of_parameters))
+
+    proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
+
+    # initialise samples matrix and acceptance ratio counter
+    accepted_moves = 0
+    mcmc_samples = np.zeros((number_of_samples,number_of_parameters))
+    mcmc_samples[0] = initial_position
+    number_of_iterations = number_of_samples*thinning_rate
+
+    # initial markov chain
+    current_position = np.copy(initial_position)
+    current_log_likelihood, current_log_likelihood_gradient = likelihood_and_derivative_calculator(current_position)
+
+    for iteration_index in range(1,number_of_iterations):
+        # progress measure
+        if iteration_index%(number_of_iterations//10)==0:
+            print("Progress: ",100*iteration_index//number_of_iterations,'%')
+
+        if identity:
+            proposal = current_position + step_size*current_log_likelihood_gradient/2 + np.sqrt(step_size)*np.random.normal(size=number_of_parameters)
+        else:
+            proposal = current_position + step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2 + np.sqrt(step_size)*proposal_cholesky.dot(np.random.normal(size=number_of_parameters))
+
+        # compute transition probabilities for acceptance step
+        # fix specific parameters
+        if parameters_to_fix != None:
+            proposal[parameters_to_fix] = np.copy(initial_position[parameters_to_fix])
+        proposal_log_likelihood, proposal_log_likelihood_gradient = likelihood_and_derivative_calculator(proposal)
+
+        # print("Proposal: ",proposal,"\n")
+        # print("log likelihood: ",proposal_log_likelihood,"\n")
+        # if any of the parameters were negative we get -inf for the log likelihood
+        if proposal_log_likelihood == -np.inf:
+            if iteration_index%thinning_rate == 0:
+                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
+            continue
+
+        forward_helper_variable = proposal - current_position - step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2
+        backward_helper_variable = current_position - proposal - step_size*proposal_covariance.dot(proposal_log_likelihood_gradient)/2
+
+        transition_kernel_pdf_forward = -np.transpose(forward_helper_variable).dot(proposal_covariance_inverse).dot(forward_helper_variable)/(2*step_size)
+        transition_kernel_pdf_backward = -np.transpose(backward_helper_variable).dot(proposal_covariance_inverse).dot(backward_helper_variable)/(2*step_size)
+
+        # accept-reject step
+        if(np.random.uniform() < np.exp(proposal_log_likelihood - transition_kernel_pdf_forward - current_log_likelihood + transition_kernel_pdf_backward)):
+            current_position = proposal
+            current_log_likelihood = proposal_log_likelihood
+            current_log_likelihood_gradient = proposal_log_likelihood_gradient
+            accepted_moves += 1
+
+        if iteration_index%thinning_rate == 0:
+            mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
+
+    print("Acceptance ratio:",accepted_moves/number_of_iterations)
+
+    return mcmc_samples
+
 def kalman_mala(protein_at_observations,
                 measurement_variance,
                 number_of_samples,
                 initial_position,
                 step_size,
                 proposal_covariance=np.eye(1),
-                thinning_rate=1):
+                thinning_rate=1,
+                parameters_to_fix=None):
     """
     Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
     samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
@@ -1936,16 +2049,15 @@ def kalman_mala(protein_at_observations,
         are the accepted positions in parameter space
 
     """
-    
+
     def observation_specific_likelihood_function(proposed_position):
-        reparameterised_current_position = np.copy(proposed_position)
-        reparameterised_current_position[[4,5]] = np.exp(proposed_position[[4,5]])
+        reparameterised_proposed_position = np.copy(proposed_position)
+        reparameterised_proposed_position[[4,5]] = np.exp(reparameterised_proposed_position[[4,5]])
         log_likelihood, log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
-                                                                                                               reparameterised_current_position,
+                                                                                                               reparameterised_proposed_position,
                                                                                                                measurement_variance)
-        log_likelihood_derivative[4] = reparameterised_current_position[4]*log_likelihood_derivative[4]
-        log_likelihood_derivative[5] = reparameterised_current_position[5]*log_likelihood_derivative[5]
-        
+        log_likelihood_derivative[4] = reparameterised_proposed_position[4]*log_likelihood_derivative[4]
+        log_likelihood_derivative[5] = reparameterised_proposed_position[5]*log_likelihood_derivative[5]
         return log_likelihood, log_likelihood_derivative
 
     mcmc_samples = generic_mala(observation_specific_likelihood_function,
@@ -1953,25 +2065,32 @@ def kalman_mala(protein_at_observations,
                                 initial_position,
                                 step_size,
                                 proposal_covariance,
-                                thinning_rate) 
+                                thinning_rate,
+                                parameters_to_fix)
 
     return mcmc_samples
 
-def generic_mala(likelihood_and_derivative_calculator,
-                 number_of_samples,
-                initial_position,
-                step_size,
-                proposal_covariance=np.eye(1),
-                thinning_rate=1):
-    '''Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
-    samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
+def gamma_mala(shape,
+               scale,
+               number_of_samples,
+               initial_position,
+               step_size,
+               proposal_covariance=np.eye(1),
+               thinning_rate=1):
+    """
+    Metropolis adjusted Langevin algorithm to sample a Gamma distribution, which takes as input a model and
+    returns a N x q matrix of MCMC samples, where N is the number of samples and q is the number of parameters.
+    Proposals, x', are drawn centered from the current position, x, by
     x + h/2*proposal_covariance*log_likelihood_gradient + h*sqrt(proposal_covariance)*normal(0,1), where h is the step_size
-    
-    Parameters:
-    -----------
-    
-    likelihood_and_derivative_calculator : function 
-        a function which takes in a parameter and returns a log likelihood and its derivative, in that order
+
+    Parameters
+    ----------
+
+    data : numpy array
+        Collection of samples from a Normal distribution with unknown mean and variance
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
 
     number_of_samples : integer
         the number of samples the random walk proposes
@@ -1989,93 +2108,35 @@ def generic_mala(likelihood_and_derivative_calculator,
     thinning_rate : integer
         the number of samples out of which you will keep one. this parameter can be increased to reduce autocorrelation if required
 
-    Returns:
+    Returns
     -------
 
     mcmc_samples : numpy array
         an N x q matrix of MCMC samples, where N is the number of samples and q is the number of parameters. These
         are the accepted positions in parameter space
-    '''
-    # initialise the covariance proposal matrix
-    number_of_parameters = len(initial_position)
 
-    # check if default value is used, and set to q x q identity
-    if np.array_equal(proposal_covariance, np.eye(1)):
-        proposal_covariance = np.eye(number_of_parameters)
+    """
 
-    if np.array_equal(proposal_covariance, np.eye(number_of_parameters)):
-        identity = True
-    else:
-        identity = False
-        proposal_cholesky = np.linalg.cholesky(proposal_covariance)
+    def gamma_likelihood_function(proposed_position):
+        reparameterised_proposed_position = np.copy(proposed_position)
+        reparameterised_proposed_position = np.exp(proposed_position)
 
-    proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
-    
+        log_likelihood = (shape-1)*np.log(reparameterised_proposed_position) - reparameterised_proposed_position/scale
+        log_likelihood_derivative = (shape-1)/reparameterised_proposed_position - 1/scale
 
-    # initialise samples matrix and acceptance ratio counter
-    accepted_moves = 0
-    mcmc_samples = np.zeros((number_of_samples,number_of_parameters))
-    mcmc_samples[0] = initial_position
-    number_of_iterations = number_of_samples*thinning_rate
+        log_likelihood += proposed_position
+        log_likelihood_derivative = 1 + reparameterised_proposed_position*log_likelihood_derivative
 
-    # initial markov chain
-    current_position = np.copy(initial_position)
+        return log_likelihood, log_likelihood_derivative
 
-    current_log_likelihood, current_log_likelihood_gradient = likelihood_and_derivative_calculator(current_position)
+    mcmc_samples = generic_mala(gamma_likelihood_function,
+                                number_of_samples,
+                                initial_position,
+                                step_size,
+                                proposal_covariance,
+                                thinning_rate)
 
-    for iteration_index in range(1,number_of_iterations):
-        # progress measure
-        if iteration_index%(number_of_iterations//10)==0:
-            print("Progress: ",100*iteration_index//number_of_iterations,'%')
-
-        if identity:
-            proposal = current_position + step_size*current_log_likelihood_gradient/2 + np.sqrt(step_size)*np.random.normal(size=number_of_parameters)
-        else:
-            proposal = current_position + step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2 + np.sqrt(step_size)*proposal_cholesky.dot(np.random.normal(size=number_of_parameters))
-
-        print(proposal)
-        print(accepted_moves/iteration_index)
-        ## fix certain parameters to investigate convergence properties
-#         proposal[[1,2,3,4,5,6]] = np.copy(initial_position[[1,2,3,4,5,6]])
-        #TODO: use this somewhere in a likelihood/derivative wrapper function
-#         reparameterised_proposal = np.copy(proposal)
-#         reparameterised_proposal[[4,5]] = np.exp(reparameterised_proposal[[4,5]])
-
-        # compute transition probabilities for acceptance step
-        proposal_log_likelihood, proposal_log_likelihood_gradient = likelihood_and_derivative_calculator(proposal)
-
-        print("Proposal: ",proposal,"\n")
-        print("log likelihood: ",proposal_log_likelihood,"\n")
-        # if any of the parameters were negative we get -inf for the log likelihood
-        if proposal_log_likelihood == -np.inf:
-            if iteration_index%thinning_rate == 0:
-                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
-            continue
-
-#Todo: check this stuff
-#         proposal_log_likelihood_gradient[4] = reparameterised_proposal[4]*proposal_log_likelihood_gradient[4]
-#         proposal_log_likelihood_gradient[5] = reparameterised_proposal[5]*proposal_log_likelihood_gradient[5]
-
-        forward_helper_variable = proposal - current_position - step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2
-        backward_helper_variable = current_position - proposal - step_size*proposal_covariance.dot(proposal_log_likelihood_gradient)/2
-
-        transition_kernel_pdf_forward = -np.transpose(forward_helper_variable).dot(proposal_covariance_inverse).dot(forward_helper_variable)/(2*step_size)
-        transition_kernel_pdf_backward = -np.transpose(backward_helper_variable).dot(proposal_covariance_inverse).dot(backward_helper_variable)/(2*step_size)
-
-        # accept-reject step
-        if(np.random.uniform() < np.exp(proposal_log_likelihood - transition_kernel_pdf_forward - current_log_likelihood + transition_kernel_pdf_backward)):
-            current_position = proposal
-            current_log_likelihood = proposal_log_likelihood
-            current_log_likelihood_gradient = proposal_log_likelihood_gradient
-            accepted_moves += 1
-
-        if iteration_index%thinning_rate == 0:
-            mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
-
-    print("Acceptance ratio:",accepted_moves/number_of_iterations)
-    
     return mcmc_samples
-
 
 def calculate_langevin_summary_statistics_at_parameter_point(parameter_values, number_of_traces = 100):
     '''Calculate the mean, relative standard deviation, period, coherence and mean mRNA

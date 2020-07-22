@@ -15,6 +15,7 @@ import multiprocessing.pool as mp_pool
 from jitcdde import jitcdde,y,t
 import time
 from scipy.spatial.distance import euclidean
+from scipy import stats
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
 import hes5
@@ -222,7 +223,7 @@ class TestInference(unittest.TestCase):
         fig.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','error_corrected.pdf'))
 
-    def test_log_likelihood_derivative_working(self):
+    def xest_log_likelihood_derivative_working(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
         fixed_protein_observations = np.load(saving_path + 'protein_observations_90_ps3_ds1.npy')
         # run the current kalman filter using the same parameters and observations, then compare
@@ -286,19 +287,19 @@ class TestInference(unittest.TestCase):
                                        'output','error_log_likelihood_derivative_test_corrected.pdf'))
 
 
-    def xest_kalman_mala(self):
+    def test_kalman_mala(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         # protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        protein_at_observations = np.load(saving_path + '../output/protein_observations_360_ps3_ds4.npy')
-        mala_output = np.load(saving_path + '../output/mala_output.npy')
+        protein_at_observations = np.load(saving_path + '../output/protein_observations_90_ps3_ds1.npy')
+        mala_output = np.load(saving_path + '../output/mala_output_1.npy')
         # run the current kalman filter using the same parameters and observations, then compare
         number_of_samples = 2000
         measurement_variance = 10000
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
         initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
-        proposal_covariance = np.diag(np.array([10000,0.05,10e-5,10e-6,0.4,0.5,250]))
-        step_size = 0.05
-        # proposal_covariance = np.cov(mala_output.T)
+        # proposal_covariance = np.diag(np.array([10000,0.05,10e-5,10e-6,0.4,0.5,250]))
+        step_size = 0.5
+        proposal_covariance = np.cov(mala_output.T)
         # initial_position = np.mean(mala_output,axis=0)
 
         output = hes_inference.kalman_mala(protein_at_observations,
@@ -307,9 +308,13 @@ class TestInference(unittest.TestCase):
                                            initial_position,
                                            step_size,
                                            proposal_covariance=proposal_covariance,
-                                           thinning_rate=1)
+                                           thinning_rate=1,
+                                           parameters_to_fix=[1,2,3,4,5,6])
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression_2.npy'),
+        # import pdb; pdb.set_trace()
+        # plt.hist(output[:,1],bins=20,density=True); plt.show()
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay_1.npy'),
                 output)
 
     def xest_plot_mala_posteriors(self):
@@ -788,7 +793,7 @@ class TestInference(unittest.TestCase):
     def xest_compute_likelihood_at_multiple_parameters(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + '../output/protein_observations_90_ps3_ds1.npy')
-        number_of_evaluations = 200
+        number_of_evaluations = 1000
         likelihood_at_multiple_parameters = np.zeros(number_of_evaluations)
 
         repression_threshold = 3407.99
@@ -799,10 +804,10 @@ class TestInference(unittest.TestCase):
         translation_rate = 1.27
         transcription_delay = 30
 
-        for index, parameter in enumerate(np.linspace(0.2,2*np.mean(protein_at_observations[:,1]),number_of_evaluations)):
+        for index, parameter in enumerate(np.linspace(2.0,6.0,number_of_evaluations)):
             likelihood_at_multiple_parameters[index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
-                                                                                                                 model_parameters=np.array([parameter,
-                                                                                                                                            hill_coefficient,
+                                                                                                                 model_parameters=np.array([repression_threshold,
+                                                                                                                                            parameter,
                                                                                                                                             mRNA_degradation_rate,
                                                                                                                                             protein_degradation_rate,
                                                                                                                                             basal_transcription_rate,
@@ -810,13 +815,13 @@ class TestInference(unittest.TestCase):
                                                                                                                                             transcription_delay]),
                                                                                                                  measurement_variance = 10000)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_repression.npy'),likelihood_at_multiple_parameters)
-        plt.plot(np.linspace(10,2*np.mean(protein_at_observations[:,1]),number_of_evaluations),
-                 likelihood_at_multiple_parameters)
-        plt.xlabel("Repression Threshold")
-        plt.ylabel("Negative Log Likelihood")
-        plt.title("Likelihood of Repression Threshold")
-        plt.show()
+        np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_hill.npy'),likelihood_at_multiple_parameters)
+        # plt.plot(np.linspace(10,2*np.mean(protein_at_observations[:,1]),number_of_evaluations),
+        #          likelihood_at_multiple_parameters)
+        # plt.xlabel("Repression Threshold")
+        # plt.ylabel("Negative Log Likelihood")
+        # plt.title("Likelihood of Repression Threshold")
+        # plt.show()
 
     def xest_multiple_random_walk_traces_in_parallel(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
@@ -1066,30 +1071,27 @@ class TestInference(unittest.TestCase):
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','langevin_trajectory.png'),facecolor=my_figure.get_facecolor(),dpi=my_dpi)
 
-    def xest_temp(self):
-        true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
+    def xest_gamma_mala(self):
+        shape = 4
+        scale = 3.1
+        number_of_samples = 100000
+        initial_position = np.array([np.log(4.0)])
+        step_size = 1.58
+        proposal_covariance = np.eye(1)
+        thinning_rate = 1
 
-        ## the F constant matrix is left out for now
-        protein_at_observations = true_data[0:900:10,(0,2)]
-        protein_at_observations[:,1] += np.random.randn(90)*100
-        protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
+        output = hes_inference.gamma_mala(shape,
+                                           scale,
+                                           number_of_samples,
+                                           initial_position,
+                                           step_size,
+                                           proposal_covariance,
+                                           thinning_rate)
 
-        parameters = [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
+        print('mean:',np.mean(output))
+        print('variance:',np.var(output))
 
-        ## apply kalman filter to the data
-        state_space_mean, state_space_variance, predicted_observation_distributions = hes_inference.kalman_filter(protein_at_observations,parameters,
-                                                                                                                  measurement_variance=10000)
-
-        my_figure = plt.figure()
-        plt.scatter(protein_at_observations[:,0],protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=3)
-        plt.scatter(predicted_observation_distributions[:,0],predicted_observation_distributions[:,1],marker='o',s=4,c='#98DBC6',label='likelihood',zorder=2)
-        plt.plot(np.arange(0,900,1),true_data[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
-        plt.errorbar(predicted_observation_distributions[:,0],predicted_observation_distributions[:,1],
-                     yerr=np.sqrt(predicted_observation_distributions[:,2]),ecolor='#98DBC6',alpha=0.6,linestyle="None",zorder=1)
-        plt.legend(fontsize='x-small')
-        plt.title('Protein likelihood')
-        plt.xlabel('Time')
-        plt.ylabel('Protein copy number')
-        plt.tight_layout()
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','kalman_likelihood_vs_observations.pdf'))
+        x = np.linspace(0,50,1000)
+        # plt.plot(output); plt.show()
+        plt.hist(np.exp(output),bins=500,density=True); plt.plot(x,stats.gamma.pdf(x,a=shape,scale=scale)); plt.show()
+        # plt.hist(output,bins=500,density=True); plt.plot(x,stats.gamma.pdf(x,a=shape,scale=scale)); plt.show()
