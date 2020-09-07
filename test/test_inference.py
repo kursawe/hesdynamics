@@ -287,35 +287,223 @@ class TestInference(unittest.TestCase):
                                        'output','error_log_likelihood_derivative_test_corrected.pdf'))
 
 
-    def test_kalman_mala(self):
-        saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        # protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        protein_at_observations = np.load(saving_path + '../output/protein_observations_90_ps3_ds1.npy')
-        mala_output = np.load(saving_path + '../output/mala_output_1.npy')
-        # run the current kalman filter using the same parameters and observations, then compare
-        number_of_samples = 2000
+    def xest_kalman_mala_likelihood_single_parameters(self):
+        saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
+        protein_at_observations = np.load(saving_path + 'protein_observations_90_ps3_ds1.npy')
+        mala_output = np.load(saving_path + 'mala_output_1.npy')
+        number_of_samples = 5000
+        measurement_variance = 10000
+
+        # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
+        initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
+        proposal_covariance = np.cov(mala_output.T)
+        step_size = [5500.0,0.045,0.01,0.013,90.0]
+        all_parameters = {'repression_threshold' : [0,3407.99],
+                          'hill_coefficient' : [1,5.17],
+                          'mRNA_degradation_rate' : [2,np.log(2)/30],
+                          'protein_degradation_rate' : [3,np.log(2)/90],
+                          'basal_transcription_rate' : [4,np.log(15.86)],
+                          'translation_rate' : [5,np.log(1.27)],
+                          'transcription_delay' : [6,30]}
+
+
+        for index in range(5):
+            if index == 0: # repression_threshold
+                known_parameters = {k:all_parameters[k] for k in ('hill_coefficient',
+                                                                  'mRNA_degradation_rate',
+                                                                  'protein_degradation_rate',
+                                                                  'basal_transcription_rate',
+                                                                  'translation_rate',
+                                                                  'transcription_delay') if k in all_parameters}
+
+                mala = hes_inference.kalman_mala(protein_at_observations,
+                                                 measurement_variance,
+                                                 number_of_samples,
+                                                 initial_position,
+                                                 step_size[index],
+                                                 thinning_rate=1,
+                                                 known_parameter_dict=known_parameters)
+
+                likelihood = np.load(saving_path + "likelihood_repression.npy")
+                x_values = np.linspace(0.2,2*np.mean(protein_at_observations[:,1]),2000)
+                normal = np.trapz(np.exp(likelihood),x_values)
+                plt.plot(x_values,np.exp(likelihood)/normal)
+                plt.hist(mala,density=True,bins=50)
+                plt.title("Repression Threshold Likelihood and MALA")
+                plt.savefig(saving_path + 'repression_likelihood_mala.png')
+                plt.clf()
+
+            elif index == 1: # hill_coefficient
+                known_parameters = {k:all_parameters[k] for k in ('repression_threshold',
+                                                                  'mRNA_degradation_rate',
+                                                                  'protein_degradation_rate',
+                                                                  'basal_transcription_rate',
+                                                                  'translation_rate',
+                                                                  'transcription_delay') if k in all_parameters}
+
+                mala = hes_inference.kalman_mala(protein_at_observations,
+                                                 measurement_variance,
+                                                 number_of_samples,
+                                                 initial_position,
+                                                 step_size[index],
+                                                 thinning_rate=1,
+                                                 known_parameter_dict=known_parameters)
+
+                likelihood = np.load(saving_path + "likelihood_hill.npy")
+                x_values = np.linspace(2.0,6.0,1000)
+                normal = np.trapz(np.exp(likelihood),x_values)
+                plt.plot(x_values,np.exp(likelihood)/normal)
+                plt.hist(mala,density=True,bins=50)
+                plt.title("Hill Coefficient Likelihood and MALA")
+                plt.savefig(saving_path + 'hill_likelihood_mala.png')
+                plt.clf()
+            elif index == 2: # transcription_rate
+                known_parameters = {k:all_parameters[k] for k in ('repression_threshold',
+                                                                  'hill_coefficient',
+                                                                  'mRNA_degradation_rate',
+                                                                  'protein_degradation_rate',
+                                                                  'translation_rate',
+                                                                  'transcription_delay') if k in all_parameters}
+
+                mala = hes_inference.kalman_mala(protein_at_observations,
+                                                 measurement_variance,
+                                                 number_of_samples,
+                                                 initial_position,
+                                                 step_size[index],
+                                                 thinning_rate=1,
+                                                 known_parameter_dict=known_parameters)
+
+                likelihood = np.load(saving_path + "likelihood_transcription.npy")
+                x_values = np.linspace(0.01,60.0,200)
+                normal = np.trapz(np.exp(likelihood),x_values)
+                plt.plot(x_values,np.exp(likelihood)/normal)
+                plt.hist(np.exp(mala),density=True,bins=50)
+                plt.title("Transcription Likelihood and MALA")
+                plt.savefig(saving_path + 'transcription_likelihood_mala.png')
+                plt.clf()
+
+            elif index == 3: # translation_rate
+                known_parameters = {k:all_parameters[k] for k in ('repression_threshold',
+                                                                  'hill_coefficient',
+                                                                  'mRNA_degradation_rate',
+                                                                  'protein_degradation_rate',
+                                                                  'basal_transcription_rate',
+                                                                  'transcription_delay') if k in all_parameters}
+
+                mala = hes_inference.kalman_mala(protein_at_observations,
+                                                 measurement_variance,
+                                                 number_of_samples,
+                                                 initial_position,
+                                                 step_size[index],
+                                                 thinning_rate=1,
+                                                 known_parameter_dict=known_parameters)
+
+
+                likelihood = np.load(saving_path + "likelihood_translation.npy")
+                x_values = np.linspace(1.1959799,40,199)
+                normal = np.trapz(np.exp(likelihood[1:]),x_values)
+                plt.plot(x_values,np.exp(likelihood[1:])/normal)
+                plt.hist(np.exp(mala),density=True,bins=50)
+                plt.title("Translation Likelihood and MALA")
+                plt.savefig(saving_path + 'translation_likelihood_mala.png')
+                plt.clf()
+            elif index == 4: # transcription_delay
+                known_parameters = {k:all_parameters[k] for k in ('repression_threshold',
+                                                                  'hill_coefficient',
+                                                                  'mRNA_degradation_rate',
+                                                                  'protein_degradation_rate',
+                                                                  'basal_transcription_rate',
+                                                                  'translation_rate') if k in all_parameters}
+
+                mala = hes_inference.kalman_mala(protein_at_observations,
+                                                 measurement_variance,
+                                                 number_of_samples,
+                                                 initial_position,
+                                                 step_size[index],
+                                                 thinning_rate=1,
+                                                 known_parameter_dict=known_parameters)
+
+                likelihood = np.load(saving_path + "likelihood_delay.npy")
+                x_values = np.linspace(5.0,40.0,200)
+                normal = np.trapz(np.exp(likelihood),x_values)
+                plt.plot(x_values,np.exp(likelihood)/normal)
+                plt.hist(mala,density=True,bins=50)
+                plt.title("Transcriptional Delay Likelihood and MALA")
+                plt.savefig(saving_path + 'delay_likelihood_mala.png')
+                plt.clf()
+        # np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill_1.npy'),
+        #         output)
+
+    def test_kalman_mala_multiple_parameters(self):
+        saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
+        protein_at_observations = np.load(saving_path + 'protein_observations_90_ps3_ds1.npy')
+        # mala_output = np.load(saving_path + 'mala_output_1.npy')
+        number_of_samples = 40000
         measurement_variance = 10000
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
         initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
-        # proposal_covariance = np.diag(np.array([10000,0.05,10e-5,10e-6,0.4,0.5,250]))
-        step_size = 0.5
-        proposal_covariance = np.cov(mala_output.T)
-        # initial_position = np.mean(mala_output,axis=0)
+        # proposal_covariance = np.cov(mala_output.T)
+        proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
+        step_size = 0.195
+        all_parameters = {'repression_threshold' : [0,3407.99],
+                          'hill_coefficient' : [1,5.17],
+                          'mRNA_degradation_rate' : [2,np.log(2)/30],
+                          'protein_degradation_rate' : [3,np.log(2)/90],
+                          'basal_transcription_rate' : [4,np.log(15.86)],
+                          'translation_rate' : [5,np.log(1.27)],
+                          'transcription_delay' : [6,30]}
 
-        output = hes_inference.kalman_mala(protein_at_observations,
-                                           measurement_variance,
-                                           number_of_samples,
-                                           initial_position,
-                                           step_size,
-                                           proposal_covariance=proposal_covariance,
-                                           thinning_rate=1,
-                                           parameters_to_fix=[1,2,3,4,5,6])
 
-        # import pdb; pdb.set_trace()
-        # plt.hist(output[:,1],bins=20,density=True); plt.show()
+        known_parameters = {k:all_parameters[k] for k in ('mRNA_degradation_rate',
+                                                          'protein_degradation_rate') if k in all_parameters}
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay_1.npy'),
-                output)
+        mala = hes_inference.kalman_mala(protein_at_observations,
+                                         measurement_variance,
+                                         number_of_samples,
+                                         initial_position,
+                                         step_size,
+                                         proposal_covariance,
+                                         thinning_rate=1,
+                                         known_parameter_dict=known_parameters)
+
+        proposal_covariance = np.cov(mala.T)
+        step_size = 0.32
+        mala = hes_inference.kalman_mala(protein_at_observations,
+                                         measurement_variance,
+                                         number_of_samples,
+                                         initial_position,
+                                         step_size,
+                                         proposal_covariance,
+                                         thinning_rate=1,
+                                         known_parameter_dict=known_parameters)
+
+        # plt.plot(mala[:,0])
+        # plt.show()
+        # plt.savefig(saving_path + 'repression_likelihood_mala.png')
+        # plt.clf()
+
+        # plt.plot(mala[:,1])
+        # plt.show()
+        # plt.savefig(saving_path + 'repression_likelihood_mala.png')
+        # plt.clf()
+        #
+        # plt.plot(mala[:,2])
+        # plt.show()
+        # # plt.savefig(saving_path + 'repression_likelihood_mala.png')
+        # plt.clf()
+        #
+        # plt.plot(mala[:,3])
+        # plt.show()
+        # # plt.savefig(saving_path + 'repression_likelihood_mala.png')
+        # plt.clf()
+        #
+        # plt.plot(mala[:,4])
+        # plt.show()
+        # # plt.savefig(saving_path + 'repression_likelihood_mala.png')
+        # plt.clf()
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_multiple_parameters.npy'),
+                mala)
 
     def xest_plot_mala_posteriors(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
@@ -804,7 +992,7 @@ class TestInference(unittest.TestCase):
         translation_rate = 1.27
         transcription_delay = 30
 
-        for index, parameter in enumerate(np.linspace(2.0,6.0,number_of_evaluations)):
+        for index, parameter in enumerate(np.linspace(4.0,6.0,number_of_evaluations)):
             likelihood_at_multiple_parameters[index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
                                                                                                                  model_parameters=np.array([repression_threshold,
                                                                                                                                             parameter,

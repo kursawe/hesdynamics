@@ -1896,7 +1896,7 @@ def generic_mala(likelihood_and_derivative_calculator,
                  step_size,
                  proposal_covariance=np.eye(1),
                  thinning_rate=1,
-                 parameters_to_fix=None):
+                 known_parameter_dict=None):
     '''Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
     samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
     x + h/2*proposal_covariance*log_likelihood_gradient + h*sqrt(proposal_covariance)*normal(0,1), where h is the step_size
@@ -1923,8 +1923,10 @@ def generic_mala(likelihood_and_derivative_calculator,
     thinning_rate : integer
         the number of samples out of which you will keep one. this parameter can be increased to reduce autocorrelation if required
 
-    parameters_to_fix : list
-        a list of parameter indices which specify the parameters you want to remain constant throughout the algorithm
+    known_parameter_dict : dict
+        a dict which contains values for parameters where the ground truth is known. The key is the name of the parameter,
+        the value is a 2d array, where the first entry is its parameter index in the likelihood function, and the second
+        entry is the ground truth.
 
     Returns:
     -------
@@ -1934,7 +1936,11 @@ def generic_mala(likelihood_and_derivative_calculator,
         are the accepted positions in parameter space
     '''
     # initialise the covariance proposal matrix
-    number_of_parameters = len(initial_position)
+    number_of_parameters = len(initial_position) - len(known_parameter_dict.values())
+    known_parameters = [list(known_parameter_dict.values())[i][1] for i in [j for j in range(len(known_parameter_dict.values()))]]
+    known_parameter_indices = [list(known_parameter_dict.values())[i][0] for i in [j for j in range(len(known_parameter_dict.values()))]]
+    unknown_parameter_indices = [i for i in range(len(initial_position)) if i not in known_parameter_indices]
+
     # check if default value is used, and set to q x q identity
     if np.array_equal(proposal_covariance, np.eye(1)):
         proposal_covariance = np.eye(number_of_parameters)
@@ -1950,7 +1956,7 @@ def generic_mala(likelihood_and_derivative_calculator,
     # initialise samples matrix and acceptance ratio counter
     accepted_moves = 0
     mcmc_samples = np.zeros((number_of_samples,number_of_parameters))
-    mcmc_samples[0] = initial_position
+    mcmc_samples[0] = initial_position[unknown_parameter_indices]
     number_of_iterations = number_of_samples*thinning_rate
 
     # initial markov chain
@@ -1962,28 +1968,35 @@ def generic_mala(likelihood_and_derivative_calculator,
         if iteration_index%(number_of_iterations//10)==0:
             print("Progress: ",100*iteration_index//number_of_iterations,'%')
 
+        proposal = np.zeros(len(initial_position))
         if identity:
-            proposal = current_position + step_size*current_log_likelihood_gradient/2 + np.sqrt(step_size)*np.random.normal(size=number_of_parameters)
+            proposal[unknown_parameter_indices] = ( current_position[unknown_parameter_indices] +
+                                                    step_size*current_log_likelihood_gradient[unknown_parameter_indices]/2 +
+                                                    np.sqrt(step_size)*np.random.normal(size=number_of_parameters) )
         else:
-            proposal = current_position + step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2 + np.sqrt(step_size)*proposal_cholesky.dot(np.random.normal(size=number_of_parameters))
+            proposal[unknown_parameter_indices] = ( current_position[unknown_parameter_indices] +
+                                                    step_size*proposal_covariance.dot(current_log_likelihood_gradient[unknown_parameter_indices])/2 +
+                                                    np.sqrt(step_size)*proposal_cholesky.dot(np.random.normal(size=number_of_parameters)) )
+
+        # print('proposal: ',proposal)
 
         # compute transition probabilities for acceptance step
-        # fix specific parameters
-        if parameters_to_fix != None:
-            proposal[parameters_to_fix] = np.copy(initial_position[parameters_to_fix])
+        # fix known parameters
+        if known_parameter_dict != None:
+            proposal[known_parameter_indices] = np.copy(known_parameters)
         proposal_log_likelihood, proposal_log_likelihood_gradient = likelihood_and_derivative_calculator(proposal)
-
         # print("Proposal: ",proposal,"\n")
         # print("log likelihood: ",proposal_log_likelihood,"\n")
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
             if iteration_index%thinning_rate == 0:
-                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
+                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
             continue
 
-        forward_helper_variable = proposal - current_position - step_size*proposal_covariance.dot(current_log_likelihood_gradient)/2
-        backward_helper_variable = current_position - proposal - step_size*proposal_covariance.dot(proposal_log_likelihood_gradient)/2
-
+        forward_helper_variable = ( proposal[unknown_parameter_indices] - current_position[unknown_parameter_indices] -
+                                    step_size*proposal_covariance.dot(current_log_likelihood_gradient[unknown_parameter_indices])/2 )
+        backward_helper_variable = ( current_position[unknown_parameter_indices] - proposal[unknown_parameter_indices] -
+                                     step_size*proposal_covariance.dot(proposal_log_likelihood_gradient[unknown_parameter_indices])/2 )
         transition_kernel_pdf_forward = -np.transpose(forward_helper_variable).dot(proposal_covariance_inverse).dot(forward_helper_variable)/(2*step_size)
         transition_kernel_pdf_backward = -np.transpose(backward_helper_variable).dot(proposal_covariance_inverse).dot(backward_helper_variable)/(2*step_size)
 
@@ -1995,7 +2008,7 @@ def generic_mala(likelihood_and_derivative_calculator,
             accepted_moves += 1
 
         if iteration_index%thinning_rate == 0:
-            mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position
+            mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
 
@@ -2008,7 +2021,7 @@ def kalman_mala(protein_at_observations,
                 step_size,
                 proposal_covariance=np.eye(1),
                 thinning_rate=1,
-                parameters_to_fix=None):
+                known_parameter_dict=None):
     """
     Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
     samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
@@ -2041,6 +2054,11 @@ def kalman_mala(protein_at_observations,
     thinning_rate : integer
         the number of samples out of which you will keep one. this parameter can be increased to reduce autocorrelation if required
 
+    known_parameter_dict : dict
+        a dict which contains values for parameters where the ground truth is known. The key is the name of the parameter,
+        the value is a 2d array, where the first entry is its parameter index in the likelihood function, and the second
+        entry is the ground truth.
+
     Returns
     -------
 
@@ -2066,7 +2084,7 @@ def kalman_mala(protein_at_observations,
                                 step_size,
                                 proposal_covariance,
                                 thinning_rate,
-                                parameters_to_fix)
+                                known_parameter_dict)
 
     return mcmc_samples
 
