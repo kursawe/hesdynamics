@@ -435,16 +435,14 @@ class TestInference(unittest.TestCase):
         #         output)
 
     def test_kalman_mala_multiple_parameters(self):
-        saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
-        protein_at_observations = np.load(saving_path + 'protein_observations_90_ps3_ds1.npy')
-        # mala_output = np.load(saving_path + 'mala_output_1.npy')
-        number_of_samples = 40000
+        saving_path = os.path.join(os.path.dirname(__file__), 'output','')
+        # specify data to use
+        data_filename = 'protein_observations_180_ps3_ds2'
+        protein_at_observations = np.load(saving_path + data_filename + '.npy')
+        number_of_samples = 25000
         measurement_variance = 10000
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
         initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
-        # proposal_covariance = np.cov(mala_output.T)
-        proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
-        step_size = 0.195
         all_parameters = {'repression_threshold' : [0,3407.99],
                           'hill_coefficient' : [1,5.17],
                           'mRNA_degradation_rate' : [2,np.log(2)/30],
@@ -453,61 +451,62 @@ class TestInference(unittest.TestCase):
                           'translation_rate' : [5,np.log(1.27)],
                           'transcription_delay' : [6,30]}
 
-
         known_parameters = {k:all_parameters[k] for k in ('mRNA_degradation_rate',
                                                           'protein_degradation_rate') if k in all_parameters}
 
-        mala = hes_inference.kalman_mala(protein_at_observations,
-                                         measurement_variance,
-                                         number_of_samples,
-                                         initial_position,
-                                         step_size,
-                                         proposal_covariance,
-                                         thinning_rate=1,
-                                         known_parameter_dict=known_parameters)
+        known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
+        unknown_parameter_indices = [i for i in range(len(initial_position)) if i not in known_parameter_indices]
 
-        proposal_covariance = np.cov(mala.T)
-        step_size = 0.32
-        mala = hes_inference.kalman_mala(protein_at_observations,
-                                         measurement_variance,
-                                         number_of_samples,
-                                         initial_position,
-                                         step_size,
-                                         proposal_covariance,
-                                         thinning_rate=1,
-                                         known_parameter_dict=known_parameters)
+        # if we already have mcmc samples, we can use them to construct a covariance matrix to make sampling better
+        if os.path.exists(os.path.join(
+                          os.path.dirname(__file__),
+                          'output','mala_output_' + data_filename + '.npy')):
 
-        # plt.plot(mala[:,0])
-        # plt.show()
-        # plt.savefig(saving_path + 'repression_likelihood_mala.png')
-        # plt.clf()
+            print("Posterior samples already exist, sampling directly without warm up...")
+            mala_output = np.load(saving_path + 'mala_output_' + data_filename + '.npy')
+            proposal_covariance = np.cov(mala_output[:int(number_of_samples/2),].T)
+            step_size = 0.32
+            mala = hes_inference.kalman_mala(protein_at_observations,
+                                             measurement_variance,
+                                             number_of_samples,
+                                             initial_position,
+                                             step_size,
+                                             proposal_covariance,
+                                             thinning_rate=1,
+                                             known_parameter_dict=known_parameters)
 
-        # plt.plot(mala[:,1])
-        # plt.show()
-        # plt.savefig(saving_path + 'repression_likelihood_mala.png')
-        # plt.clf()
-        #
-        # plt.plot(mala[:,2])
-        # plt.show()
-        # # plt.savefig(saving_path + 'repression_likelihood_mala.png')
-        # plt.clf()
-        #
-        # plt.plot(mala[:,3])
-        # plt.show()
-        # # plt.savefig(saving_path + 'repression_likelihood_mala.png')
-        # plt.clf()
-        #
-        # plt.plot(mala[:,4])
-        # plt.show()
-        # # plt.savefig(saving_path + 'repression_likelihood_mala.png')
-        # plt.clf()
+        else:
+            print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
+            proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
+            step_size = 0.195
+            mala = hes_inference.kalman_mala(protein_at_observations,
+                                             measurement_variance,
+                                             number_of_samples,
+                                             initial_position,
+                                             step_size,
+                                             proposal_covariance,
+                                             thinning_rate=1,
+                                             known_parameter_dict=known_parameters)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_multiple_parameters.npy'),
+            proposal_covariance = np.cov(mala[:int(number_of_samples/2),].T)
+            initial_position[unknown_parameter_indices] = np.mean(mala[:int(number_of_samples/2),],axis=0)
+            step_size = 0.32
+            print("Warm up finished. Now sampling...")
+            mala = hes_inference.kalman_mala(protein_at_observations,
+                                             measurement_variance,
+                                             number_of_samples,
+                                             initial_position,
+                                             step_size,
+                                             proposal_covariance,
+                                             thinning_rate=1,
+                                             known_parameter_dict=known_parameters)
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '.npy'),
                 mala)
 
     def xest_plot_mala_posteriors(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
-        output = np.load(saving_path + 'mala_output_1.npy')
+        output = np.load(saving_path + 'mala_output_multiple_parameters.npy')
 
         my_figure = plt.figure(figsize=(20,4))
         plt.subplot(1,5,1)
@@ -522,23 +521,24 @@ class TestInference(unittest.TestCase):
 
         plt.subplot(1,5,3)
         plt.xscale('log')
-        plt.hist(np.exp(output[:,4]),bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
+        plt.hist(np.exp(output[:,2]),bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
         plt.vlines(15.86,0,0.2,color='r',lw=2)
         plt.title('Transcription Rate')
 
         plt.subplot(1,5,4)
         plt.xscale('log')
-        plt.hist(np.exp(output[:,5]),bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
+        plt.hist(np.exp(output[:,3]),bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
         plt.vlines(1.27,0,1.4,color='r',lw=2)
         plt.title('Translation Rate')
 
         plt.subplot(1,5,5)
-        plt.hist(output[:,6],bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
+        plt.hist(output[:,4],bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
         plt.vlines(30,0,0.05,color='r',lw=2)
         plt.title('Transcriptional Delay')
 
         plt.tight_layout()
-        my_figure.savefig(os.path.join(saving_path,'ps3_ds1_posteriors_mala.pdf'))
+        plt.show()
+        # my_figure.savefig(os.path.join(saving_path,'ps3_ds1_posteriors_mala.pdf'))
 
     def xest_compare_mala_random_walk(self):
         saving_path  = os.path.join(os.path.dirname(__file__), 'output','')
