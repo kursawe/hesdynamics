@@ -437,9 +437,9 @@ class TestInference(unittest.TestCase):
     def test_kalman_mala_multiple_parameters(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','')
         # specify data to use
-        data_filename = 'protein_observations_180_ps3_ds2'
+        data_filename = 'protein_observations_360_ps3_ds4'
         protein_at_observations = np.load(saving_path + data_filename + '.npy')
-        number_of_samples = 25000
+        number_of_samples = 50000
         measurement_variance = 10000
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
         initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
@@ -464,8 +464,9 @@ class TestInference(unittest.TestCase):
 
             print("Posterior samples already exist, sampling directly without warm up...")
             mala_output = np.load(saving_path + 'mala_output_' + data_filename + '.npy')
-            proposal_covariance = np.cov(mala_output[:int(number_of_samples/2),].T)
-            step_size = 0.32
+            number_of_posterior_samples = mala_output.shape[0]
+            proposal_covariance = np.cov(mala_output[:int(number_of_posterior_samples/2),].T)
+            step_size = 0.07
             mala = hes_inference.kalman_mala(protein_at_observations,
                                              measurement_variance,
                                              number_of_samples,
@@ -474,6 +475,9 @@ class TestInference(unittest.TestCase):
                                              proposal_covariance,
                                              thinning_rate=1,
                                              known_parameter_dict=known_parameters)
+
+            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '_new.npy'),
+                    mala)
 
         else:
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
@@ -501,12 +505,12 @@ class TestInference(unittest.TestCase):
                                              thinning_rate=1,
                                              known_parameter_dict=known_parameters)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '.npy'),
-                mala)
+            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '.npy'),
+                    mala)
 
     def xest_plot_mala_posteriors(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
-        output = np.load(saving_path + 'mala_output_multiple_parameters.npy')
+        output = np.load(saving_path + 'mala_output_protein_observations_180_ps3_ds2.npy')
 
         my_figure = plt.figure(figsize=(20,4))
         plt.subplot(1,5,1)
