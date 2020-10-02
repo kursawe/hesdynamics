@@ -1202,7 +1202,7 @@ class TestInference(unittest.TestCase):
         saving_path             = os.path.join(os.path.dirname(__file__),'output','')
         data_filename = 'protein_observations_90_ps3_ds1'
         protein_at_observations = np.load(saving_path + data_filename + '.npy')
-        number_of_samples = 1000
+        number_of_samples = 5000
         number_of_chains = 8
         measurement_variance = 10000
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
@@ -1211,8 +1211,8 @@ class TestInference(unittest.TestCase):
         initial_states = np.zeros((number_of_chains,7))
         initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
         for initial_state_index, _ in enumerate(initial_states):
-            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([100,2,np.log(0.1),np.log(0.1),5]),
-                                                                          np.array([2*np.mean(protein_at_observations[:,1]),4,np.log(60)+1,np.log(40)+1,35]))
+            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0,2,np.log(0.01),np.log(1),5]),
+                                                                          np.array([2*np.mean(protein_at_observations[:,1]),6-2,np.log(60-0.01),np.log(40-1),40-5]))
 
         # define known parameters
         all_parameters = {'repression_threshold' : [0,3407.99],
@@ -1237,9 +1237,9 @@ class TestInference(unittest.TestCase):
             print("Posterior samples already exist, sampling directly without warm up...")
 
             mala_output = np.load(saving_path + 'parallel_mala_output_' + data_filename + '.npy')
-            number_of_posterior_samples_per_chain = mala_output.shape[1]
-            number_of_chains = mala_output.shape[0]
-            proposal_covariance = np.cov(mala_output[:,int(number_of_posterior_samples_per_chain/2):,:].reshape(int(number_of_posterior_samples_per_chain/2)*number_of_chains,5).T)
+            previous_number_of_samples = mala_output.shape[1]
+            previous_number_of_chains = mala_output.shape[0]
+            proposal_covariance = np.cov(mala_output[:,int(previous_number_of_samples/2):,:].reshape(int(previous_number_of_samples/2)*previous_number_of_chains,mala_output.shape[2]).T)
             step_size = 0.07
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
@@ -1270,7 +1270,7 @@ class TestInference(unittest.TestCase):
             # warm up chain
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
             proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
-            step_size = 0.0195
+            step_size = 0.35
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1294,8 +1294,13 @@ class TestInference(unittest.TestCase):
             pool_of_processes.join()
 
             # sample directly
-            proposal_covariance = np.cov(array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters).T)
-            step_size = 0.32
+            print("Now sampling directly...")
+            samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
+            proposal_covariance = np.cov(samples_with_burn_in.T)
+            initial_states = np.zeros((number_of_chains,7))
+            initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+            initial_states[:,(0,1,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
+            step_size = 0.15
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,

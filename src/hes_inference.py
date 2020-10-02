@@ -2,7 +2,15 @@ import math
 import numpy as np
 import hes5
 from numpy import number
+
 from numba import jit
+# suppresses annoying performance warnings about np.dot() being
+# faster on contiguous arrays. should look at fixing it but this
+# is good for now
+from numba.errors import NumbaPerformanceWarning
+import warnings
+warnings.simplefilter('ignore', category=NumbaPerformanceWarning)
+
 from scipy.stats import gamma, multivariate_normal, uniform
 import multiprocessing as mp
 
@@ -1896,7 +1904,8 @@ def generic_mala(likelihood_and_derivative_calculator,
                  step_size,
                  proposal_covariance=np.eye(1),
                  thinning_rate=1,
-                 known_parameter_dict=None):
+                 known_parameter_dict=None,
+                 *specific_args):
     '''Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
     samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
     x + h/2*proposal_covariance*log_likelihood_gradient + h*sqrt(proposal_covariance)*normal(0,1), where h is the step_size
@@ -1935,6 +1944,7 @@ def generic_mala(likelihood_and_derivative_calculator,
         an N x q matrix of MCMC samples, where N is the number of samples and q is the number of parameters. These
         are the accepted positions in parameter space
     '''
+    # import pdb; pdb.set_trace()
     likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
 
     # initialise the covariance proposal matrix
@@ -1963,7 +1973,9 @@ def generic_mala(likelihood_and_derivative_calculator,
 
     # initial markov chain
     current_position = np.copy(initial_position)
-    current_log_likelihood, current_log_likelihood_gradient = likelihood_and_derivative_calculator(current_position)
+    current_log_likelihood, current_log_likelihood_gradient = likelihood_and_derivative_calculator(current_position,*specific_args)
+    print(current_log_likelihood)
+    # import pdb; pdb.set_trace()
 
     for iteration_index in range(1,number_of_iterations):
         # progress measure
@@ -1993,16 +2005,21 @@ def generic_mala(likelihood_and_derivative_calculator,
             # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
             # but which can be interrogated about the status of the calculation and so on
             new_likelihood_result = likelihood_calculations_pool.apply_async(likelihood_and_derivative_calculator,
-                                                                             args = (proposal))
+                                                                             args = (proposal,
+                                                                                     *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
             proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
+        except ValueError:
+            print('value error!')
+            proposal_log_likelihood = -np.inf
         except mp.TimeoutError:
             print('I have found a TimeoutError!')
             likelihood_calculations_pool.close()
             likelihood_calculations_pool.terminate()
             likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
             new_likelihood_result = likelihood_calculations_pool.apply_async(likelihood_and_derivative_calculator,
-                                                                             args = (proposal))
+                                                                             args = (proposal,
+                                                                                     *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
             proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
 
@@ -2032,6 +2049,46 @@ def generic_mala(likelihood_and_derivative_calculator,
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
 
     return mcmc_samples
+
+def kalman_specific_likelihood_function(proposed_position,*args):
+    """
+    Likelihood function called by the generic_mala function inside the kalman_mala function. It takes the
+    proposed position and computes the likelihood and its gradient at that point.
+
+    Parameters
+    ----------
+
+    proposed_position : numpy array
+        Proposed position in parameter space in the MALA function.
+
+    protein_at_observations : numpy array
+        Observed protein. The dimension is n x 2, where n is the number of observation time points.
+        The first column is the time, and the second column is the observed protein copy number at
+        that time. The filter assumes that observations are generated with a fixed, regular time interval.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    Returns
+    -------
+
+    log_likelihood : float
+        the likelihood evaluated by the Kalman filter at the given proposed position in parameter space.
+
+    log_likelihood_derivative : numpy array
+        the derivative of the likelihood with respect to each of the model parameters of the negative feedback
+        loop, at the given proposed position in parameter space.
+
+    """
+    # import pdb; pdb.set_trace()
+    reparameterised_proposed_position = np.copy(proposed_position)
+    reparameterised_proposed_position[[4,5]] = np.exp(reparameterised_proposed_position[[4,5]])
+    log_likelihood, log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(args[0],
+                                                                                                           reparameterised_proposed_position,
+                                                                                                           args[1])
+    log_likelihood_derivative[4] = reparameterised_proposed_position[4]*log_likelihood_derivative[4]
+    log_likelihood_derivative[5] = reparameterised_proposed_position[5]*log_likelihood_derivative[5]
+    return log_likelihood, log_likelihood_derivative
 
 def kalman_mala(protein_at_observations,
                 measurement_variance,
@@ -2086,23 +2143,15 @@ def kalman_mala(protein_at_observations,
         are the accepted positions in parameter space
 
     """
-    def observation_specific_likelihood_function(proposed_position):
-        reparameterised_proposed_position = np.copy(proposed_position)
-        reparameterised_proposed_position[[4,5]] = np.exp(reparameterised_proposed_position[[4,5]])
-        log_likelihood, log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
-                                                                                                               reparameterised_proposed_position,
-                                                                                                               measurement_variance)
-        log_likelihood_derivative[4] = reparameterised_proposed_position[4]*log_likelihood_derivative[4]
-        log_likelihood_derivative[5] = reparameterised_proposed_position[5]*log_likelihood_derivative[5]
-        return log_likelihood, log_likelihood_derivative
-
-    mcmc_samples = generic_mala(observation_specific_likelihood_function,
+    kalman_args = (protein_at_observations,measurement_variance)
+    mcmc_samples = generic_mala(kalman_specific_likelihood_function,
                                 number_of_samples,
                                 initial_position,
                                 step_size,
                                 proposal_covariance,
                                 thinning_rate,
-                                known_parameter_dict)
+                                known_parameter_dict,
+                                *kalman_args)
 
     return mcmc_samples
 
