@@ -1747,7 +1747,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             new_state = np.zeros(7)
             new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5))
             # fix certain parameters
-            new_state[[0,2,3,4,5,6]] = np.copy(initial_state[[0,2,3,4,5,6]])
+            new_state[[2,3,4,5,6]] = np.copy(initial_state[[2,3,4,5,6]])
 
             positive_new_parameters = new_state[[0,1,2,3,6]]
             if all(item > 0 for item in positive_new_parameters) == True:
@@ -1935,6 +1935,8 @@ def generic_mala(likelihood_and_derivative_calculator,
         an N x q matrix of MCMC samples, where N is the number of samples and q is the number of parameters. These
         are the accepted positions in parameter space
     '''
+    likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
+
     # initialise the covariance proposal matrix
     number_of_parameters = len(initial_position) - len(known_parameter_dict.values())
     known_parameters = [list(known_parameter_dict.values())[i][1] for i in [j for j in range(len(known_parameter_dict.values()))]]
@@ -1984,9 +1986,26 @@ def generic_mala(likelihood_and_derivative_calculator,
         # fix known parameters
         if known_parameter_dict != None:
             proposal[known_parameter_indices] = np.copy(known_parameters)
-        proposal_log_likelihood, proposal_log_likelihood_gradient = likelihood_and_derivative_calculator(proposal)
-        # print("Proposal: ",proposal,"\n")
-        # print("log likelihood: ",proposal_log_likelihood,"\n")
+
+        ######################################################################
+
+        try:
+            # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
+            # but which can be interrogated about the status of the calculation and so on
+            new_likelihood_result = likelihood_calculations_pool.apply_async(likelihood_and_derivative_calculator,
+                                                                             args = (proposal))
+            # ask the async result from above to return the new likelihood and gradient when it is ready
+            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
+        except mp.TimeoutError:
+            print('I have found a TimeoutError!')
+            likelihood_calculations_pool.close()
+            likelihood_calculations_pool.terminate()
+            likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
+            new_likelihood_result = likelihood_calculations_pool.apply_async(likelihood_and_derivative_calculator,
+                                                                             args = (proposal))
+            # ask the async result from above to return the new likelihood and gradient when it is ready
+            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
+
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
             if iteration_index%thinning_rate == 0:
@@ -2067,7 +2086,6 @@ def kalman_mala(protein_at_observations,
         are the accepted positions in parameter space
 
     """
-
     def observation_specific_likelihood_function(proposed_position):
         reparameterised_proposed_position = np.copy(proposed_position)
         reparameterised_proposed_position[[4,5]] = np.exp(reparameterised_proposed_position[[4,5]])

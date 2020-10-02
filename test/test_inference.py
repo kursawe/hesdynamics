@@ -6,8 +6,9 @@ import pandas as pd
 import matplotlib as mpl
 # mpl.use('Agg')
 mpl.rcParams['mathtext.default'] = 'regular'
+# mpl.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
-font = {'size'   : 10}
+font = {'size'   : 16}
 plt.rc('font', **font)
 import numpy as np
 import multiprocessing as mp
@@ -16,6 +17,8 @@ from jitcdde import jitcdde,y,t
 import time
 from scipy.spatial.distance import euclidean
 from scipy import stats
+import pymc3 as pm
+import emcee as em
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
 import hes5
@@ -291,7 +294,7 @@ class TestInference(unittest.TestCase):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
         protein_at_observations = np.load(saving_path + 'protein_observations_90_ps3_ds1.npy')
         mala_output = np.load(saving_path + 'mala_output_1.npy')
-        number_of_samples = 5000
+        number_of_samples = 2000
         measurement_variance = 10000
 
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
@@ -324,12 +327,16 @@ class TestInference(unittest.TestCase):
                                                  thinning_rate=1,
                                                  known_parameter_dict=known_parameters)
 
+                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression.npy'),
+                        mala)
+
                 likelihood = np.load(saving_path + "likelihood_repression.npy")
                 x_values = np.linspace(0.2,2*np.mean(protein_at_observations[:,1]),2000)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                plt.hist(mala,density=True,bins=50)
+                _, bins, _ = plt.hist(mala,density=True,bins=30)
                 plt.title("Repression Threshold Likelihood and MALA")
+                plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.savefig(saving_path + 'repression_likelihood_mala.png')
                 plt.clf()
 
@@ -349,12 +356,16 @@ class TestInference(unittest.TestCase):
                                                  thinning_rate=1,
                                                  known_parameter_dict=known_parameters)
 
+                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill.npy'),
+                        mala)
+
                 likelihood = np.load(saving_path + "likelihood_hill.npy")
                 x_values = np.linspace(2.0,6.0,1000)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                plt.hist(mala,density=True,bins=50)
+                _, bins, _ = plt.hist(mala,density=True,bins=30)
                 plt.title("Hill Coefficient Likelihood and MALA")
+                plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.savefig(saving_path + 'hill_likelihood_mala.png')
                 plt.clf()
             elif index == 2: # transcription_rate
@@ -373,11 +384,15 @@ class TestInference(unittest.TestCase):
                                                  thinning_rate=1,
                                                  known_parameter_dict=known_parameters)
 
+                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription.npy'),
+                        mala)
+
                 likelihood = np.load(saving_path + "likelihood_transcription.npy")
                 x_values = np.linspace(0.01,60.0,200)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                plt.hist(np.exp(mala),density=True,bins=50)
+                _, bins, _ = plt.hist(np.exp(mala),density=True,bins=30)
+                plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.title("Transcription Likelihood and MALA")
                 plt.savefig(saving_path + 'transcription_likelihood_mala.png')
                 plt.clf()
@@ -398,13 +413,16 @@ class TestInference(unittest.TestCase):
                                                  thinning_rate=1,
                                                  known_parameter_dict=known_parameters)
 
+                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation.npy'),
+                        mala)
 
                 likelihood = np.load(saving_path + "likelihood_translation.npy")
                 x_values = np.linspace(1.1959799,40,199)
                 normal = np.trapz(np.exp(likelihood[1:]),x_values)
                 plt.plot(x_values,np.exp(likelihood[1:])/normal)
-                plt.hist(np.exp(mala),density=True,bins=50)
+                _, bins, _ = plt.hist(np.exp(mala),density=True,bins=30)
                 plt.title("Translation Likelihood and MALA")
+                plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.savefig(saving_path + 'translation_likelihood_mala.png')
                 plt.clf()
             elif index == 4: # transcription_delay
@@ -423,23 +441,25 @@ class TestInference(unittest.TestCase):
                                                  thinning_rate=1,
                                                  known_parameter_dict=known_parameters)
 
+                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay.npy'),
+                        mala)
+
                 likelihood = np.load(saving_path + "likelihood_delay.npy")
                 x_values = np.linspace(5.0,40.0,200)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                plt.hist(mala,density=True,bins=50)
+                _, bins, _ = plt.hist(mala,density=True,bins=30)
+                plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.title("Transcriptional Delay Likelihood and MALA")
                 plt.savefig(saving_path + 'delay_likelihood_mala.png')
                 plt.clf()
-        # np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill_1.npy'),
-        #         output)
 
-    def test_kalman_mala_multiple_parameters(self):
+    def xest_kalman_mala_multiple_parameters(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','')
         # specify data to use
         data_filename = 'protein_observations_360_ps3_ds4'
         protein_at_observations = np.load(saving_path + data_filename + '.npy')
-        number_of_samples = 50000
+        number_of_samples = 8000
         measurement_variance = 10000
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
         initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
@@ -452,7 +472,10 @@ class TestInference(unittest.TestCase):
                           'transcription_delay' : [6,30]}
 
         known_parameters = {k:all_parameters[k] for k in ('mRNA_degradation_rate',
-                                                          'protein_degradation_rate') if k in all_parameters}
+                                                          'protein_degradation_rate',
+                                                          'basal_transcription_rate',
+                                                          'translation_rate',
+                                                          'transcription_delay') if k in all_parameters}
 
         known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
         unknown_parameter_indices = [i for i in range(len(initial_position)) if i not in known_parameter_indices]
@@ -460,10 +483,10 @@ class TestInference(unittest.TestCase):
         # if we already have mcmc samples, we can use them to construct a covariance matrix to make sampling better
         if os.path.exists(os.path.join(
                           os.path.dirname(__file__),
-                          'output','mala_output_' + data_filename + '.npy')):
+                          'output','mala_output_' + data_filename + '_2d.npy')):
 
             print("Posterior samples already exist, sampling directly without warm up...")
-            mala_output = np.load(saving_path + 'mala_output_' + data_filename + '.npy')
+            mala_output = np.load(saving_path + 'mala_output_' + data_filename + '_2d.npy')
             number_of_posterior_samples = mala_output.shape[0]
             proposal_covariance = np.cov(mala_output[:int(number_of_posterior_samples/2),].T)
             step_size = 0.07
@@ -476,12 +499,13 @@ class TestInference(unittest.TestCase):
                                              thinning_rate=1,
                                              known_parameter_dict=known_parameters)
 
-            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '_new.npy'),
+            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '_2d.npy'),
                     mala)
 
         else:
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
-            proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
+            # proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
+            proposal_covariance = np.diag([5500.0,0.045])
             step_size = 0.195
             mala = hes_inference.kalman_mala(protein_at_observations,
                                              measurement_variance,
@@ -505,68 +529,187 @@ class TestInference(unittest.TestCase):
                                              thinning_rate=1,
                                              known_parameter_dict=known_parameters)
 
-            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '.npy'),
+            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '_2d.npy'),
                     mala)
+
+    def xest_plot_protein_observations(self):
+        saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
+        data = np.load(saving_path + 'true_data_ps3.npy')
+        protein = np.load(saving_path + 'protein_observations_360_ps3_ds4.npy')
+
+        my_figure = plt.figure(figsize=(7.5,4))
+        plt.scatter(data[:,0],data[:,2],marker='o',s=3,color='#20948B',alpha=0.6)
+        plt.scatter(protein[:,0],protein[:,1],marker='o',s=6,c='#F18D9E')
+        plt.xlabel('Time (mins)')
+        plt.ylabel('Number of protein molecules')
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(saving_path,'ps3_data.pdf'))
 
     def xest_plot_mala_posteriors(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
-        output = np.load(saving_path + 'mala_output_protein_observations_180_ps3_ds2.npy')
+        output = np.load(saving_path + 'mala_output_protein_observations_360_ps3_ds4.npy')
 
-        my_figure = plt.figure(figsize=(20,4))
+        hist_transcription, bins_transcription, _ = plt.hist(np.exp(output[:,2]),bins=30,density=True)
+        logbins_transcription = np.logspace(np.log(bins_transcription[0]),
+                                            np.log(bins_transcription[-1]),
+                                            len(bins_transcription))
+
+        hist_translation, bins_translation, _ = plt.hist(np.exp(output[:,3]),bins=30,density=True)
+        logbins_translation = np.logspace(np.log(bins_translation[0]),
+                                            np.log(bins_translation[-1]),
+                                            len(bins_translation))
+
+        plt.clf()
+
+        my_figure = plt.figure(figsize=(15,4))
+        # my_figure.text(.5,.005,'360 observations taken every 5 minutes',ha='center',fontsize=20)
         plt.subplot(1,5,1)
-        plt.hist(output[:,0],bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
-        plt.vlines(3407.99,0,0.00024,color='r',lw=2)
+        sns.kdeplot(output[:,0],bw=0.5)
+        _, bins, _ = plt.hist(output[:,0],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(3407.99,0,0.00054,color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
         plt.title('Repression Threshold')
 
         plt.subplot(1,5,2)
-        plt.hist(output[:,1],bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
-        plt.vlines(5.17,0,0.35,color='r',lw=2)
+        sns.kdeplot(output[:,1],bw=0.4)
+        _, bins, _ = plt.hist(output[:,1],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(5.17,0,0.6,color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
         plt.title('Hill Coefficient')
 
         plt.subplot(1,5,3)
         plt.xscale('log')
-        plt.hist(np.exp(output[:,2]),bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
-        plt.vlines(15.86,0,0.2,color='r',lw=2)
+        sns.kdeplot(np.exp(output[:,2]),bw=0.3)
+        _, bins, _ = plt.hist(np.exp(output[:,2]),bins=logbins_transcription,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(15.86,0,0.13,color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
         plt.title('Transcription Rate')
 
         plt.subplot(1,5,4)
         plt.xscale('log')
-        plt.hist(np.exp(output[:,3]),bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
-        plt.vlines(1.27,0,1.4,color='r',lw=2)
+        sns.kdeplot(np.exp(output[:,3]),bw=0.3)
+        _, bins, _ = plt.hist(np.exp(output[:,3]),bins=logbins_translation,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(1.27,0,3.4,color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
         plt.title('Translation Rate')
 
         plt.subplot(1,5,5)
-        plt.hist(output[:,4],bins=50,density=True,ec='black',color='#20948B',alpha=0.6)
-        plt.vlines(30,0,0.05,color='r',lw=2)
+        sns.kdeplot(output[:,4],bw=0.4)
+        _, bins, _ = plt.hist(output[:,4],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(30,0,0.06,color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
         plt.title('Transcriptional Delay')
 
         plt.tight_layout()
-        plt.show()
-        # my_figure.savefig(os.path.join(saving_path,'ps3_ds1_posteriors_mala.pdf'))
+        # plt.show()
+        my_figure.savefig(os.path.join(saving_path,'ps3_ds4_posteriors_mala.pdf'))
 
-    def xest_compare_mala_random_walk(self):
+    def xest_compare_mala_random_walk_histograms(self):
         saving_path  = os.path.join(os.path.dirname(__file__), 'output','')
         mala = np.load(saving_path + 'mala_output_hill.npy')
         random_walk = np.load(saving_path + 'random_walk_hill.npy')
 
-        fig, ax = plt.subplots(1,2,figsize=(12,6))
-        ax[0].hist(mala[:,1],density=True,bins=50)
-        ax[0].vlines(5.17,0,14,color='r')
-        ax[0].set_title("Hill Coefficient (MALA)")
-        ax[1].hist(random_walk[:,1],density=True,bins=50)
-        ax[1].vlines(5.17,0,5,color='r')
-        ax[1].set_title("Hill Coefficient (Random Walk)")
+        my_figure = plt.figure(figsize=(12,6))
+        _,bins,_ = plt.hist(mala,density=True,bins=30,alpha=0.8,color='#20948B',label='MALA')
+        sns.kdeplot(mala[:,0],bw=0.35,color='#20948B')
+        plt.vlines(np.mean(mala[:,0]),0,4.1,color='#20948B')
+        plt.hist(random_walk[:,1],density=True,bins=30,alpha=0.6,color='#F18D9E',label='Random Walk')
+        sns.kdeplot(random_walk[:,1],bw=0.35,color='#F18D9E')
+        plt.vlines(np.mean(random_walk[:,1]),0,4.1,color='#F18D9E')
+        plt.vlines(5.17,0,4.1,color='k',label='True Mean')
+        plt.title("Hill Coefficient (Random Walk and MALA)")
+        plt.legend()
+        plt.xlim(xmin=2*bins[0]-bins[2],xmax=2*bins[-1]-bins[-3])
         plt.tight_layout()
-        fig.savefig(os.path.join(os.path.dirname(__file__),
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','algo_comparison_hill.png'))
 
+    def xest_compare_mala_random_walk_autocorrelation(self):
+        saving_path  = os.path.join(os.path.dirname(__file__), 'output','')
+        mala_hill = np.load(saving_path + 'mala_output_hill.npy')
+        random_walk_hill = np.load(saving_path + 'random_walk_hill.npy')
+        m
+        ala_repression = np.load(saving_path + 'mala_output_repression.npy')
+        random_walk_repression = np.load(saving_path + 'random_walk_repression.npy')
+        numlags = 20
+
+        mala_repression_lagtime = em.autocorr.integrated_time(mala_repression[:,0])
+        random_walk_repression_lagtime = em.autocorr.integrated_time(random_walk_repression[:,0])
+        mala_hill_lagtime = em.autocorr.integrated_time(mala_hill[:,0])
+        random_walk_hill_lagtime = em.autocorr.integrated_time(random_walk_hill[:,1])
+
+        my_figure, ax = plt.subplots(2,2,figsize=(10,5))
+        ax[0,0].acorr(mala_repression[:,0] - np.mean(mala_repression[:,0]),maxlags=numlags,color='#20948B',label='MALA',lw=2)
+        # import pdb; pdb.set_trace()
+        ax[0,0].set_xlim(xmin=-0.05,xmax=numlags)
+        ax[0,0].set_ylabel('Repression Threshold \n autocorrelation')
+        ax[0,0].set_xlabel('Lags')
+        ax[0,0].set_title('MALA')
+        ax[0,0].text(14.0,0.7,'$\\tau =$ ' + str(round(mala_repression_lagtime[0],2)))
+        ax[0,1].acorr(random_walk_repression[:,0] - np.mean(random_walk_repression[:,0]),maxlags=numlags,color='#F18D9E',label='MH',lw=2)
+        ax[0,1].set_xlim(xmin=-0.05,xmax=numlags)
+        ax[0,1].set_title('MH')
+        ax[0,1].text(14.0,0.7,'$\\tau =$ ' + str(round(random_walk_repression_lagtime[0],2)))
+        ax[0,1].set_xlabel('Lags')
+        ax[1,0].acorr(mala_hill[:,0] - np.mean(mala_hill[:,0]),maxlags=numlags,color='#20948B',lw=2)
+        ax[1,0].set_xlim(xmin=-0.05,xmax=numlags)
+        ax[1,0].set_xlabel('Lags')
+        ax[1,0].set_ylabel('Hill Coefficient \n autocorrelation')
+        ax[1,0].text(14.0,0.7,'$\\tau =$ ' + str(round(mala_hill_lagtime[0],2)))
+        ax[1,1].acorr(random_walk_hill[:,1] - np.mean(random_walk_hill[:,1]),maxlags=numlags,color='#F18D9E',lw=2)
+        ax[1,1].set_xlabel('Lags')
+        ax[1,1].text(14.0,0.7,'$\\tau =$ ' + str(round(random_walk_hill_lagtime[0],2)))
+        ax[1,1].set_xlim(xmin=-0.05,xmax=numlags)
+        plt.tight_layout()
+
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','autocorrelation_plot.png'))
+
+    def xest_compare_mala_random_walk_2d_autocorrelation(self):
+        saving_path  = os.path.join(os.path.dirname(__file__), 'output','')
+        mala = np.load(saving_path + 'mala_output_protein_observations_360_ps3_ds4_2d.npy')
+        random_walk = np.load(saving_path + 'random_walk_hill_repression.npy')
+        numlags = 100
+
+        mala_repression_lagtime = em.autocorr.integrated_time(mala[:,0])
+        random_walk_repression_lagtime = em.autocorr.integrated_time(random_walk[:,0],quiet=True)
+        mala_hill_lagtime = em.autocorr.integrated_time(mala[:,1])
+        random_walk_hill_lagtime = em.autocorr.integrated_time(random_walk[:,1],quiet=True)
+
+        my_figure, ax = plt.subplots(2,2,figsize=(10,5))
+        ax[0,0].acorr(mala[:,0] - np.mean(mala[:,0]),maxlags=numlags,color='#20948B',label='MALA',lw=2)
+        ax[0,0].set_xlim(xmin=-0.05,xmax=numlags)
+        ax[0,0].set_ylabel('Repression Threshold \n autocorrelation')
+        ax[0,0].set_xlabel('Lags')
+        ax[0,0].set_title('MALA')
+        ax[0,0].text(70.0,0.7,'$\\tau =$ ' + str(round(mala_repression_lagtime[0],2)))
+        ax[0,1].acorr(random_walk[:,0] - np.mean(random_walk[:,0]),maxlags=numlags,color='#F18D9E',label='Random Walk',lw=2)
+        ax[0,1].set_xlim(xmin=-0.05,xmax=numlags)
+        ax[0,1].set_title('MH')
+        ax[0,1].text(70.0,0.7,'$\\tau =$ ' + str(round(random_walk_repression_lagtime[0],2)))
+        ax[0,1].set_xlabel('Lags')
+        ax[1,0].acorr(mala[:,1] - np.mean(mala[:,1]),maxlags=numlags,color='#20948B',lw=2)
+        ax[1,0].set_xlim(xmin=-0.05,xmax=numlags)
+        ax[1,0].set_xlabel('Lags')
+        ax[1,0].set_ylabel('Hill Coefficient \n autocorrelation')
+        ax[1,0].text(70.0,0.7,'$\\tau =$ ' + str(round(mala_hill_lagtime[0],2)))
+        ax[1,1].acorr(random_walk[:,1] - np.mean(random_walk[:,1]),maxlags=numlags,color='#F18D9E',lw=2)
+        ax[1,1].set_xlabel('Lags')
+        ax[1,1].text(70.0,0.7,'$\\tau =$ ' + str(round(random_walk_hill_lagtime[0],2)))
+        ax[1,1].set_xlim(xmin=-0.05,xmax=numlags)
+        plt.tight_layout()
+
+        my_figure.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','autocorrelation_plot_2d.png'))
+
+        plt.clf()
 
 
     def xest_plot_mala(self):
-        saving_path  = os.path.join(os.path.dirname(__file__), 'output','mala_output_1')
+        saving_path  = os.path.join(os.path.dirname(__file__), 'output','mala_output_protein_observations_360_ps3_ds4_2d')
         output = np.load(saving_path + '.npy')
 
-        parameters = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
+        # parameters = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
 
         # fig, ax = plt.subplots(output.shape[1],1,figsize=(8,12))
         # for i in range(output.shape[1]):
@@ -581,18 +724,14 @@ class TestInference(unittest.TestCase):
         # plt.tight_layout()
         # fig.savefig(os.path.join(os.path.dirname(__file__),
         #                                'output','mala_traceplots.pdf'))
-
-        g = sns.PairGrid(pd.DataFrame(output[:,[0,1,4,5,6]],columns=['repression_threshold',
-                                                                     'hill_coefficient',
-                                                                     'transcription_rate',
-                                                                     'translation_rate',
-                                                                     'transcription_delay']),diag_sharey=False)
+        g = sns.PairGrid(pd.DataFrame(output[:,[0,1]],columns=['Repression\nThreshold',
+                                                      'Hill\nCoefficient']),diag_sharey=False)
         g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
         g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
         g = g.map_diag(sns.distplot,color='#20948B')
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','pair_grid_mala.png'))
+                                 'output','pair_grid_mala_2d.png'))
 
 
     def xest_relationship_between_steady_state_mean_and_variance(self):
@@ -879,9 +1018,9 @@ class TestInference(unittest.TestCase):
 
     def xest_kalman_random_walk(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_at_observations = np.load(saving_path + '../output/protein_observations_90_ps3_ds1.npy')
+        protein_at_observations = np.load(saving_path + '../output/protein_observations_360_ps3_ds4.npy')
         # protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        #previous_run            = np.load(saving_path + 'random_walk_500.npy')
+        previous_run            = np.load(saving_path + '../output/random_walk_hill_repression.npy')
 
         #previous_random_walk = previous_run[100000:,]
 
@@ -891,21 +1030,19 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([0,2*mean_protein,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
 
         measurement_variance = 10000.0
-        iterations = 2000
+        iterations = 8000
         #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
         #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
         #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
         #                          np.mean(previous_random_walk[:,6])])
-        #covariance    = np.cov(previous_random_walk.T)
+        covariance    = np.cov(previous_run[:,[0,1,4,5,6]].T)
         initial_state = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log10(15.86),np.log10(1.27),30]) # ps3
-        covariance    = np.diag(np.array([25000000.0,0.1,0.2,0.2,4.5]))
-        step_size = 1.5
+        # covariance    = np.diag(np.array([25000000.0,0.1,0.2,0.2,4.5]))
+        step_size = 5.1
 
         random_walk, acceptance_rate, _ = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,step_size,covariance,initial_state)
         print('acceptance rate was', acceptance_rate)
-        np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk_hill.npy'),random_walk)
-
-        plt.plot(random_walk[:,1]); plt.show()
+        np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk_hill_repression.npy'),random_walk)
 
         # my_figure = plt.figure(figsize=(4,10))
         # plt.subplot(7,1,1)
@@ -1060,6 +1197,129 @@ class TestInference(unittest.TestCase):
         #array_of_random_walks = np.array(list_of_random_walks)
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
+
+    def test_multiple_mala_traces_in_parallel(self):
+        saving_path             = os.path.join(os.path.dirname(__file__),'output','')
+        data_filename = 'protein_observations_90_ps3_ds1'
+        protein_at_observations = np.load(saving_path + data_filename + '.npy')
+        number_of_samples = 1000
+        number_of_chains = 8
+        measurement_variance = 10000
+        # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
+        # draw 8 random initial states for the parallel chains
+        from scipy.stats import uniform
+        initial_states = np.zeros((number_of_chains,7))
+        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+        for initial_state_index, _ in enumerate(initial_states):
+            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([100,2,np.log(0.1),np.log(0.1),5]),
+                                                                          np.array([2*np.mean(protein_at_observations[:,1]),4,np.log(60)+1,np.log(40)+1,35]))
+
+        # define known parameters
+        all_parameters = {'repression_threshold' : [0,3407.99],
+                          'hill_coefficient' : [1,5.17],
+                          'mRNA_degradation_rate' : [2,np.log(2)/30],
+                          'protein_degradation_rate' : [3,np.log(2)/90],
+                          'basal_transcription_rate' : [4,np.log(15.86)],
+                          'translation_rate' : [5,np.log(1.27)],
+                          'transcription_delay' : [6,30]}
+
+        known_parameters = {k:all_parameters[k] for k in ('mRNA_degradation_rate',
+                                                          'protein_degradation_rate') if k in all_parameters}
+
+        known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
+        unknown_parameter_indices = [i for i in range(len(initial_states[0])) if i not in known_parameter_indices]
+        number_of_parameters = len(unknown_parameter_indices)
+
+        # if we already have mcmc samples, we can use them to construct a covariance matrix to make sampling better
+        if os.path.exists(os.path.join(
+                          os.path.dirname(__file__),
+                          'output','parallel_mala_output_' + data_filename + '.npy')):
+            print("Posterior samples already exist, sampling directly without warm up...")
+
+            mala_output = np.load(saving_path + 'parallel_mala_output_' + data_filename + '.npy')
+            number_of_posterior_samples_per_chain = mala_output.shape[1]
+            number_of_chains = mala_output.shape[0]
+            proposal_covariance = np.cov(mala_output[:,int(number_of_posterior_samples_per_chain/2):,:].reshape(int(number_of_posterior_samples_per_chain/2)*number_of_chains,5).T)
+            step_size = 0.07
+
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+                                                              args=(protein_at_observations,
+                                                                    measurement_variance,
+                                                                    number_of_samples,
+                                                                    initial_state,
+                                                                    step_size,
+                                                                    proposal_covariance,
+                                                                    1,
+                                                                    known_parameters))
+                                for initial_state in initial_states ]
+            ## Let the pool know that these are all so that the pool will exit afterwards
+            # this is necessary to prevent memory overflows.
+            pool_of_processes.close()
+
+            array_of_chains = np.zeros((number_of_chains,number_of_samples,number_of_parameters))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
+
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename + '.npy'),
+            array_of_chains)
+
+        else:
+            # warm up chain
+            print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
+            proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
+            step_size = 0.0195
+
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+                                                              args=(protein_at_observations,
+                                                                    measurement_variance,
+                                                                    number_of_samples,
+                                                                    initial_state,
+                                                                    step_size,
+                                                                    proposal_covariance,
+                                                                    1,
+                                                                    known_parameters))
+                                for initial_state in initial_states ]
+            ## Let the pool know that these are all so that the pool will exit afterwards
+            # this is necessary to prevent memory overflows.
+            pool_of_processes.close()
+
+            array_of_chains = np.zeros((number_of_chains,number_of_samples,number_of_parameters))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
+
+            # sample directly
+            proposal_covariance = np.cov(array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters).T)
+            step_size = 0.32
+
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+                                                              args=(protein_at_observations,
+                                                                    measurement_variance,
+                                                                    number_of_samples,
+                                                                    initial_state,
+                                                                    step_size,
+                                                                    proposal_covariance,
+                                                                    1,
+                                                                    known_parameters))
+                                for initial_state in initial_states ]
+            ## Let the pool know that these are all so that the pool will exit afterwards
+            # this is necessary to prevent memory overflows.
+            pool_of_processes.close()
+
+            array_of_chains = np.zeros((number_of_chains,number_of_samples,number_of_parameters))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
+
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename + '.npy'),
+            array_of_chains)
 
     def xest_kalman_filter_gif(self):
 
