@@ -1974,7 +1974,6 @@ def generic_mala(likelihood_and_derivative_calculator,
     # initial markov chain
     current_position = np.copy(initial_position)
     current_log_likelihood, current_log_likelihood_gradient = likelihood_and_derivative_calculator(current_position,*specific_args)
-    print(current_log_likelihood)
     # import pdb; pdb.set_trace()
 
     for iteration_index in range(1,number_of_iterations):
@@ -2008,7 +2007,7 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                              args = (proposal,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
-            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
+            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(10)
         except ValueError:
             print('value error!')
             proposal_log_likelihood = -np.inf
@@ -2021,7 +2020,7 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                              args = (proposal,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
-            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
+            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(10)
 
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:

@@ -1,0 +1,1 @@
+nosetests -s --nologcapture test_inference.py protein_observations_180_ps3_ds3.npy

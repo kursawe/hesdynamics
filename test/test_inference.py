@@ -1,6 +1,7 @@
 import unittest
 import os.path
 import sys
+import argparse
 import seaborn as sns
 import pandas as pd
 import matplotlib as mpl
@@ -1199,11 +1200,28 @@ class TestInference(unittest.TestCase):
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
 
     def test_multiple_mala_traces_in_parallel(self):
-        saving_path             = os.path.join(os.path.dirname(__file__),'output','')
-        data_filename = 'protein_observations_90_ps3_ds1'
-        protein_at_observations = np.load(saving_path + data_filename + '.npy')
-        number_of_samples = 5000
-        number_of_chains = 8
+        """
+        This test requires as input, in the form of the final command line argument, a numpy data set of
+        protein observations:
+
+        data_filename.npy
+
+        This file should exist in the 'hesdynamics/test/data' folder.
+        """
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+
+
+        parser = argparse.ArgumentParser()
+        args = parser.parse_known_args()
+        data_filename = args[1][-1]
+
+        if not data_filename.endswith('.npy'):
+            print(' *** error: you need to specify a data set -- see test docstring for more info')
+            exit()
+
+        protein_at_observations = np.load(saving_path + data_filename)
+        number_of_samples = 100000
+        number_of_chains = 12
         measurement_variance = 10000
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
         # draw 8 random initial states for the parallel chains
@@ -1233,14 +1251,20 @@ class TestInference(unittest.TestCase):
         # if we already have mcmc samples, we can use them to construct a covariance matrix to make sampling better
         if os.path.exists(os.path.join(
                           os.path.dirname(__file__),
-                          'output','parallel_mala_output_' + data_filename + '.npy')):
+                          'output','parallel_mala_output_' + data_filename)):
             print("Posterior samples already exist, sampling directly without warm up...")
 
-            mala_output = np.load(saving_path + 'parallel_mala_output_' + data_filename + '.npy')
+            mala_output = np.load(saving_path + '../output/parallel_mala_output_' + data_filename)
             previous_number_of_samples = mala_output.shape[1]
             previous_number_of_chains = mala_output.shape[0]
-            proposal_covariance = np.cov(mala_output[:,int(previous_number_of_samples/2):,:].reshape(int(previous_number_of_samples/2)*previous_number_of_chains,mala_output.shape[2]).T)
-            step_size = 0.07
+
+            samples_with_burn_in = mala_output[:,int(previous_number_of_samples/2):,:].reshape(int(previous_number_of_samples/2)*previous_number_of_chains,mala_output.shape[2])
+            proposal_covariance = np.cov(samples_with_burn_in.T)
+            initial_states = np.zeros((number_of_chains,7))
+            initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+            initial_states[:,(0,1,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
+
+            step_size = 0.05
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1263,8 +1287,8 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
-            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename + '.npy'),
-            array_of_chains)
+            # np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
+            # array_of_chains)
 
         else:
             # warm up chain
@@ -1300,7 +1324,7 @@ class TestInference(unittest.TestCase):
             initial_states = np.zeros((number_of_chains,7))
             initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
             initial_states[:,(0,1,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
-            step_size = 0.15
+            step_size = 0.05
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1323,8 +1347,8 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
-            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename + '.npy'),
-            array_of_chains)
+            # np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
+            # array_of_chains)
 
     def xest_kalman_filter_gif(self):
 
