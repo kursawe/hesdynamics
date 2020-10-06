@@ -16,7 +16,7 @@ def main():
 
     for data in protein_datasets:
         with open(os.path.join(saving_path,data.replace('.npy','') + '.txt'),'w') as f:
-            f.write('nosetests -s --nologcapture test_inference.py ' + data )
+            f.write('python -c \"import test_inference; class_instance = test_inference.TestInference(); class_instance.test_multiple_mala_traces_in_parallel(\'{i}\')''\"'.format(i=data))
     return saving_path
 
 if __name__ == "__main__":

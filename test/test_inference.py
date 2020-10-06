@@ -1199,7 +1199,7 @@ class TestInference(unittest.TestCase):
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
 
-    def test_multiple_mala_traces_in_parallel(self):
+    def test_multiple_mala_traces_in_parallel(self,data_filename = 'protein_observations_90_ps3_ds1.npy'):
         """
         This test requires as input, in the form of the final command line argument, a numpy data set of
         protein observations:
@@ -1209,17 +1209,8 @@ class TestInference(unittest.TestCase):
         This file should exist in the 'hesdynamics/test/data' folder.
         """
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        protein_at_observations = np.load(os.path.join(saving_path,data_filename))
 
-
-        parser = argparse.ArgumentParser()
-        args = parser.parse_known_args()
-        data_filename = args[1][-1]
-
-        if not data_filename.endswith('.npy'):
-            print(' *** error: you need to specify a data set -- see test docstring for more info')
-            exit()
-
-        protein_at_observations = np.load(saving_path + data_filename)
         number_of_samples = 100000
         number_of_chains = 12
         measurement_variance = 10000

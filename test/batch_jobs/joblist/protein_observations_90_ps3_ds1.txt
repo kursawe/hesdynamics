@@ -1,1 +1,1 @@
-nosetests -s --nologcapture test_inference.py protein_observations_90_ps3_ds1.npy
+python -c "import test_inference; class_instance = test_inference.TestInference(); class_instance.test_multiple_mala_traces_in_parallel('protein_observations_90_ps3_ds1.npy')"
