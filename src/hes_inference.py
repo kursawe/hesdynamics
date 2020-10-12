@@ -102,7 +102,6 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
     for observation_index in range(len(protein_at_observations)-1):
         if number_of_observations != 1:
             current_observation = protein_at_observations[1+observation_index,:]
-        #import pdb; pdb.set_trace()
             state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative = kalman_prediction_step(state_space_mean,
                                                                                                                                       state_space_variance,
                                                                                                                                       state_space_mean_derivative,
@@ -141,7 +140,6 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
                                                                                                                                   time_delay,
                                                                                                                                   observation_time_step,
                                                                                                                                   measurement_variance)
-    # import pdb; pdb.set_trace()
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
 def kalman_filter_state_space_initialisation(protein_at_observations,model_parameters,measurement_variance = 10):
@@ -294,7 +292,6 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
                                                                      last_predicted_covariance_matrix).dot(observation_transform.transpose())
                                                                      +
                                                                      measurement_variance)
-    # import pdb; pdb.set_trace()
 
     ####################################################################
     ####################################################################
@@ -403,7 +400,6 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
         current_observation = protein_at_observations
     else:
         current_observation = protein_at_observations[0]
-    # import pdb; pdb.set_trace()
     state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative = kalman_update_step(state_space_mean,
                                                                                                                                   state_space_variance,
                                                                                                                                   state_space_mean_derivative,
@@ -879,7 +875,6 @@ def kalman_prediction_step(state_space_mean,
         protein_degradation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[3]).reshape((2,1)) +
                                                 delayed_jacobian.dot(past_mean_derivative[3]).reshape((2,1)) +
                                                 np.array(([[0.0],[-current_mean[1]]])) )
-        # import pdb; pdb.set_trace()
 
         next_mean_derivative[3] = current_mean_derivative[3] + discretisation_time_step*(protein_degradation_rate_derivative.reshape((1,2)))
 
@@ -1098,7 +1093,6 @@ def kalman_prediction_step(state_space_mean,
                                                         instant_noise_derivative_wrt_transcription_delay + delayed_noise_derivative_wrt_transcription_delay )
 
         next_covariance_derivative_matrix[6] = current_covariance_derivative_matrix[6] + discretisation_time_step*(derivative_of_variance_wrt_transcription_delay)
-        # import pdb; pdb.set_trace()
 
         # in the next lines we use for loop instead of np.ix_-like indexing for numba
         for parameter_index in range(7):
@@ -1282,7 +1276,6 @@ def kalman_update_step(state_space_mean,
     number_of_hidden_states = int(np.around(observation_time_step/discretisation_time_step))
 
     # this is the number of states at t+Deltat, i.e. after predicting towards t+observation_time_step
-    # import pdb; pdb.set_trace()
     current_number_of_states = (int(np.around(current_observation[0]/observation_time_step)))*number_of_hidden_states + discrete_delay+1
 
     total_number_of_states = state_space_mean.shape[0]
@@ -1339,7 +1332,6 @@ def kalman_update_step(state_space_mean,
                                                      + measurement_variance )
 
     # This is C in the paper
-    # import pdb; pdb.set_trace()
     adaptation_coefficient = shortened_covariance_matrix_past_to_final.dot(
                                 np.transpose(observation_transform.reshape((1,2))) )*helper_inverse
 
@@ -1423,7 +1415,6 @@ def kalman_update_step(state_space_mean,
     # need derivative of the adaptation_coefficient
     # observation_transform = observation_transform.reshape((1,2))
     adaptation_coefficient_derivative = np.zeros((7,all_indices_up_to_delay.shape[0]))
-    # import pdb; pdb.set_trace()
     for parameter_index in range(7):
         adaptation_coefficient_derivative[parameter_index] = (shortened_covariance_derivative_matrix_past_to_final[parameter_index].dot(np.transpose(observation_transform.reshape(1,2)))*helper_inverse -
                                                              (shortened_covariance_matrix_past_to_final.dot(np.transpose(observation_transform.reshape((1,2))).dot(observation_transform.reshape((1,2)).dot(
@@ -1438,7 +1429,6 @@ def kalman_update_step(state_space_mean,
                                                                          observation_transform.reshape((1,2)).dot(predicted_final_state_space_mean.reshape((2,1))))[0][0] -
                                                                          adaptation_coefficient.dot(observation_transform.reshape((1,2)).dot(
                                                                          predicted_final_state_space_mean_derivative[parameter_index])) )
-    # import pdb; pdb.set_trace()
 
     # unstack the rho into two columns, one with mRNA and one with protein
 
@@ -1552,10 +1542,10 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     mean_protein = np.mean(protein_at_observations[:,1])
     number_of_parameters = model_parameters.shape[0]
 
-    if ((uniform(0,2*mean_protein).pdf(model_parameters[0]) == 0) or
+    if ((uniform(100,2*mean_protein-100).pdf(model_parameters[0]) == 0) or
         (uniform(2,6-2).pdf(model_parameters[1]) == 0) or
         (uniform(0.01,60-0.01).pdf(model_parameters[4]) == 0) or
-        (uniform(1,40-1).pdf(model_parameters[5]) == 0) or
+        (uniform(0.01,40-0.01).pdf(model_parameters[5]) == 0) or
         (uniform(5,40-5).pdf(model_parameters[6]) == 0) ):
         return -np.inf, np.zeros(number_of_parameters)
 
@@ -1721,7 +1711,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                     print('value error!')
                     new_log_likelihood = -np.inf
                 except mp.TimeoutError:
-                    # import pdb; pdb.set_trace()
                     print('I have found a TimeoutError!')
                     likelihood_calculations_pool.close()
                     likelihood_calculations_pool.terminate()
@@ -1944,7 +1933,6 @@ def generic_mala(likelihood_and_derivative_calculator,
         an N x q matrix of MCMC samples, where N is the number of samples and q is the number of parameters. These
         are the accepted positions in parameter space
     '''
-    # import pdb; pdb.set_trace()
     likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
 
     # initialise the covariance proposal matrix
@@ -1974,7 +1962,6 @@ def generic_mala(likelihood_and_derivative_calculator,
     # initial markov chain
     current_position = np.copy(initial_position)
     current_log_likelihood, current_log_likelihood_gradient = likelihood_and_derivative_calculator(current_position,*specific_args)
-    # import pdb; pdb.set_trace()
 
     for iteration_index in range(1,number_of_iterations):
         # progress measure
@@ -2079,7 +2066,6 @@ def kalman_specific_likelihood_function(proposed_position,*args):
         loop, at the given proposed position in parameter space.
 
     """
-    # import pdb; pdb.set_trace()
     reparameterised_proposed_position = np.copy(proposed_position)
     reparameterised_proposed_position[[4,5]] = np.exp(reparameterised_proposed_position[[4,5]])
     log_likelihood, log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(args[0],

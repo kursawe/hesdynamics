@@ -28,7 +28,7 @@ def make_and_submit_jobscripts(joblist_path):
             job_script.write('#!/bin/bash --login')
             job_script.write('\n#$ -cwd # Job runs in current directory (where you run qsub)')
             job_script.write('\n#$ -V # Job inherits environment (settings from loaded modules etc)')
-            job_script.write('\n#$ -pe smp.pe 24 # request intel nodes and find 12 core slot')
+            job_script.write('\n#$ -pe smp.pe 10 # request intel nodes and find 8 core slot')
             job_script.write('\n#$ -M joshua.burton@manchester.ac.uk')
             job_script.write('\n#$ -m e # send email to above address when job ends')
             job_script.write('\nexport OMP_NUM_THREADS=1 # limits jobs to requested resources')
@@ -47,7 +47,4 @@ def make_and_submit_jobscripts(joblist_path):
 if __name__ == "__main__":
     # make joblists
     saving_path = make_dataset_job_list.main()
-
-    print(saving_path)
-
     make_and_submit_jobscripts(saving_path)
