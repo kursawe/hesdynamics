@@ -1234,8 +1234,10 @@ class TestInference(unittest.TestCase):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.load(os.path.join(saving_path,data_filename))
-        ps_string_index = data_filename.find('ps')
-        ps_string = data_filename[ps_string_index:ps_string_index+3]
+        ps_string_index_start = data_filename.find('ps')
+        ps_string_index_end = data_filename.find('_ds')
+        ps_string = data_filename[ps_string_index_start:ps_string_index_end]
+        import pdb; pdb.set_trace()
         true_parameter_values = np.load(os.path.join(saving_path,ps_string + '_parameter_values.npy'))
 
         mean_protein = np.mean(protein_at_observations[:,1])
