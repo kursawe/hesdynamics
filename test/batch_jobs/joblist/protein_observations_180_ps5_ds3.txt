@@ -1,1 +1,0 @@
-python -c "import test_inference; class_instance = test_inference.TestInference(); class_instance.test_multiple_mala_traces_in_parallel('protein_observations_180_ps5_ds3.npy')"
