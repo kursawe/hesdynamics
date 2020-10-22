@@ -320,22 +320,25 @@ class TestInference(unittest.TestCase):
                                                                   'translation_rate',
                                                                   'transcription_delay') if k in all_parameters}
 
-                mala = hes_inference.kalman_mala(protein_at_observations,
-                                                 measurement_variance,
-                                                 number_of_samples,
-                                                 initial_position,
-                                                 step_size[index],
-                                                 thinning_rate=1,
-                                                 known_parameter_dict=known_parameters)
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression.npy'))
+                else:
+                    mala = hes_inference.kalman_mala(protein_at_observations,
+                                                     measurement_variance,
+                                                     number_of_samples,
+                                                     initial_position,
+                                                     step_size[index],
+                                                     thinning_rate=1,
+                                                     known_parameter_dict=known_parameters)
 
-                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression.npy'),
-                        mala)
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression.npy'),
+                            mala)
 
                 likelihood = np.load(saving_path + "likelihood_repression.npy")
                 x_values = np.linspace(0.2,2*np.mean(protein_at_observations[:,1]),2000)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                _, bins, _ = plt.hist(mala,density=True,bins=30)
+                _, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
                 plt.title("Repression Threshold Likelihood and MALA")
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.savefig(saving_path + 'repression_likelihood_mala.png')
@@ -349,22 +352,25 @@ class TestInference(unittest.TestCase):
                                                                   'translation_rate',
                                                                   'transcription_delay') if k in all_parameters}
 
-                mala = hes_inference.kalman_mala(protein_at_observations,
-                                                 measurement_variance,
-                                                 number_of_samples,
-                                                 initial_position,
-                                                 step_size[index],
-                                                 thinning_rate=1,
-                                                 known_parameter_dict=known_parameters)
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill.npy'))
+                else:
+                    mala = hes_inference.kalman_mala(protein_at_observations,
+                                                     measurement_variance,
+                                                     number_of_samples,
+                                                     initial_position,
+                                                     step_size[index],
+                                                     thinning_rate=1,
+                                                     known_parameter_dict=known_parameters)
 
-                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill.npy'),
-                        mala)
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill.npy'),
+                            mala)
 
                 likelihood = np.load(saving_path + "likelihood_hill.npy")
                 x_values = np.linspace(2.0,6.0,1000)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                _, bins, _ = plt.hist(mala,density=True,bins=30)
+                _, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
                 plt.title("Hill Coefficient Likelihood and MALA")
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.savefig(saving_path + 'hill_likelihood_mala.png')
@@ -377,22 +383,25 @@ class TestInference(unittest.TestCase):
                                                                   'translation_rate',
                                                                   'transcription_delay') if k in all_parameters}
 
-                mala = hes_inference.kalman_mala(protein_at_observations,
-                                                 measurement_variance,
-                                                 number_of_samples,
-                                                 initial_position,
-                                                 step_size[index],
-                                                 thinning_rate=1,
-                                                 known_parameter_dict=known_parameters)
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription.npy'))
+                else:
+                    mala = hes_inference.kalman_mala(protein_at_observations,
+                                                     measurement_variance,
+                                                     number_of_samples,
+                                                     initial_position,
+                                                     step_size[index],
+                                                     thinning_rate=1,
+                                                     known_parameter_dict=known_parameters)
 
-                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription.npy'),
-                        mala)
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription.npy'),
+                            mala)
 
                 likelihood = np.load(saving_path + "likelihood_transcription.npy")
                 x_values = np.linspace(0.01,60.0,200)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                _, bins, _ = plt.hist(np.exp(mala),density=True,bins=30)
+                _, bins, _ = plt.hist(np.exp(mala),density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.title("Transcription Likelihood and MALA")
                 plt.savefig(saving_path + 'transcription_likelihood_mala.png')
@@ -406,22 +415,25 @@ class TestInference(unittest.TestCase):
                                                                   'basal_transcription_rate',
                                                                   'transcription_delay') if k in all_parameters}
 
-                mala = hes_inference.kalman_mala(protein_at_observations,
-                                                 measurement_variance,
-                                                 number_of_samples,
-                                                 initial_position,
-                                                 step_size[index],
-                                                 thinning_rate=1,
-                                                 known_parameter_dict=known_parameters)
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation.npy'))
+                else:
+                    mala = hes_inference.kalman_mala(protein_at_observations,
+                                                     measurement_variance,
+                                                     number_of_samples,
+                                                     initial_position,
+                                                     step_size[index],
+                                                     thinning_rate=1,
+                                                     known_parameter_dict=known_parameters)
 
-                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation.npy'),
-                        mala)
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation.npy'),
+                            mala)
 
                 likelihood = np.load(saving_path + "likelihood_translation.npy")
-                x_values = np.linspace(1.1959799,40,199)
-                normal = np.trapz(np.exp(likelihood[1:]),x_values)
-                plt.plot(x_values,np.exp(likelihood[1:])/normal)
-                _, bins, _ = plt.hist(np.exp(mala),density=True,bins=30)
+                x_values = np.linspace(np.log(0.01),np.log(60),2000)
+                normal = np.trapz(np.exp(likelihood),np.exp(x_values))
+                plt.plot(np.exp(x_values),np.exp(likelihood)/normal)
+                _, bins, _ = plt.hist(np.exp(mala),density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
                 plt.title("Translation Likelihood and MALA")
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.savefig(saving_path + 'translation_likelihood_mala.png')
@@ -434,22 +446,25 @@ class TestInference(unittest.TestCase):
                                                                   'basal_transcription_rate',
                                                                   'translation_rate') if k in all_parameters}
 
-                mala = hes_inference.kalman_mala(protein_at_observations,
-                                                 measurement_variance,
-                                                 number_of_samples,
-                                                 initial_position,
-                                                 step_size[index],
-                                                 thinning_rate=1,
-                                                 known_parameter_dict=known_parameters)
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay.npy'))
+                else:
+                    mala = hes_inference.kalman_mala(protein_at_observations,
+                                                     measurement_variance,
+                                                     number_of_samples,
+                                                     initial_position,
+                                                     step_size[index],
+                                                     thinning_rate=1,
+                                                     known_parameter_dict=known_parameters)
 
-                np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay.npy'),
-                        mala)
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay.npy'),
+                            mala)
 
                 likelihood = np.load(saving_path + "likelihood_delay.npy")
                 x_values = np.linspace(5.0,40.0,200)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                _, bins, _ = plt.hist(mala,density=True,bins=30)
+                _, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
                 plt.title("Transcriptional Delay Likelihood and MALA")
                 plt.savefig(saving_path + 'delay_likelihood_mala.png')
@@ -460,7 +475,7 @@ class TestInference(unittest.TestCase):
         # specify data to use
         data_filename = 'protein_observations_360_ps3_ds4'
         protein_at_observations = np.load(saving_path + data_filename + '.npy')
-        number_of_samples = 8000
+        number_of_samples = 15000
         measurement_variance = 10000
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
         initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
@@ -473,10 +488,7 @@ class TestInference(unittest.TestCase):
                           'transcription_delay' : [6,30]}
 
         known_parameters = {k:all_parameters[k] for k in ('mRNA_degradation_rate',
-                                                          'protein_degradation_rate',
-                                                          'basal_transcription_rate',
-                                                          'translation_rate',
-                                                          'transcription_delay') if k in all_parameters}
+                                                          'protein_degradation_rate') if k in all_parameters}
 
         known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
         unknown_parameter_indices = [i for i in range(len(initial_position)) if i not in known_parameter_indices]
@@ -484,10 +496,10 @@ class TestInference(unittest.TestCase):
         # if we already have mcmc samples, we can use them to construct a covariance matrix to make sampling better
         if os.path.exists(os.path.join(
                           os.path.dirname(__file__),
-                          'output','mala_output_' + data_filename + '_2d.npy')):
+                          'output','mala_output_' + data_filename + '.npy')):
 
             print("Posterior samples already exist, sampling directly without warm up...")
-            mala_output = np.load(saving_path + 'mala_output_' + data_filename + '_2d.npy')
+            mala_output = np.load(saving_path + 'mala_output_' + data_filename + '.npy')
             number_of_posterior_samples = mala_output.shape[0]
             proposal_covariance = np.cov(mala_output[:int(number_of_posterior_samples/2),].T)
             step_size = 0.07
@@ -505,8 +517,8 @@ class TestInference(unittest.TestCase):
 
         else:
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
-            # proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
-            proposal_covariance = np.diag([5500.0,0.045])
+            proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
+            # proposal_covariance = np.diag([5500.0,0.045])
             step_size = 0.195
             mala = hes_inference.kalman_mala(protein_at_observations,
                                              measurement_variance,
@@ -530,25 +542,32 @@ class TestInference(unittest.TestCase):
                                              thinning_rate=1,
                                              known_parameter_dict=known_parameters)
 
-            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '_2d.npy'),
+            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '.npy'),
                     mala)
 
     def xest_plot_protein_observations(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
         data = np.load(saving_path + 'true_data_ps3.npy')
-        protein = np.load(saving_path + 'protein_observations_360_ps3_ds4.npy')
+        protein = np.load(saving_path + 'protein_observations_180_ps3_ds3.npy')
 
-        my_figure = plt.figure(figsize=(7.5,4))
-        plt.scatter(data[:,0],data[:,2],marker='o',s=3,color='#20948B',alpha=0.6)
-        plt.scatter(protein[:,0],protein[:,1],marker='o',s=6,c='#F18D9E')
-        plt.xlabel('Time (mins)')
-        plt.ylabel('Number of protein molecules')
+        my_figure, ax1 = plt.subplots(figsize=(7.5,4))
+        ax1.scatter(data[:,0],data[:,2],marker='o',s=3,color='#20948B',alpha=0.75,label='protein')
+        ax1.scatter(protein[:,0],protein[:,1],marker='o',s=10,c='#F18D9E')
+        ax2 = ax1.twinx()
+        ax2.scatter(data[0:-1:10,0],data[0:-1:10,1],marker='o',s=3,color='#86AC41',alpha=0.75,label='mRNA',zorder=1)
+        ax1.tick_params(axis='y', labelcolor='#F18D9E')
+        ax2.tick_params(axis='y', labelcolor='#86AC41')
+        ax1.set_xlabel('Time (mins)')
+        ax1.set_ylabel('Number of protein molecules')
+        ax2.set_ylabel('Number of mRNA molecules')
+        ax1.set_zorder(ax2.get_zorder()+1)
+        ax1.patch.set_visible(False)
         plt.tight_layout()
         my_figure.savefig(os.path.join(saving_path,'ps3_data.pdf'))
 
     def xest_plot_mala_posteriors(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
-        output = np.load(saving_path + 'mala_output_protein_observations_360_ps3_ds4.npy')
+        output = np.load(saving_path + 'mala_output_protein_observations_360_ps3_ds4_2d.npy')
 
         hist_transcription, bins_transcription, _ = plt.hist(np.exp(output[:,2]),bins=30,density=True)
         logbins_transcription = np.logspace(np.log(bins_transcription[0]),
@@ -603,7 +622,7 @@ class TestInference(unittest.TestCase):
 
         plt.tight_layout()
         # plt.show()
-        my_figure.savefig(os.path.join(saving_path,'ps3_ds4_posteriors_mala.pdf'))
+        my_figure.savefig(os.path.join(saving_path,'ps3_ds4_posteriors_mala_2d.pdf'))
 
     def xest_compare_mala_random_walk_histograms(self):
         saving_path  = os.path.join(os.path.dirname(__file__), 'output','')
@@ -1154,7 +1173,7 @@ class TestInference(unittest.TestCase):
     def xest_compute_likelihood_at_multiple_parameters(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         protein_at_observations = np.load(saving_path + '../output/protein_observations_90_ps3_ds1.npy')
-        number_of_evaluations = 1000
+        number_of_evaluations = 2000
         likelihood_at_multiple_parameters = np.zeros(number_of_evaluations)
 
         repression_threshold = 3407.99
@@ -1165,18 +1184,18 @@ class TestInference(unittest.TestCase):
         translation_rate = 1.27
         transcription_delay = 30
 
-        for index, parameter in enumerate(np.linspace(4.0,6.0,number_of_evaluations)):
+        for index, parameter in enumerate(np.linspace(np.log(0.01),np.log(60.0),number_of_evaluations)):
             likelihood_at_multiple_parameters[index] = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,
                                                                                                                  model_parameters=np.array([repression_threshold,
-                                                                                                                                            parameter,
+                                                                                                                                            hill_coefficient,
                                                                                                                                             mRNA_degradation_rate,
                                                                                                                                             protein_degradation_rate,
                                                                                                                                             basal_transcription_rate,
-                                                                                                                                            translation_rate,
+                                                                                                                                            np.exp(parameter),
                                                                                                                                             transcription_delay]),
                                                                                                                  measurement_variance = 10000)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_hill.npy'),likelihood_at_multiple_parameters)
+        np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_translation.npy'),likelihood_at_multiple_parameters)
         # plt.plot(np.linspace(10,2*np.mean(protein_at_observations[:,1]),number_of_evaluations),
         #          likelihood_at_multiple_parameters)
         # plt.xlabel("Repression Threshold")
@@ -1241,7 +1260,7 @@ class TestInference(unittest.TestCase):
 
         mean_protein = np.mean(protein_at_observations[:,1])
 
-        number_of_samples = 40000
+        number_of_samples = 50000
         number_of_chains = 8
         measurement_variance = np.power(true_parameter_values[-1],2)
         # draw random initial states for the parallel chains
@@ -1314,7 +1333,7 @@ class TestInference(unittest.TestCase):
             # warm up chain
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
             proposal_covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
-            step_size = 0.00012
+            step_size = 0.0012
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1337,36 +1356,37 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
-            # second warm up
-            print("Warming up for the second time (seems to give better/more consistent results)")
 
-            samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
-            proposal_covariance = np.cov(samples_with_burn_in.T)
-            initial_states = np.zeros((number_of_chains,7))
-            initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
-            initial_states[:,(0,1,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
-            step_size = 0.00004
-
-            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
-                                                              args=(protein_at_observations,
-                                                                    measurement_variance,
-                                                                    number_of_samples,
-                                                                    initial_state,
-                                                                    step_size,
-                                                                    proposal_covariance,
-                                                                    1,
-                                                                    known_parameters))
-                                for initial_state in initial_states ]
-            ## Let the pool know that these are all so that the pool will exit afterwards
-            # this is necessary to prevent memory overflows.
-            pool_of_processes.close()
-
-            array_of_chains = np.zeros((number_of_chains,number_of_samples,number_of_parameters))
-            for chain_index, process_result in enumerate(process_results):
-                this_chain = process_result.get()
-                array_of_chains[chain_index,:,:] = this_chain
-            pool_of_processes.join()
+            # # second warm up
+            # print("Warming up for the second time (seems to give better/more consistent results)")
+            #
+            # samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
+            # proposal_covariance = np.cov(samples_with_burn_in.T)
+            # initial_states = np.zeros((number_of_chains,7))
+            # initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
+            # initial_states[:,(0,1,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
+            # step_size = 0.00004
+            #
+            # pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            # process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+            #                                                   args=(protein_at_observations,
+            #                                                         measurement_variance,
+            #                                                         number_of_samples,
+            #                                                         initial_state,
+            #                                                         step_size,
+            #                                                         proposal_covariance,
+            #                                                         1,
+            #                                                         known_parameters))
+            #                     for initial_state in initial_states ]
+            # ## Let the pool know that these are all so that the pool will exit afterwards
+            # # this is necessary to prevent memory overflows.
+            # pool_of_processes.close()
+            #
+            # array_of_chains = np.zeros((number_of_chains,number_of_samples,number_of_parameters))
+            # for chain_index, process_result in enumerate(process_results):
+            #     this_chain = process_result.get()
+            #     array_of_chains[chain_index,:,:] = this_chain
+            # pool_of_processes.join()
 
             # sample directly
             print("Now sampling directly...")
@@ -1398,20 +1418,20 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
-            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output' + data_filename),
             array_of_chains)
 
     def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output')]
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_ps10')]
 
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
             # mala[:,:,[2,3]] = np.exp(mala[:,:,[2,3]])
             chains = az.convert_to_dataset(mala)
-            print(chain_path_string)
-            print('rhat:\n',az.rhat(chains))
-            print('ess:\n',az.ess(chains))
+            print('\n' + chain_path_string + '\n')
+            print('\nrhat:\n',az.rhat(chains))
+            print('\ness:\n',az.ess(chains))
             az.plot_trace(chains); plt.savefig(loading_path + 'traceplot_' + chain_path_string[:-4] + '.png')
             az.plot_posterior(chains); plt.savefig(loading_path + 'posterior_' + chain_path_string[:-4] + '.png')
             az.plot_pair(chains,kind='kde'); plt.savefig(loading_path + 'pairplot_' + chain_path_string[:-4] + '.png')
