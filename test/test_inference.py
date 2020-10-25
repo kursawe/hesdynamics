@@ -1249,7 +1249,7 @@ class TestInference(unittest.TestCase):
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
 
-    def test_multiple_mala_traces_in_parallel(self,data_filename = 'protein_observations_ps10_ds1.npy'):
+    def test_multiple_mala_traces_in_parallel(self,data_filename = 'protein_observations_ps6_ds2.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.load(os.path.join(saving_path,data_filename))
@@ -1268,8 +1268,8 @@ class TestInference(unittest.TestCase):
         initial_states = np.zeros((number_of_chains,7))
         initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
         for initial_state_index, _ in enumerate(initial_states):
-            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),10]),
-                                                                          np.array([1.1*mean_protein,2.5,np.log(60-0.01),np.log(40-1),20]))
+            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
+                                                                          np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
 
         # define known parameters
         all_parameters = {'repression_threshold' : [0,true_parameter_values[0]],
@@ -1303,7 +1303,7 @@ class TestInference(unittest.TestCase):
             initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
             initial_states[:,(0,1,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
 
-            step_size = 0.017
+            step_size = 0.1
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1333,7 +1333,7 @@ class TestInference(unittest.TestCase):
             # warm up chain
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
             proposal_covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
-            step_size = 0.0012
+            step_size = 0.1
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1395,7 +1395,7 @@ class TestInference(unittest.TestCase):
             initial_states = np.zeros((number_of_chains,7))
             initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
             initial_states[:,(0,1,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
-            step_size = 0.008
+            step_size = 0.5
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1418,17 +1418,17 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
-            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output' + data_filename),
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
 
     def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_ps10')]
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_ps6_ds4')]
 
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
-            # mala[:,:,[2,3]] = np.exp(mala[:,:,[2,3]])
-            chains = az.convert_to_dataset(mala)
+            mala[:,:,[2,3]] = np.exp(mala[:,:,[2,3]])
+            chains = az.convert_to_dataset(mala[:,10000:,:])
             print('\n' + chain_path_string + '\n')
             print('\nrhat:\n',az.rhat(chains))
             print('\ness:\n',az.ess(chains))

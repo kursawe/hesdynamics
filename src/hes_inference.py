@@ -2018,6 +2018,19 @@ def generic_mala(likelihood_and_derivative_calculator,
         if proposal_log_likelihood == -np.inf:
             if iteration_index%thinning_rate == 0:
                 mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
+
+            # LAP stuff also needed here
+            if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(number_of_samples/2):
+                r_hat = accepted_moves/iteration_index
+                block_sample = mcmc_samples[:iteration_index]
+                block_proposal_covariance = np.cov(block_sample.T)
+                gamma_1 = 1/np.power(iteration_index,c1)
+                gamma_2 = c0*gamma_1
+                log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(r_hat - 0.574)
+                step_size = np.sqrt(np.exp(log_step_size_squared))
+                proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 0.00001*np.eye(number_of_parameters)
+                proposal_cholesky = np.linalg.cholesky(proposal_covariance)
+                proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
             continue
 
         forward_helper_variable = ( proposal[unknown_parameter_indices] - current_position[unknown_parameter_indices] -
@@ -2039,8 +2052,7 @@ def generic_mala(likelihood_and_derivative_calculator,
 
         # LAP stuff
         if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(number_of_samples/2):
-            number_of_jumps = accepted_moves
-            r_hat = number_of_jumps/iteration_index
+            r_hat = accepted_moves/iteration_index
             block_sample = mcmc_samples[:iteration_index]
             block_proposal_covariance = np.cov(block_sample.T)
             gamma_1 = 1/np.power(iteration_index,c1)
@@ -2050,9 +2062,7 @@ def generic_mala(likelihood_and_derivative_calculator,
             proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 0.00001*np.eye(number_of_parameters)
             proposal_cholesky = np.linalg.cholesky(proposal_covariance)
             proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
-
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
-
     return mcmc_samples
 
 def kalman_specific_likelihood_function(proposed_position,*args):
