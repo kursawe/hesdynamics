@@ -1405,7 +1405,7 @@ class TestInference(unittest.TestCase):
 
 
         number_of_samples = 80000
-        number_of_chains = 4
+        number_of_chains = 8
         measurement_variance = np.power(np.round(np.load(saving_path + experiment_date + "_measurement_variance.npy"),0),2)
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
