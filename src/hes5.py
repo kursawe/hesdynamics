@@ -1,4 +1,4 @@
-# import PyDDE
+import PyDDE
 import numpy as np
 import scipy.signal
 import scipy.optimize
@@ -234,7 +234,7 @@ def hes5_ddegrad(y, parameters, time):
 
     return np.array( [dmRNA,dprotein] )
 
-def generate_deterministic_goodfellow_trajectory( duration = 720,
+def generate_deterministic_goodfellow_trajectory( duration = 7200,
                                                   basal_mRNA_transcription_rate = 1.0,
                                                   basal_miRNA_transcription_rate = 1.0,
                                                   translation_rate = 10,
@@ -253,7 +253,8 @@ def generate_deterministic_goodfellow_trajectory( duration = 720,
                                                   miRNA_degradation_rate = 0.00001,
                                                   initial_mRNA = 3,
                                                   initial_protein = 100,
-                                                  initial_miRNA = 1):
+                                                  initial_miRNA = 1,
+                                                  for_negative_times='initial'):
     '''Generate one trace of the Goodfellow model. This function implements the deterministic model in
     Goodfellow, Nature Communications (2014).
 
@@ -330,8 +331,8 @@ def generate_deterministic_goodfellow_trajectory( duration = 720,
         2 dimenstional array, first column is time, second column mRNA number,
         third column is Hes5 protein copy number, fourth column is miRNA copy number.
     '''
-
     hes5_dde = PyDDE.dde()
+    import pdb; pdb.set_trace()
     initial_condition = np.array([initial_mRNA,initial_miRNA,initial_protein])
     # The coefficients (constants) in the equations
     if for_negative_times == 'initial':
@@ -343,33 +344,33 @@ def generate_deterministic_goodfellow_trajectory( duration = 720,
     else:
         ValueError("The parameter set for for_negative_times could not be interpreted.")
 
-        parameters = np.array([ basal_mRNA_transcription_rate,
-                                basal_miRNA_transcription_rate,
-                                translation_rate,
-                                repression_threshold_protein_on_mRNA,
-                                repression_threshold_protein_on_miRNA,
-                                repression_threshold_miRNA_on_mRNA,
-                                repression_threshold_miRNA_on_protein,
-                                hill_coefficient_protein_on_mRNA,
-                                hill_coefficient_protein_on_miRNA,
-                                hill_coefficient_miRNA_on_mRNA,
-                                hill_coefficient_miRNA_on_protein,
-                                transcription_delay,
-                                upper_mRNA_degradation_rate,
-                                lower_mRNA_degradation_rate,
-                                protein_degradation_rate,
-                                miRNA_degradation_rate,
-                                negative_times_indicator ])
+    parameters = np.array([ basal_mRNA_transcription_rate,
+                            basal_miRNA_transcription_rate,
+                            translation_rate,
+                            repression_threshold_protein_on_mRNA,
+                            repression_threshold_protein_on_miRNA,
+                            repression_threshold_miRNA_on_mRNA,
+                            repression_threshold_miRNA_on_protein,
+                            hill_coefficient_protein_on_mRNA,
+                            hill_coefficient_protein_on_miRNA,
+                            hill_coefficient_miRNA_on_mRNA,
+                            hill_coefficient_miRNA_on_protein,
+                            transcription_delay,
+                            upper_mRNA_degradation_rate,
+                            lower_mRNA_degradation_rate,
+                            protein_degradation_rate,
+                            miRNA_degradation_rate,
+                            negative_times_indicator ])
 
-        hes5_dde.dde(y=initial_condition, times=np.arange(0.0, duration, 1.0),
-                     func=goodfellow_ddegrad, parms=parameters,
-                     tol=0.000005, dt=0.01, hbsize=10000, nlag=1, ssc=[0.0, 0.0])
-                     #hbsize is buffer size, I believe this is how many values in the past are stored
-                     #nlag is the number of delay variables (tau_1, tau2, ... taun_lag)
-                     #ssc means "statescale" and would somehow only matter for values close to 0
+    hes5_dde.dde(y=initial_condition, times=np.arange(0.0, duration, 1.0),
+                 func=goodfellow_ddegrad, parms=parameters,
+                 tol=0.00005, dt=1.0, hbsize=1000, nlag=1, ssc=[0.0, 0.0,0.0])
+                 #hbsize is buffer size, I believe this is how many values in the past are stored
+                 #nlag is the number of delay variables (tau_1, tau2, ... taun_lag)
+                 #ssc means "statescale" and would somehow only matter for values close to 0
 
-        this_data = hes5_dde.data
-        return hes5_dde.data
+    this_data = hes5_dde.data
+    return hes5_dde.data
 
 def goodfellow_ddegrad(y, parameters, time):
     '''Gradient of the Hes5 delay differential equation for
@@ -405,20 +406,21 @@ def goodfellow_ddegrad(y, parameters, time):
     '''
     basal_mRNA_transcription_rate = float(parameters[0])
     basal_miRNA_transcription_rate = float(parameters[1])
-    repression_threshold_protein_on_mRNA = float(parameters[2])
-    repression_threshold_protein_on_miRNA = float(parameters[3])
-    repression_threshold_miRNA_on_mRNA = float(parameters[4])
-    repression_threshold_miRNA_on_protein = float(parameters[5])
-    hill_coefficient_protein_on_mRNA = float(parameters[6])
-    hill_coefficient_protein_on_miRNA = float(parameters[7])
-    hill_coefficient_miRNA_on_mRNA = float(parameters[8])
-    hill_coefficient_miRNA_on_protein = float(parameters[9])
-    transcription_delay = float(parameters[10])
-    upper_mRNA_degradation_rate = float(parameters[11])
-    lower_mRNA_degradation_rate = float(parameters[12])
-    protein_degradation_rate = float(parameters[13])
-    miRNA_degradation_rate = float(parameters[14])
-    negative_times_indicator = float(parameters[15])
+    translation_rate = float(parameters[2])
+    repression_threshold_protein_on_mRNA = float(parameters[3])
+    repression_threshold_protein_on_miRNA = float(parameters[4])
+    repression_threshold_miRNA_on_mRNA = float(parameters[5])
+    repression_threshold_miRNA_on_protein = float(parameters[6])
+    hill_coefficient_protein_on_mRNA = float(parameters[7])
+    hill_coefficient_protein_on_miRNA = float(parameters[8])
+    hill_coefficient_miRNA_on_mRNA = float(parameters[9])
+    hill_coefficient_miRNA_on_protein = float(parameters[10])
+    transcription_delay = float(parameters[11])
+    upper_mRNA_degradation_rate = float(parameters[12])
+    lower_mRNA_degradation_rate = float(parameters[13])
+    protein_degradation_rate = float(parameters[14])
+    miRNA_degradation_rate = float(parameters[15])
+    negative_times_indicator = float(parameters[16])
 
     if negative_times_indicator == 0.0:
         for_negative_times = 'initial'
@@ -433,7 +435,7 @@ def goodfellow_ddegrad(y, parameters, time):
     protein = float(y[1])
     miRNA = float(y[2])
 
-    if (time>time_delay):
+    if (time>transcription_delay):
         past_protein = PyDDE.pastvalue(1,time-time_delay,0)
     elif time>0.0:
         if for_negative_times == 'initial':
@@ -446,7 +448,7 @@ def goodfellow_ddegrad(y, parameters, time):
     ## rate of protein change
     translation_hill_function_value = 1.0/(1.0 + pow(miRNA/repression_threshold_miRNA_on_protein,
                                                      hill_coefficient_miRNA_on_protein))
-    dprotein = translation_rate*translation_hill_function_value*mRNA - protein_degradation_rate*protein
+    dprotein = translation_hill_function_value*mRNA - protein_degradation_rate*protein
 
     ## hill functions for miRNA and mRNA
     miRNA_production_hill_function_value = 1.0/(1.0+pow(past_protein/repression_threshold_protein_on_miRNA,
@@ -4933,7 +4935,7 @@ def simulate_downstream_response_at_fluctuation_rate(fluctuation_rate,
         initial level of the upstream signal Y. Currently, this is only implemented for the option
         include_upstream_feedback==True. If this option is false, this value for upstream_initial_level will be
         ignored.
-        
+
     feedback_delay : float
         delay associated with the feedback - repression of y depends on x at time t-feedback_delay
 
