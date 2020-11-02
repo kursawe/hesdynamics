@@ -1406,7 +1406,7 @@ class TestInference(unittest.TestCase):
 
         number_of_samples = 80000
         number_of_chains = 8
-        measurement_variance = np.power(np.round(np.load(saving_path + experiment_date + "_measurement_variance.npy"),0),2)
+        measurement_variance = np.power(np.round(np.load(saving_path + experiment_date + "_measurement_variance_detrended.npy"),0),2)
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
         initial_states = np.zeros((number_of_chains,7))
@@ -1443,7 +1443,7 @@ class TestInference(unittest.TestCase):
 
             samples_with_burn_in = mala_output[:,int(previous_number_of_samples/2):,:].reshape(int(previous_number_of_samples/2)*previous_number_of_chains,mala_output.shape[2])
             proposal_covariance = np.cov(samples_with_burn_in.T)
-            step_size = 1.0
+            step_size = 0.01
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
                                                               args=(protein_at_observations,
@@ -1470,7 +1470,7 @@ class TestInference(unittest.TestCase):
             # warm up chain
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
             proposal_covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
-            step_size = 1.0
+            step_size = 0.001
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
                                                               args=(protein_at_observations,
@@ -1503,7 +1503,7 @@ class TestInference(unittest.TestCase):
 
             samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
             proposal_covariance = np.cov(samples_with_burn_in.T)
-            step_size = 1.0
+            step_size = 0.01
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
                                                               args=(protein_at_observations,
@@ -1528,18 +1528,21 @@ class TestInference(unittest.TestCase):
 
     def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_04')]
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_280317p6_cell_45_cluster_1')]
 
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
+            mala = mala[[1],18000:,:]
             # mala[:,:,[2,3]] = np.exp(mala[:,:,[2,3]])
             chains = az.convert_to_dataset(mala)
-            # print('\n' + chain_path_string + '\n')
-            # print('\nrhat:\n',az.rhat(chains))
-            # print('\ness:\n',az.ess(chains))
+            print('\n' + chain_path_string + '\n')
+            print('\nrhat:\n',az.rhat(chains))
+            print('\ness:\n',az.ess(chains))
             az.plot_trace(chains); plt.savefig(loading_path + 'traceplot_' + chain_path_string[:-4] + '.png'); plt.clf()
             az.plot_posterior(chains); plt.savefig(loading_path + 'posterior_' + chain_path_string[:-4] + '.png'); plt.clf()
             az.plot_pair(chains,kind='kde'); plt.savefig(loading_path + 'pairplot_' + chain_path_string[:-4] + '.png'); plt.clf()
+            # import pdb; pdb.set_trace()
+            np.save(loading_path + chain_path_string,mala)
 
     def xest_accuracy_of_chains(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
@@ -1593,10 +1596,6 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         plt.legend()
         plt.savefig(loading_path + 'accuracy.png')
-
-    def xest_goodfellow(self):
-        test = hes5.generate_deterministic_goodfellow_trajectory()
-        import pdb; pdb.set_trace()
 
     def xest_identify_oscillatory_parameters(self):
         loading_path = os.path.join(os.path.dirname(__file__), 'data',
@@ -1827,47 +1826,84 @@ class TestInference(unittest.TestCase):
         hom_molecule_numbers = hom_molecule_numbers[~(np.isnan(hom_molecule_numbers))]
         het_and_hom = np.concatenate((het_molecule_numbers,hom_molecule_numbers))
 
+
         # make qqplots and calculate gradients
-        fig, ax = plt.subplots(1,3,figsize=(20,10))
+        # fig, ax = plt.subplots(1,3,figsize=(20,10))
         x = np.quantile(intensities,np.linspace(0.0,1.0,101))
         y = np.quantile(het_molecule_numbers,np.linspace(0.0,1.0,101))
         gradient_het = (np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[-1]))-np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[0])))/(np.unique(x[-1]-x[0]))
-        ax[0].scatter(x,y)
-        ax[0].plot(np.unique(x[5:96]), np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[5:96])),color='r')
-        ax[0].set_ylabel("Het Molecule numbers")
-        ax[0].set_xlabel("Cell intensities")
-        gradient_string = "Gradient is " + str(np.round(gradient_het[0],2))
-        ax[0].text(0.5,71000,gradient_string)
+        # ax[0].scatter(x,y)
+        # ax[0].plot(np.unique(x[5:96]), np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[5:96])),color='r')
+        # ax[0].set_ylabel("Het Molecule numbers")
+        # ax[0].set_xlabel("Cell intensities")
+        # gradient_string = "Gradient is " + str(np.round(gradient_het[0],2))
+        # ax[0].text(0.5,71000,gradient_string)
         x = np.quantile(intensities,np.linspace(0.0,1.0,101))
         y = np.quantile(hom_molecule_numbers,np.linspace(0.0,1.0,101))
         gradient_hom = (np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[-1]))-np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[0])))/(np.unique(x[-1]-x[0]))
-        ax[1].scatter(x,y)
-        ax[1].plot(np.unique(x[5:96]), np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[5:96])),color='r')
-        ax[1].set_ylabel("Hom Molecule numbers")
-        ax[1].set_xlabel("Cell intensities")
-        gradient_string = "Gradient is " + str(np.round(gradient_hom[0],2))
-        ax[1].text(0.5,120000,gradient_string)
+        # ax[1].scatter(x,y)
+        # ax[1].plot(np.unique(x[5:96]), np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[5:96])),color='r')
+        # ax[1].set_ylabel("Hom Molecule numbers")
+        # ax[1].set_xlabel("Cell intensities")
+        # gradient_string = "Gradient is " + str(np.round(gradient_hom[0],2))
+        # ax[1].text(0.5,120000,gradient_string)
         x = np.quantile(intensities,np.linspace(0.0,1.0,101))
         y = np.quantile(het_and_hom,np.linspace(0.0,1.0,101))
         gradient_het_and_hom = (np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[-1]))-np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[0])))/(np.unique(x[-1]-x[0]))
-        ax[2].scatter(x,y)
-        ax[2].plot(np.unique(x[5:96]), np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[5:96])),color='r')
-        ax[2].set_ylabel("Het and Hom Molecule numbers")
-        ax[2].set_xlabel("Cell intensities")
-        gradient_string = "Gradient is " + str(np.round(gradient_het_and_hom[0],2))
-        ax[2].text(0.5,120000,gradient_string)
-        plt.tight_layout()
-        plt.savefig(saving_path + 'molecule_qq_plot.png')
+        # ax[2].scatter(x,y)
+        # ax[2].plot(np.unique(x[5:96]), np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[5:96])),color='r')
+        # ax[2].set_ylabel("Het and Hom Molecule numbers")
+        # ax[2].set_xlabel("Cell intensities")
+        # gradient_string = "Gradient is " + str(np.round(gradient_het_and_hom[0],2))
+        # ax[2].text(0.5,120000,gradient_string)
+        # plt.tight_layout()
+        # plt.savefig(saving_path + 'molecule_qq_plot.png')
 
-        np.save(loading_path + experiment_date + "_measurement_variance.npy",np.std((gradient_hom,gradient_het,gradient_het_and_hom)))
+        np.save(loading_path + 'selected_data_for_mala/' + experiment_date + "_measurement_variance.npy",np.std((gradient_hom,gradient_het,gradient_het_and_hom)))
 
         # make data from each trace and save
-        for cell_index in range(1,cell_intensity_df.shape[1]):
-            cell_intensity_values = cell_intensity_df.iloc[2:,[0,cell_index]].astype(float).values
-            # remove NaNs
-            cell_intensity_values = cell_intensity_values[~np.isnan(cell_intensity_values[:,1])]
-            cell_intensity_values[:,0] *=60
-            cell_intensity_values[:,1] *= gradient_hom
-            cell_cluster = int(cell_intensity_df.iloc[0,cell_index])
-            np.save(loading_path + 'protein_observations_' + experiment_date + '_cell_' + str(cell_index) + '_cluster_' + str(cell_cluster),
-                    cell_intensity_values)
+        # for cell_index in range(1,cell_intensity_df.shape[1]):
+        #     cell_intensity_values = cell_intensity_df.iloc[2:,[0,cell_index]].astype(float).values
+        #     # remove NaNs
+        #     cell_intensity_values = cell_intensity_values[~np.isnan(cell_intensity_values[:,1])]
+        #     cell_intensity_values[:,0] *=60
+        #     cell_intensity_values[:,1] *= gradient_hom
+        #     cell_cluster = int(cell_intensity_df.iloc[0,cell_index])
+        #     np.save(loading_path + 'protein_observations_' + experiment_date + '_cell_' + str(cell_index) + '_cluster_' + str(cell_cluster),
+        #             cell_intensity_values)
+
+    def xest_detrend_experimental_data(self):
+        from scipy.signal import detrend
+        loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/selected_data_for_mala/')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','detrended_data_images/')
+        # import spreadsheets as dataframes
+        date = '280317p6'
+        experiment_date = 'protein_observations_' + date
+
+        experimental_data_strings = [i for i in os.listdir(loading_path) if experiment_date in i
+                                     and not 'detrended' in i]
+        variances = np.zeros(len(experimental_data_strings))
+        detrended_variances = np.zeros(len(experimental_data_strings))
+
+        # make data from each trace and save
+        for index, cell_string in enumerate(experimental_data_strings):
+            protein = np.load(loading_path + cell_string)
+            detrended_protein = np.copy(protein)
+            detrended_protein[:,1] = np.mean(protein[:,1]) + detrend(protein[:,1])
+            variances[index] = np.var(protein[:,1])
+            detrended_variances[index] = np.var(detrended_protein[:,1])
+            np.save(loading_path + cell_string[:-4] + "_detrended.npy",detrended_protein)
+
+            fig, ax = plt.subplots(1,2,figsize=(10,5))
+            ax[0].plot(protein[:,0],protein[:,1])
+            ax[0].set_xlabel("Time (Minutes)")
+            ax[0].set_ylabel("Protein Molecule Number")
+            ax[0].set_title("Observed Data")
+            ax[1].plot(detrended_protein[:,0],detrended_protein[:,1])
+            ax[1].set_xlabel("Time (Minutes)")
+            ax[1].set_ylabel("Protein Molecule Number")
+            ax[1].set_title("Detrended Data")
+            plt.tight_layout()
+            plt.savefig(saving_path + cell_string[:-4] + "_detrended.png")
+        measurement_variance = np.sqrt(0.1*np.mean(detrended_variances))
+        np.save(loading_path + date + '_measurement_variance_detrended.npy',measurement_variance)
