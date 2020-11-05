@@ -1995,9 +1995,6 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
             proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(10)
-            print(proposal_log_likelihood)
-            print('step_size: ',step_size)
-            print('acceptance rate: ',accepted_moves/iteration_index)
         except mp.TimeoutError:
             print('I have found a TimeoutError!')
             likelihood_calculations_pool.close()
@@ -2008,9 +2005,6 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
             proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(10)
-            print(proposal_log_likelihood)
-            print('step_size: ',step_size)
-            print('acceptance rate: ',accepted_moves/iteration_index)
 
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
