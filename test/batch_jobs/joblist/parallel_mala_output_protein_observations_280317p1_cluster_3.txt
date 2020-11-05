@@ -1,0 +1,1 @@
+python -c "import test_inference; class_instance = test_inference.TestInference(); class_instance.test_mala_multiple_experimental_traces(experiment_date='280317p1',cluster='3')"

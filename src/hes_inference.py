@@ -1504,7 +1504,7 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
 
     return log_likelihood
 
-def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,model_parameters,measurement_variance = 10):
+def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,model_parameters,mean_protein,measurement_variance = 10):
     """
     Calculates the log of the likelihood, and the derivative of the negative log likelihood wrt each parameter, of our data given the
     paramters, using the Kalman filter. It uses the predicted_observation_distributions, predicted_observation_mean_derivatives, and
@@ -1539,7 +1539,6 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     """
     from scipy.stats import norm, gamma, uniform
 
-    mean_protein = np.mean(protein_at_observations[:,1])
     number_of_parameters = model_parameters.shape[0]
 
     if ((uniform(100,2*mean_protein-100).pdf(model_parameters[0]) == 0) or
@@ -1954,7 +1953,7 @@ def generic_mala(likelihood_and_derivative_calculator,
     proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
 
     # initialise samples matrix and acceptance ratio counter
-    accepted_moves = 0
+    accepted_moves = 1
     mcmc_samples = np.zeros((number_of_samples,number_of_parameters))
     mcmc_samples[0] = initial_position[unknown_parameter_indices]
     number_of_iterations = number_of_samples*thinning_rate
@@ -1962,7 +1961,7 @@ def generic_mala(likelihood_and_derivative_calculator,
     # set LAP parameters
     k = 1
     c0=1.0
-    c1=0.4
+    c1=0.85
 
     # initial markov chain
     current_position = np.copy(initial_position)
@@ -1983,14 +1982,10 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                     step_size*proposal_covariance.dot(current_log_likelihood_gradient[unknown_parameter_indices])/2 +
                                                     np.sqrt(step_size)*proposal_cholesky.dot(np.random.normal(size=number_of_parameters)) )
 
-        # print('proposal: ',proposal)
-
         # compute transition probabilities for acceptance step
         # fix known parameters
         if known_parameter_dict != None:
             proposal[known_parameter_indices] = np.copy(known_parameters)
-
-        ######################################################################
 
         try:
             # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
@@ -2000,9 +1995,9 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
             proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(10)
-        except ValueError:
-            print('value error!')
-            proposal_log_likelihood = -np.inf
+            print(proposal_log_likelihood)
+            print('step_size: ',step_size)
+            print('acceptance rate: ',accepted_moves/iteration_index)
         except mp.TimeoutError:
             print('I have found a TimeoutError!')
             likelihood_calculations_pool.close()
@@ -2013,6 +2008,9 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
             proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(10)
+            print(proposal_log_likelihood)
+            print('step_size: ',step_size)
+            print('acceptance rate: ',accepted_moves/iteration_index)
 
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
@@ -2020,7 +2018,7 @@ def generic_mala(likelihood_and_derivative_calculator,
                 mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
             # LAP stuff also needed here
-            if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(number_of_samples/2):
+            if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
                 r_hat = accepted_moves/iteration_index
                 block_sample = mcmc_samples[:iteration_index]
                 block_proposal_covariance = np.cov(block_sample.T)
@@ -2028,7 +2026,7 @@ def generic_mala(likelihood_and_derivative_calculator,
                 gamma_2 = c0*gamma_1
                 log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(r_hat - 0.574)
                 step_size = np.sqrt(np.exp(log_step_size_squared))
-                proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 0.00001*np.eye(number_of_parameters)
+                proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(number_of_parameters)
                 proposal_cholesky = np.linalg.cholesky(proposal_covariance)
                 proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
             continue
@@ -2047,11 +2045,13 @@ def generic_mala(likelihood_and_derivative_calculator,
             current_log_likelihood_gradient = proposal_log_likelihood_gradient
             accepted_moves += 1
 
+
+
         if iteration_index%thinning_rate == 0:
             mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
         # LAP stuff
-        if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(number_of_samples/2):
+        if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
             r_hat = accepted_moves/iteration_index
             block_sample = mcmc_samples[:iteration_index]
             block_proposal_covariance = np.cov(block_sample.T)
@@ -2059,13 +2059,13 @@ def generic_mala(likelihood_and_derivative_calculator,
             gamma_2 = c0*gamma_1
             log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(r_hat - 0.574)
             step_size = np.sqrt(np.exp(log_step_size_squared))
-            proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 0.00001*np.eye(number_of_parameters)
+            proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(number_of_parameters)
             proposal_cholesky = np.linalg.cholesky(proposal_covariance)
             proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
     return mcmc_samples
 
-def kalman_specific_likelihood_function(proposed_position,*args):
+def kalman_specific_likelihood_function(proposed_position,*specific_args):
     """
     Likelihood function called by the generic_mala function inside the kalman_mala function. It takes the
     proposed position and computes the likelihood and its gradient at that point.
@@ -2097,11 +2097,16 @@ def kalman_specific_likelihood_function(proposed_position,*args):
     """
     reparameterised_proposed_position = np.copy(proposed_position)
     reparameterised_proposed_position[[4,5]] = np.exp(reparameterised_proposed_position[[4,5]])
-    log_likelihood, log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(args[0],
-                                                                                                           reparameterised_proposed_position,
-                                                                                                           args[1])
-    log_likelihood_derivative[4] = reparameterised_proposed_position[4]*log_likelihood_derivative[4]
-    log_likelihood_derivative[5] = reparameterised_proposed_position[5]*log_likelihood_derivative[5]
+    log_likelihood, log_likelihood_derivative = 0, np.zeros(proposed_position.shape[0])
+    for protein_at_observations in specific_args[0]:
+        single_log_likelihood, single_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
+                                                                                                                             reparameterised_proposed_position,
+                                                                                                                             specific_args[1],
+                                                                                                                             specific_args[2])
+        single_log_likelihood_derivative[4] = reparameterised_proposed_position[4]*single_log_likelihood_derivative[4]
+        single_log_likelihood_derivative[5] = reparameterised_proposed_position[5]*single_log_likelihood_derivative[5]
+        log_likelihood += single_log_likelihood
+        log_likelihood_derivative += single_log_likelihood_derivative
     return log_likelihood, log_likelihood_derivative
 
 def kalman_mala(protein_at_observations,
@@ -2120,10 +2125,10 @@ def kalman_mala(protein_at_observations,
     Parameters
     ----------
 
-    protein_at_observations : numpy array
-        Observed protein. The dimension is n x 2, where n is the number of observation time points.
-        The first column is the time, and the second column is the observed protein copy number at
-        that time. The filter assumes that observations are generated with a fixed, regular time interval.
+    protein_at_observations : numpy array of numpy arrays
+        Collection of observed protein values. For each numpy array, the dimension is n x 2, where n is the number of
+        observation time points. The first column is the time, and the second column is the observed protein copy number
+        at that time. The filter assumes that observations are generated with a fixed, regular time interval.
 
     measurement_variance : float.
         The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
@@ -2157,7 +2162,8 @@ def kalman_mala(protein_at_observations,
         are the accepted positions in parameter space
 
     """
-    kalman_args = (protein_at_observations,measurement_variance)
+    mean_protein = np.mean([np.mean(i[j,1]) for i in protein_at_observations for j in range(i.shape[0])])
+    kalman_args = (protein_at_observations,mean_protein,measurement_variance)
     mcmc_samples = generic_mala(kalman_specific_likelihood_function,
                                 number_of_samples,
                                 initial_position,
