@@ -1905,7 +1905,6 @@ def generic_mala(likelihood_and_derivative_calculator,
             proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(number_of_parameters)
             proposal_cholesky = np.linalg.cholesky(proposal_covariance)
             proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
-        print(accepted_moves/iteration_index)
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
     return mcmc_samples
 
