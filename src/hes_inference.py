@@ -1547,6 +1547,7 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
         (uniform(5,40-5).pdf(model_parameters[6]) == 0) ):
         return -np.inf, np.zeros(number_of_parameters)
 
+
     _, _, _, _, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = kalman_filter(protein_at_observations,
                                                                                                                                                         model_parameters,
                                                                                                                                                         measurement_variance)
@@ -1800,15 +1801,15 @@ def generic_mala(likelihood_and_derivative_calculator,
     proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
 
     # initialise samples matrix and acceptance ratio counter
-    accepted_moves = 1
+    accepted_moves = 0
     mcmc_samples = np.zeros((number_of_samples,number_of_parameters))
     mcmc_samples[0] = initial_position[unknown_parameter_indices]
     number_of_iterations = number_of_samples*thinning_rate
 
     # set LAP parameters
-    k = 10
-    c0=1.0
-    c1=0.9
+    k = 1
+    c0 = 1.0
+    c1 = 0.7
 
     # initial markov chain
     current_position = np.copy(initial_position)
@@ -1853,13 +1854,14 @@ def generic_mala(likelihood_and_derivative_calculator,
             # ask the async result from above to return the new likelihood and gradient when it is ready
             proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(10)
 
+
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
             if iteration_index%thinning_rate == 0:
                 mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
             # LAP stuff also needed here
-            if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
+            if iteration_index%k == 0 and iteration_index > int(0.1*number_of_samples) and iteration_index < int(3*number_of_samples/4):
                 r_hat = accepted_moves/iteration_index
                 block_sample = mcmc_samples[:iteration_index]
                 block_proposal_covariance = np.cov(block_sample.T)
@@ -1892,7 +1894,7 @@ def generic_mala(likelihood_and_derivative_calculator,
             mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
         # LAP stuff
-        if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
+        if iteration_index%k == 0 and iteration_index > int(0.1*number_of_samples) and iteration_index < int(3*number_of_samples/4):
             r_hat = accepted_moves/iteration_index
             block_sample = mcmc_samples[:iteration_index]
             block_proposal_covariance = np.cov(block_sample.T)
@@ -1903,6 +1905,7 @@ def generic_mala(likelihood_and_derivative_calculator,
             proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(number_of_parameters)
             proposal_cholesky = np.linalg.cholesky(proposal_covariance)
             proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
+        print(accepted_moves/iteration_index)
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
     return mcmc_samples
 
