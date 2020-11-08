@@ -568,64 +568,206 @@ class TestInference(unittest.TestCase):
 
     def xest_plot_mala_posteriors(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
-        output = np.load(saving_path + 'mala_output_protein_observations_360_ps3_ds4_2d.npy')
+        loading_path             = os.path.join(os.path.dirname(__file__), 'data','')
+        ps_string = 'ps9_ds2'
+        true_parameters = np.load(loading_path + ps_string[:ps_string.find('_')] + '_parameter_values.npy')
 
-        hist_transcription, bins_transcription, _ = plt.hist(np.exp(output[:,2]),bins=30,density=True)
-        logbins_transcription = np.logspace(np.log(bins_transcription[0]),
-                                            np.log(bins_transcription[-1]),
+        output = np.load(saving_path + 'parallel_mala_output_protein_observations_'+ps_string +'.npy')
+        output = output.reshape(output.shape[0]*output.shape[1],output.shape[2])
+        import pdb; pdb.set_trace()
+
+        _, bins_transcription, _ = plt.hist(np.exp(output[:,2]),bins=30,density=True)
+        logbins_transcription = np.geomspace(bins_transcription[0],
+                                            bins_transcription[-1],
                                             len(bins_transcription))
 
         hist_translation, bins_translation, _ = plt.hist(np.exp(output[:,3]),bins=30,density=True)
-        logbins_translation = np.logspace(np.log(bins_translation[0]),
-                                            np.log(bins_translation[-1]),
-                                            len(bins_translation))
+        logbins_translation = np.geomspace(bins_translation[0],
+                                          bins_translation[-1],
+                                          len(bins_translation))
 
-        plt.clf()
+        mean_repression = round(np.mean(output[:,0]),-4) # round to nearest 10000
 
         my_figure = plt.figure(figsize=(15,4))
         # my_figure.text(.5,.005,'360 observations taken every 5 minutes',ha='center',fontsize=20)
         plt.subplot(1,5,1)
-        sns.kdeplot(output[:,0],bw=0.5)
-        _, bins, _ = plt.hist(output[:,0],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
-        plt.vlines(3407.99,0,0.00045,color='r',lw=2)
+        sns.kdeplot(output[:,0])
+        heights, bins, _ = plt.hist(output[:,0],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[0],0,1.1*max(heights),color='r',lw=2)
         plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xticks([0.5*mean_repression,1.5*mean_repression],labels=[int(0.5*mean_repression),int(1.5*mean_repression)])
         plt.title('Repression Threshold')
+        # import pdb; pdb.set_trace()
 
         plt.subplot(1,5,2)
         sns.kdeplot(output[:,1],bw=0.4)
-        _, bins, _ = plt.hist(output[:,1],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
-        plt.vlines(5.17,0,0.5,color='r',lw=2)
+        heights, bins, _ = plt.hist(output[:,1],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[1],0,1.1*max(heights),color='r',lw=2)
         plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
         plt.title('Hill Coefficient')
 
         plt.subplot(1,5,3)
         plt.xscale('log')
         sns.kdeplot(np.exp(output[:,2]),bw=0.1)
-        _, bins, _ = plt.hist(np.exp(output[:,2]),bins=logbins_transcription,density=True,ec='black',color='#20948B',alpha=0.3)
-        plt.vlines(15.86,0,0.09,color='r',lw=2)
-        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-18]-bins[-19])
-        plt.xticks([1,10,100],labels=[1,10,100])
+        heights, bins, _ = plt.hist(np.exp(output[:,2]),bins=logbins_transcription,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[4],0,1.1*max(heights),color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xticks([.5,1,10],labels=[.5,1,10])
         plt.title('Transcription Rate')
 
         plt.subplot(1,5,4)
         plt.xscale('log')
         sns.kdeplot(np.exp(output[:,3]),bw=0.3)
-        _, bins, _ = plt.hist(np.exp(output[:,3]),bins=logbins_translation,density=True,ec='black',color='#20948B',alpha=0.3)
-        plt.vlines(1.27,0,2,color='r',lw=2)
-        plt.xlim(xmin=2*bins[5]-bins[6],xmax=2*bins[-9]-bins[-10])
-        plt.xticks([0.5,1,2],labels=[0.5,1,2])
+        heights, bins, _ = plt.hist(np.exp(output[:,3]),bins=logbins_translation,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[5],0,1.1*max(heights),color='r',lw=2)
+        # plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xticks([10,50],labels=[10,50])
         plt.title('Translation Rate')
 
         plt.subplot(1,5,5)
         sns.kdeplot(output[:,4],bw=0.4)
-        _, bins, _ = plt.hist(output[:,4],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
-        plt.vlines(30,0,0.075,color='r',lw=2)
+        heights, bins, _ = plt.hist(output[:,4],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[6],0,1.1*max(heights),color='r',lw=2)
         plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
         plt.title('Transcriptional Delay')
 
         plt.tight_layout()
         # plt.show()
-        my_figure.savefig(os.path.join(saving_path,'ps3_ds4_posteriors_mala_2d.pdf'))
+        my_figure.savefig(os.path.join(saving_path,ps_string + '_posteriors_mala.pdf'))
+
+    def xest_plot_mh_posteriors(self):
+        saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
+        loading_path             = os.path.join('/home/mbbx4jba/parallel_random_walks/')
+        ps_string = 'ps2_ds2'
+        mh_chains = np.array([np.load(loading_path + i) for i in os.listdir(loading_path) if ps_string in i])
+        output = mh_chains[:,50000:,:].reshape(mh_chains.shape[0]*(mh_chains.shape[1]-50000),mh_chains.shape[2])
+        true_parameters = np.load(loading_path + ps_string[:ps_string.find('_')] + '_parameter_values.npy')
+
+        hist_transcription, bins_transcription, _ = plt.hist(np.exp(output[:,4]),bins=30,density=True)
+        logbins_transcription = np.geomspace(bins_transcription[0],
+                                             bins_transcription[-1],
+                                             len(bins_transcription))
+        plt.clf()
+
+        hist_translation, bins_translation, _ = plt.hist(np.exp(output[:,5]),bins=30,density=True)
+        logbins_translation = np.geomspace(bins_translation[0],
+                                           bins_translation[-1],
+                                           len(bins_translation))
+        # import pdb; pdb.set_trace()
+
+        plt.clf()
+
+        my_figure = plt.figure(figsize=(15,4))
+        # my_figure.text(.5,.005,'360 observations taken every 5 minutes',ha='center',fontsize=20)
+        plt.subplot(1,5,1)
+        sns.kdeplot(output[:,0])
+        heights, bins, _ = plt.hist(output[:,0],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[0],0,1.1*max(heights),color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.title('Repression Threshold')
+        # import pdb; pdb.set_trace()
+
+        plt.subplot(1,5,2)
+        sns.kdeplot(output[:,1],bw=0.4)
+        heights, bins, _ = plt.hist(output[:,1],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[1],0,1.1*max(heights),color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.title('Hill Coefficient')
+
+        plt.subplot(1,5,3)
+        plt.xscale('log')
+        sns.kdeplot(np.exp(output[:,4]),bw=0.1)
+        heights, bins, _ = plt.hist(np.exp(output[:,4]),bins=logbins_transcription,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[2],0,1.1*max(heights),color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xticks([1,10,50],labels=[1,10,50])
+        plt.title('Transcription Rate')
+
+        plt.subplot(1,5,4)
+        plt.xscale('log')
+        sns.kdeplot(np.exp(output[:,5]))
+        heights, bins, _ = plt.hist(np.exp(output[:,5]),bins=logbins_translation,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[3],0,1.1*max(heights),color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xticks([10,50],labels=[10,50])
+        plt.title('Translation Rate')
+
+        plt.subplot(1,5,5)
+        sns.kdeplot(output[:,6],bw=0.4)
+        heights, bins, _ = plt.hist(output[:,6],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(true_parameters[4],0,1.1*max(heights),color='r',lw=2)
+        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.title('Transcriptional Delay')
+
+        plt.tight_layout()
+        # plt.show()
+        my_figure.savefig(os.path.join(saving_path,ps_string + '_posteriors_mh.pdf'))
+
+    def xest_plot_experimental_posteriors(self):
+        saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
+        loading_path             = os.path.join(os.path.dirname(__file__), 'output','')
+        experiment_date = '280317p1'
+        chains = np.array([np.load(loading_path + i) for i in os.listdir(loading_path) if 'parallel_mala_output_'+experiment_date in i
+                                                                                       if 'npy' in i])
+        chain_strings = np.array([i for i in os.listdir(loading_path) if 'parallel_mala_output_'+experiment_date in i
+                                                                                       if 'npy' in i])
+        import pdb; pdb.set_trace()
+        for index, chain in enumerate(chains):
+            filename = chain_strings[index][chain_strings[index].find(experiment_date):chain_strings[index].find('.npy')] + '_posterior.pdf'
+
+            output = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
+            # import pdb; pdb.set_trace()
+
+            hist_transcription, bins_transcription, _ = plt.hist(np.exp(output[:,2]),bins=30,density=True)
+            logbins_transcription = np.geomspace(bins_transcription[0],
+                                                 bins_transcription[-1],
+                                                 len(bins_transcription))
+            plt.clf()
+
+            hist_translation, bins_translation, _ = plt.hist(np.exp(output[:,3]),bins=30,density=True)
+            logbins_translation = np.geomspace(bins_translation[0],
+                                               bins_translation[-1],
+                                               len(bins_translation))
+            # import pdb; pdb.set_trace()
+            plt.clf()
+
+            my_figure = plt.figure(figsize=(15,4))
+            plt.subplot(1,5,3)
+            # sns.kdeplot(output[:,0])
+            heights, bins, _ = plt.hist(output[:,0],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+            plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+            plt.title('Repression Threshold')
+
+            plt.subplot(1,5,5)
+            # sns.kdeplot(output[:,1],bw=0.4)
+            heights, bins, _ = plt.hist(output[:,1],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+            plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+            plt.title('Hill Coefficient')
+
+            plt.subplot(1,5,1)
+            plt.xscale('log')
+            # sns.kdeplot(np.exp(output[:,2]))
+            heights, bins, _ = plt.hist(np.exp(output[:,2]),bins=logbins_transcription,density=True,ec='black',color='#20948B',alpha=0.3)
+            plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+            plt.xticks([1,10,50],labels=[1,10,50])
+            plt.title('Transcription Rate')
+
+            plt.subplot(1,5,2)
+            plt.xscale('log')
+            # sns.kdeplot(np.exp(output[:,3]))
+            heights, bins, _ = plt.hist(np.exp(output[:,3]),bins=logbins_translation,density=True,ec='black',color='#20948B',alpha=0.3)
+            plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+            # plt.xticks([10,50],labels=[10,50])
+            plt.title('Translation Rate')
+
+            plt.subplot(1,5,4)
+            # sns.kdeplot(output[:,4],bw=0.4)
+            heights, bins, _ = plt.hist(output[:,4],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+            plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+            plt.title('Transcriptional Delay')
+
+            plt.tight_layout()
+            my_figure.savefig(os.path.join(saving_path,filename))
 
     def xest_compare_mala_random_walk_histograms(self):
         saving_path  = os.path.join(os.path.dirname(__file__), 'output','')
@@ -1070,33 +1212,53 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def xest_kalman_random_walk(self):
-        saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_at_observations = np.load(saving_path + '../output/protein_observations_360_ps3_ds4.npy')
-        # protein_at_observations = np.load(saving_path + 'kalman_test_trace_observations.npy')
-        previous_run            = np.load(saving_path + '../output/random_walk_hill_repression.npy')
+    def test_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
+        # load data and true parameter values
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        protein_at_observations = np.load(os.path.join(saving_path,data_filename))
+        ps_string_index_start = data_filename.find('ps')
+        ps_string_index_end = data_filename.find('_ds')
+        ps_string = data_filename[ps_string_index_start:ps_string_index_end]
+        true_parameter_values = np.load(os.path.join(saving_path,ps_string + '_parameter_values.npy'))
 
-        #previous_random_walk = previous_run[100000:,]
-
-        # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
         mean_protein = np.mean(protein_at_observations[:,1])
-        initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log10(15.86),np.log10(1.27),30]) # ps3
-        hyper_parameters = np.array([0,2*mean_protein,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
 
-        measurement_variance = 10000.0
-        iterations = 8000
-        #initial_state = np.array([np.mean(previous_random_walk[:,0]),np.mean(previous_random_walk[:,1]),
-        #                          np.mean(previous_random_walk[:,2]),np.mean(previous_random_walk[:,3]),
-        #                          np.mean(previous_random_walk[:,4]),np.mean(previous_random_walk[:,5]),
-        #                          np.mean(previous_random_walk[:,6])])
-        covariance    = np.cov(previous_run[:,[0,1,4,5,6]].T)
-        initial_state = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log10(15.86),np.log10(1.27),30]) # ps3
-        # covariance    = np.diag(np.array([25000000.0,0.1,0.2,0.2,4.5]))
-        step_size = 5.1
+        iterations = 100000
+        number_of_chains = 8
+        step_size = 1.0
+        measurement_variance = np.power(true_parameter_values[-1],2)
+        # draw random initial states for the parallel chains
+        from scipy.stats import uniform
+        initial_states = np.zeros((number_of_chains,7))
+        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+        for initial_state_index, _ in enumerate(initial_states):
+            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
+                                                                          np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
+        # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
+        hyper_parameters = np.array([0,2*mean_protein,2,4,0,1,0,1,0.01,60-0.01,0.01,40-0.01,5,35]) # uniform
+        covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
 
-        random_walk, acceptance_rate, _ = hes_inference.kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,step_size,covariance,initial_state)
-        print('acceptance rate was', acceptance_rate)
-        np.save(os.path.join(os.path.dirname(__file__), 'output','random_walk_hill_repression.npy'),random_walk)
+        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
+                                                          args=(iterations,
+                                                                protein_at_observations,
+                                                                hyper_parameters,
+                                                                measurement_variance,
+                                                                step_size,
+                                                                covariance,
+                                                                initial_state))
+                            for initial_state in initial_states ]
+        ## Let the pool know that these are all so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
+
+        array_of_chains = np.zeros((number_of_chains,iterations,5))
+        for chain_index, process_result in enumerate(process_results):
+            this_chain = process_result.get()
+            array_of_chains[chain_index,:,:] = this_chain
+        pool_of_processes.join()
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','mh_output_' + data_filename),array_of_chains)
 
         # my_figure = plt.figure(figsize=(4,10))
         # plt.subplot(7,1,1)
@@ -1526,7 +1688,7 @@ class TestInference(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
 
-    def test_mala_multiple_experimental_traces(self,experiment_date='040417',cluster='1'):
+    def xest_mala_multiple_experimental_traces(self,experiment_date='280317p1',cluster='3'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/selected_data_for_mala/')
         data_filename = experiment_date + '_cluster_' + cluster + '.npy'
@@ -1536,8 +1698,9 @@ class TestInference(unittest.TestCase):
                                                                                # mean of all protein across time
 
         mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
-        number_of_samples = 40000
-        number_of_chains = 8
+        number_of_samples = 50
+        number_of_chains = 1
+        import pdb; pdb.set_trace()
         measurement_variance = np.power(np.round(np.load(saving_path + experiment_date + "_measurement_variance_detrended.npy"),0),2)
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
@@ -1661,7 +1824,7 @@ class TestInference(unittest.TestCase):
 
     def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_280317p1_cell_12_cluster_3_detrended')]
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_040417_cluster_4')]
 
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)

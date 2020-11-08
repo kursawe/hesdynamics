@@ -238,7 +238,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
     else:
         final_observation_time = protein_at_observations[-1,0]
     # assign time entries
-    state_space_mean[:,0] = np.linspace(-time_delay,final_observation_time,total_number_of_states)
+    state_space_mean[:,0] = np.linspace(protein_at_observations[0,0]-discrete_delay,final_observation_time,total_number_of_states)
 
     # initialise initial covariance matrix
     state_space_variance = np.zeros((2*(total_number_of_states),2*(total_number_of_states)))
@@ -734,7 +734,6 @@ def kalman_prediction_step(state_space_mean,
         next_mean = np.maximum(next_mean,0)
         # indexing with 1:3 for numba
         state_space_mean[next_time_index,1:3] = next_mean
-
         # in the next lines we use for loop instead of np.ix_-like indexing for numba
         for short_row_index, long_row_index in enumerate([current_time_index,
                                                           total_number_of_states+current_time_index]):
@@ -1590,7 +1589,7 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     return log_likelihood, log_likelihood_derivative
 
 
-def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,acceptance_tuner,parameter_covariance,initial_state,**kwargs):
+def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measurement_variance,acceptance_tuner,proposal_covariance,initial_state,**kwargs):
     """
     A basic random walk metropolis algorithm that infers parameters for a given
     set of protein observations. The likelihood is calculated using the
@@ -1624,7 +1623,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         A scalar value which is to be tuned to get an optimal level of acceptance (0.234) in the random walk
         algorithm. See Roberts et. al. (1997)
 
-    parameter_covariance : numpy array.
+    proposal_covariance : numpy array.
         A 7x7 variance-covariance matrix of the state space parameters. It is obtained by first doing a run of the algorithm,
         and then computing the variance-covariance matrix of the output, after discarding burn-in.
 
@@ -1645,16 +1644,14 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     acceptance_tuner : float.
         A positive real number which determines the length of our step size in the random walk.
     """
-    np.random.seed()
-    # define set of valid optional inputs, and raise error if not valid
-    valid_kwargs = ['adaptive']
-    unknown_kwargs = [k for (k, v) in kwargs.items() if k not in valid_kwargs]
-    if len(unknown_kwargs):
-        raise TypeError("Did not understand the following kwargs:" " %s" % unknown_kwargs)
+    likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
 
-    identity = np.identity(5)
-    cholesky_covariance = np.linalg.cholesky(parameter_covariance+0.000001*identity)
-    #print(cholesky_covariance)
+    # LAP parameters
+    k = 10
+    c0 = 1.0
+    c1 = 0.9
+
+    cholesky_covariance = np.linalg.cholesky(proposal_covariance)
 
     number_of_hyper_parameters = hyper_parameters.shape[0]
     shape = hyper_parameters[0:number_of_hyper_parameters:2]
@@ -1668,223 +1665,73 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     random_walk = np.zeros((iterations,7))
     random_walk[0,:] = current_state
     reparameterised_current_state = np.copy(current_state)
-    reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
+    reparameterised_current_state[[4,5]] = np.exp(current_state[[4,5]])
     current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
-    current_log_prior = np.sum(uniform.logpdf(current_state,loc=shape,scale=scale))
+    current_log_prior = np.sum(uniform.logpdf(reparameterised_current_state,loc=shape,scale=scale))
     acceptance_count = 0
 
-    # if user chooses adaptive mcmc, the following will execute.
-    if kwargs.get("adaptive") == "true":
-        for step_index in range(1,iterations):
-            # after 50000 iterations, update the proposal covariance every 1000 iterations using previous samples
-            if step_index >= 50000:
-                if np.mod(step_index,1000) == 0:
-                    parameter_covariance = np.cov(random_walk[25000:step_index,(0,1,4,5,6)].T) + 0.0000000001*identity
-                    cholesky_covariance  = np.linalg.cholesky(parameter_covariance)
+    for step_index in range(1,iterations):
+        # progress measure
+        if step_index%(iterations//10)==0:
+            print("Progress: ",100*step_index//iterations,'%')
 
-            new_state = np.zeros(7)
-            new_state[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
-            new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + (0.95*acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5)) +
-            (0.05*0.1*0.2)*multivariate_normal.rvs(size=5))
+        new_state = np.zeros(7)
+        new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5))
+        # fix certain parameters
+        new_state[[2,3]] = np.copy(initial_state[[2,3]])
 
-            new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
-            positive_new_parameters = new_state[[0,1,2,3,6]]
-            if all(item > 0 for item in positive_new_parameters) == True and not new_log_prior == -np.inf:
-                # reparameterise
-                reparameterised_new_state            = np.copy(new_state)
-                reparameterised_current_state        = np.copy(current_state)
-                reparameterised_new_state[[4,5]]     = np.power(10,new_state[[4,5]])
-                reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
+        positive_new_parameters = new_state[[0,1,2,3,6]]
+        if all(item >= 0 for item in positive_new_parameters) == True:
+            # reparameterise
+            reparameterised_new_state            = np.copy(new_state)
+            reparameterised_new_state[[4,5]]     = np.exp(new_state[[4,5]])
+            new_log_prior = np.sum(uniform.logpdf(reparameterised_new_state,loc=shape,scale=scale))
 
-                try:
-                    # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
-                    # but which can be interrogated about the status of the calculation and so on
-                    new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point,
-                                                                              args = (protein_at_observations,
-                                                                                      reparameterised_new_state,
-                                                                                      measurement_variance))
+            try:
+                # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
+                # but which can be interrogated about the status of the calculation and so on
+                new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point,
+                                                                                 args = (protein_at_observations,
+                                                                                         reparameterised_new_state,
+                                                                                         measurement_variance))
+                # ask the async result from above to return the new likelihood and gradient when it is ready
+                new_log_likelihood = new_likelihood_result.get(10)
+            except mp.TimeoutError:
+                print('I have found a TimeoutError!')
+                likelihood_calculations_pool.close()
+                likelihood_calculations_pool.terminate()
+                likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
+                new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point,
+                                                                                 args = (protein_at_observations,
+                                                                                         reparameterised_new_state,
+                                                                                         measurement_variance))
+                # ask the async result from above to return the new likelihood and gradient when it is ready
+                new_log_likelihood = new_likelihood_result.get(10)
 
-                    # ask the async result from above to return the new likelihood when it is ready
-                    new_log_likelihood = new_likelihood_result.get(30)
-                except ValueError:
-                    print('value error!')
-                    new_log_likelihood = -np.inf
-                except mp.TimeoutError:
-                    print('I have found a TimeoutError!')
-                    likelihood_calculations_pool.close()
-                    likelihood_calculations_pool.terminate()
-                    likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
-                    new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point,
-                                                                              args = (protein_at_observations,
-                                                                                      reparameterised_new_state,
-                                                                                      measurement_variance))
-                    new_log_likelihood = new_likelihood_result.get(30)
+            acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
 
-                if np.mod(step_index,500) == 0:
-                    print('iteration number:',step_index)
-                    print('current state:\n',current_state)
-                    print('new log lik:', new_log_likelihood)
-                    print('cur log lik:', current_log_likelihood)
-                    print(float(acceptance_count)/step_index)
+            if np.random.uniform() < acceptance_ratio:
+                current_state = new_state
+                current_log_likelihood = new_log_likelihood
+                current_log_prior = new_log_prior
+                acceptance_count += 1
 
-                acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
+            # LAP stuff
+            if step_index%k == 0 and step_index > 1 and step_index < int(3*iterations/4):
+                r_hat = acceptance_count/step_index
+                block_sample = random_walk[:step_index,[0,1,4,5,6]]
+                block_proposal_covariance = np.cov(block_sample.T)
+                gamma_1 = 1/np.power(step_index,c1)
+                gamma_2 = c0*gamma_1
+                log_step_size_squared = np.log(np.power(acceptance_tuner,2)) + gamma_2*(r_hat - 0.234)
+                acceptance_tuner = np.sqrt(np.exp(log_step_size_squared))
+                proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(5)
+                cholesky_covariance = np.linalg.cholesky(proposal_covariance)
 
-                if np.random.uniform() < acceptance_ratio:
-                    current_state = new_state
-                    current_log_likelihood = new_log_likelihood
-                    current_log_prior = new_log_prior
-                    acceptance_count += 1
-
-            random_walk[step_index,:] = current_state
-        acceptance_rate = float(acceptance_count)/iterations
-#####################################################################################################################
-    else:
-        for step_index in range(1,iterations):
-            new_state = np.zeros(7)
-            new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5))
-            # fix certain parameters
-            new_state[[2,3,4,5,6]] = np.copy(initial_state[[2,3,4,5,6]])
-
-            positive_new_parameters = new_state[[0,1,2,3,6]]
-            if all(item > 0 for item in positive_new_parameters) == True:
-                new_log_prior = np.sum(uniform.logpdf(new_state,loc=shape,scale=scale))
-
-                # reparameterise
-                reparameterised_new_state            = np.copy(new_state)
-                reparameterised_current_state        = np.copy(current_state)
-                reparameterised_new_state[[4,5]]     = np.power(10,new_state[[4,5]])
-                reparameterised_current_state[[4,5]] = np.power(10,current_state[[4,5]])
-
-                # try:
-                #     # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
-                #     # but which can be interrogated about the status of the calculation and so on
-                #     new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point,
-                #                                                               args = (protein_at_observations,
-                #                                                                       reparameterised_new_state,
-                #                                                                       measurement_variance))
-                #
-                #     # ask the async result from above to return the new likelihood when it is ready
-                #     new_log_likelihood = new_likelihood_result.get(30)
-                # except ValueError:
-                #     new_log_likelihood = -np.inf
-                # except mp.TimeoutError:
-                #     likelihood_calculations_pool.close()
-                #     likelihood_calculations_pool.terminate()
-                #     likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
-                new_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,
-                                                                                 reparameterised_new_state,
-                                                                                 measurement_variance)
-
-                acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
-
-                if np.mod(step_index,5) == 0:
-                    print('iteration number:',step_index)
-                    print('current state:\n',current_state)
-                    print('new log lik:', new_log_likelihood)
-                    print('cur log lik:', current_log_likelihood)
-                    print(float(acceptance_count)/step_index)
-
-                if np.random.uniform() < acceptance_ratio:
-                    current_state = new_state
-                    current_log_likelihood = new_log_likelihood
-                    current_log_prior = new_log_prior
-                    acceptance_count += 1
-
-            random_walk[step_index,:] = current_state
-        acceptance_rate = float(acceptance_count)/iterations
-    return random_walk, acceptance_rate, acceptance_tuner
-
-def kalman_hmc(iterations,protein_at_observations,measurement_variance,initial_epsilon,number_of_leapfrog_steps,initial_parameters):
-    """
-    A basic random walk metropolis algorithm that infers parameters for a given
-    set of protein observations. The likelihood is calculated using the
-    calculate_likelihood_at_parameter_point function, and uninformative normal
-    priors are assumed.
-
-    Parameters
-    ----------
-
-    iterations : float.
-        The number of iterations desired.
-
-    protein_at_observations : numpy array.
-        An array containing protein observations over a given length of time.
-
-    Returns
-    -------
-
-    """
-    mass_matrix = np.identity(7)
-    current_position = initial_parameters
-    cholesky_mass_matrix = np.linalg.cholesky(mass_matrix)
-    inverse_mass_matrix = mass_matrix
-    # print(inverse_mass_matrix)
-
-    output = np.zeros((iterations,7))
-    for step_index in range(iterations):
-        epsilon = np.random.normal(initial_epsilon,np.sqrt(0.2*initial_epsilon))
-        position = current_position
-        position[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
-        momentum = cholesky_mass_matrix.dot(np.random.normal(0,1,len(position)))
-        current_momentum = momentum
-
-        print('momentum',momentum)
-        print('position',position)
-
-        # simulate hamiltonian dynamics
-        _, negative_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
-                                                                                                           position,
-                                                                                                           measurement_variance)
-
-        momentum = momentum - epsilon*negative_log_likelihood_derivative/2 # half step for momentum
-
-        for leapfrog_step_index in range(number_of_leapfrog_steps):
-            position = position + epsilon*inverse_mass_matrix.dot(momentum)
-            position[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
-            # handling constraint, all parameters must be positive
-            for i in np.where(position < 0):
-                position[i] *= -1
-                momentum[i] *= -1
-
-            if leapfrog_step_index != (number_of_leapfrog_steps - 1):
-                _, negative_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
-                                                                                                                   position,
-                                                                                                                   measurement_variance)
-                momentum = momentum - epsilon*negative_log_likelihood_derivative/2
-
-        _, negative_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
-                                                                                                           position,
-                                                                                                           measurement_variance)
-        momentum = momentum - epsilon*negative_log_likelihood_derivative/2 # half step for momentum
-
-        # acceptance/rejection Metropolis step
-        current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,
-                                                                             current_position,
-                                                                             measurement_variance)
-
-        current_kinetic_energy = current_momentum.dot(inverse_mass_matrix.dot(current_momentum))/2
-
-        proposed_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,
-                                                                              position,
-                                                                              measurement_variance)
-
-        # print(momentum)
-        proposed_kinetic_energy = momentum.dot(inverse_mass_matrix.dot(momentum))/2
-
-        print('current log likelihood',current_log_likelihood)
-        print('proposed log likelihood',proposed_log_likelihood)
-        # print('current kinetic energy',current_kinetic_energy)
-        # print('proposed kinetic energy',proposed_kinetic_energy)
-
-        if (np.random.uniform() < np.exp(-current_log_likelihood -
-                                         -proposed_log_likelihood +
-                                         -current_kinetic_energy -
-                                         -proposed_kinetic_energy)):
-            current_position = position
-
-        output[step_index] = current_position
-
-    return output
+        print(float(acceptance_count)/step_index)
+        random_walk[step_index,:] = current_state
+    acceptance_rate = float(acceptance_count)/iterations
+    return random_walk[:,[0,1,4,5,6]]
 
 def generic_mala(likelihood_and_derivative_calculator,
                  number_of_samples,
@@ -1959,9 +1806,9 @@ def generic_mala(likelihood_and_derivative_calculator,
     number_of_iterations = number_of_samples*thinning_rate
 
     # set LAP parameters
-    k = 1
+    k = 10
     c0=1.0
-    c1=0.85
+    c1=0.9
 
     # initial markov chain
     current_position = np.copy(initial_position)
