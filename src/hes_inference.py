@@ -1648,9 +1648,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
 
     # LAP parameters
-    k = 10
+    k = 1
     c0 = 1.0
-    c1 = 0.9
+    c1 = 0.7
 
     cholesky_covariance = np.linalg.cholesky(proposal_covariance)
 
@@ -1718,7 +1718,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 acceptance_count += 1
 
             # LAP stuff
-            if step_index%k == 0 and step_index > 1 and step_index < int(3*iterations/4):
+            if step_index%k == 0 and step_index > int(0.1*iterations) and step_index < int(3*iterations/4):
                 r_hat = acceptance_count/step_index
                 block_sample = random_walk[:step_index,[0,1,4,5,6]]
                 block_proposal_covariance = np.cov(block_sample.T)
