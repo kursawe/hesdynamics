@@ -57,7 +57,6 @@ class TestInference(unittest.TestCase):
         # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_test_trace_prediction_mean.npy'),state_space_mean)
         # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_test_trace_prediction_variance.npy'),state_space_variance)
         # np.save(os.path.join(os.path.dirname(__file__), 'output','kalman_test_trace_prediction_distributions.npy'),predicted_observation_distributions)
-        # import pdb; pdb.set_trace()
         # If above tests fail, comment them out to look at the plot below. Could be useful for identifying problems.
         # number_of_states = state_space_mean.shape[0]
         # protein_covariance_matrix = state_space_variance[number_of_states:,number_of_states:]
@@ -344,7 +343,6 @@ class TestInference(unittest.TestCase):
                 x_values = np.linspace(0.5*np.mean(protein_at_observations[:,1]),1.5*np.mean(protein_at_observations[:,1]),2000)
                 normal = np.trapz(np.exp(likelihood/2),x_values)
                 plt.plot(x_values,20*np.exp(likelihood/2)/normal)
-                import pdb; pdb.set_trace()
                 _, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
                 plt.title("Repression Threshold Likelihood and MALA")
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
@@ -580,7 +578,6 @@ class TestInference(unittest.TestCase):
 
         output = np.load(saving_path + 'parallel_mala_output_protein_observations_'+ps_string +'.npy')
         output = output.reshape(output.shape[0]*output.shape[1],output.shape[2])
-        import pdb; pdb.set_trace()
 
         _, bins_transcription, _ = plt.hist(np.exp(output[:,2]),bins=30,density=True)
         logbins_transcription = np.geomspace(bins_transcription[0],
@@ -603,7 +600,6 @@ class TestInference(unittest.TestCase):
         plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
         plt.xticks([0.5*mean_repression,1.5*mean_repression],labels=[int(0.5*mean_repression),int(1.5*mean_repression)])
         plt.title('Repression Threshold')
-        # import pdb; pdb.set_trace()
 
         plt.subplot(1,5,2)
         sns.kdeplot(output[:,1],bw=0.4)
@@ -659,7 +655,6 @@ class TestInference(unittest.TestCase):
         logbins_translation = np.geomspace(bins_translation[0],
                                            bins_translation[-1],
                                            len(bins_translation))
-        # import pdb; pdb.set_trace()
 
         plt.clf()
 
@@ -671,7 +666,6 @@ class TestInference(unittest.TestCase):
         plt.vlines(true_parameters[0],0,1.1*max(heights),color='r',lw=2)
         plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
         plt.title('Repression Threshold')
-        # import pdb; pdb.set_trace()
 
         plt.subplot(1,5,2)
         sns.kdeplot(output[:,1],bw=0.4)
@@ -717,12 +711,10 @@ class TestInference(unittest.TestCase):
                                                                                        if 'npy' in i])
         chain_strings = np.array([i for i in os.listdir(loading_path) if 'parallel_mala_output_'+experiment_date in i
                                                                                        if 'npy' in i])
-        import pdb; pdb.set_trace()
         for index, chain in enumerate(chains):
             filename = chain_strings[index][chain_strings[index].find(experiment_date):chain_strings[index].find('.npy')] + '_posterior.pdf'
 
             output = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
-            # import pdb; pdb.set_trace()
 
             hist_transcription, bins_transcription, _ = plt.hist(np.exp(output[:,2]),bins=30,density=True)
             logbins_transcription = np.geomspace(bins_transcription[0],
@@ -734,7 +726,6 @@ class TestInference(unittest.TestCase):
             logbins_translation = np.geomspace(bins_translation[0],
                                                bins_translation[-1],
                                                len(bins_translation))
-            # import pdb; pdb.set_trace()
             plt.clf()
 
             my_figure = plt.figure(figsize=(15,4))
@@ -811,7 +802,6 @@ class TestInference(unittest.TestCase):
 
         my_figure, ax = plt.subplots(2,2,figsize=(10,5))
         ax[0,0].acorr(mala_repression[:,0] - np.mean(mala_repression[:,0]),maxlags=numlags,color='#20948B',label='MALA',lw=2)
-        # import pdb; pdb.set_trace()
         ax[0,0].set_xlim(xmin=-0.05,xmax=numlags)
         ax[0,0].set_ylabel('Repression Threshold \n autocorrelation')
         ax[0,0].set_xlabel('Lags')
@@ -1252,7 +1242,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def test_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
+    def xest_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.load(os.path.join(saving_path,data_filename))
@@ -1495,7 +1485,6 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
-            import pdb; pdb.set_trace()
 
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
@@ -1560,8 +1549,6 @@ class TestInference(unittest.TestCase):
                 this_chain = process_result.get()
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
-
-            import pdb; pdb.set_trace()
 
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
@@ -1632,7 +1619,6 @@ class TestInference(unittest.TestCase):
                 this_chain = process_result.get()
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
-            import pdb; pdb.set_trace()
 
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
@@ -1709,7 +1695,6 @@ class TestInference(unittest.TestCase):
         mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
         number_of_samples = 50
         number_of_chains = 1
-        import pdb; pdb.set_trace()
         measurement_variance = np.power(np.round(np.load(saving_path + experiment_date + "_measurement_variance_detrended.npy"),0),2)
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
@@ -1951,7 +1936,6 @@ class TestInference(unittest.TestCase):
                                this_results[3],
                                measurement_variance])
 
-        import pdb; pdb.set_trace()
 
 
         np.save(saving_path + ps_string + "_parameter_values.npy",parameters)
