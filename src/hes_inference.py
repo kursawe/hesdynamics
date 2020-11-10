@@ -1719,12 +1719,12 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
 
             # LAP stuff
             if step_index%k == 0 and step_index > int(0.1*iterations) and step_index < int(3*iterations/4):
-                r_hat = acceptance_count/step_index
+                # r_hat = acceptance_count/step_index
                 block_sample = random_walk[:step_index,[0,1,4,5,6]]
                 block_proposal_covariance = np.cov(block_sample.T)
                 gamma_1 = 1/np.power(step_index,c1)
                 gamma_2 = c0*gamma_1
-                log_step_size_squared = np.log(np.power(acceptance_tuner,2)) + gamma_2*(r_hat - 0.234)
+                log_step_size_squared = np.log(np.power(acceptance_tuner,2)) + gamma_2*(acceptance_ratio - 0.234)
                 acceptance_tuner = np.sqrt(np.exp(log_step_size_squared))
                 proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(5)
                 cholesky_covariance = np.linalg.cholesky(proposal_covariance)
@@ -1861,18 +1861,19 @@ def generic_mala(likelihood_and_derivative_calculator,
                 mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
             # LAP stuff also needed here
-            if iteration_index%k == 0 and iteration_index > int(0.1*number_of_samples) and iteration_index < int(3*number_of_samples/4):
-                r_hat = accepted_moves/iteration_index
-                block_sample = mcmc_samples[:iteration_index]
-                block_proposal_covariance = np.cov(block_sample.T)
-                gamma_1 = 1/np.power(iteration_index,c1)
-                gamma_2 = c0*gamma_1
-                log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(r_hat - 0.574)
-                step_size = np.sqrt(np.exp(log_step_size_squared))
-                proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(number_of_parameters)
-                proposal_cholesky = np.linalg.cholesky(proposal_covariance)
-                proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
-            continue
+            # acceptance_probability = 0
+            # if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
+            #     block_sample = mcmc_samples[:iteration_index]
+            #     block_proposal_covariance = np.cov(block_sample.T)
+            #     gamma_1 = 1/np.power(iteration_index,c1)
+            #     gamma_2 = c0*gamma_1
+            #     log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(acceptance_probability - 0.574)
+            #     step_size = np.sqrt(np.exp(log_step_size_squared))
+            #     proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(number_of_parameters)
+            #     print(-np.inf,step_size*proposal_covariance[0,0],acceptance_probability)
+            #     proposal_cholesky = np.linalg.cholesky(proposal_covariance)
+            #     proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
+            # continue
 
         forward_helper_variable = ( proposal[unknown_parameter_indices] - current_position[unknown_parameter_indices] -
                                     step_size*proposal_covariance.dot(current_log_likelihood_gradient[unknown_parameter_indices])/2 )
@@ -1882,25 +1883,24 @@ def generic_mala(likelihood_and_derivative_calculator,
         transition_kernel_pdf_backward = -np.transpose(backward_helper_variable).dot(proposal_covariance_inverse).dot(backward_helper_variable)/(2*step_size)
 
         # accept-reject step
-        if(np.random.uniform() < np.exp(proposal_log_likelihood - transition_kernel_pdf_forward - current_log_likelihood + transition_kernel_pdf_backward)):
+        acceptance_probability = min(1,np.exp(proposal_log_likelihood - transition_kernel_pdf_forward - current_log_likelihood + transition_kernel_pdf_backward))
+        if(np.random.uniform() < acceptance_probability):
             current_position = proposal
             current_log_likelihood = proposal_log_likelihood
             current_log_likelihood_gradient = proposal_log_likelihood_gradient
             accepted_moves += 1
 
-
-
         if iteration_index%thinning_rate == 0:
             mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
         # LAP stuff
-        if iteration_index%k == 0 and iteration_index > int(0.1*number_of_samples) and iteration_index < int(3*number_of_samples/4):
-            r_hat = accepted_moves/iteration_index
+        if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
+            # r_hat = accepted_moves/iteration_index
             block_sample = mcmc_samples[:iteration_index]
             block_proposal_covariance = np.cov(block_sample.T)
             gamma_1 = 1/np.power(iteration_index,c1)
             gamma_2 = c0*gamma_1
-            log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(r_hat - 0.574)
+            log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(acceptance_probability - 0.574)
             step_size = np.sqrt(np.exp(log_step_size_squared))
             proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(number_of_parameters)
             proposal_cholesky = np.linalg.cholesky(proposal_covariance)

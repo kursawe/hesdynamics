@@ -1252,7 +1252,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def test_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
+    def xest_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.load(os.path.join(saving_path,data_filename))
@@ -1418,7 +1418,7 @@ class TestInference(unittest.TestCase):
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
 
-    def xest_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_1.npy'):
+    def test_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_3.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
@@ -1472,7 +1472,7 @@ class TestInference(unittest.TestCase):
             # initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
             # initial_states[:,(0,1,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
 
-            step_size = 0.01
+            step_size = 0.1
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1495,6 +1495,8 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
+            import pdb; pdb.set_trace()
+
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
 
@@ -1502,7 +1504,7 @@ class TestInference(unittest.TestCase):
             # warm up chain
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
             proposal_covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
-            step_size = 0.01
+            step_size = 0.1
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1536,7 +1538,7 @@ class TestInference(unittest.TestCase):
 
             samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
             proposal_covariance = np.cov(samples_with_burn_in.T)
-            step_size = 0.01
+            step_size = 0.1
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1559,6 +1561,8 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
+            import pdb; pdb.set_trace()
+
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
 
@@ -1570,8 +1574,8 @@ class TestInference(unittest.TestCase):
         mean_protein = np.mean(protein_at_observations[:,1])
 
 
-        number_of_samples = 80000
-        number_of_chains = 8
+        number_of_samples = 2000
+        number_of_chains = 1
         measurement_variance = np.power(np.round(np.load(saving_path + experiment_date + "_measurement_variance_detrended.npy"),0),2)
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
@@ -1628,6 +1632,7 @@ class TestInference(unittest.TestCase):
                 this_chain = process_result.get()
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
+            import pdb; pdb.set_trace()
 
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
@@ -1828,12 +1833,12 @@ class TestInference(unittest.TestCase):
 
     def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_ps11_ds4')]
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output')
+                                                                  if 'fig5' in i]
 
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
-            mala = mala[[0,2,3,4,5,6,7],2000:,:]
-            import pdb; pdb.set_trace()
+            mala = mala[:,:,:]
             # mala[:,:,[2,3]] = np.exp(mala[:,:,[2,3]])
             chains = az.convert_to_dataset(mala)
             print('\n' + chain_path_string + '\n')
@@ -1842,7 +1847,6 @@ class TestInference(unittest.TestCase):
             az.plot_trace(chains); plt.savefig(loading_path + 'traceplot_' + chain_path_string[:-4] + '.png'); plt.clf()
             az.plot_posterior(chains); plt.savefig(loading_path + 'posterior_' + chain_path_string[:-4] + '.png'); plt.clf()
             az.plot_pair(chains,kind='kde'); plt.savefig(loading_path + 'pairplot_' + chain_path_string[:-4] + '.png'); plt.clf()
-            # import pdb; pdb.set_trace()
             # np.save(loading_path + chain_path_string,mala)
 
     def xest_accuracy_of_chains(self):
