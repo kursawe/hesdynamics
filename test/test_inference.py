@@ -1408,7 +1408,7 @@ class TestInference(unittest.TestCase):
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
 
-    def xest_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_3.npy'):
+    def test_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_3.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
