@@ -1668,7 +1668,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     reparameterised_current_state = np.copy(current_state)
     reparameterised_current_state[[4,5]] = np.exp(current_state[[4,5]])
     current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
-    current_log_prior = np.sum(uniform.logpdf(reparameterised_current_state,loc=shape,scale=scale))
     acceptance_count = 0
 
     for step_index in range(1,iterations):
@@ -1680,13 +1679,12 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5))
         # fix certain parameters
         new_state[[2,3]] = np.copy(initial_state[[2,3]])
+        # reparameterise
+        reparameterised_new_state            = np.copy(new_state)
+        reparameterised_new_state[[4,5]]     = np.exp(new_state[[4,5]])
+        new_log_prior = np.sum(uniform.logpdf(reparameterised_new_state,loc=shape,scale=scale))
 
-        positive_new_parameters = new_state[[0,1,2,3,6]]
-        if all(item >= 0 for item in positive_new_parameters) == True:
-            # reparameterise
-            reparameterised_new_state            = np.copy(new_state)
-            reparameterised_new_state[[4,5]]     = np.exp(new_state[[4,5]])
-            new_log_prior = np.sum(uniform.logpdf(reparameterised_new_state,loc=shape,scale=scale))
+        if new_log_prior != -np.inf:
 
             try:
                 # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
@@ -1709,12 +1707,11 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 # ask the async result from above to return the new likelihood and gradient when it is ready
                 new_log_likelihood = new_likelihood_result.get(10)
 
-            acceptance_ratio = np.exp(new_log_prior + new_log_likelihood - current_log_prior - current_log_likelihood)
+            acceptance_ratio = min(1,np.exp(new_log_likelihood - current_log_likelihood))
 
             if np.random.uniform() < acceptance_ratio:
                 current_state = new_state
                 current_log_likelihood = new_log_likelihood
-                current_log_prior = new_log_prior
                 acceptance_count += 1
 
             # LAP stuff
@@ -1729,7 +1726,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(5)
                 cholesky_covariance = np.linalg.cholesky(proposal_covariance)
 
-        print(float(acceptance_count)/step_index)
+        print('current acceptance: ',float(acceptance_count)/step_index)
+        print('acceptance prob: ',acceptance_ratio)
+        print()
         random_walk[step_index,:] = current_state
     acceptance_rate = float(acceptance_count)/iterations
     return random_walk[:,[0,1,4,5,6]]
@@ -1809,7 +1808,7 @@ def generic_mala(likelihood_and_derivative_calculator,
     # set LAP parameters
     k = 1
     c0 = 1.0
-    c1 = 0.7
+    c1 = 0.8
 
     # initial markov chain
     current_position = np.copy(initial_position)

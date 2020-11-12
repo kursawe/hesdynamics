@@ -8,7 +8,8 @@ import numpy as np
 
 def main():
     loading_path = os.path.join(os.path.dirname(__file__),'../data')
-    protein_datasets = np.array([file for file in os.listdir(loading_path) if 'fig5' in file])
+    protein_datasets = np.array([file for file in os.listdir(loading_path) if 'fig5' in file
+                                                                           if 'cells' not in file])
 
     saving_path = os.path.join(os.path.dirname(__file__),'joblist')
     if not os.path.exists(saving_path):
