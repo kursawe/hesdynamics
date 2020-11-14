@@ -309,8 +309,8 @@ class TestInference(unittest.TestCase):
         step_size = [55000.0,0.45,0.01,0.013,90.0]
         all_parameters = {'repression_threshold' : [0,true_parameter_values[0]],
                           'hill_coefficient' : [1,true_parameter_values[1]],
-                          'mRNA_degradation_rate' : [2,np.log(2)/30],
-                          'protein_degradation_rate' : [3,np.log(2)/90],
+                          'mRNA_degradation_rate' : [2,np.log(np.log(2)/30)],
+                          'protein_degradation_rate' : [3,np.log(np.log(2)/90)],
                           'basal_transcription_rate' : [4,np.log(true_parameter_values[4])],
                           'translation_rate' : [5,np.log(true_parameter_values[5])],
                           'transcription_delay' : [6,true_parameter_values[6]]}
@@ -486,8 +486,8 @@ class TestInference(unittest.TestCase):
         initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
         all_parameters = {'repression_threshold' : [0,3407.99],
                           'hill_coefficient' : [1,5.17],
-                          'mRNA_degradation_rate' : [2,np.log(2)/30],
-                          'protein_degradation_rate' : [3,np.log(2)/90],
+                          'mRNA_degradation_rate' : [2,np.log(np.log(2)/30)],
+                          'protein_degradation_rate' : [3,np.log(np.log(2)/90)],
                           'basal_transcription_rate' : [4,np.log(15.86)],
                           'translation_rate' : [5,np.log(1.27)],
                           'transcription_delay' : [6,30]}
@@ -1240,7 +1240,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def test_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
+    def xest_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.load(os.path.join(saving_path,data_filename))
@@ -1423,7 +1423,7 @@ class TestInference(unittest.TestCase):
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
         initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
+        initial_states[:,(2,3)] = np.array([np.log(true_parameter_values[2]),np.log(true_parameter_values[3])])
         for initial_state_index, _ in enumerate(initial_states):
             initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
                                                                           np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
@@ -1431,8 +1431,8 @@ class TestInference(unittest.TestCase):
         # define known parameters
         all_parameters = {'repression_threshold' : [0,true_parameter_values[0]],
                           'hill_coefficient' : [1,true_parameter_values[1]],
-                          'mRNA_degradation_rate' : [2,true_parameter_values[2]],
-                          'protein_degradation_rate' : [3,true_parameter_values[3]],
+                          'mRNA_degradation_rate' : [2,np.log(true_parameter_values[2])],
+                          'protein_degradation_rate' : [3,np.log(true_parameter_values[3])],
                           'basal_transcription_rate' : [4,np.log(true_parameter_values[4])],
                           'translation_rate' : [5,np.log(true_parameter_values[5])],
                           'transcription_delay' : [6,true_parameter_values[6]]}
@@ -1490,8 +1490,8 @@ class TestInference(unittest.TestCase):
         else:
             # warm up chain
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
-            proposal_covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
-            step_size = 0.1
+            proposal_covariance = np.eye(number_of_parameters)*np.array([1000000,.1,0.001,0.001,10])#np.diag([5e+3,0.03,0.01,0.01,1.0])
+            step_size = 0.01
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1518,7 +1518,7 @@ class TestInference(unittest.TestCase):
             print("Now sampling directly...")
             # make new initial states
             initial_states = np.zeros((number_of_chains,7))
-            initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
+            initial_states[:,(2,3)] = np.array([np.log(true_parameter_values[2]),np.log(true_parameter_values[3])])
             for initial_state_index, _ in enumerate(initial_states):
                 initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
                                                                               np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
@@ -1551,7 +1551,7 @@ class TestInference(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
 
-    def test_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps6_fig5_1_cells_15_minutes.npy'):
+    def test_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps11_fig5_1_cells_5_minutes.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
@@ -1568,7 +1568,7 @@ class TestInference(unittest.TestCase):
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
         initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
+        initial_states[:,(2,3)] = np.array([np.log(true_parameter_values[2]),np.log(true_parameter_values[3])])
         for initial_state_index, _ in enumerate(initial_states):
             initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
                                                                           np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
@@ -1576,8 +1576,8 @@ class TestInference(unittest.TestCase):
         # define known parameters
         all_parameters = {'repression_threshold' : [0,true_parameter_values[0]],
                           'hill_coefficient' : [1,true_parameter_values[1]],
-                          'mRNA_degradation_rate' : [2,true_parameter_values[2]],
-                          'protein_degradation_rate' : [3,true_parameter_values[3]],
+                          'mRNA_degradation_rate' : [2,np.log(true_parameter_values[2])],
+                          'protein_degradation_rate' : [3,np.log(true_parameter_values[3])],
                           'basal_transcription_rate' : [4,np.log(true_parameter_values[4])],
                           'translation_rate' : [5,np.log(true_parameter_values[5])],
                           'transcription_delay' : [6,true_parameter_values[6]]}
@@ -1628,15 +1628,14 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
-
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
 
         else:
             # warm up chain
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
-            proposal_covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
-            step_size = 0.1
+            proposal_covariance = np.eye(number_of_parameters)*np.array([1000000,.1,0.001,0.001,10])#np.diag([5e+3,0.03,0.01,0.01,1.0])
+            step_size = 0.01
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1659,18 +1658,20 @@ class TestInference(unittest.TestCase):
                 array_of_chains[chain_index,:,:] = this_chain
             pool_of_processes.join()
 
+            # import pdb; pdb.set_trace()
+
             # sample directly
             print("Now sampling directly...")
             # make new initial states
             initial_states = np.zeros((number_of_chains,7))
-            initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
+            initial_states[:,(2,3)] = np.array([np.log(true_parameter_values[2]),np.log(true_parameter_values[3])])
             for initial_state_index, _ in enumerate(initial_states):
                 initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
                                                                               np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
 
             samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
             proposal_covariance = np.cov(samples_with_burn_in.T)
-            step_size = 0.1
+            step_size = 0.01
 
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -1710,7 +1711,7 @@ class TestInference(unittest.TestCase):
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
         initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+        initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
         for initial_state_index, _ in enumerate(initial_states):
             initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
                                                                           np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
@@ -1718,8 +1719,8 @@ class TestInference(unittest.TestCase):
         # define known parameters
         all_parameters = {'repression_threshold' : [0,None],
                           'hill_coefficient' : [1,None],
-                          'mRNA_degradation_rate' : [2,np.log(2)/30],
-                          'protein_degradation_rate' : [3,np.log(2)/90],
+                          'mRNA_degradation_rate' : [2,np.log(np.log(2)/30)],
+                          'protein_degradation_rate' : [3,np.log(np.log(2)/90)],
                           'basal_transcription_rate' : [4,None],
                           'translation_rate' : [5,None],
                           'transcription_delay' : [6,None]}
@@ -1769,8 +1770,8 @@ class TestInference(unittest.TestCase):
         else:
             # warm up chain
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
-            proposal_covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
-            step_size = 0.001
+            proposal_covariance = np.eye(number_of_parameters)*np.array([1000000,.1,0.001,0.001,10])#np.diag([5e+3,0.03,0.01,0.01,1.0])
+            step_size = 0.01
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
                                                               args=(protein_at_observations,
@@ -1796,7 +1797,7 @@ class TestInference(unittest.TestCase):
             print("Now sampling directly...")
             # make new initial states
             initial_states = np.zeros((number_of_chains,7))
-            initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+            initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
             for initial_state_index, _ in enumerate(initial_states):
                 initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
                                                                               np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
@@ -1826,7 +1827,7 @@ class TestInference(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
 
-    def xest_mala_multiple_experimental_traces(self,experiment_date='280317p1',cluster='3'):
+    def test_mala_multiple_experimental_traces(self,experiment_date='280317p1',cluster='3'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/selected_data_for_mala/')
         data_filename = experiment_date + '_cluster_' + cluster + '.npy'
@@ -1836,13 +1837,13 @@ class TestInference(unittest.TestCase):
                                                                                # mean of all protein across time
 
         mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
-        number_of_samples = 50
-        number_of_chains = 1
+        number_of_samples = 80000
+        number_of_chains = 8
         measurement_variance = np.power(np.round(np.load(saving_path + experiment_date + "_measurement_variance_detrended.npy"),0),2)
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
         initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+        initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
         for initial_state_index, _ in enumerate(initial_states):
             initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(1),np.log(1),10]),
                                                                           np.array([mean_protein,3,np.log(60-1),np.log(40-1),25]))
@@ -1850,8 +1851,8 @@ class TestInference(unittest.TestCase):
         # define known parameters
         all_parameters = {'repression_threshold' : [0,None],
                           'hill_coefficient' : [1,None],
-                          'mRNA_degradation_rate' : [2,np.log(2)/30],
-                          'protein_degradation_rate' : [3,np.log(2)/90],
+                          'mRNA_degradation_rate' : [2,np.log(np.log(2)/30)],
+                          'protein_degradation_rate' : [3,np.log(np.log(2)/90)],
                           'basal_transcription_rate' : [4,None],
                           'translation_rate' : [5,None],
                           'transcription_delay' : [6,None]}
@@ -1901,8 +1902,8 @@ class TestInference(unittest.TestCase):
         else:
             # warm up chain
             print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
-            proposal_covariance = np.diag([500,0.05,0.01,0.01,1.0])
-            step_size = 0.2
+            proposal_covariance = np.eye(number_of_parameters)*np.array([1000000,.1,0.001,0.001,10])#np.diag([5e+3,0.03,0.01,0.01,1.0])
+            step_size = 0.01
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
                                                               args=(protein_at_observations,
@@ -1929,14 +1930,14 @@ class TestInference(unittest.TestCase):
             print("Now sampling directly...")
             # make new initial states
             initial_states = np.zeros((number_of_chains,7))
-            initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+            initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
             for initial_state_index, _ in enumerate(initial_states):
                 initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
                                                                               np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
 
             samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
             proposal_covariance = np.cov(samples_with_burn_in.T)
-            step_size = 0.2
+            step_size = 0.01
             pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
             process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
                                                               args=(protein_at_observations,
@@ -1959,10 +1960,142 @@ class TestInference(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
 
+    def test_mala_experimental_data_degradation(self,data_filename = 'protein_observations_040417_cell_1_cluster_4_detrended.npy'):
+        # load data and true parameter values
+        saving_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/selected_data_for_mala/')
+        protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
+        experiment_date = data_filename[data_filename.find('ns_')+3:data_filename.find('_cel')]
+        mean_protein = np.mean(protein_at_observations[:,1])
+
+
+        number_of_samples = 80000
+        number_of_chains = 8
+        measurement_variance = np.power(np.round(np.load(saving_path + experiment_date + "_measurement_variance_detrended.npy"),0),2)
+        # draw random initial states for the parallel chains
+        from scipy.stats import uniform
+        initial_states = np.zeros((number_of_chains,7))
+        # initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+        for initial_state_index, _ in enumerate(initial_states):
+            initial_states[initial_state_index,:] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(np.log(2)/200),np.log(np.log(2)/200),np.log(0.01),np.log(1),5]),
+                                                                          np.array([mean_protein,3,np.log(np.log(2)/10)-np.log(np.log(2)/200),np.log(np.log(2)/10)-np.log(np.log(2)/200),np.log(60-0.01),np.log(40-1),35]))
+
+        # define known parameters
+        all_parameters = {'repression_threshold' : [0,None],
+                          'hill_coefficient' : [1,None],
+                          'mRNA_degradation_rate' : [2,None],
+                          'protein_degradation_rate' : [3,None],
+                          'basal_transcription_rate' : [4,None],
+                          'translation_rate' : [5,None],
+                          'transcription_delay' : [6,None]}
+
+        known_parameters = {}#{k:all_parameters[k] for k in ('mRNA_degradation_rate',
+                             #                              'protein_degradation_rate') if k in all_parameters}
+
+        known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
+        unknown_parameter_indices = [i for i in range(len(initial_states[0])) if i not in known_parameter_indices]
+        number_of_parameters = len(unknown_parameter_indices)
+
+        # if we already have mcmc samples, we can use them to construct a covariance matrix to make sampling better
+        if os.path.exists(os.path.join(
+                          os.path.dirname(__file__),
+                          'output','parallel_mala_output_' + data_filename)):
+            print("Posterior samples already exist, sampling directly without warm up...")
+
+            mala_output = np.load(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename))
+            previous_number_of_samples = mala_output.shape[1]
+            previous_number_of_chains = mala_output.shape[0]
+
+            samples_with_burn_in = mala_output[:,int(previous_number_of_samples/2):,:].reshape(int(previous_number_of_samples/2)*previous_number_of_chains,mala_output.shape[2])
+            proposal_covariance = np.cov(samples_with_burn_in.T)
+            step_size = 0.01
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+                                                              args=(protein_at_observations,
+                                                                    measurement_variance,
+                                                                    number_of_samples,
+                                                                    initial_state,
+                                                                    step_size,
+                                                                    proposal_covariance,
+                                                                    1,
+                                                                    known_parameters))
+                                for initial_state in initial_states ]
+            pool_of_processes.close()
+
+            array_of_chains = np.zeros((number_of_chains,number_of_samples,number_of_parameters))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
+
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
+            array_of_chains)
+
+        else:
+            # warm up chain
+            print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
+            proposal_covariance = np.diag([5e+3,0.03,0.001,0.001,0.01,0.01,1.0])
+            step_size = 0.005
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+                                                              args=(protein_at_observations,
+                                                                    measurement_variance,
+                                                                    number_of_samples,
+                                                                    initial_state,
+                                                                    step_size,
+                                                                    proposal_covariance,
+                                                                    1,
+                                                                    known_parameters))
+                                for initial_state in initial_states ]
+            ## Let the pool know that these are all so that the pool will exit afterwards
+            # this is necessary to prevent memory overflows.
+            pool_of_processes.close()
+
+            array_of_chains = np.zeros((number_of_chains,number_of_samples,number_of_parameters))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
+
+            # sample directly
+            print("Now sampling directly...")
+            # make new initial states
+            initial_states = np.zeros((number_of_chains,7))
+            initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
+            for initial_state_index, _ in enumerate(initial_states):
+                initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
+                                                                              np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
+
+            samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
+            proposal_covariance = np.cov(samples_with_burn_in.T)
+            step_size = 0.005
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+                                                              args=(protein_at_observations,
+                                                                    measurement_variance,
+                                                                    number_of_samples,
+                                                                    initial_state,
+                                                                    step_size,
+                                                                    proposal_covariance,
+                                                                    1,
+                                                                    known_parameters))
+                                for initial_state in initial_states ]
+            pool_of_processes.close()
+
+            array_of_chains = np.zeros((number_of_chains,number_of_samples,number_of_parameters))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
+
+            import pdb; pdb.set_trace()
+
+            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
+            array_of_chains)
+
     def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output')
-                                                                  if 'fig5' in i]
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_ps6_fig5_1')]
+                                                                  #if 'fig5' in i]
 
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)

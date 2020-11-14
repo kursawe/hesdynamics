@@ -1540,11 +1540,13 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
 
     number_of_parameters = model_parameters.shape[0]
 
-    if ((uniform(100,2*mean_protein-100).pdf(model_parameters[0]) == 0) or
-        (uniform(2,6-2).pdf(model_parameters[1]) == 0) or
-        (uniform(0.01,60-0.01).pdf(model_parameters[4]) == 0) or
-        (uniform(0.01,40-0.01).pdf(model_parameters[5]) == 0) or
-        (uniform(5,40-5).pdf(model_parameters[6]) == 0) ):
+    if ((uniform(50,2*mean_protein-50).pdf(model_parameters[0]) == 0) or
+        (uniform(1,10-1).pdf(model_parameters[1]) == 0) or
+        (uniform(np.log(2)/500,np.log(2)/10 - np.log(2)/500).pdf(model_parameters[2]) == 0) or
+        (uniform(np.log(2)/500,np.log(2)/10 - np.log(2)/500).pdf(model_parameters[3]) == 0) or
+        (uniform(0.01,5000-0.01).pdf(model_parameters[4]) == 0) or
+        (uniform(0.01,5000-0.01).pdf(model_parameters[5]) == 0) or
+        (uniform(1,40-1).pdf(model_parameters[6]) == 0) ):
         return -np.inf, np.zeros(number_of_parameters)
 
 
@@ -1726,9 +1728,6 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(5)
                 cholesky_covariance = np.linalg.cholesky(proposal_covariance)
 
-        print('current acceptance: ',float(acceptance_count)/step_index)
-        print('acceptance prob: ',acceptance_ratio)
-        print()
         random_walk[step_index,:] = current_state
     acceptance_rate = float(acceptance_count)/iterations
     return random_walk[:,[0,1,4,5,6]]
@@ -1856,23 +1855,23 @@ def generic_mala(likelihood_and_derivative_calculator,
 
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
+            # import pdb; pdb.set_trace()
             if iteration_index%thinning_rate == 0:
                 mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
             # LAP stuff also needed here
-            # acceptance_probability = 0
-            # if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
-            #     block_sample = mcmc_samples[:iteration_index]
-            #     block_proposal_covariance = np.cov(block_sample.T)
-            #     gamma_1 = 1/np.power(iteration_index,c1)
-            #     gamma_2 = c0*gamma_1
-            #     log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(acceptance_probability - 0.574)
-            #     step_size = np.sqrt(np.exp(log_step_size_squared))
-            #     proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(number_of_parameters)
-            #     print(-np.inf,step_size*proposal_covariance[0,0],acceptance_probability)
-            #     proposal_cholesky = np.linalg.cholesky(proposal_covariance)
-            #     proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
-            # continue
+            acceptance_probability = 0
+            if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
+                block_sample = mcmc_samples[:iteration_index]
+                block_proposal_covariance = np.cov(block_sample.T)
+                gamma_1 = 1/np.power(iteration_index,c1)
+                gamma_2 = c0*gamma_1
+                log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(acceptance_probability - 0.574)
+                step_size = np.sqrt(np.exp(log_step_size_squared))
+                # proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) #+ 1e-8*np.eye(number_of_parameters)
+                # proposal_cholesky = np.linalg.cholesky(proposal_covariance)
+                # proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
+            continue
 
         forward_helper_variable = ( proposal[unknown_parameter_indices] - current_position[unknown_parameter_indices] -
                                     step_size*proposal_covariance.dot(current_log_likelihood_gradient[unknown_parameter_indices])/2 )
@@ -1901,7 +1900,7 @@ def generic_mala(likelihood_and_derivative_calculator,
             gamma_2 = c0*gamma_1
             log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(acceptance_probability - 0.574)
             step_size = np.sqrt(np.exp(log_step_size_squared))
-            proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(number_of_parameters)
+            proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) #+ 1e-8*np.eye(number_of_parameters)
             proposal_cholesky = np.linalg.cholesky(proposal_covariance)
             proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
@@ -1938,13 +1937,15 @@ def kalman_specific_likelihood_function(proposed_position,*specific_args):
 
     """
     reparameterised_proposed_position = np.copy(proposed_position)
-    reparameterised_proposed_position[[4,5]] = np.exp(reparameterised_proposed_position[[4,5]])
+    reparameterised_proposed_position[[2,3,4,5]] = np.exp(reparameterised_proposed_position[[2,3,4,5]])
     log_likelihood, log_likelihood_derivative = 0, np.zeros(proposed_position.shape[0])
     for protein_at_observations in specific_args[0]:
         single_log_likelihood, single_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
                                                                                                                              reparameterised_proposed_position,
                                                                                                                              specific_args[1],
                                                                                                                              specific_args[2])
+        single_log_likelihood_derivative[2] = reparameterised_proposed_position[2]*single_log_likelihood_derivative[2]
+        single_log_likelihood_derivative[3] = reparameterised_proposed_position[3]*single_log_likelihood_derivative[3]
         single_log_likelihood_derivative[4] = reparameterised_proposed_position[4]*single_log_likelihood_derivative[4]
         single_log_likelihood_derivative[5] = reparameterised_proposed_position[5]*single_log_likelihood_derivative[5]
         log_likelihood += single_log_likelihood
