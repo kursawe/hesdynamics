@@ -1537,15 +1537,14 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
         The derivative of the log likelihood of the data, wrt each model parameter
     """
     from scipy.stats import norm, gamma, uniform
-
     number_of_parameters = model_parameters.shape[0]
 
     if ((uniform(50,2*mean_protein-50).pdf(model_parameters[0]) == 0) or
         (uniform(1,10-1).pdf(model_parameters[1]) == 0) or
         (uniform(np.log(2)/500,np.log(2)/10 - np.log(2)/500).pdf(model_parameters[2]) == 0) or
         (uniform(np.log(2)/500,np.log(2)/10 - np.log(2)/500).pdf(model_parameters[3]) == 0) or
-        (uniform(0.01,5000-0.01).pdf(model_parameters[4]) == 0) or
-        (uniform(0.01,5000-0.01).pdf(model_parameters[5]) == 0) or
+        (uniform(0.01,1000-0.01).pdf(model_parameters[4]) == 0) or
+        (uniform(0.01,1000-0.01).pdf(model_parameters[5]) == 0) or
         (uniform(1,40-1).pdf(model_parameters[6]) == 0) ):
         return -np.inf, np.zeros(number_of_parameters)
 
@@ -1696,7 +1695,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                          reparameterised_new_state,
                                                                                          measurement_variance))
                 # ask the async result from above to return the new likelihood and gradient when it is ready
-                new_log_likelihood = new_likelihood_result.get(10)
+                new_log_likelihood = new_likelihood_result.get(30)
             except mp.TimeoutError:
                 print('I have found a TimeoutError!')
                 likelihood_calculations_pool.close()
@@ -1707,7 +1706,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                          reparameterised_new_state,
                                                                                          measurement_variance))
                 # ask the async result from above to return the new likelihood and gradient when it is ready
-                new_log_likelihood = new_likelihood_result.get(10)
+                new_log_likelihood = new_likelihood_result.get(30)
 
             acceptance_ratio = min(1,np.exp(new_log_likelihood - current_log_likelihood))
 
@@ -1807,7 +1806,7 @@ def generic_mala(likelihood_and_derivative_calculator,
     # set LAP parameters
     k = 1
     c0 = 1.0
-    c1 = 0.8
+    c1 = 0.3
 
     # initial markov chain
     current_position = np.copy(initial_position)
@@ -1840,7 +1839,7 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                              args = (proposal,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
-            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(10)
+            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
         except mp.TimeoutError:
             print('I have found a TimeoutError!')
             likelihood_calculations_pool.close()
@@ -1850,27 +1849,26 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                              args = (proposal,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
-            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(10)
+            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
 
+        # some times giving nans - no idea why
+        if proposal_log_likelihood != -np.inf and np.any(np.isnan(proposal_log_likelihood_gradient)):
+            if iteration_index%thinning_rate == 0:
+                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
+            continue
 
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
-            # import pdb; pdb.set_trace()
             if iteration_index%thinning_rate == 0:
                 mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
             # LAP stuff also needed here
             acceptance_probability = 0
-            if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
-                block_sample = mcmc_samples[:iteration_index]
-                block_proposal_covariance = np.cov(block_sample.T)
+            if iteration_index%k == 0 and iteration_index > 1:
                 gamma_1 = 1/np.power(iteration_index,c1)
                 gamma_2 = c0*gamma_1
                 log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(acceptance_probability - 0.574)
                 step_size = np.sqrt(np.exp(log_step_size_squared))
-                # proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) #+ 1e-8*np.eye(number_of_parameters)
-                # proposal_cholesky = np.linalg.cholesky(proposal_covariance)
-                # proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
             continue
 
         forward_helper_variable = ( proposal[unknown_parameter_indices] - current_position[unknown_parameter_indices] -
@@ -1882,6 +1880,7 @@ def generic_mala(likelihood_and_derivative_calculator,
 
         # accept-reject step
         acceptance_probability = min(1,np.exp(proposal_log_likelihood - transition_kernel_pdf_forward - current_log_likelihood + transition_kernel_pdf_backward))
+        # print(acceptance_probability)
         if(np.random.uniform() < acceptance_probability):
             current_position = proposal
             current_log_likelihood = proposal_log_likelihood
@@ -1892,17 +1891,12 @@ def generic_mala(likelihood_and_derivative_calculator,
             mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
         # LAP stuff
-        if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(3*number_of_samples/4):
-            # r_hat = accepted_moves/iteration_index
-            block_sample = mcmc_samples[:iteration_index]
-            block_proposal_covariance = np.cov(block_sample.T)
+        if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(number_of_iterations/2):
             gamma_1 = 1/np.power(iteration_index,c1)
             gamma_2 = c0*gamma_1
             log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(acceptance_probability - 0.574)
             step_size = np.sqrt(np.exp(log_step_size_squared))
-            proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) #+ 1e-8*np.eye(number_of_parameters)
-            proposal_cholesky = np.linalg.cholesky(proposal_covariance)
-            proposal_covariance_inverse = np.linalg.inv(proposal_covariance)
+
     print("Acceptance ratio:",accepted_moves/number_of_iterations)
     return mcmc_samples
 
