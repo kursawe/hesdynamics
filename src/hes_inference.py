@@ -1651,7 +1651,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     # LAP parameters
     k = 1
     c0 = 1.0
-    c1 = 0.8
+    c1 = 0.3
 
     cholesky_covariance = np.linalg.cholesky(proposal_covariance)
 
@@ -1685,8 +1685,18 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
         reparameterised_new_state[[4,5]]     = np.exp(new_state[[4,5]])
         new_log_prior = np.sum(uniform.logpdf(reparameterised_new_state,loc=shape,scale=scale))
 
-        if new_log_prior != -np.inf:
+        if new_log_prior == -np.inf:
+            random_walk[step_index,:] = current_state
+            # LAP stuff also needed here
+            acceptance_ratio = 0
+            if step_index%k == 0 and step_index > 1:
+                gamma_1 = 1/np.power(step_index,c1)
+                gamma_2 = c0*gamma_1
+                log_step_size_squared = np.log(np.power(acceptance_tuner,2)) + gamma_2*(acceptance_ratio - 0.234)
+                acceptance_tuner = np.sqrt(np.exp(log_step_size_squared))
+            continue
 
+        else:
             try:
                 # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
                 # but which can be interrogated about the status of the calculation and so on
@@ -1716,16 +1726,11 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 acceptance_count += 1
 
             # LAP stuff
-            if step_index%k == 0 and step_index > 1 and step_index < int(3*iterations/4):
-                # r_hat = acceptance_count/step_index
-                block_sample = random_walk[:step_index,[0,1,4,5,6]]
-                block_proposal_covariance = np.cov(block_sample.T)
+            if step_index%k == 0 and step_index > 1:
                 gamma_1 = 1/np.power(step_index,c1)
                 gamma_2 = c0*gamma_1
                 log_step_size_squared = np.log(np.power(acceptance_tuner,2)) + gamma_2*(acceptance_ratio - 0.234)
                 acceptance_tuner = np.sqrt(np.exp(log_step_size_squared))
-                proposal_covariance = proposal_covariance + gamma_1*(block_proposal_covariance - proposal_covariance) + 1e-8*np.eye(5)
-                cholesky_covariance = np.linalg.cholesky(proposal_covariance)
 
         random_walk[step_index,:] = current_state
     acceptance_rate = float(acceptance_count)/iterations

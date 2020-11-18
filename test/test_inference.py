@@ -1239,7 +1239,7 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def xest_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
+    def test_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.load(os.path.join(saving_path,data_filename))
@@ -1250,20 +1250,55 @@ class TestInference(unittest.TestCase):
 
         mean_protein = np.mean(protein_at_observations[:,1])
 
-        iterations = 100000
+        iterations = 50000
         number_of_chains = 8
-        step_size = 0.1
+        step_size = 1.0
         measurement_variance = np.power(true_parameter_values[-1],2)
         # draw random initial states for the parallel chains
         from scipy.stats import uniform
+        initial_states = np.zeros((number_of_chains,7))
+        initial_states[:,(2,3)] = np.array([true_parameter_values[2],true_parameter_values[3]])
+        for initial_state_index, _ in enumerate(initial_states):
+            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
+                                                                          np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
+        # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
+        hyper_parameters = np.array([0,2*mean_protein,1,10-1,0,1,0,1,0.01,500-0.01,0.01,500-0.01,1,40-1]) # uniform
+        # covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
+
+        print("Warming up with ",iterations, "samples...")
+        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
+                                                          args=(iterations,
+                                                                protein_at_observations,
+                                                                hyper_parameters,
+                                                                measurement_variance,
+                                                                step_size,
+                                                                np.diag([mean_protein,1,0.5,0.5,10]),
+                                                                initial_state))
+                            for initial_state in initial_states ]
+        ## Let the pool know that these are all so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
+
+        array_of_chains = np.zeros((number_of_chains,iterations,5))
+        for chain_index, process_result in enumerate(process_results):
+            this_chain = process_result.get()
+            array_of_chains[chain_index,:,:] = this_chain
+        pool_of_processes.join()
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','mh_output_' + data_filename),array_of_chains)
+
+        # sample directly
+        print("Now sampling directly...")
+        # make new initial states
         initial_states = np.zeros((number_of_chains,7))
         initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
         for initial_state_index, _ in enumerate(initial_states):
             initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
                                                                           np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
-        # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
-        hyper_parameters = np.array([0,2*mean_protein,2,4,0,1,0,1,0.01,60-0.01,0.01,40-0.01,5,35]) # uniform
-        covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
+
+        samples_with_burn_in = array_of_chains[:,int(iterations/2):,:].reshape(int(iterations/2)*number_of_chains,array_of_chains.shape[-1])
+        proposal_covariance = np.cov(samples_with_burn_in.T)
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
@@ -1272,10 +1307,10 @@ class TestInference(unittest.TestCase):
                                                                 hyper_parameters,
                                                                 measurement_variance,
                                                                 step_size,
-                                                                covariance,
+                                                                proposal_covariance,
                                                                 initial_state))
                             for initial_state in initial_states ]
-        ## Let the pool know that these are all so that the pool will exit afterwards
+        ## Let the pool know that these are all finished so that the pool will exit afterwards
         # this is necessary to prevent memory overflows.
         pool_of_processes.close()
 
@@ -2095,12 +2130,12 @@ class TestInference(unittest.TestCase):
 
     def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_ps12_fig5_4')]
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_ps9_fig5_4')]
                                                                   #if 'fig5' in i]
 
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
-            mala = mala[[0],:,:]
+            mala = mala
             # mala[:,:,[2,3]] = np.exp(mala[:,:,[2,3]])
             chains = az.convert_to_dataset(mala)
             print('\n' + chain_path_string + '\n')
