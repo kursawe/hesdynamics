@@ -1294,7 +1294,7 @@ class TestInference(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','first_mh_output_' + data_filename),array_of_chains)
 
         # second burn in
-        print("Second burn in of ",np.int(0.7*iterations)," samples...")
+        print("Second burn in of ",str(np.int(0.7*iterations))," samples...")
         second_burnin_number_of_samples = np.int(0.7*iterations)
         # make new initial states
         initial_states = np.zeros((number_of_chains,7))
