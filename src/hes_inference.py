@@ -1540,14 +1540,13 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     number_of_parameters = model_parameters.shape[0]
 
     if ((uniform(50,2*mean_protein-50).pdf(model_parameters[0]) == 0) or
-        (uniform(1,10-1).pdf(model_parameters[1]) == 0) or
+        (uniform(2,6-2).pdf(model_parameters[1]) == 0) or
         (uniform(np.log(2)/500,np.log(2)/10 - np.log(2)/500).pdf(model_parameters[2]) == 0) or
         (uniform(np.log(2)/500,np.log(2)/10 - np.log(2)/500).pdf(model_parameters[3]) == 0) or
-        (uniform(0.01,1000-0.01).pdf(model_parameters[4]) == 0) or
-        (uniform(0.01,1000-0.01).pdf(model_parameters[5]) == 0) or
+        (uniform(0.01,120-0.01).pdf(model_parameters[4]) == 0) or
+        (uniform(0.01,40-0.01).pdf(model_parameters[5]) == 0) or
         (uniform(1,40-1).pdf(model_parameters[6]) == 0) ):
         return -np.inf, np.zeros(number_of_parameters)
-
 
     _, _, _, _, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = kalman_filter(protein_at_observations,
                                                                                                                                                         model_parameters,
@@ -1705,7 +1704,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                          reparameterised_new_state,
                                                                                          measurement_variance))
                 # ask the async result from above to return the new likelihood and gradient when it is ready
-                new_log_likelihood = new_likelihood_result.get(30)
+                new_log_likelihood = new_likelihood_result.get(60)
             except mp.TimeoutError:
                 print('I have found a TimeoutError!')
                 likelihood_calculations_pool.close()
@@ -1716,7 +1715,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                          reparameterised_new_state,
                                                                                          measurement_variance))
                 # ask the async result from above to return the new likelihood and gradient when it is ready
-                new_log_likelihood = new_likelihood_result.get(30)
+                new_log_likelihood = new_likelihood_result.get(120)
 
             acceptance_ratio = min(1,np.exp(new_log_likelihood - current_log_likelihood))
 
@@ -1834,9 +1833,9 @@ def generic_mala(likelihood_and_derivative_calculator,
 
         # compute transition probabilities for acceptance step
         # fix known parameters
+        # import pdb; pdb.set_trace()
         if known_parameter_dict != None:
             proposal[known_parameter_indices] = np.copy(known_parameters)
-
         try:
             # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
             # but which can be interrogated about the status of the calculation and so on
@@ -1844,23 +1843,28 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                              args = (proposal,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
-            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
+            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(60) # 60 seconds should be ok (includes jit)
         except mp.TimeoutError:
             print('I have found a TimeoutError!')
             likelihood_calculations_pool.close()
             likelihood_calculations_pool.terminate()
             likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
-            new_likelihood_result = likelihood_calculations_pool.apply_async(likelihood_and_derivative_calculator,
-                                                                             args = (proposal,
-                                                                                     *specific_args))
-            # ask the async result from above to return the new likelihood and gradient when it is ready
-            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(30)
+            try:
+                new_likelihood_result = likelihood_calculations_pool.apply_async(likelihood_and_derivative_calculator,
+                                                                                 args = (proposal,
+                                                                                         *specific_args))
+                # ask the async result from above to return the new likelihood and gradient when it is ready
+                proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(120) # 60 seconds was not ok, try 120
+            except ZeroDivisionError:
+                print("This is a zero division error")
+                print(proposal)
+                # print(proposal_log_likelihood)
 
-        # some times giving nans - no idea why
-        if proposal_log_likelihood != -np.inf and np.any(np.isnan(proposal_log_likelihood_gradient)):
-            if iteration_index%thinning_rate == 0:
-                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
-            continue
+        # # some times giving nans - no idea why
+        # if proposal_log_likelihood != -np.inf and np.any(np.isnan(proposal_log_likelihood_gradient)):
+        #     if iteration_index%thinning_rate == 0:
+        #         mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
+        #     continue
 
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
@@ -1896,7 +1900,7 @@ def generic_mala(likelihood_and_derivative_calculator,
             mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
 
         # LAP stuff
-        if iteration_index%k == 0 and iteration_index > 1 and iteration_index < int(number_of_iterations/2):
+        if iteration_index%k == 0 and iteration_index > 1:
             gamma_1 = 1/np.power(iteration_index,c1)
             gamma_2 = c0*gamma_1
             log_step_size_squared = np.log(np.power(step_size,2)) + gamma_2*(acceptance_probability - 0.574)
@@ -1939,6 +1943,8 @@ def kalman_specific_likelihood_function(proposed_position,*specific_args):
     reparameterised_proposed_position[[2,3,4,5]] = np.exp(reparameterised_proposed_position[[2,3,4,5]])
     log_likelihood, log_likelihood_derivative = 0, np.zeros(proposed_position.shape[0])
     for protein_at_observations in specific_args[0]:
+        # quick and dirty clean up (make data start at '0')
+        protein_at_observations[:,0] -= protein_at_observations[0,0]
         single_log_likelihood, single_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
                                                                                                                              reparameterised_proposed_position,
                                                                                                                              specific_args[1],
