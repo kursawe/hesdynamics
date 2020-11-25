@@ -1285,7 +1285,7 @@ class TestInference(unittest.TestCase):
         # this is necessary to prevent memory overflows.
         pool_of_processes.close()
 
-        array_of_chains = np.zeros((number_of_chains,iterations,5))
+        array_of_chains = np.zeros((number_of_chains,initial_burnin_number_of_samples,5))
         for chain_index, process_result in enumerate(process_results):
             this_chain = process_result.get()
             array_of_chains[chain_index,:,:] = this_chain
@@ -1294,7 +1294,7 @@ class TestInference(unittest.TestCase):
         np.save(os.path.join(os.path.dirname(__file__), 'output','first_mh_output_' + data_filename),array_of_chains)
 
         # second burn in
-        print("Second burn in of ",iterations," samples...")
+        print("Second burn in of ",np.int(0.7*iterations)," samples...")
         second_burnin_number_of_samples = np.int(0.7*iterations)
         # make new initial states
         initial_states = np.zeros((number_of_chains,7))
@@ -1320,7 +1320,7 @@ class TestInference(unittest.TestCase):
         # this is necessary to prevent memory overflows.
         pool_of_processes.close()
 
-        array_of_chains = np.zeros((number_of_chains,iterations,5))
+        array_of_chains = np.zeros((number_of_chains,second_burnin_number_of_samples,5))
         for chain_index, process_result in enumerate(process_results):
             this_chain = process_result.get()
             array_of_chains[chain_index,:,:] = this_chain
