@@ -10,7 +10,7 @@ import statsmodels.api as sm
 mpl.rcParams['mathtext.default'] = 'regular'
 # mpl.rcParams['text.usetex'] = True
 import matplotlib.pyplot as plt
-font = {'size'   : 16}
+font = {'size'   : 20}
 plt.rc('font', **font)
 import numpy as np
 import multiprocessing as mp
@@ -27,7 +27,7 @@ import hes5
 import hes_inference
 
 number_of_cpus = mp.cpu_count()
-
+font_size = 25
 class TestInference(unittest.TestCase):
 
     def xest_check_kalman_filter_not_broken(self):
@@ -296,16 +296,16 @@ class TestInference(unittest.TestCase):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
         loading_path             = os.path.join(os.path.dirname(__file__), 'output','')
 
-        protein_at_observations = np.array([np.load(saving_path + 'protein_observations_ps11_ds4.npy')])
-        true_parameter_values = np.load(os.path.join(saving_path,'ps11_parameter_values.npy'))
-        mala_output = np.load(saving_path + 'mala_output_1.npy')
+        protein_at_observations = np.array([np.load(saving_path + 'protein_observations_90_ps3_ds1.npy')])
+        true_parameter_values = np.load(os.path.join(saving_path,'ps3_parameter_values.npy'))
+        # mala_output = np.load(saving_path + 'mala_output_1.npy')
         number_of_samples = 200
         measurement_variance = np.power(true_parameter_values[-1],2)
 
         # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
         initial_position = true_parameter_values[[0,1,2,3,4,5,6]]
         initial_position[[4,5]] = np.log(initial_position[[4,5]])
-        proposal_covariance = np.cov(mala_output.T)
+        # proposal_covariance = np.cov(mala_output.T)
         step_size = [55000.0,0.45,0.01,0.013,90.0]
         all_parameters = {'repression_threshold' : [0,true_parameter_values[0]],
                           'hill_coefficient' : [1,true_parameter_values[1]],
@@ -325,8 +325,8 @@ class TestInference(unittest.TestCase):
                                                                   'translation_rate',
                                                                   'transcription_delay') if k in all_parameters}
 
-                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression_ps11.npy')):
-                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression_ps11.npy'))
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression.npy'))
                 else:
                     mala = hes_inference.kalman_mala(protein_at_observations,
                                                      measurement_variance,
@@ -336,17 +336,20 @@ class TestInference(unittest.TestCase):
                                                      thinning_rate=1,
                                                      known_parameter_dict=known_parameters)
 
-                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression_ps11.npy'),
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_repression.npy'),
                             mala)
 
-                likelihood = np.load(loading_path + "likelihood_repression_ps11.npy")
-                x_values = np.linspace(0.5*np.mean(protein_at_observations[:,1]),1.5*np.mean(protein_at_observations[:,1]),2000)
-                normal = np.trapz(np.exp(likelihood/2),x_values)
-                plt.plot(x_values,20*np.exp(likelihood/2)/normal)
-                _, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
-                plt.title("Repression Threshold Likelihood and MALA")
+                likelihood = np.load(loading_path + "likelihood_repression.npy")
+                x_values = np.linspace(0.2,2.0*np.mean(protein_at_observations[:,1]),2000)
+                normal = np.trapz(np.exp(likelihood),x_values)
+                # import pdb; pdb.set_trace()
+                plt.plot(2*x_values,np.exp(likelihood)/normal)
+                heights, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
+                plt.title("Repression Threshold")
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-                plt.savefig(saving_path + 'repression_likelihood_mala_ps11.png')
+                plt.vlines(true_parameter_values[0],0,1.1*max(heights),color='r',lw=2)
+                plt.tight_layout()
+                plt.savefig(loading_path + 'repression_likelihood_mala.png')
                 plt.clf()
 
             elif index == 1: # hill_coefficient
@@ -357,8 +360,8 @@ class TestInference(unittest.TestCase):
                                                                   'translation_rate',
                                                                   'transcription_delay') if k in all_parameters}
 
-                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill_ps11.npy')):
-                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill_ps11.npy'))
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill.npy'))
                 else:
                     mala = hes_inference.kalman_mala(protein_at_observations,
                                                      measurement_variance,
@@ -368,17 +371,20 @@ class TestInference(unittest.TestCase):
                                                      thinning_rate=1,
                                                      known_parameter_dict=known_parameters)
 
-                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill_ps11.npy'),
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_hill.npy'),
                             mala)
 
-                likelihood = np.load(loading_path + "likelihood_hill_ps11.npy")
-                x_values = np.linspace(2.0,6.0,2000)
+                likelihood = np.load(loading_path + "likelihood_hill.npy")
+                x_values = np.linspace(2.0,6.0,1000)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                _, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
-                plt.title("Hill Coefficient Likelihood and MALA")
+                heights, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
+                plt.title("Hill Coefficient ")
+                plt.vlines(true_parameter_values[1],0,1.1*max(heights),color='r',lw=2)
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-                plt.savefig(saving_path + 'hill_likelihood_mala_ps11.png')
+                plt.ylabel('Relative Probability')
+                plt.tight_layout()
+                plt.savefig(loading_path + 'hill_likelihood_mala.png')
                 plt.clf()
             elif index == 2: # transcription_rate
                 known_parameters = {k:all_parameters[k] for k in ('repression_threshold',
@@ -388,8 +394,8 @@ class TestInference(unittest.TestCase):
                                                                   'translation_rate',
                                                                   'transcription_delay') if k in all_parameters}
 
-                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription_ps11.npy')):
-                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription_ps11.npy'))
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription.npy'))
                 else:
                     mala = hes_inference.kalman_mala(protein_at_observations,
                                                      measurement_variance,
@@ -399,17 +405,20 @@ class TestInference(unittest.TestCase):
                                                      thinning_rate=1,
                                                      known_parameter_dict=known_parameters)
 
-                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription_ps11.npy'),
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_transcription.npy'),
                             mala)
 
-                likelihood = np.load(loading_path + "likelihood_transcription_ps11.npy")
-                x_values = np.linspace(0.01,60.0,2000)
+                likelihood = np.load(loading_path + "likelihood_transcription.npy")
+                x_values = np.linspace(0.01,60.0,200)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                _, bins, _ = plt.hist(np.exp(mala),density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
+                heights, bins, _ = plt.hist(np.exp(mala),density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-                plt.title("Transcription Likelihood and MALA")
-                plt.savefig(saving_path + 'transcription_likelihood_mala_ps11.png')
+                plt.vlines(true_parameter_values[4],0,1.1*max(heights),color='r',lw=2)
+                plt.title("Transcription Rate")
+                plt.xlabel('(1/min)')
+                plt.tight_layout()
+                plt.savefig(loading_path + 'transcription_likelihood_mala.png')
                 plt.clf()
 
             elif index == 3: # translation_rate
@@ -420,8 +429,8 @@ class TestInference(unittest.TestCase):
                                                                   'basal_transcription_rate',
                                                                   'transcription_delay') if k in all_parameters}
 
-                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation_ps11.npy')):
-                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation_ps11.npy'))
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation.npy'))
                 else:
                     mala = hes_inference.kalman_mala(protein_at_observations,
                                                      measurement_variance,
@@ -431,17 +440,19 @@ class TestInference(unittest.TestCase):
                                                      thinning_rate=1,
                                                      known_parameter_dict=known_parameters)
 
-                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation_ps11.npy'),
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_translation.npy'),
                             mala)
 
-                likelihood = np.load(loading_path + "likelihood_translation_ps11.npy")
+                likelihood = np.load(loading_path + "likelihood_translation.npy")
                 x_values = np.linspace(np.log(0.01),np.log(40),2000)
                 normal = np.trapz(np.exp(likelihood),np.exp(x_values))
                 plt.plot(np.exp(x_values),np.exp(likelihood)/normal)
-                _, bins, _ = plt.hist(np.exp(mala),density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
-                plt.title("Translation Likelihood and MALA")
+                heights, bins, _ = plt.hist(np.exp(mala),density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
+                plt.title("Translation ")
+                plt.vlines(true_parameter_values[5],0,1.1*max(heights),color='r',lw=2)
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-                plt.savefig(saving_path + 'translation_likelihood_mala_ps11.png')
+                plt.tight_layout()
+                plt.savefig(loading_path + 'translation_likelihood_mala.png')
                 plt.clf()
             elif index == 4: # transcription_delay
                 known_parameters = {k:all_parameters[k] for k in ('repression_threshold',
@@ -451,8 +462,8 @@ class TestInference(unittest.TestCase):
                                                                   'basal_transcription_rate',
                                                                   'translation_rate') if k in all_parameters}
 
-                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay_ps11.npy')):
-                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay_ps11.npy'))
+                if os.path.exists(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay.npy')):
+                    mala = np.load(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay.npy'))
                 else:
                     mala = hes_inference.kalman_mala(protein_at_observations,
                                                      measurement_variance,
@@ -462,17 +473,20 @@ class TestInference(unittest.TestCase):
                                                      thinning_rate=1,
                                                      known_parameter_dict=known_parameters)
 
-                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay_ps11.npy'),
+                    np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_delay.npy'),
                             mala)
 
-                likelihood = np.load(loading_path + "likelihood_delay_ps11.npy")
+                likelihood = np.load(loading_path + "likelihood_delay.npy")
                 x_values = np.linspace(5.0,40.0,200)
                 normal = np.trapz(np.exp(likelihood),x_values)
                 plt.plot(x_values,np.exp(likelihood)/normal)
-                _, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
+                heights, bins, _ = plt.hist(mala,density=True,bins=30,color='#20948B',alpha=0.3,ec='black')
+                plt.vlines(true_parameter_values[6],0,1.1*max(heights),color='r',lw=2)
                 plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-                plt.title("Transcriptional Delay Likelihood and MALA")
-                plt.savefig(saving_path + 'delay_likelihood_mala_ps11.png')
+                plt.xlabel('(min)')
+                plt.title("Transcriptional Delay")
+                plt.tight_layout()
+                plt.savefig(loading_path + 'delay_likelihood_mala.png')
                 plt.clf()
 
     def xest_kalman_mala_multiple_parameters(self):
@@ -573,8 +587,8 @@ class TestInference(unittest.TestCase):
     def xest_plot_mala_posteriors(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
         loading_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        ps_string = 'ps9_fig5_1'
-        true_parameters = np.load(loading_path + ps_string[:ps_string.find('_f')] + '_parameter_values.npy')
+        ps_string = 'ps11_ds4'
+        true_parameters = np.load(loading_path + ps_string[:ps_string.find('_d')] + '_parameter_values.npy')
 
         output = np.load(saving_path + 'parallel_mala_output_protein_observations_'+ps_string +'.npy')
         output = output.reshape(output.shape[0]*output.shape[1],output.shape[2])
@@ -593,21 +607,22 @@ class TestInference(unittest.TestCase):
 
         mean_repression = round(np.mean(output[:,0]),-4) # round to nearest 10000
 
-        my_figure = plt.figure(figsize=(16,5))
+        my_figure = plt.figure(figsize=(20,6))
         # my_figure.text(.5,.005,'360 observations taken every 5 minutes',ha='center',fontsize=20)
         plt.subplot(1,5,1)
         sns.kdeplot(output[:,0])
         heights, bins, _ = plt.hist(output[:,0],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
         plt.vlines(true_parameters[0],0,1.1*max(heights),color='r',lw=2)
-        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-        plt.xticks([0.5*mean_repression,1.5*mean_repression],labels=[int(0.5*mean_repression),int(1.5*mean_repression)])
+        plt.xlim(xmin=8000,xmax=70000)
+        # plt.xticks([0.5*mean_repression,1.5*mean_repression],labels=[int(0.5*mean_repression),int(1.5*mean_repression)])
         plt.title('Repression Threshold')
+        plt.ylabel('Probability',fontsize=font_size)
 
         plt.subplot(1,5,2)
         sns.kdeplot(output[:,1],bw=0.4)
         heights, bins, _ = plt.hist(output[:,1],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
         plt.vlines(true_parameters[1],0,1.1*max(heights),color='r',lw=2)
-        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xlim(xmin=2,xmax=6)
         plt.title('Hill Coefficient')
 
         plt.subplot(1,5,3)
@@ -615,8 +630,8 @@ class TestInference(unittest.TestCase):
         sns.kdeplot(output[:,2])
         heights, bins, _ = plt.hist(output[:,2],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
         plt.vlines(np.log(true_parameters[4]),0,1.1*max(heights),color='r',lw=2)
-        # plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-        # plt.xticks([10,50],labels=[10,50])
+        plt.xlim(xmin=-2,xmax=5)
+        plt.xlabel('(log(1/min))',fontsize=font_size)
         plt.title('$\log($Transcription Rate)')
 
         plt.subplot(1,5,4)
@@ -624,15 +639,16 @@ class TestInference(unittest.TestCase):
         sns.kdeplot(output[:,3])
         heights, bins, _ = plt.hist(output[:,3],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
         plt.vlines(np.log(true_parameters[5]),0,1.1*max(heights),color='r',lw=2)
-        # plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-        # plt.xticks([10,50],labels=[10,50])
+        plt.xlim(xmin=2,xmax=4)
+        plt.xlabel('(log(1/min))',fontsize=font_size)
         plt.title('log(Translation Rate)')
 
         plt.subplot(1,5,5)
         sns.kdeplot(output[:,4],bw=0.4)
         heights, bins, _ = plt.hist(output[:,4],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
         plt.vlines(true_parameters[6],0,1.1*max(heights),color='r',lw=2)
-        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xlim(xmin=5,xmax=40)
+        plt.xlabel('(min)',fontsize=font_size)
         plt.title('Transcriptional Delay')
 
         plt.tight_layout()
@@ -643,64 +659,55 @@ class TestInference(unittest.TestCase):
         saving_path             = os.path.join(os.path.dirname(__file__), 'output','')
         loading_path             = os.path.join(os.path.dirname(__file__), 'data','')
         ps_string = 'ps11_ds4'
-        mh_chains = np.load(saving_path + 'mh_output_protein_observations_' + ps_string + '.npy')
+        mh_chains = np.load(saving_path + 'final_mh_output_protein_observations_' + ps_string + '.npy')
         burn_in = 0
         output = mh_chains[:,burn_in:,:].reshape(mh_chains.shape[0]*(mh_chains.shape[1]-burn_in),mh_chains.shape[2])
         true_parameters = np.load(loading_path + ps_string[:ps_string.find('_')] + '_parameter_values.npy')
 
-        # import pdb; pdb.set_trace()
-        hist_transcription, bins_transcription, _ = plt.hist(np.exp(output[:,2]),bins=30,density=True)
-        logbins_transcription = np.geomspace(bins_transcription[0],
-                                             bins_transcription[-1],
-                                             len(bins_transcription))
-        plt.clf()
+        mean_repression = round(np.mean(output[:,0]),-4) # round to nearest 10000
 
-        hist_translation, bins_translation, _ = plt.hist(np.exp(output[:,3]),bins=30,density=True)
-        logbins_translation = np.geomspace(bins_translation[0],
-                                           bins_translation[-1],
-                                           len(bins_translation))
-
-        plt.clf()
-
-        my_figure = plt.figure(figsize=(15,4))
+        my_figure = plt.figure(figsize=(20,6))
         # my_figure.text(.5,.005,'360 observations taken every 5 minutes',ha='center',fontsize=20)
         plt.subplot(1,5,1)
         sns.kdeplot(output[:,0])
         heights, bins, _ = plt.hist(output[:,0],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
         plt.vlines(true_parameters[0],0,1.1*max(heights),color='r',lw=2)
-        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xlim(xmin=8000,xmax=70000)
+        # plt.xticks([0.5*mean_repression,1.5*mean_repression],labels=[int(0.5*mean_repression),int(1.5*mean_repression)])
         plt.title('Repression Threshold')
+        plt.ylabel('Probability',fontsize=font_size)
 
         plt.subplot(1,5,2)
         sns.kdeplot(output[:,1],bw=0.4)
         heights, bins, _ = plt.hist(output[:,1],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
         plt.vlines(true_parameters[1],0,1.1*max(heights),color='r',lw=2)
-        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xlim(xmin=2,xmax=6)
         plt.title('Hill Coefficient')
 
         plt.subplot(1,5,3)
-        plt.xscale('log')
-        sns.kdeplot(np.exp(output[:,2]),bw=0.1)
-        heights, bins, _ = plt.hist(np.exp(output[:,2]),bins=logbins_transcription,density=True,ec='black',color='#20948B',alpha=0.3)
-        plt.vlines(true_parameters[4],0,1.1*max(heights),color='r',lw=2)
-        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-        plt.xticks([1,10,50],labels=[1,10,50])
-        plt.title('Transcription Rate')
+        # plt.xscale('log')
+        sns.kdeplot(output[:,2])
+        heights, bins, _ = plt.hist(output[:,2],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(np.log(true_parameters[4]),0,1.1*max(heights),color='r',lw=2)
+        plt.xlim(xmin=-2,xmax=5)
+        plt.xlabel('(log(1/min))',fontsize=font_size)
+        plt.title('$\log($Transcription Rate)')
 
         plt.subplot(1,5,4)
-        plt.xscale('log')
-        sns.kdeplot(np.exp(output[:,3]))
-        heights, bins, _ = plt.hist(np.exp(output[:,3]),bins=logbins_translation,density=True,ec='black',color='#20948B',alpha=0.3)
-        plt.vlines(true_parameters[5],0,1.1*max(heights),color='r',lw=2)
-        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
-        plt.xticks([10,50],labels=[10,50])
-        plt.title('Translation Rate')
+        # plt.xscale('log')
+        sns.kdeplot(output[:,3])
+        heights, bins, _ = plt.hist(output[:,3],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
+        plt.vlines(np.log(true_parameters[5]),0,1.1*max(heights),color='r',lw=2)
+        plt.xlim(xmin=2,xmax=4)
+        plt.xlabel('(log(1/min))',fontsize=font_size)
+        plt.title('log(Translation Rate)')
 
         plt.subplot(1,5,5)
         sns.kdeplot(output[:,4],bw=0.4)
         heights, bins, _ = plt.hist(output[:,4],bins=20,density=True,ec='black',color='#20948B',alpha=0.3)
         plt.vlines(true_parameters[6],0,1.1*max(heights),color='r',lw=2)
-        plt.xlim(xmin=2*bins[0]-bins[1],xmax=2*bins[-1]-bins[-2])
+        plt.xlim(xmin=5,xmax=40)
+        plt.xlabel('(min)',fontsize=font_size)
         plt.title('Transcriptional Delay')
 
         plt.tight_layout()
@@ -777,58 +784,84 @@ class TestInference(unittest.TestCase):
 
         my_figure = plt.figure(figsize=(12,6))
         _,bins,_ = plt.hist(mala,density=True,bins=30,alpha=0.8,color='#20948B',label='MALA')
-        sns.kdeplot(mala[:,0],bw=0.35,color='#20948B')
-        plt.vlines(np.mean(mala[:,0]),0,4.1,color='#20948B')
-        plt.hist(random_walk[:,1],density=True,bins=30,alpha=0.6,color='#F18D9E',label='Random Walk')
-        sns.kdeplot(random_walk[:,1],bw=0.35,color='#F18D9E')
-        plt.vlines(np.mean(random_walk[:,1]),0,4.1,color='#F18D9E')
-        plt.vlines(5.17,0,4.1,color='k',label='True Mean')
-        plt.title("Hill Coefficient (Random Walk and MALA)")
+        sns.kdeplot(mala[:,0],bw=10,color='#20948B')
+        plt.vlines(np.mean(mala),0,.013,color='#20948B',label='MALA mean')
+        plt.hist(random_walk[:,0],density=True,bins=30,alpha=0.6,color='#F18D9E',label='MH')
+        sns.kdeplot(random_walk[:,0],bw=10,color='#F18D9E')
+        plt.vlines(np.mean(random_walk[:,0]),0,.013,color='#F18D9E',linestyle='dashed',label='MH Mean')
+        plt.vlines(3407.99,0,.013,color='k',label='True Mean')
+        plt.title("Repression Threshold (MH and MALA)",fontsize=40)
         plt.legend()
         plt.xlim(xmin=2*bins[0]-bins[2],xmax=2*bins[-1]-bins[-3])
+        plt.ylabel('Relative probability',fontsize=30)
         plt.tight_layout()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','algo_comparison_hill.png'))
+                                       'output','algo_comparison_repression.png'))
 
     def xest_compare_mala_random_walk_autocorrelation(self):
+        import emcee as em
         saving_path  = os.path.join(os.path.dirname(__file__), 'output','')
-        mala_hill = np.load(saving_path + 'mala_output_hill.npy')
-        random_walk_hill = np.load(saving_path + 'random_walk_hill.npy')
-        m
-        ala_repression = np.load(saving_path + 'mala_output_repression.npy')
-        random_walk_repression = np.load(saving_path + 'random_walk_repression.npy')
+        mala = np.load(saving_path + 'parallel_mala_output_protein_observations_ps11_ds4.npy')
+        random_walk = np.load(saving_path + 'final_mh_output_protein_observations_ps11_ds4.npy')
         numlags = 20
+        import pdb; pdb.set_trace()
 
-        mala_repression_lagtime = em.autocorr.integrated_time(mala_repression[:,0])
-        random_walk_repression_lagtime = em.autocorr.integrated_time(random_walk_repression[:,0])
-        mala_hill_lagtime = em.autocorr.integrated_time(mala_hill[:,0])
-        random_walk_hill_lagtime = em.autocorr.integrated_time(random_walk_hill[:,1])
 
-        my_figure, ax = plt.subplots(2,2,figsize=(10,5))
-        ax[0,0].acorr(mala_repression[:,0] - np.mean(mala_repression[:,0]),maxlags=numlags,color='#20948B',label='MALA',lw=2)
-        ax[0,0].set_xlim(xmin=-0.05,xmax=numlags)
-        ax[0,0].set_ylabel('Repression Threshold \n autocorrelation')
-        ax[0,0].set_xlabel('Lags')
-        ax[0,0].set_title('MALA')
-        ax[0,0].text(14.0,0.7,'$\\tau =$ ' + str(round(mala_repression_lagtime[0],2)))
-        ax[0,1].acorr(random_walk_repression[:,0] - np.mean(random_walk_repression[:,0]),maxlags=numlags,color='#F18D9E',label='MH',lw=2)
-        ax[0,1].set_xlim(xmin=-0.05,xmax=numlags)
-        ax[0,1].set_title('MH')
-        ax[0,1].text(14.0,0.7,'$\\tau =$ ' + str(round(random_walk_repression_lagtime[0],2)))
-        ax[0,1].set_xlabel('Lags')
-        ax[1,0].acorr(mala_hill[:,0] - np.mean(mala_hill[:,0]),maxlags=numlags,color='#20948B',lw=2)
-        ax[1,0].set_xlim(xmin=-0.05,xmax=numlags)
-        ax[1,0].set_xlabel('Lags')
-        ax[1,0].set_ylabel('Hill Coefficient \n autocorrelation')
-        ax[1,0].text(14.0,0.7,'$\\tau =$ ' + str(round(mala_hill_lagtime[0],2)))
-        ax[1,1].acorr(random_walk_hill[:,1] - np.mean(random_walk_hill[:,1]),maxlags=numlags,color='#F18D9E',lw=2)
-        ax[1,1].set_xlabel('Lags')
-        ax[1,1].text(14.0,0.7,'$\\tau =$ ' + str(round(random_walk_hill_lagtime[0],2)))
-        ax[1,1].set_xlim(xmin=-0.05,xmax=numlags)
+        mala_lagtimes = np.zeros((5,8))
+        random_walk_lagtimes = np.zeros((5,8))
+        for i in range(5):
+            for j in range(8):
+                mala_lagtimes[i,j] = em.autocorr.integrated_time(mala[j,:,i],quiet=True)
+                random_walk_lagtimes[i,j] = em.autocorr.integrated_time(random_walk[j,:,i],quiet=True)
+
+        for i in range(5):
+            print(i)
+            print(np.mean(mala_lagtimes[i]))
+            print(np.mean(random_walk_lagtimes[i]))
+
+        parameter_names = np.array(['Repression Threshold',
+                                    'Hill Coefficient',
+                                    'Transcription Rate',
+                                    'Translation Rate',
+                                    'Transcriptional Delay'])
+
+        myfigure = plt.figure(figsize=(10,2))
+        plt.scatter(parameter_names,[np.mean(mala_lagtimes[i])/np.mean(mala_lagtimes[i]) for i in range(5)],color='#20948B',label='MALA')
+        plt.scatter(parameter_names,[np.mean(random_walk_lagtimes[i])/np.mean(mala_lagtimes[i]) for i in range(5)],color='#F18D9E',label='MH')
         plt.tight_layout()
+        plt.xticks(rotation=45, ha="right")
+        plt.ylabel('Relative Lag Times')
+        plt.legend()
+        plt.show()
 
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','autocorrelation_plot.png'))
+        import pdb; pdb.set_trace()
+
+
+        # my_figure, ax = plt.subplots(2,2,figsize=(10,5))
+        # ax[0,0].acorr(mala_repression[:,0] - np.mean(mala_repression[:,0]),maxlags=numlags,color='#20948B',label='MALA',lw=2)
+        # ax[0,0].set_xlim(xmin=-0.05,xmax=numlags)
+        # ax[0,0].set_ylabel('Repression Threshold \n autocorrelation')
+        # ax[0,0].set_xlabel('Lags')
+        # ax[0,0].set_title('MALA')
+        # ax[0,0].text(14.0,0.7,'$\\tau =$ ' + str(round(mala_repression_lagtime[0],2)))
+        # ax[0,1].acorr(random_walk_repression[:,0] - np.mean(random_walk_repression[:,0]),maxlags=numlags,color='#F18D9E',label='MH',lw=2)
+        # ax[0,1].set_xlim(xmin=-0.05,xmax=numlags)
+        # ax[0,1].set_title('MH')
+        # ax[0,1].text(14.0,0.7,'$\\tau =$ ' + str(round(random_walk_repression_lagtime[0],2)))
+        # ax[0,1].set_xlabel('Lags')
+        # ax[1,0].acorr(mala_hill[:,0] - np.mean(mala_hill[:,0]),maxlags=numlags,color='#20948B',lw=2)
+        # ax[1,0].set_xlim(xmin=-0.05,xmax=numlags)
+        # ax[1,0].set_xlabel('Lags')
+        # ax[1,0].set_ylabel('Hill Coefficient \n autocorrelation')
+        # ax[1,0].text(14.0,0.7,'$\\tau =$ ' + str(round(mala_hill_lagtime[0],2)))
+        # ax[1,1].acorr(random_walk_hill[:,1] - np.mean(random_walk_hill[:,1]),maxlags=numlags,color='#F18D9E',lw=2)
+        # ax[1,1].set_xlabel('Lags')
+        # ax[1,1].text(14.0,0.7,'$\\tau =$ ' + str(round(random_walk_hill_lagtime[0],2)))
+        # ax[1,1].set_xlim(xmin=-0.05,xmax=numlags)
+        # plt.tight_layout()
+        #
+        # my_figure.savefig(os.path.join(os.path.dirname(__file__),
+        #                                'output','autocorrelation_plot.png'))
 
     def xest_compare_mala_random_walk_2d_autocorrelation(self):
         saving_path  = os.path.join(os.path.dirname(__file__), 'output','')
@@ -1254,7 +1287,7 @@ class TestInference(unittest.TestCase):
 
         mean_protein = np.mean(protein_at_observations[:,1])
 
-        iterations = 50000
+        iterations = 200000
         number_of_chains = 8
         step_size = 1.0
         measurement_variance = np.power(true_parameter_values[-1],2)
@@ -1269,98 +1302,145 @@ class TestInference(unittest.TestCase):
         hyper_parameters = np.array([50,2*mean_protein-50,2,6-2,0,1,0,1,0.01,120-0.01,0.01,40-0.01,1,40-1]) # uniform
         # covariance = np.diag([5e+3,0.03,0.01,0.01,1.0])
 
-        print("Initial burn in of ",str(np.int(iterations*0.3)), " samples...")
-        initial_burnin_number_of_samples = np.int(iterations*0.3)
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(initial_burnin_number_of_samples,
-                                                                protein_at_observations,
-                                                                hyper_parameters,
-                                                                measurement_variance,
-                                                                step_size,
-                                                                np.power(np.diag([2*mean_protein,4,9,8,39]),2),
-                                                                initial_state))
-                            for initial_state in initial_states ]
-        ## Let the pool know that these are all so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
+        # if we already have mcmc samples, we can use them to construct a covariance matrix to make sampling better
+        if os.path.exists(os.path.join(
+                          os.path.dirname(__file__),
+                          'output','final_mh_output_' + data_filename)):
+            print("Posterior samples already exist, sampling directly without warm up...")
+            array_of_chains = np.load(saving_path + '../output/final_mh_output_' + data_filename)
+            # start from mode
+            initial_states = np.zeros((number_of_chains,7))
+            initial_states[:] = np.array([true_parameter_values[0],
+                                          true_parameter_values[1],
+                                          true_parameter_values[2],
+                                          true_parameter_values[3],
+                                          np.log(true_parameter_values[4]),
+                                          np.log(true_parameter_values[5]),
+                                          true_parameter_values[6]])
 
-        array_of_chains = np.zeros((number_of_chains,initial_burnin_number_of_samples,5))
-        for chain_index, process_result in enumerate(process_results):
-            this_chain = process_result.get()
-            array_of_chains[chain_index,:,:] = this_chain
-        pool_of_processes.join()
+            print(initial_states)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','first_mh_output_' + data_filename),array_of_chains)
+            previous_number_of_samples = array_of_chains.shape[1]
+            previous_number_of_chains = array_of_chains.shape[0]
 
-        # second burn in
-        print("Second burn in of ",str(np.int(0.7*iterations))," samples...")
-        second_burnin_number_of_samples = np.int(0.7*iterations)
-        # make new initial states
-        initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
-        for initial_state_index, _ in enumerate(initial_states):
-            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
-                                                                          np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
+            samples_with_burn_in = array_of_chains[:,int(previous_number_of_samples/2):,:].reshape(int(previous_number_of_samples/2)*previous_number_of_chains,array_of_chains.shape[-1])
+            proposal_covariance = np.cov(samples_with_burn_in.T)
 
-        samples_with_burn_in = array_of_chains[:,int(initial_burnin_number_of_samples/2):,:].reshape(int(initial_burnin_number_of_samples/2)*number_of_chains,array_of_chains.shape[-1])
-        proposal_covariance = np.cov(samples_with_burn_in.T)
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
+                                                              args=(iterations,
+                                                                    protein_at_observations,
+                                                                    hyper_parameters,
+                                                                    measurement_variance,
+                                                                    step_size,
+                                                                    proposal_covariance,
+                                                                    initial_state))
+                                for initial_state in initial_states ]
+            ## Let the pool know that these are all finished so that the pool will exit afterwards
+            # this is necessary to prevent memory overflows.
+            pool_of_processes.close()
 
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(second_burnin_number_of_samples,
-                                                                protein_at_observations,
-                                                                hyper_parameters,
-                                                                measurement_variance,
-                                                                step_size,
-                                                                proposal_covariance,
-                                                                initial_state))
-                            for initial_state in initial_states ]
-        ## Let the pool know that these are all finished so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
+            array_of_chains = np.zeros((number_of_chains,iterations,5))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
 
-        array_of_chains = np.zeros((number_of_chains,second_burnin_number_of_samples,5))
-        for chain_index, process_result in enumerate(process_results):
-            this_chain = process_result.get()
-            array_of_chains[chain_index,:,:] = this_chain
-        pool_of_processes.join()
+            np.save(os.path.join(os.path.dirname(__file__), 'output','final_mh_output_' + data_filename),array_of_chains)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','second_mh_output_' + data_filename),array_of_chains)
+        else:
+            print("Initial burn in of ",str(np.int(iterations*0.3)), " samples...")
+            initial_burnin_number_of_samples = np.int(iterations*0.3)
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
+                                                              args=(initial_burnin_number_of_samples,
+                                                                    protein_at_observations,
+                                                                    hyper_parameters,
+                                                                    measurement_variance,
+                                                                    step_size,
+                                                                    np.power(np.diag([2*mean_protein,4,9,8,39]),2),
+                                                                    initial_state))
+                                for initial_state in initial_states ]
+            ## Let the pool know that these are all so that the pool will exit afterwards
+            # this is necessary to prevent memory overflows.
+            pool_of_processes.close()
 
-        # sample directly
-        print("Now sampling directly...")
-        # make new initial states
-        initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
-        for initial_state_index, _ in enumerate(initial_states):
-            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
-                                                                          np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
+            array_of_chains = np.zeros((number_of_chains,initial_burnin_number_of_samples,5))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
 
-        samples_with_burn_in = array_of_chains[:,int(second_burnin_number_of_samples/2):,:].reshape(int(second_burnin_number_of_samples/2)*number_of_chains,array_of_chains.shape[-1])
-        proposal_covariance = np.cov(samples_with_burn_in.T)
+            np.save(os.path.join(os.path.dirname(__file__), 'output','first_mh_output_' + data_filename),array_of_chains)
 
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(iterations,
-                                                                protein_at_observations,
-                                                                hyper_parameters,
-                                                                measurement_variance,
-                                                                step_size,
-                                                                proposal_covariance,
-                                                                initial_state))
-                            for initial_state in initial_states ]
-        ## Let the pool know that these are all finished so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
+            # second burn in
+            print("Second burn in of ",str(np.int(0.7*iterations))," samples...")
+            second_burnin_number_of_samples = np.int(0.7*iterations)
+            # make new initial states
+            initial_states = np.zeros((number_of_chains,7))
+            initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+            for initial_state_index, _ in enumerate(initial_states):
+                initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
+                                                                              np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
 
-        array_of_chains = np.zeros((number_of_chains,iterations,5))
-        for chain_index, process_result in enumerate(process_results):
-            this_chain = process_result.get()
-            array_of_chains[chain_index,:,:] = this_chain
-        pool_of_processes.join()
+            samples_with_burn_in = array_of_chains[:,int(initial_burnin_number_of_samples/2):,:].reshape(int(initial_burnin_number_of_samples/2)*number_of_chains,array_of_chains.shape[-1])
+            proposal_covariance = np.cov(samples_with_burn_in.T)
 
-        np.save(os.path.join(os.path.dirname(__file__), 'output','final_mh_output_' + data_filename),array_of_chains)
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
+                                                              args=(second_burnin_number_of_samples,
+                                                                    protein_at_observations,
+                                                                    hyper_parameters,
+                                                                    measurement_variance,
+                                                                    step_size,
+                                                                    proposal_covariance,
+                                                                    initial_state))
+                                for initial_state in initial_states ]
+            ## Let the pool know that these are all finished so that the pool will exit afterwards
+            # this is necessary to prevent memory overflows.
+            pool_of_processes.close()
+
+            array_of_chains = np.zeros((number_of_chains,second_burnin_number_of_samples,5))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
+
+            np.save(os.path.join(os.path.dirname(__file__), 'output','second_mh_output_' + data_filename),array_of_chains)
+
+            # sample directly
+            print("Now sampling directly...")
+            # make new initial states
+            initial_states = np.zeros((number_of_chains,7))
+            initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
+            for initial_state_index, _ in enumerate(initial_states):
+                initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([0.3*mean_protein,2.5,np.log(0.01),np.log(1),5]),
+                                                                              np.array([mean_protein,3,np.log(60-0.01),np.log(40-1),35]))
+
+            samples_with_burn_in = array_of_chains[:,int(second_burnin_number_of_samples/2):,:].reshape(int(second_burnin_number_of_samples/2)*number_of_chains,array_of_chains.shape[-1])
+            proposal_covariance = np.cov(samples_with_burn_in.T)
+
+            pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+            process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
+                                                              args=(iterations,
+                                                                    protein_at_observations,
+                                                                    hyper_parameters,
+                                                                    measurement_variance,
+                                                                    step_size,
+                                                                    proposal_covariance,
+                                                                    initial_state))
+                                for initial_state in initial_states ]
+            ## Let the pool know that these are all finished so that the pool will exit afterwards
+            # this is necessary to prevent memory overflows.
+            pool_of_processes.close()
+
+            array_of_chains = np.zeros((number_of_chains,iterations,5))
+            for chain_index, process_result in enumerate(process_results):
+                this_chain = process_result.get()
+                array_of_chains[chain_index,:,:] = this_chain
+            pool_of_processes.join()
+
+            np.save(os.path.join(os.path.dirname(__file__), 'output','final_mh_output_' + data_filename),array_of_chains)
 
     def xest_compute_likelihood_in_parallel(self):
 
@@ -1525,6 +1605,15 @@ class TestInference(unittest.TestCase):
                           os.path.dirname(__file__),
                           'output','final_parallel_mala_output_' + data_filename)):
             print("Posterior samples already exist, sampling directly without warm up...")
+            # start from mode
+            initial_states = np.zeros((number_of_chains,7))
+            initial_states[:] = np.array([true_parameter_values[0],
+                                          true_parameter_values[1],
+                                          np.log(true_parameter_values[2]),
+                                          np.log(true_parameter_values[3]),
+                                          np.log(true_parameter_values[4]),
+                                          np.log(true_parameter_values[5]),
+                                          true_parameter_values[6]])
 
             mala_output = np.load(saving_path + '../output/parallel_mala_output_' + data_filename)
             previous_number_of_samples = mala_output.shape[1]
@@ -1663,7 +1752,7 @@ class TestInference(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','final_parallel_mala_output_' + data_filename),
             array_of_chains)
 
-    def xest_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps6_fig5_3_cells_15_minutes.npy'):
+    def test_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps6_fig5_3_cells_15_minutes.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
@@ -1707,6 +1796,15 @@ class TestInference(unittest.TestCase):
                           os.path.dirname(__file__),
                           'output','parallel_mala_output_' + data_filename)):
             print("Posterior samples already exist, sampling directly without warm up...")
+            # start from mode
+            initial_states = np.zeros((number_of_chains,7))
+            initial_states[:] = np.array([true_parameter_values[0],
+                                          true_parameter_values[1],
+                                          np.log(true_parameter_values[2]),
+                                          np.log(true_parameter_values[3]),
+                                          np.log(true_parameter_values[4]),
+                                          np.log(true_parameter_values[5]),
+                                          true_parameter_values[6]])
 
             mala_output = np.load(saving_path + '../output/parallel_mala_output_' + data_filename)
             previous_number_of_samples = mala_output.shape[1]
@@ -2210,12 +2308,12 @@ class TestInference(unittest.TestCase):
 
     def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('final_parallel_mala_output_protein_observations_ps6_fig5_5.')]
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_ps11_ds4')]
                                                                   #if 'fig5' in i]
 
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
-            mala = mala[:,:,:]
+            mala = mala[[0,2,3,4,5,6,7],5000:,:]
             # mala[:,:,[2,3]] = np.exp(mala[:,:,[2,3]])
             chains = az.convert_to_dataset(mala)
             print('\n' + chain_path_string + '\n')
