@@ -332,7 +332,6 @@ def generate_deterministic_goodfellow_trajectory( duration = 7200,
         third column is Hes5 protein copy number, fourth column is miRNA copy number.
     '''
     hes5_dde = PyDDE.dde()
-    import pdb; pdb.set_trace()
     initial_condition = np.array([initial_mRNA,initial_miRNA,initial_protein])
     # The coefficients (constants) in the equations
     if for_negative_times == 'initial':
@@ -4690,6 +4689,44 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
     # repack results into output array
 
     return sweep_results
+
+def detrend_experimental_data(data):
+    '''Detrend experimental data using Gaussian process regression with a squared exponential kernel (RBF),
+    using a fixed lengthscale of roughly 3 times the period of the data (~1000 mins) and optimising the variance
+    with BFGS.
+
+    Parameters:
+    ----------
+
+    data : ndarray
+        An nx2 array whose first column is time and second column is protein copy number.
+
+    Returns:
+    -------
+
+    detrended_data : ndarray
+        An nx2 array whose first column is time and second column is protein copy number.
+        The long term trend from the original data set is removed, resulting in this array.
+
+    y_gpr : ndarray
+        An nx1 array which returns the posterior prediction from the Gaussian process regressor,
+        for all specified time points.
+
+    y_std : ndarray
+        The standard deviation in the posterior prediction, y_gpr.
+    '''
+    length_scale = 1000
+    gp_kernel = (gp.kernels.ConstantKernel(constant_value=np.var(data[:,1]), constant_value_bounds=(0.1*np.var(data[:,1]),2*np.var(data[:,1])))*
+                 gp.kernels.RBF(length_scale=length_scale,length_scale_bounds=(length_scale,2*length_scale)) +
+                 gp.kernels.WhiteKernel(1e2,noise_level_bounds=(1e-5,np.var(data[:,1]))))
+    gpr = gp.GaussianProcessRegressor(kernel=gp_kernel)
+    gpr.fit(data[:,0].reshape(-1,1),data[:,1] - np.mean(data[:,1]))
+    X_plot = np.linspace(0, np.int(data[-1,0]), np.int(data[-1,0])+1)[:, None]
+    y_gpr, y_std = gpr.predict(X_plot,return_std=True)
+    detrended_data = np.zeros((data.shape[0],data.shape[1]))
+    detrended_data[:,0] = data[:,0]
+    detrended_data[:,1] = data[:,1] - y_gpr[data[:,0].astype(int)]
+    return detrended_data, y_gpr, y_std
 
 def measure_fluctuation_rate_of_single_trace(trace, method = 'sklearn'):
     '''Calculate the fluctation rate of a trace. Will fit an Ornstein-Uhlenbeck Gaussian process

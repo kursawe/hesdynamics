@@ -20,7 +20,6 @@ def make_and_submit_jobscripts(joblist_path):
     job_index = 0
     for job_file in os.listdir(joblist_path):
         print(1)
-        # import pdb; pdb.set_trace()
         job_file = open(os.path.join(joblist_path,job_file))
         for line in job_file:
             jobscript_file_name = os.path.join(jobscripts_directory, 'script_'+ line[line.find('ns_')+3:line.find('.npy')] + '.sh')
@@ -42,7 +41,6 @@ def make_and_submit_jobscripts(joblist_path):
             print(job_submission_command)
             subprocess.Popen(job_submission_command, shell=True)
             time.sleep(1)
-            import pdb; pdb.set_trace()
         job_index +=1
 
 if __name__ == "__main__":

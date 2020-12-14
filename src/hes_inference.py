@@ -1815,7 +1815,6 @@ def generic_mala(likelihood_and_derivative_calculator,
     # initial markov chain
     current_position = np.copy(initial_position)
     current_log_likelihood, current_log_likelihood_gradient = likelihood_and_derivative_calculator(current_position,*specific_args)
-
     for iteration_index in range(1,number_of_iterations):
         # progress measure
         if iteration_index%(number_of_iterations//10)==0:

@@ -9,7 +9,6 @@ import numpy as np
 def main():
     loading_path = os.path.join(os.path.dirname(__file__),'../data/experimental_data/selected_data_for_mala/')
     protein_datasets = np.array([file for file in os.listdir(loading_path) if fnmatch.fnmatch(file,'protein_observations*detrended.npy')])
-    import pdb; pdb.set_trace()
 
     saving_path = os.path.join(os.path.dirname(__file__),'joblist')
     if not os.path.exists(saving_path):
