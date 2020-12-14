@@ -1546,7 +1546,7 @@ class TestInference(unittest.TestCase):
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
 
-    def xest_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_5.npy'):
+    def test_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_5.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
@@ -1558,7 +1558,7 @@ class TestInference(unittest.TestCase):
 
         mean_protein = np.mean(protein_at_observations[:,:,1])
 
-        number_of_samples = 50000
+        number_of_samples = 60000
         number_of_chains = 8
         step_size = 1.0
         measurement_variance = np.power(true_parameter_values[-1],2)
@@ -1925,7 +1925,7 @@ class TestInference(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','final_parallel_mala_output_' + data_filename),
             array_of_chains)
 
-    def test_mala_experimental_data(self,data_filename = 'protein_observations_040417_cell_19_cluster_2_detrended.npy'):
+    def xest_mala_experimental_data(self,data_filename = 'protein_observations_040417_cell_19_cluster_2_detrended.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/selected_data_for_mala/')
         protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
@@ -2495,36 +2495,39 @@ class TestInference(unittest.TestCase):
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
             samples = mala.reshape(mala.shape[0]*mala.shape[1],mala.shape[2])
-            samples[:,[2,3]] = np.exp(samples[:,[2,3]])
+            # samples[:,[2,3]] = np.exp(samples[:,[2,3]])
             parameter_set_string = chain_path_string[chain_path_string.find('ps'):chain_path_string.find('_fig5')]
             # data_set_string = chain_path_string[chain_path_string.find('ds'):chain_path_string.find('.npy')]
             true_values = np.load(loading_path + '../../data/' + parameter_set_string + '_parameter_values.npy')[[0,1,4,5,6]]
-            # true_values[[2,3]] = np.log(true_values[[2,3]])
+            true_values[[2,3]] = np.log(true_values[[2,3]])
             sample_mean = np.mean(samples,axis=0)
             sample_std = np.std(samples,axis=0)
 
             coherence_values[np.where(coherence_values==0)[0][0]] = np.load(loading_path + '../../data/' + parameter_set_string + '_parameter_values.npy')[-2]
 
-            mean_error_values[np.where(mean_error_values==0)[0][0]] = np.sum((np.abs(true_values-sample_mean))/true_values) # mean difference
-            variance_error_values[np.where(variance_error_values==0)[0][0]] = np.sum(sample_std/sample_mean) #
+            mean_error_values[np.where(mean_error_values==0)[0][0]] = np.sum((np.abs(true_values-sample_mean))/np.array([2*50000,4,8,9,39])) # mean difference
+            variance_error_values[np.where(variance_error_values==0)[0][0]] = np.sum(sample_std/np.array([2*50000,4,8,9,39])) #
 
             # import pdb; pdb.set_trace()
             # precision_values_ds1[np.where(precision_values_ds1==0)[0][0]] = np.sum((np.abs(true_values-sample_mean))/true_values+iqr_ratio) # product of mean difference and std
-
+        # mean error
         mean_mean = np.zeros(len(np.unique(coherence_values)))
         mean_std= np.zeros(len(np.unique(coherence_values)))
         for index, coherence in enumerate(np.unique(coherence_values)):
-            mean_std[index] = np.std(mean_error_values[coherence_values==coherence])
             mean_mean[index] = np.mean(mean_error_values[coherence_values==coherence])
+            mean_std[index] = np.std(mean_error_values[coherence_values==coherence])
 
-        plt.scatter(coherence_values,mean_error_values,marker="x",s=20,label="mean error")
+            # variance error
+        variance_mean = np.zeros(len(np.unique(coherence_values)))
+        variance_std= np.zeros(len(np.unique(coherence_values)))
+        for index, coherence in enumerate(np.unique(coherence_values)):
+            variance_mean[index] = np.mean(variance_error_values[coherence_values==coherence])
+            variance_std[index] = np.std(variance_error_values[coherence_values==coherence])
+
+        # plt.scatter(coherence_values,mean_error_values,marker="x",s=20,label="mean error")
         # plt.scatter(np.unique(coherence_values),mean_mean)
-        # plt.errorbar(np.unique(coherence_values),mean_mean,mean_std,linestyle=None,fmt='o')
-        # plt.scatter(coherence_values,variance_error_values,marker="x",s=20,label="variance error")
-        # plt.scatter(coherence_values,mean_error_values+variance_error_values,marker="x",s=20,label="mean + variance error")
-        # plt.scatter(coherence_values_ds2,precision_values_ds2,label='DS2',s=20)
-        # plt.scatter(coherence_values_ds3,precision_values_ds3,label='DS3',s=20)
-        # plt.scatter(coherence_values_ds4,precision_values_ds4,label='DS4',s=20)
+        plt.errorbar(np.unique(coherence_values),mean_mean,mean_std,linestyle=None,fmt='o')
+        plt.errorbar(np.unique(coherence_values),variance_mean,variance_std,linestyle=None,fmt='o')
         plt.xlabel('Coherence')
         plt.ylabel('Mean Error')
         # plt.ylim(0,100)

@@ -1810,7 +1810,7 @@ def generic_mala(likelihood_and_derivative_calculator,
     # set LAP parameters
     k = 1
     c0 = 1.0
-    c1 = 0.3
+    c1 = np.log(10)/np.log(number_of_samples/5)
 
     # initial markov chain
     current_position = np.copy(initial_position)
