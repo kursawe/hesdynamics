@@ -1461,9 +1461,9 @@ def kalman_update_step(state_space_mean,
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_parameters,measurement_variance = 10):
+def calculate_log_likelihood_at_parameter_point(model_parameters,protein_at_observations,measurement_variance = 10):
     """
-    Calculates the log of the likelihood of our data given the paramters, using the Kalman filter. It uses the
+    Calculates the negative log of the likelihood of our data given the paramters, using the Kalman filter. It uses the
     predicted_observation_distributions from the kalman_filter function. The entries of this array in the second and
     third columns represent the probability of the future observation of mRNA and Protein respectively, given our current knowledge.
 
@@ -1471,12 +1471,12 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     ----------
 
     protein_at_observations : numpy array.
-        Observed protein. The dimension is n x 2, where n is the number of observation time points.
-        The first column is the time, and the second column is the observed protein copy number at
-        that time.
+        Observed protein. The dimension is m x n x 2, where m is the number of data sets, n is the
+        number of observation time points. For each data set, the first column is the time,
+        and the second column is the observed protein copy number at that time.
 
     model_parameters : numpy array.
-        An array containing the moderowl parameters in the following order:
+        An array containing the model parameters in the following order:
         repression_threshold, hill_coefficient, mRNA_degradation_rate,
         protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
@@ -1492,16 +1492,19 @@ def calculate_log_likelihood_at_parameter_point(protein_at_observations,model_pa
     """
     from scipy.stats import norm
 
-    _, _, _, _, predicted_observation_distributions, _, _ = kalman_filter(protein_at_observations,
-                                                                          model_parameters,
-                                                                          measurement_variance)
-    observations = protein_at_observations[:,1]
-    mean = predicted_observation_distributions[:,1]
-    sd = np.sqrt(predicted_observation_distributions[:,2])
+    log_likelihood = 0
+    model_parameters[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
+    for protein in protein_at_observations:
+        _, _, _, _, predicted_observation_distributions, _, _ = kalman_filter(protein,
+                                                                              model_parameters,
+                                                                              measurement_variance)
+        observations = protein[:,1]
+        mean = predicted_observation_distributions[:,1]
+        sd = np.sqrt(predicted_observation_distributions[:,2])
 
-    log_likelihood = np.sum(norm.logpdf(observations,mean,sd))
+        log_likelihood += np.sum(norm.logpdf(observations,mean,sd))
 
-    return log_likelihood
+    return -log_likelihood
 
 def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,model_parameters,mean_protein,measurement_variance = 10):
     """
@@ -1667,7 +1670,8 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     random_walk[0,:] = current_state
     reparameterised_current_state = np.copy(current_state)
     reparameterised_current_state[[4,5]] = np.exp(current_state[[4,5]])
-    current_log_likelihood = calculate_log_likelihood_at_parameter_point(protein_at_observations,reparameterised_current_state,measurement_variance)
+    current_log_likelihood = calculate_log_likelihood_at_parameter_point(reparameterised_current_state,protein_at_observations,measurement_variance)
+    current_log_likelihood *= -1
     acceptance_count = 0
 
     for step_index in range(1,iterations):
@@ -1700,9 +1704,10 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
                 # but which can be interrogated about the status of the calculation and so on
                 new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point,
-                                                                                 args = (protein_at_observations,
-                                                                                         reparameterised_new_state,
+                                                                                 args = (reparameterised_new_state,
+                                                                                         protein_at_observations,
                                                                                          measurement_variance))
+                new_likelihood_result *= -1
                 # ask the async result from above to return the new likelihood and gradient when it is ready
                 new_log_likelihood = new_likelihood_result.get(60)
             except mp.TimeoutError:
@@ -1711,9 +1716,10 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                 likelihood_calculations_pool.terminate()
                 likelihood_calculations_pool = mp.Pool(processes = 1, maxtasksperchild = 500)
                 new_likelihood_result = likelihood_calculations_pool.apply_async(calculate_log_likelihood_at_parameter_point,
-                                                                                 args = (protein_at_observations,
-                                                                                         reparameterised_new_state,
+                                                                                 args = (reparameterised_new_state,
+                                                                                         protein_at_observations,
                                                                                          measurement_variance))
+                new_likelihood_result *= -1
                 # ask the async result from above to return the new likelihood and gradient when it is ready
                 new_log_likelihood = new_likelihood_result.get(120)
 
@@ -1835,6 +1841,7 @@ def generic_mala(likelihood_and_derivative_calculator,
         # import pdb; pdb.set_trace()
         if known_parameter_dict != None:
             proposal[known_parameter_indices] = np.copy(known_parameters)
+
         try:
             # in this line the pool returns an object of type mp.AsyncResult, which is not directly the likelihood,
             # but which can be interrogated about the status of the calculation and so on
@@ -1842,7 +1849,7 @@ def generic_mala(likelihood_and_derivative_calculator,
                                                                              args = (proposal,
                                                                                      *specific_args))
             # ask the async result from above to return the new likelihood and gradient when it is ready
-            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(60) # 60 seconds should be ok (includes jit)
+            proposal_log_likelihood, proposal_log_likelihood_gradient = new_likelihood_result.get(120) # 60 seconds should be ok (includes jit)
         except mp.TimeoutError:
             print('I have found a TimeoutError!')
             likelihood_calculations_pool.close()
@@ -1857,13 +1864,14 @@ def generic_mala(likelihood_and_derivative_calculator,
             except ZeroDivisionError:
                 print("This is a zero division error")
                 print(proposal)
-                # print(proposal_log_likelihood)
+                print(proposal_log_likelihood)
 
         # # some times giving nans - no idea why
-        # if proposal_log_likelihood != -np.inf and np.any(np.isnan(proposal_log_likelihood_gradient)):
-        #     if iteration_index%thinning_rate == 0:
-        #         mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
-        #     continue
+        if proposal_log_likelihood != -np.inf and np.any(np.isnan(proposal_log_likelihood_gradient)):
+            if iteration_index%thinning_rate == 0:
+                print("crazy")
+                mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
+            continue
 
         # if any of the parameters were negative we get -inf for the log likelihood
         if proposal_log_likelihood == -np.inf:
