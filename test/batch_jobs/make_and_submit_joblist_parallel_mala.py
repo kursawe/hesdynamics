@@ -32,7 +32,7 @@ def make_and_submit_jobscripts(joblist_path):
             job_script.write('\n#$ -M joshua.burton@manchester.ac.uk')
             job_script.write('\n#$ -m e # send email to above address when job ends')
             job_script.write('\nexport OMP_NUM_THREADS=1 # limits jobs to requested resources')
-            job_script.write('\ncd ~/scratch/hesdynamics/test/')
+            job_script.write('\ncd ~/scratch/$USER/hesdynamics/test/')
             job_script.write('\n' + line)
             job_script.write('\n\n')
             job_script.write('wait\n')
