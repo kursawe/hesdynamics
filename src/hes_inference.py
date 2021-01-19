@@ -1494,6 +1494,7 @@ def calculate_log_likelihood_at_parameter_point(model_parameters,protein_at_obse
 
     log_likelihood = 0
     model_parameters[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
+    print("model parameters: ",model_parameters)
     for protein in protein_at_observations:
         _, _, _, _, predicted_observation_distributions, _, _ = kalman_filter(protein,
                                                                               model_parameters,
@@ -1503,6 +1504,8 @@ def calculate_log_likelihood_at_parameter_point(model_parameters,protein_at_obse
         sd = np.sqrt(predicted_observation_distributions[:,2])
 
         log_likelihood += np.sum(norm.logpdf(observations,mean,sd))
+
+    print("log likelihood: ",log_likelihood)
 
     return -log_likelihood
 
@@ -1869,7 +1872,6 @@ def generic_mala(likelihood_and_derivative_calculator,
         # # some times giving nans - no idea why
         if proposal_log_likelihood != -np.inf and np.any(np.isnan(proposal_log_likelihood_gradient)):
             if iteration_index%thinning_rate == 0:
-                print("crazy")
                 mcmc_samples[np.int(iteration_index/thinning_rate)] = current_position[unknown_parameter_indices]
             continue
 

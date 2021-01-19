@@ -3661,15 +3661,156 @@ def generate_langevin_trajectory( duration = 720,
 
     return trace_to_return
 
-@jit(nopython = True)
+@jit(nopython  = True)
+def generate_time_dependent_deterministic_trajectory( duration = 720,
+                                                      all_repression_thresholds = np.array([10000]*720),
+                                                      all_hill_coefficients = np.array([5]*720),
+                                                      all_mRNA_degradation_rates = np.array([np.log(2)/30]*720),
+                                                      all_protein_degradation_rates = np.array([np.log(2)/90]*720),
+                                                      all_basal_transcription_rates = np.array([1]*720),
+                                                      all_translation_rates = np.array([1]*720),
+                                                      all_transcription_delays = np.array([29]*720),
+                                                      initial_mRNA = 0,
+                                                      initial_protein = 0,
+                                                      equilibration_time = 0.0
+                                                      ):
+    '''Generate one trace of the protein-autorepression deterministic model.
+    Parameters are passed as vectors that describe temporal variations in one-minute intervals.
+    This means, if a duration of N minutes is to be simulated, each parameter should be passed as a vector of length
+    N+1, prescribing parameter value at each time point (including t=0.0).
+
+    This function implements the Euler integral of
+
+    dM/dt = -mu_m*M + alpha_m*G(P(t-tau)
+    dP/dt = -mu_p*P + alpha_p*M
+
+    Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p are
+    rates of mRNA degradation, protein degradation, basal transcription, and translation; in that order.
+    The function G represents the Hill function G(P) = 1/(1+P/p_0)^n, where p_0 is the repression threshold
+    and n is the Hill coefficient.
+
+    For negative times we assume that there was no transcription.
+
+    Warning : The time step of integration is chosen as 1 minute, and hence the time-delay is only
+              implemented with this accuracy.
+
+    Parameters
+    ----------
+
+    duration : float
+        duration of the trace in minutes
+
+    all_repression_thresholds : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+
+    all_hill_coefficients : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    all_mRNA_degradation_rates : float
+        Rate at which mRNA is degraded, in copynumber per minute
+
+    all_protein_degradation_rates : float
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    all_basal_transcription_rates : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    all_translation_rates : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+
+    all_transcription_delays : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+
+    initial_mRNA : float
+        amount of mRNA the integrator is initialised with.
+
+    initial_protein : float
+        amount of protein the integrator is initialised with.
+
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time
+        in order to get rid of any overshoots, for example
+
+    Returns
+    -------
+
+    trace : ndarray
+        2 dimensional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number
+    '''
+    total_time = duration + equilibration_time
+    delta_t = 1
+    sample_times = np.arange(0.0, total_time, delta_t)
+    full_trace = np.zeros((len(sample_times), 3))
+    full_trace[:,0] = sample_times
+    full_trace[0,1] = initial_mRNA
+    full_trace[0,2] = initial_protein
+
+    all_delay_index_count = all_transcription_delays//delta_t
+    equilibration_index_count = int(round(equilibration_time/delta_t))+1
+
+    for time_index, sample_time in enumerate(sample_times[1:]):
+        if sample_time < equilibration_time:
+            mRNA_degradation_rate_per_timestep =    all_mRNA_degradation_rates[0]
+            protein_degradation_rate_per_timestep = all_protein_degradation_rates[0]
+            basal_transcription_rate_per_timestep = all_basal_transcription_rates[0]
+            translation_rate_per_timestep =         all_translation_rates[0]
+            delay_index_count =                     all_delay_index_count[0]
+            repression_threshold =                  all_repression_thresholds[0]
+            hill_coefficient =                      all_hill_coefficients[0]
+        else:
+            mRNA_degradation_rate_per_timestep =    all_mRNA_degradation_rates[time_index - equilibration_index_count]
+            protein_degradation_rate_per_timestep = all_protein_degradation_rates[time_index - equilibration_index_count]
+            basal_transcription_rate_per_timestep = all_basal_transcription_rates[time_index - equilibration_index_count]
+            translation_rate_per_timestep =         all_translation_rates[time_index - equilibration_index_count]
+            delay_index_count =                     all_delay_index_count[time_index - equilibration_index_count]
+            repression_threshold =                  all_repression_thresholds[time_index - equilibration_index_count]
+            hill_coefficient =                      all_hill_coefficients[time_index - equilibration_index_count]
+        last_mRNA = full_trace[time_index,1]
+        last_protein = full_trace[time_index,2]
+        if time_index + 1 < delay_index_count:
+            this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
+            d_mRNA = -this_average_mRNA_degradation_number
+        else:
+            protein_at_delay = full_trace[time_index + 1 - delay_index_count,2]
+            hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
+                                                    hill_coefficient))
+            this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
+            this_average_mRNA_degradation_number = mRNA_degradation_rate_per_timestep*last_mRNA
+            d_mRNA = (-this_average_mRNA_degradation_number
+                      +this_average_transcription_number)
+
+        this_average_protein_degradation_number = protein_degradation_rate_per_timestep*last_protein
+        this_average_translation_number = translation_rate_per_timestep*last_mRNA
+        d_protein = (-this_average_protein_degradation_number
+                     +this_average_translation_number)
+
+        current_mRNA = max(last_mRNA + d_mRNA, 0.0)
+        current_protein = max(last_protein + d_protein, 0.0)
+        full_trace[time_index + 1,1] = current_mRNA
+        full_trace[time_index + 1,2] = current_protein
+
+    # get rid of the equilibration time now
+    trace = full_trace[ full_trace[:,0]>=equilibration_time ]
+    trace[:,0] -= equilibration_time
+
+    return trace
+
+@jit(nopython  = True)
 def generate_time_dependent_langevin_trajectory( duration = 720,
-                                  repression_threshold = np.array([10000]*720),
-                                  hill_coefficient = np.array([5]*720),
-                                  mRNA_degradation_rate = np.array([np.log(2)/30]*720),
-                                  protein_degradation_rate = np.array([np.log(2)/90]*720),
-                                  basal_transcription_rate = np.array([1]*720),
-                                  translation_rate = np.array([1]*720),
-                                  transcription_delay = np.array([29]*720),
+                                  all_repression_thresholds = np.array([10000]*720),
+                                  all_hill_coefficients = np.array([5]*720),
+                                  all_mRNA_degradation_rates = np.array([np.log(2)/30]*720),
+                                  all_protein_degradation_rates = np.array([np.log(2)/90]*720),
+                                  all_basal_transcription_rates = np.array([1]*720),
+                                  all_translation_rates = np.array([1]*720),
+                                  all_transcription_delays = np.array([29]*720),
                                   initial_mRNA = 0,
                                   initial_protein = 0,
                                   equilibration_time = 0.0
@@ -3703,32 +3844,38 @@ def generate_time_dependent_langevin_trajectory( duration = 720,
     duration : float
         duration of the trace in minutes
 
-    repression_threshold : float
+    all_repression_thresholds : float
         repression threshold, Hes autorepresses itself if its copynumber is larger
         than this repression threshold. Corresponds to P0 in the Monk paper
 
-    hill_coefficient : float
+    all_hill_coefficients : float
         exponent in the hill function regulating the Hes autorepression. Small values
         make the response more shallow, whereas large values will lead to a switch-like
         response if the protein concentration exceeds the repression threshold
 
-    mRNA_degradation_rate : float
+    all_mRNA_degradation_rates : float
         Rate at which mRNA is degraded, in copynumber per minute
 
-    protein_degradation_rate : float
+    all_protein_degradation_rates : float
         Rate at which Hes protein is degraded, in copynumber per minute
 
-    basal_transcription_rate : float
+    all_basal_transcription_rates : float
         Rate at which mRNA is described, in copynumber per minute, if there is no Hes
         autorepression. If the protein copy number is close to or exceeds the repression threshold
         the actual transcription rate will be lower
 
-    translation_rate : float
+    all_translation_rates : float
         rate at protein translation, in Hes copy number per mRNA copy number and minute,
 
-    transcription_delay : float
+    all_transcription_delays : float
         delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
         on the protein copy number at this amount of time in the past.
+
+    initial_mRNA : float
+        amount of mRNA the integrator is initialised with.
+
+    initial_protein : float
+        amount of protein the integrator is initialised with.
 
     equlibration_time : float
         add a neglected simulation period at beginning of the trajectory of length equilibration_time
@@ -3741,7 +3888,6 @@ def generate_time_dependent_langevin_trajectory( duration = 720,
         2 dimensional array, first column is time, second column mRNA number,
         third column is Hes5 protein copy number
     '''
-
     total_time = duration + equilibration_time
     delta_t = 1
     sample_times = np.arange(0.0, total_time, delta_t)
@@ -3749,32 +3895,24 @@ def generate_time_dependent_langevin_trajectory( duration = 720,
     full_trace[:,0] = sample_times
     full_trace[0,1] = initial_mRNA
     full_trace[0,2] = initial_protein
-#     repression_threshold = float(repression_threshold)
 
-    all_mRNA_degradation_rate_per_timestep = mRNA_degradation_rate*delta_t
-    all_protein_degradation_rate_per_timestep = protein_degradation_rate*delta_t
-    all_basal_transcription_rate_per_timestep = basal_transcription_rate*delta_t
-    all_translation_rate_per_timestep = translation_rate*delta_t
-    all_delay_index_count = np.around(transcription_delay/delta_t).astype(np.int)
-    all_repression_thresholds = repression_threshold
-    all_hill_coefficients = hill_coefficient
-
+    all_delay_index_count = all_transcription_delays//delta_t
     equilibration_index_count = int(round(equilibration_time/delta_t))+1
 
     for time_index, sample_time in enumerate(sample_times[1:]):
         if sample_time < equilibration_time:
-            mRNA_degradation_rate_per_timestep =    all_mRNA_degradation_rate_per_timestep[0]
-            protein_degradation_rate_per_timestep = all_protein_degradation_rate_per_timestep[0]
-            basal_transcription_rate_per_timestep = all_basal_transcription_rate_per_timestep[0]
-            translation_rate_per_timestep =         all_translation_rate_per_timestep[0]
+            mRNA_degradation_rate_per_timestep =    all_mRNA_degradation_rates[0]
+            protein_degradation_rate_per_timestep = all_protein_degradation_rates[0]
+            basal_transcription_rate_per_timestep = all_basal_transcription_rates[0]
+            translation_rate_per_timestep =         all_translation_rates[0]
             delay_index_count =                     all_delay_index_count[0]
             repression_threshold =                  all_repression_thresholds[0]
             hill_coefficient =                      all_hill_coefficients[0]
         else:
-            mRNA_degradation_rate_per_timestep =    all_mRNA_degradation_rate_per_timestep[time_index - equilibration_index_count]
-            protein_degradation_rate_per_timestep = all_protein_degradation_rate_per_timestep[time_index - equilibration_index_count]
-            basal_transcription_rate_per_timestep = all_basal_transcription_rate_per_timestep[time_index - equilibration_index_count]
-            translation_rate_per_timestep =         all_translation_rate_per_timestep[time_index - equilibration_index_count]
+            mRNA_degradation_rate_per_timestep =    all_mRNA_degradation_rates[time_index - equilibration_index_count]
+            protein_degradation_rate_per_timestep = all_protein_degradation_rates[time_index - equilibration_index_count]
+            basal_transcription_rate_per_timestep = all_basal_transcription_rates[time_index - equilibration_index_count]
+            translation_rate_per_timestep =         all_translation_rates[time_index - equilibration_index_count]
             delay_index_count =                     all_delay_index_count[time_index - equilibration_index_count]
             repression_threshold =                  all_repression_thresholds[time_index - equilibration_index_count]
             hill_coefficient =                      all_hill_coefficients[time_index - equilibration_index_count]

@@ -1546,7 +1546,7 @@ class TestInference(unittest.TestCase):
         #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
         #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
 
-    def test_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_5.npy'):
+    def xest_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_5.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
@@ -1586,7 +1586,7 @@ class TestInference(unittest.TestCase):
                              number_of_chains,
                              number_of_samples)
 
-    def test_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps6_fig5_3_cells_15_minutes.npy'):
+    def xest_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps6_fig5_3_cells_15_minutes.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
@@ -1625,7 +1625,7 @@ class TestInference(unittest.TestCase):
                              number_of_chains,
                              number_of_samples)
 
-    def test_mala_experimental_data(self,data_filename = 'protein_observations_040417_cell_4_cluster_1_detrended.npy'):
+    def test_mala_experimental_data(self,data_filename = 'protein_observations_040417_cell_52_cluster_4_detrended.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/selected_data_for_mala/')
         protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
@@ -2240,6 +2240,9 @@ def run_mala_for_dataset(data_filename,
     proposal covariance matrix, otherwise one will be constructed with a two step warm-up
     process.
     """
+    # make sure all data starts from time "zero"
+    for i in range(protein_at_observations.shape[0]):
+        protein_at_observations[i,:,0] -= protein_at_observations[i,0,0]
 
     mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
 
