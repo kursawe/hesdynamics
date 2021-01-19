@@ -1625,7 +1625,7 @@ class TestInference(unittest.TestCase):
                              number_of_chains,
                              number_of_samples)
 
-    def xest_mala_experimental_data(self,data_filename = 'protein_observations_040417_cell_4_cluster_1_detrended.npy'):
+    def test_mala_experimental_data(self,data_filename = 'protein_observations_040417_cell_4_cluster_1_detrended.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/selected_data_for_mala/')
         protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
@@ -1832,8 +1832,8 @@ class TestInference(unittest.TestCase):
             array_of_chains)
 
     def xest_mala_analysis(self):
-        loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('final_parallel_mala_output_protein_observations_ps10_fig5_2')]
+        loading_path = os.path.join(os.path.dirname(__file__),'output','output_jan_17/')
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('final_parallel_mala_output_protein_observations_')]
                                                                   # if 'detrended' in i]
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
