@@ -1005,7 +1005,6 @@ def kalman_prediction_step(state_space_mean,
                                                         instant_noise_derivative_wrt_hill_coefficient + delayed_noise_derivative_wrt_hill_coefficient )
 
         next_covariance_derivative_matrix[1] = current_covariance_derivative_matrix[1] + discretisation_time_step*(derivative_of_variance_wrt_hill_coefficient)
-
         # mRNA degradation rate
         instant_jacobian_derivative_wrt_mRNA_degradation = np.array([[-1.0,0.0],[0.0,0.0]])
         delayed_jacobian_derivative_wrt_mRNA_degradation = (np.array([[0.0,basal_transcription_rate*hill_function_second_derivative_value*past_mean_derivative[2,1]],[0.0,0.0]]) )
@@ -1652,7 +1651,7 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
     # LAP parameters
     k = 1
     c0 = 1.0
-    c1 = 0.3
+    c1 = np.log(10)/np.log(iterations/5)
 
     cholesky_covariance = np.linalg.cholesky(proposal_covariance)
 
@@ -1706,9 +1705,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                  args = (reparameterised_new_state,
                                                                                          protein_at_observations,
                                                                                          measurement_variance))
-                new_likelihood_result *= -1
                 # ask the async result from above to return the new likelihood and gradient when it is ready
                 new_log_likelihood = new_likelihood_result.get(60)
+                new_log_likelihood *= -1
             except mp.TimeoutError:
                 print('I have found a TimeoutError!')
                 likelihood_calculations_pool.close()
@@ -1718,9 +1717,9 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
                                                                                  args = (reparameterised_new_state,
                                                                                          protein_at_observations,
                                                                                          measurement_variance))
-                new_likelihood_result *= -1
                 # ask the async result from above to return the new likelihood and gradient when it is ready
                 new_log_likelihood = new_likelihood_result.get(120)
+                new_log_likelihood *= -1
 
             acceptance_ratio = min(1,np.exp(new_log_likelihood - current_log_likelihood))
 

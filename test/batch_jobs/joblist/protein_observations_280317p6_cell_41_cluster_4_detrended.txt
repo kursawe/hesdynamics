@@ -1,1 +1,0 @@
-python -c "import test_inference; class_instance = test_inference.TestInference(); class_instance.test_mala_experimental_data('protein_observations_280317p6_cell_41_cluster_4_detrended.npy')"
