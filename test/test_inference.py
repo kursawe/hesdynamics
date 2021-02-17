@@ -1308,12 +1308,12 @@ class TestInference(unittest.TestCase):
         print(random_walk)
         print(acceptance_rate)
 
-    def xest_kalman_random_walk(self,data_filename='protein_observations_ps11_ds4.npy'):
+    def test_kalman_random_walk(self,data_filename='protein_observations_ps9_1_cells_12_minutes_2.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
-        protein_at_observations = np.load(os.path.join(saving_path,data_filename))
+        protein_at_observations = np.array([np.load(os.path.join(saving_path+'figure_5/',data_filename))])
         ps_string_index_start = data_filename.find('ps')
-        ps_string_index_end = data_filename.find('_ds')
+        ps_string_index_end = data_filename.find('_cell')-2
         ps_string = data_filename[ps_string_index_start:ps_string_index_end]
         true_parameter_values = np.load(os.path.join(saving_path,ps_string + '_parameter_values.npy'))
 
@@ -1603,47 +1603,50 @@ class TestInference(unittest.TestCase):
         measurement_variance = np.power(true_parameter_values[-1],2)
 
         true_posterior = np.load(loading_path + "final_mh_output_protein_observations_ps11_ds4.npy")
-
-        mala_short_warm_up = np.load(loading_path + 'short_warm_up_parallel_mala_output_' + data_filename)
-        mala_long_warm_up = np.load(loading_path + 'long_warm_up_parallel_mala_output_' + data_filename)
-        mh_short_warm_up = np.load(loading_path + 'short_warm_up_mh_output_' + data_filename)
-        mh_long_warm_up = np.load(loading_path + 'long_warm_up_mh_output_' + data_filename)
-
         mean = np.mean(true_posterior.reshape(true_posterior.shape[0]*true_posterior.shape[1],true_posterior.shape[2]),axis=0)
         std = np.std(true_posterior.reshape(true_posterior.shape[0]*true_posterior.shape[1],true_posterior.shape[2]),axis=0)
 
-        fig, ax = plt.subplots(1,2,figsize=(14,6))
-        burn_in = 0
-        window = 100
-        indices = np.concatenate((np.arange(burn_in+1,100),np.arange(100,mala_short_warm_up.shape[1],window)))
-        relative_mean_error_short_mala = [np.sum(np.abs(mean-np.mean(mala_short_warm_up[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/mean) for i in indices]#range(burn_in+1,mala_short_warm_up.shape[1],window)]
-        relative_std_error_short_mala = [np.sum(np.abs(std-np.std(mala_short_warm_up[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/std) for i in indices]
-        relative_mean_error_short_mh = [np.sum(np.abs(mean-np.mean(mh_short_warm_up[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/mean) for i in indices]
-        relative_std_error_short_mh = [np.sum(np.abs(std-np.std(mh_short_warm_up[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/std) for i in indices]
-        relative_mean_error_long_mala = [np.sum(np.abs(mean-np.mean(mala_long_warm_up[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/mean) for i in indices]
-        relative_std_error_long_mala = [np.sum(np.abs(std-np.std(mala_long_warm_up[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/std) for i in indices]
-        relative_mean_error_long_mh = [np.sum(np.abs(mean-np.mean(mh_long_warm_up[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/mean) for i in indices]
-        relative_std_error_long_mh = [np.sum(np.abs(std-np.std(mh_long_warm_up[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/std) for i in indices]
+        datasets = {'MALA 5k' : np.load(loading_path + 'short_warm_up_parallel_mala_output_' + data_filename).reshape(1,400000,5),
+                    'MALA 50k' : np.load(loading_path + 'long_warm_up_parallel_mala_output_' + data_filename).reshape(1,400000,5),
+                    'MH 5k' : np.load(loading_path + 'short_warm_up_mh_output_' + data_filename).reshape(1,400000,5),
+                    'MH 50k' : np.load(loading_path + 'long_warm_up_mh_output_' + data_filename).reshape(1,400000,5),
+                    'True' : true_posterior.reshape(4,400000,5)}
 
-        true_mean_error = [np.sum(np.abs(mean-np.mean(true_posterior[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/mean) for i in indices]
-        true_std_error = [np.sum(np.abs(std-np.std(true_posterior[:,burn_in:i,:].reshape(8*(i-burn_in),5),axis=0))/std) for i in indices]
+        fig, ax = plt.subplots(1,2,figsize=(14,6))
+        burn_in = 5000
+        window = 1000
+        indices = np.concatenate((np.arange(burn_in+1,6000),np.arange(6000,datasets['MALA 5k'].shape[1],window)))
+        mean_error_dict = {}
+        std_error_dict = {}
+
+        for key in datasets.keys():
+            mean_error_dict[key] = np.zeros(len(indices))
+            std_error_dict[key] = np.zeros(len(indices))
+            for index, chain_length in enumerate(indices):
+                short_chains = datasets[key][:,burn_in:chain_length,:] # DIMS: 8 x chain_length x 5
+                # mean
+                short_chain_means = np.mean(short_chains,axis=1) # 8 x 5
+                short_chain_mean_errors = np.abs(mean - short_chain_means)/mean # 8 x 5
+                total_short_chain_mean_errors = np.sum(short_chain_mean_errors,axis=1) # 8
+                mean_error_dict[key][index] = np.mean(total_short_chain_mean_errors)
+
+                # std
+                short_chain_stds = np.std(short_chains,axis=1) # 8 x 5
+                short_chain_std_errors = np.abs(std - short_chain_stds)/std # 8 x 5
+                total_short_chain_std_errors = np.sum(short_chain_std_errors,axis=1) # 8
+                std_error_dict[key][index] = np.mean(total_short_chain_std_errors)
 
         ax[0].set_yscale('log')
         ax[0].set_xscale('log')
-        ax[0].plot(8*indices,relative_mean_error_short_mala,label='5k MALA')
-        ax[0].plot(8*indices,relative_mean_error_short_mh,label='5k MH')
-        ax[0].plot(8*indices,relative_mean_error_long_mala, label='50k MALA')
-        ax[0].plot(8*indices,relative_mean_error_long_mh,label='50k MH')
-        ax[0].plot(8*indices,true_mean_error,label='True MH')
+        for key, value in mean_error_dict.items():
+            ax[0].plot(indices,value,label=key)
         ax[0].set_ylabel("Relative mean error")
         ax[0].set_xlabel("Iterations")
+
         ax[1].set_yscale('log')
         ax[1].set_xscale('log')
-        ax[1].plot(8*indices,relative_std_error_short_mala)
-        ax[1].plot(8*indices,relative_std_error_short_mh)
-        ax[1].plot(8*indices,relative_std_error_long_mala)
-        ax[1].plot(8*indices,relative_std_error_long_mh)
-        ax[1].plot(8*indices,true_std_error)
+        for key, value in std_error_dict.items():
+            ax[1].plot(indices,value)
         ax[1].set_ylabel("Relative std error")
         ax[1].set_xlabel("Iterations")
 
@@ -1651,9 +1654,59 @@ class TestInference(unittest.TestCase):
         fig.legend(loc="center right",
                    borderaxespad=0.1)
         plt.subplots_adjust(right=.82)
-        # fig.legend(bbox_to_anchor=(0.1  , 0.9515, 0.8,.22), loc='lower left',
-        #    ncol=5, mode="expand", borderaxespad=0.)
         plt.savefig(loading_path + "multivariate_mh_vs_mala_convergence_speed" + "_long_and_short_test.png")
+        plt.clf()
+
+    def xest_make_figure_4_qqplots(self,data_filename = 'protein_observations_ps11_ds4.npy'):
+        # load data and true parameter values
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        loading_path = os.path.join(os.path.dirname(__file__),'output','')
+        protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
+        ps_string_index_start = data_filename.find('ps')
+        ps_string_index_end = data_filename.find('_ds')
+        ps_string = data_filename[ps_string_index_start:ps_string_index_end]
+        true_parameter_values = np.load(os.path.join(saving_path,ps_string + '_parameter_values.npy'))
+        measurement_variance = np.power(true_parameter_values[-1],2)
+
+        parameter_labels = ['Repression Threshold',
+                            'Hill Coefficient',
+                            'log(Transcription Rate)',
+                            'log(Translation Rate)',
+                            'Transcriptional Delay']
+
+        quantile_indices = np.arange(0,1,0.01)
+
+        true_posterior = np.load(loading_path + "final_mh_output_protein_observations_ps11_ds4.npy").reshape(1600000,5)
+        true_quantiles = np.quantile(true_posterior,quantile_indices,axis=0)
+
+        datasets = {'MALA 5k' : np.load(loading_path + 'short_warm_up_parallel_mala_output_' + data_filename)[:,25000:,:].reshape(200000,5),
+                    'MALA 50k' : np.load(loading_path + 'long_warm_up_parallel_mala_output_' + data_filename)[:,25000:,:].reshape(200000,5),
+                    'MH 5k' : np.load(loading_path + 'short_warm_up_mh_output_' + data_filename)[:,25000:,:].reshape(200000,5),
+                    'MH 50k' : np.load(loading_path + 'long_warm_up_mh_output_' + data_filename)[:,25000:,:].reshape(200000,5)}
+
+        fig, ax = plt.subplots(1,5,figsize=(22,5))
+        quantiles_dict = {}
+
+        for key in datasets.keys():
+            quantiles_dict[key] = np.quantile(datasets[key],quantile_indices,axis=0)
+
+        for i in range(5):
+            if i == 0: # label
+                ax[i].plot(true_quantiles[:,i],true_quantiles[:,i],color='k',label='True')
+                ax[i].set_xlabel(parameter_labels[i])
+            else:
+                ax[i].plot(true_quantiles[:,i],true_quantiles[:,i],color='k')
+                ax[i].set_xlabel(parameter_labels[i])
+            for key, value in quantiles_dict.items():
+                if i == 0: # label
+                    ax[i].plot(true_quantiles[:,i],quantiles_dict[key][:,i],'--',alpha=0.5,label=key)
+                else:
+                    ax[i].plot(true_quantiles[:,i],quantiles_dict[key][:,i],'--',alpha=0.5)
+        plt.tight_layout()
+        fig.legend(loc="center right",
+                   borderaxespad=0.1)
+        plt.subplots_adjust(right=.87)
+        plt.savefig(loading_path + "multivariate_mh_vs_mala_qqplots.png")
         plt.clf()
 
     def xest_make_figure_4_mh_and_mala_histograms(self,data_filename = 'protein_observations_ps11_ds4.npy'):
@@ -1743,13 +1796,13 @@ class TestInference(unittest.TestCase):
         my_figure.subplots_adjust(top=0.85)
         my_figure.savefig(os.path.join(loading_path,'short_and_long_posteriors_mh.pdf'))
 
-    def xest_figure_4_mh_and_mala_data(self,data_filename = 'protein_observations_ps11_ds4.npy'):
+    def test_figure_4_mh_and_mala_data(self,data_filename = 'protein_observations_ps9_1_cells_12_minutes_2.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
+        protein_at_observations = np.array([np.load(os.path.join(saving_path + 'figure_5/',data_filename))])
         ps_string_index_start = data_filename.find('ps')
-        ps_string_index_end = data_filename.find('_ds')
+        ps_string_index_end = data_filename.find('_cells')-2
         ps_string = data_filename[ps_string_index_start:ps_string_index_end]
         true_parameter_values = np.load(os.path.join(saving_path,ps_string + '_parameter_values.npy'))
         measurement_variance = np.power(true_parameter_values[-1],2)
@@ -1780,13 +1833,113 @@ class TestInference(unittest.TestCase):
 
         mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
 
+        ##########################################################################################
+
+        print("MALA sampling now")
+
+        initial_states = np.zeros((number_of_chains,7))
+        initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
+        initial_states[:,(0,1,4,5,6)] = np.load(loading_path + "figure_5/final_parallel_mala_output_protein_observations_ps9_1_cells_12_minutes_2.npy")[0,0,:]
+
+        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+                                                          args=(protein_at_observations,
+                                                                measurement_variance,
+                                                                number_of_samples,
+                                                                initial_state,
+                                                                step_size,
+                                                                np.power(np.diag([2*mean_protein,4,9,8,39]),2),# initial variances are width of prior squared
+                                                                1, # thinning rate
+                                                                known_parameters))
+                            for initial_state in initial_states ]
+        ## Let the pool know that these are all so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
+
+        array_of_chains = np.zeros((number_of_chains,number_of_samples,5))
+        for chain_index, process_result in enumerate(process_results):
+            this_chain = process_result.get()
+            array_of_chains[chain_index,:,:] = this_chain
+        pool_of_processes.join()
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','short_proposal_mala_output_' + data_filename),
+                array_of_chains[:,:5000,:])
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','long_proposal_mala_output_' + data_filename),
+                array_of_chains)
+
+        short_samples_with_burn_in = array_of_chains[:,int(5000/2):5000,:].reshape(int(5000/2)*number_of_chains,number_of_parameters)
+        long_samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
+
+        short_proposal_covariance = np.cov(short_samples_with_burn_in.T)
+        long_proposal_covariance = np.cov(long_samples_with_burn_in.T)
+
+        # make new initial states
+        # start from mode
+        short_initial_states = np.zeros((number_of_chains,7))
+        short_initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
+        short_initial_states[:,(0,1,4,5,6)] = np.mean(short_samples_with_burn_in,axis=0)
+
+        long_initial_states = np.zeros((number_of_chains,7))
+        long_initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
+        long_initial_states[:,(0,1,4,5,6)] = np.mean(long_samples_with_burn_in,axis=0)
+
+        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+                                                          args=(protein_at_observations,
+                                                                measurement_variance,
+                                                                number_of_samples,
+                                                                initial_state,
+                                                                step_size,
+                                                                short_proposal_covariance,
+                                                                1, # thinning rate
+                                                                known_parameters))
+                            for initial_state in short_initial_states ]
+        ## Let the pool know that these are all finished so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
+
+        array_of_chains = np.zeros((number_of_chains,number_of_samples,5))
+        for chain_index, process_result in enumerate(process_results):
+            this_chain = process_result.get()
+            array_of_chains[chain_index,:,:] = this_chain
+        pool_of_processes.join()
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','short_warm_up_mala_output_' + data_filename),array_of_chains)
+
+        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
+        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
+                                                          args=(protein_at_observations,
+                                                                measurement_variance,
+                                                                number_of_samples,
+                                                                initial_state,
+                                                                step_size,
+                                                                long_proposal_covariance,# initial variances are width of prior squared
+                                                                1, # thinning rate
+                                                                known_parameters))
+                            for initial_state in long_initial_states ]
+        ## Let the pool know that these are all finished so that the pool will exit afterwards
+        # this is necessary to prevent memory overflows.
+        pool_of_processes.close()
+
+        array_of_chains = np.zeros((number_of_chains,number_of_samples,5))
+        for chain_index, process_result in enumerate(process_results):
+            this_chain = process_result.get()
+            array_of_chains[chain_index,:,:] = this_chain
+        pool_of_processes.join()
+
+        np.save(os.path.join(os.path.dirname(__file__), 'output','long_warm_up_mala_output_' + data_filename),array_of_chains)
+
+        #########################################################################################
+
+        print("Random walk sampling now")
+
         initial_states = np.zeros((number_of_chains,7))
         initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
-        initial_states[:,(0,1,4,5,6)] = np.load(loading_path + "long_proposal_parallel_mala_output_protein_observations_ps11_ds4.npy")[0,0,:]
+        initial_states[:,(0,1,4,5,6)] = np.load(loading_path + "figure_5/final_parallel_mala_output_protein_observations_ps9_1_cells_12_minutes_2.npy")[0,0,:]
 
         hyper_parameters = np.array([50,2*mean_protein-50,2,6-2,0,1,0,1,0.01,120-0.01,0.01,40-0.01,1,40-1])
 
-        print("Random walk sampling now")
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
                                                           args=(number_of_samples,
@@ -1913,7 +2066,7 @@ class TestInference(unittest.TestCase):
                              number_of_chains,
                              number_of_samples)
 
-    def test_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps6_fig5_3_cells_15_minutes.npy'):
+    def xest_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps6_fig5_3_cells_15_minutes.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.array([np.load(os.path.join(saving_path+'/figure_5',data_filename))])
@@ -2159,11 +2312,10 @@ class TestInference(unittest.TestCase):
             array_of_chains)
 
     def xest_mala_analysis(self):
-        loading_path = os.path.join(os.path.dirname(__file__),'output','')
+        loading_path = os.path.join(os.path.dirname(__file__),'output/figure_5','')
         chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('final_parallel_mala_output_protein_observations_')
-                                                                  if 'cells' in i
+                                                                  if '4_cells' in i
                                                                   if '.npy' in i]
-        import pdb; pdb.set_trace()
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
             mala = mala[:,:,:]
