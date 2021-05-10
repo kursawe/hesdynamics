@@ -3822,8 +3822,8 @@ def generate_time_dependent_langevin_trajectory( duration = 720,
 
     This function implements the Ito integral of
 
-    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(mu_m+alpha_m*G(P(t-tau))d(ksi)
-    dP/dt = -mu_p*P + alpha_p*M + sqrt(mu_p*alpha_p)d(ksi)
+    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(mu_m*M+alpha_m*G(P(t-tau))d(ksi)
+    dP/dt = -mu_p*P + alpha_p*M + sqrt(mu_p*P+alpha_p*M)d(ksi)
 
     Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p are
     rates of mRNA degradation, protein degradation, basal transcription, and translation; in that order.
@@ -3924,6 +3924,7 @@ def generate_time_dependent_langevin_trajectory( duration = 720,
                       +np.sqrt(this_average_mRNA_degradation_number)*np.random.randn())
         else:
             protein_at_delay = full_trace[time_index + 1 - delay_index_count,2]
+            # hill_function_value = 1
             hill_function_value = 1.0/(1.0+np.power(protein_at_delay/repression_threshold,
                                                     hill_coefficient))
             this_average_transcription_number = basal_transcription_rate_per_timestep*hill_function_value
@@ -3948,8 +3949,123 @@ def generate_time_dependent_langevin_trajectory( duration = 720,
     # get rid of the equilibration time now
     trace = full_trace[ full_trace[:,0]>=equilibration_time ]
     trace[:,0] -= equilibration_time
-
     return trace
+
+@jit(nopython  = True)
+def generate_time_dependent_deterministic_feed_forward_loop_trajectory( duration = 720,
+                                                                        delta_t = 1.0,
+                                                                        all_k1_rates = np.array([10000]*720),
+                                                                        all_k2_rates = np.array([5]*720),
+                                                                        all_k3_rates = np.array([np.log(2)/30]*720),
+                                                                        all_k4_rates = np.array([np.log(2)/90]*720),
+                                                                        initial_X = 0,
+                                                                        initial_R = 0
+                                                                      ):
+    '''TODO: Generate one trace of an incoherent feed forward loop model determinstically.
+    Parameters are passed as vectors that describe temporal variations in one-minute intervals.
+    This means, if a duration of N minutes is to be simulated, each parameter should be passed as a vector of length
+    N+1, prescribing parameter value at each time point (including t=0.0).
+
+    This function implements the Ito integral of
+
+    dM/dt = -mu_m*M + alpha_m*G(P(t-tau) + sqrt(mu_m*M+alpha_m*G(P(t-tau))d(ksi)
+    dP/dt = -mu_p*P + alpha_p*M + sqrt(mu_p*P+alpha_p*M)d(ksi)
+
+    Here, M and P are mRNA and protein, respectively, and mu_m, mu_p, alpha_m, alpha_p are
+    rates of mRNA degradation, protein degradation, basal transcription, and translation; in that order.
+    The variable ksi represents Gaussian white noise with delta-function auto-correlation and G
+    represents the Hill function G(P) = 1/(1+P/p_0)^n, where p_0 is the repression threshold
+    and n is the Hill coefficient.
+
+    This model is an approximation of the stochastic version of the model in Monk, Current Biology (2003),
+    which is implemented in generate_stochastic_trajectory(). For negative times we assume that there
+    was no transcription.
+
+    Warning : The time step of integration is chosen as 1 minute, and hence the time-delay is only
+              implemented with this accuracy.
+
+    Parameters
+    ----------
+
+    duration : float
+        duration of the trace in minutes
+
+    all_repression_thresholds : float
+        repression threshold, Hes autorepresses itself if its copynumber is larger
+        than this repression threshold. Corresponds to P0 in the Monk paper
+
+    all_hill_coefficients : float
+        exponent in the hill function regulating the Hes autorepression. Small values
+        make the response more shallow, whereas large values will lead to a switch-like
+        response if the protein concentration exceeds the repression threshold
+
+    all_mRNA_degradation_rates : float
+        Rate at which mRNA is degraded, in copynumber per minute
+
+    all_protein_degradation_rates : float
+        Rate at which Hes protein is degraded, in copynumber per minute
+
+    all_basal_transcription_rates : float
+        Rate at which mRNA is described, in copynumber per minute, if there is no Hes
+        autorepression. If the protein copy number is close to or exceeds the repression threshold
+        the actual transcription rate will be lower
+
+    all_translation_rates : float
+        rate at protein translation, in Hes copy number per mRNA copy number and minute,
+
+    all_transcription_delays : float
+        delay of the repression response to Hes protein in minutes. The rate of mRNA transcription depends
+        on the protein copy number at this amount of time in the past.
+
+    initial_mRNA : float
+        amount of mRNA the integrator is initialised with.
+
+    initial_protein : float
+        amount of protein the integrator is initialised with.
+
+    equlibration_time : float
+        add a neglected simulation period at beginning of the trajectory of length equilibration_time
+        in order to get rid of any overshoots, for example
+
+    Returns
+    -------
+
+    trace : ndarray
+        2 dimensional array, first column is time, second column mRNA number,
+        third column is Hes5 protein copy number
+    '''
+    total_time = duration
+    sample_times = np.arange(0.0, total_time, delta_t)
+    full_trace = np.zeros((len(sample_times), 3))
+    full_trace[:,0] = sample_times
+    full_trace[0,1] = initial_R
+    full_trace[0,2] = initial_X
+    all_k1_rates = np.repeat(all_k1_rates,np.int(1/delta_t))
+    all_k2_rates = np.repeat(all_k2_rates,np.int(1/delta_t))
+    all_k3_rates = np.repeat(all_k3_rates,np.int(1/delta_t))
+    all_k4_rates = np.repeat(all_k4_rates,np.int(1/delta_t))
+
+    for time_index, sample_time in enumerate(sample_times[1:]):
+
+        k1_rate = all_k1_rates[time_index]
+        k2_rate = all_k2_rates[time_index]
+        k3_rate = all_k3_rates[time_index]
+        k4_rate = all_k4_rates[time_index]
+        last_R = full_trace[time_index,1]
+        last_X = full_trace[time_index,2]
+
+        this_average_R_production = k1_rate
+        this_average_R_degradation = k2_rate*last_R*last_X
+        this_average_X_production = k3_rate
+        this_average_X_degradation = k4_rate*last_X
+        d_R = this_average_R_production - this_average_R_degradation
+        d_X = this_average_X_production - this_average_X_degradation
+
+        current_R = max(0,last_R + d_R)
+        current_X = max(0,last_X + d_X)
+        full_trace[time_index + 1,1] = current_R
+        full_trace[time_index + 1,2] = current_X
+    return full_trace
 
 @jit(nopython = True)
 def generate_agnostic_noise_trajectory( duration = 720,
@@ -4828,7 +4944,7 @@ def conduct_parameter_sweep_at_parameters(parameter_name,
 
     return sweep_results
 
-def detrend_experimental_data(data):
+def detrend_experimental_data(data,length_scale=1000):
     '''Detrend experimental data using Gaussian process regression with a squared exponential kernel (RBF),
     using a fixed lengthscale of roughly 3 times the period of the data (~1000 mins) and optimising the variance
     with BFGS.
@@ -4853,7 +4969,6 @@ def detrend_experimental_data(data):
     y_std : ndarray
         The standard deviation in the posterior prediction, y_gpr.
     '''
-    length_scale = 1000
     gp_kernel = (gp.kernels.ConstantKernel(constant_value=np.var(data[:,1]), constant_value_bounds=(0.1*np.var(data[:,1]),2*np.var(data[:,1])))*
                  gp.kernels.RBF(length_scale=length_scale,length_scale_bounds=(length_scale,2*length_scale)) +
                  gp.kernels.WhiteKernel(1e2,noise_level_bounds=(1e-5,np.var(data[:,1]))))

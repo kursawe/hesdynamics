@@ -4,7 +4,7 @@ os.environ["OMP_NUM_THREADS"] = "1"
 import os.path
 import sys
 import matplotlib as mpl
-import matplotlib.gridspec 
+import matplotlib.gridspec
 mpl.use('Agg')
 # mpl.rcParams['mathtext.default'] = 'regular'
 import matplotlib.pyplot as plt
@@ -21,35 +21,35 @@ sys.path.append(os.path.join(os.path.dirname(__file__),'..','..','src'))
 import hes5
 
 class TestMakePaperAnalysis(unittest.TestCase):
-                                 
-    def xest_a_make_abc_samples(self):
+
+    def test_a_make_abc_samples(self):
         print('making abc samples')
         ## generate posterior samples
-        total_number_of_samples = 1000000
+        total_number_of_samples = 200
 
 #         total_number_of_samples = 10
 
-        prior_bounds = {'basal_transcription_rate' : (0.1,60),
+        prior_bounds = {'basal_transcription_rate' : (0.1,120),
                         'translation_rate' : (1,40),
                         'repression_threshold' : (0,120000),
-                        'time_delay' : (5,40),
+                        'time_delay' : (1,40),
                         'hill_coefficient' : (2,6)}
 
         my_prior_samples, my_results = hes5.generate_lookup_tables_for_abc( total_number_of_samples,
                                                                 number_of_traces_per_sample = 200,
-                                                                saving_name = 'sampling_results_massive',
+                                                                saving_name = 'sampling_results_burton',
                                                                 prior_bounds = prior_bounds,
                                                                 prior_dimension = 'hill',
                                                                 logarithmic = True,
                                                                 simulation_timestep = 1.0,
                                                                 simulation_duration = 1500*5 )
-        
-        self.assertEquals(my_prior_samples.shape, 
+
+        self.assertEquals(my_prior_samples.shape,
                           (total_number_of_samples, 5))
 
-    def test_plot_posterior_distributions(self):
-        
-        option = 'deterministic'
+    def xest_plot_posterior_distributions(self):
+
+        option = 'full'
 
         saving_path = os.path.join(os.path.dirname(__file__), 'data',
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output',
@@ -59,7 +59,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                     'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
+
         if option == 'full':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                         np.logical_and(model_results[:,0]<65000, #protein_number
@@ -78,21 +78,21 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                         np.logical_and(model_results[:,0]<65000, #protein_number
                                                        model_results[:,1]>0.05)))  #standard deviation
             parameter_name = 'hill_coefficient'
-            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__),
 #                                                           'data',
                                                           'output',
-#                                                           'narrowed_relative_sweeps_' + 
-                                                        'repeated_relative_sweeps_' + 
-#                                                           'extended_relative_sweeps_' + 
+#                                                           'narrowed_relative_sweeps_' +
+                                                        'repeated_relative_sweeps_' +
+#                                                           'extended_relative_sweeps_' +
                                                           parameter_name + '.npy'))
- 
+
             print('these accepted base samples are')
             possible_samples = np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
                                                                     my_parameter_sweep_results[:,9,4] < 0.1))
             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
                                                                     my_parameter_sweep_results[:,9,4] < 0.1))[0])
             print(number_of_absolute_samples)
-            
+
             decrease_indices = np.where(np.logical_and(np.logical_or(my_parameter_sweep_results[:,9,4] < 0.1,
                                                                     my_parameter_sweep_results[:,9,3] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,4,3] < 300,
@@ -116,19 +116,19 @@ class TestMakePaperAnalysis(unittest.TestCase):
         elif option == 'mean':
             accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                                        model_results[:,0]<65000)) #protein_number
-        elif option == 'oscillating': 
+        elif option == 'oscillating':
              accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                          np.logical_and(model_results[:,0]<65000, #protein_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]>0.3)))))  #standard deviation
-        elif option == 'not_oscillating': 
+        elif option == 'not_oscillating':
              accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                          np.logical_and(model_results[:,0]<65000, #protein_number
                                          np.logical_and(model_results[:,1]<0.15,  #standard deviation
                                          np.logical_and(model_results[:,1]>0.05,
                                                         model_results[:,3]<0.1)))))  #standard deviation
-        elif option == 'deterministic': 
+        elif option == 'deterministic':
              accepted_indices = np.where(np.logical_and(model_results[:,5]>55000, #protein number
                                          np.logical_and(model_results[:,5]<65000, #protein_number
 #                                          np.logical_and(model_results[:,6]<0.15,  #standard deviation
@@ -140,17 +140,17 @@ class TestMakePaperAnalysis(unittest.TestCase):
             my_degradation_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 'output',
 #                                                           'extended_degradation_sweep.npy'))
                                                           'repeated_degradation_sweep.npy'))
-            my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] - 
+            my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] -
                                                           my_degradation_sweep_results[:,3,4]>
                                                           my_degradation_sweep_results[:,3,4]*1.0,
                                                           my_degradation_sweep_results[:,3,4]>0.1))
- 
+
             accepted_indices = (accepted_indices[0][my_filtered_indices],)
         else:
             ValueError('could not identify posterior option')
-#       
+#
         my_posterior_samples = prior_samples[accepted_indices]
-        
+
 #         pairplot = hes5.plot_posterior_distributions( my_posterior_samples )
 #         pairplot.savefig(os.path.join(os.path.dirname(__file__),
 #                                       'output','pairplot_extended_abc_' + option + '.pdf'))
@@ -161,9 +161,9 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_posterior_samples[:,2]/=10000
 
         data_frame = pd.DataFrame( data = my_posterior_samples,
-                                   columns= ['Transcription rate', 
-                                             'Translation rate', 
-                                             'Repression threshold/1e4', 
+                                   columns= ['Transcription rate',
+                                             'Translation rate',
+                                             'Repression threshold/1e4',
                                              'Transcription delay',
                                              'Hill coefficient'])
 
@@ -175,7 +175,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         my_figure.add_subplot(151)
 #         transcription_rate_bins = np.logspace(-1,2,20)
         transcription_rate_bins = np.linspace(-1,np.log10(60.0),20)
-#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'], 
+#         transcription_rate_histogram,_ = np.histogram( data_frame['Transcription delay'],
 #                                                        bins = time_delay_bins )
         sns.distplot(np.log10(data_frame['Transcription rate']),
                     kde = False,
@@ -193,7 +193,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
             plt.gca().set_ylim(0,1.0)
         plt.xticks([-1,0,1], [r'10$^{-1}$',r'10$^0$',r'10$^1$'])
 #         plt.yticks([])
- 
+
         my_figure.add_subplot(152)
 #         translation_rate_bins = np.logspace(0,2.3,20)
         translation_rate_bins = np.linspace(0,np.log10(40),20)
@@ -212,7 +212,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.xticks([0,1], [r'10$^0$',r'10$^1$'])
         plt.xlabel("Translation rate \n [min$^{-1}$]")
 #         plt.yticks([])
- 
+
         my_figure.add_subplot(153)
         sns.distplot(data_frame['Repression threshold/1e4'],
                      kde = False,
@@ -250,7 +250,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.gca().locator_params(axis='y', tight = True, nbins=2)
         plt.xlabel(" Transcription delay \n [min]")
 #         plt.yticks([])
- 
+
         plots_to_shift.append(my_figure.add_subplot(155))
         sns.distplot(data_frame['Hill coefficient'],
                      kde = False,
@@ -269,7 +269,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         plt.tight_layout(w_pad = 0.0001)
 #         plt.tight_layout()
-        
+
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                     'output','inference_for_paper_' + option + '.pdf'))
 
@@ -285,7 +285,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
+
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
                                     # np.logical_and(model_results[:,1]<0.15, #standard deviation
@@ -317,7 +317,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_massive')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
+
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
 #                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
@@ -332,7 +332,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                                                                      number_of_trajectories,
                                                                                      relative = True,
                                                                                      relative_range = (0.5,1.5))
-        
+
         for parameter_name in my_parameter_sweep_results:
             np.save(os.path.join(os.path.dirname(__file__), 'output','repeated_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
@@ -343,11 +343,11 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
+
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
                                                    model_results[:,1]>0.05)))  #standard deviation
-        
+
         posterior_samples = prior_samples[accepted_indices]
 
         resolution_per_direction = 100
@@ -363,46 +363,46 @@ class TestMakePaperAnalysis(unittest.TestCase):
                 coherence_sum = 0.0
                 for sample in posterior_samples:
                     if option == 'deterministic':
-                        this_sample_oscillates = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = sample[2], 
-                                                                                 hill_coefficient = sample[4], 
-                                                                                 mRNA_degradation_rate = mRNA_degradation, 
-                                                                                 protein_degradation_rate = protein_degradation, 
+                        this_sample_oscillates = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = sample[2],
+                                                                                 hill_coefficient = sample[4],
+                                                                                 mRNA_degradation_rate = mRNA_degradation,
+                                                                                 protein_degradation_rate = protein_degradation,
                                                                                  basal_transcription_rate = sample[0],
                                                                                  translation_rate = sample[1],
                                                                                  transcription_delay = sample[3])
-                        
+
                         coherence = this_sample_oscillates
 
                     elif option == 'stochastic':
-                        power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( repression_threshold = sample[2], 
-                                                                                 hill_coefficient = sample[4], 
-                                                                                 mRNA_degradation_rate = mRNA_degradation, 
-                                                                                 protein_degradation_rate = protein_degradation, 
+                        power_spectrum = hes5.calculate_theoretical_power_spectrum_at_parameter_point( repression_threshold = sample[2],
+                                                                                 hill_coefficient = sample[4],
+                                                                                 mRNA_degradation_rate = mRNA_degradation,
+                                                                                 protein_degradation_rate = protein_degradation,
                                                                                  basal_transcription_rate = sample[0],
                                                                                  translation_rate = sample[1],
                                                                                  transcription_delay = sample[3])
-                    
+
                         coherence, period = hes5.calculate_coherence_and_period_of_power_spectrum( power_spectrum )
 
                         max_index = np.argmax(power_spectrum[:,1])
-                        
+
                         if max_index > 0:
                             this_sample_oscillates = True
                         else:
                             this_sample_oscillates = False
-                            
 
-                    else: 
+
+                    else:
                         raise ValueError('option not recognised')
 
-                    if this_sample_oscillates: 
+                    if this_sample_oscillates:
                         oscillating_samples +=1
                     coherence_sum += coherence
                     total_number_of_samples += 1
                 probability_to_oscillate = oscillating_samples/total_number_of_samples
                 oscillation_probability[protein_degradation_index, mRNA_degradation_index] = probability_to_oscillate
                 expected_coherence[protein_degradation_index, mRNA_degradation_index] = coherence_sum/total_number_of_samples
-        
+
         X, Y = np.meshgrid(protein_degradation_values, mRNA_degradation_values)
 
         np.save(os.path.join(os.path.dirname(__file__),
@@ -413,7 +413,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
                                        'output','oscillation_coherence_values_' + option + '.npy'), expected_coherence)
         np.save(os.path.join(os.path.dirname(__file__),
                                        'output','oscillation_probability_values_' + option + '.npy'), oscillation_probability)
-        
+
         plt.figure(figsize = (4.5,2.5))
         plt.contourf(X,Y,oscillation_probability, 100, lw=0, rasterized = True)
 #         plt.pcolormesh(X,Y,oscillation_probability, lw = 0, rasterized = True, shading = 'gouraud')
@@ -452,15 +452,15 @@ class TestMakePaperAnalysis(unittest.TestCase):
 
         posterior_samples = prior_samples[accepted_indices]
         posterior_results = model_results[accepted_indices]
-        
-        hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples, 
+
+        hilbert_periods = hes5.calculate_hilbert_periods_at_parameter_points(posterior_samples,
                                                                              measurement_interval = 12*60,
                                                                              per_cell = True,
                                                                              samples_per_parameter_point = 1)
-        
+
 #         np.save(os.path.join(os.path.dirname(__file__), 'output',
 #                                     'repeated_shortened_posterior_hilbert_periods_per_cell_one_sample'), hilbert_periods)
-        
+
         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'output',
                                     'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 
@@ -474,7 +474,7 @@ class TestMakePaperAnalysis(unittest.TestCase):
         plt.xlabel('Period [h]')
 #         plt.ylim(0,1)
         plt.ylabel('Likelihood')
-        
+
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__), 'output',
                                    'shortened_posterior_hilbert_periods_per_cell_one_sample.pdf'))

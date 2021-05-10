@@ -1491,8 +1491,11 @@ def calculate_log_likelihood_at_parameter_point(model_parameters,protein_at_obse
     """
     from scipy.stats import norm
 
+    if np.any(model_parameters < 0):
+        return -np.inf
+
     log_likelihood = 0
-    model_parameters[[2,3]] = np.array([np.log(2)/30,np.log(2)/90])
+    # model_parameters[[2,3]] = np.array([np.log(2)/30,np.log(2)/90]) # fix known parameters
     for protein in protein_at_observations:
         _, _, _, _, predicted_observation_distributions, _, _ = kalman_filter(protein,
                                                                               model_parameters,
@@ -1542,8 +1545,8 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
 
     if ((uniform(50,2*mean_protein-50).pdf(model_parameters[0]) == 0) or
         (uniform(2,6-2).pdf(model_parameters[1]) == 0) or
-        (uniform(np.log(2)/500,np.log(2)/10 - np.log(2)/500).pdf(model_parameters[2]) == 0) or
-        (uniform(np.log(2)/500,np.log(2)/10 - np.log(2)/500).pdf(model_parameters[3]) == 0) or
+        (uniform(np.log(2)/150,np.log(2)/10 - np.log(2)/150).pdf(model_parameters[2]) == 0) or
+        (uniform(np.log(2)/150,np.log(2)/10 - np.log(2)/150).pdf(model_parameters[3]) == 0) or
         (uniform(0.01,120-0.01).pdf(model_parameters[4]) == 0) or
         (uniform(0.01,40-0.01).pdf(model_parameters[5]) == 0) or
         (uniform(1,40-1).pdf(model_parameters[6]) == 0) ):
@@ -1678,9 +1681,11 @@ def kalman_random_walk(iterations,protein_at_observations,hyper_parameters,measu
             print("Progress: ",100*step_index//iterations,'%')
 
         new_state = np.zeros(7)
-        new_state[[0,1,4,5,6]] = current_state[[0,1,4,5,6]] + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=5))
+        known_parameter_indices = [0,1,2,3,4,5]
+        unknown_parameter_indices = [6]
+        new_state[unknown_parameter_indices] = current_state[unknown_parameter_indices] + acceptance_tuner*cholesky_covariance.dot(multivariate_normal.rvs(size=len(unknown_parameter_indices)))
         # fix certain parameters
-        new_state[[2,3]] = np.copy(initial_state[[2,3]])
+        new_state[known_parameter_indices] = np.copy(initial_state[known_parameter_indices])
         # reparameterise
         reparameterised_new_state            = np.copy(new_state)
         reparameterised_new_state[[4,5]]     = np.exp(new_state[[4,5]])
