@@ -9,6 +9,9 @@ This repository contains supplementary material for the papers
 * miR-9 mediated noise optimization of the her6 oscillator is needed for cell state progression in the Zebrafish hindbrain
   X. Soto, V. Biga, J. Kursawe, R. Lea, P. Doostdar, N. Papalopulu
   <https://doi.org/10.1101/608604>
+* Inferring kinetic parameters of oscillatory gene regulation from single cell time series data
+  J. Burton, C. S. Manning, M. Rattray, N. Papalopulu, J. Kursawe
+  (to be submitted)
  
 All computational results in these papers can be re-generated from here.
 
