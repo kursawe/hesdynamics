@@ -6,10 +6,10 @@ This repository contains supplementary material for the papers
 * Quantitative single-cell live imaging links HES5 dynamics with cell-state and fate in murine neurogenesis, 
   C. S. Manning, V. Biga, J. Boyd, J. Kursawe, B. Ymisson1, D. G. Spiller, C. M. Sanderson, T. Galla, M. Rattray, N. Papalopulu
   <https://doi.org/10.1038/s41467-019-10734-8>
-* miR-9 mediated noise optimization of the her6 oscillator is needed for cell state progression in the Zebrafish hindbrain
+* miR-9 mediated noise optimization of the her6 oscillator is needed for cell state progression in the Zebrafish hindbrain,
   X. Soto, V. Biga, J. Kursawe, R. Lea, P. Doostdar, N. Papalopulu
   <https://doi.org/10.1101/608604>
-* Inferring kinetic parameters of oscillatory gene regulation from single cell time series data
+* Inferring kinetic parameters of oscillatory gene regulation from single cell time series data,
   J. Burton, C. S. Manning, M. Rattray, N. Papalopulu, J. Kursawe
   (to be submitted)
  
