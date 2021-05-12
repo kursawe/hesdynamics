@@ -1,6 +1,6 @@
 # Welcome to the Hesdynamics repository
 
-This repository can be used to simulate gene expression dynamics of self-repressing genes. It includes optimized code for deterministic and stochastic delay differential equations to describe gene expression oscillations, as well as code for parameter inference on these equations through Approximate Bayesian Computation. Further model analysis methods hosted here include bifurcation and power spectrum calculations.
+This repository can be used to simulate gene expression dynamics of self-repressing genes. It includes optimized code for deterministic and stochastic delay differential equations to describe gene expression oscillations, as well as code for parameter inference on these equations. Parameter inference can be conducted on single-cell time series data on protein expression through the use of a delay-adapted non-linear Kalman filter, or likelihood free through Approximate Bayesian Computation. Further model analysis methods hosted here include bifurcation and power spectrum calculations.
 
 This repository contains supplementary material for the papers
 * Quantitative single-cell live imaging links HES5 dynamics with cell-state and fate in murine neurogenesis, 
