@@ -506,80 +506,6 @@ class TestInference(unittest.TestCase):
                 plt.savefig(loading_path + 'delay_likelihood_mala.png')
                 plt.clf()
 
-    def xest_kalman_mala_multiple_parameters(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','')
-        # specify data to use
-        data_filename = 'protein_observations_360_ps3_ds4'
-        protein_at_observations = np.load(saving_path + data_filename + '.npy')
-        number_of_samples = 15000
-        measurement_variance = 10000
-        # true parameters ps3 -- [3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30]
-        initial_position = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
-        all_parameters = {'repression_threshold' : [0,3407.99],
-                          'hill_coefficient' : [1,5.17],
-                          'mRNA_degradation_rate' : [2,np.log(np.log(2)/30)],
-                          'protein_degradation_rate' : [3,np.log(np.log(2)/90)],
-                          'basal_transcription_rate' : [4,np.log(15.86)],
-                          'translation_rate' : [5,np.log(1.27)],
-                          'transcription_delay' : [6,30]}
-
-        known_parameters = {k:all_parameters[k] for k in ('mRNA_degradation_rate',
-                                                          'protein_degradation_rate') if k in all_parameters}
-
-        known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
-        unknown_parameter_indices = [i for i in range(len(initial_position)) if i not in known_parameter_indices]
-
-        # if we already have mcmc samples, we can use them to construct a covariance matrix to make sampling better
-        if os.path.exists(os.path.join(
-                          os.path.dirname(__file__),
-                          'output','mala_output_' + data_filename + '.npy')):
-
-            print("Posterior samples already exist, sampling directly without warm up...")
-            mala_output = np.load(saving_path + 'mala_output_' + data_filename + '.npy')
-            number_of_posterior_samples = mala_output.shape[0]
-            proposal_covariance = np.cov(mala_output[:int(number_of_posterior_samples/2),].T)
-            step_size = 0.07
-            mala = hes_inference.kalman_mala(protein_at_observations,
-                                             measurement_variance,
-                                             number_of_samples,
-                                             initial_position,
-                                             step_size,
-                                             proposal_covariance,
-                                             thinning_rate=1,
-                                             known_parameter_dict=known_parameters)
-
-            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '_2d.npy'),
-                    mala)
-
-        else:
-            print("New data set, warming up chain with " + str(number_of_samples) + " samples...")
-            proposal_covariance = np.diag([5500.0,0.045,0.01,0.013,90.0])
-            # proposal_covariance = np.diag([5500.0,0.045])
-            step_size = 0.195
-            mala = hes_inference.kalman_mala(protein_at_observations,
-                                             measurement_variance,
-                                             number_of_samples,
-                                             initial_position,
-                                             step_size,
-                                             proposal_covariance,
-                                             thinning_rate=1,
-                                             known_parameter_dict=known_parameters)
-
-            proposal_covariance = np.cov(mala[:int(number_of_samples/2),].T)
-            initial_position[unknown_parameter_indices] = np.mean(mala[:int(number_of_samples/2),],axis=0)
-            step_size = 0.32
-            print("Warm up finished. Now sampling...")
-            mala = hes_inference.kalman_mala(protein_at_observations,
-                                             measurement_variance,
-                                             number_of_samples,
-                                             initial_position,
-                                             step_size,
-                                             proposal_covariance,
-                                             thinning_rate=1,
-                                             known_parameter_dict=known_parameters)
-
-            np.save(os.path.join(os.path.dirname(__file__), 'output','mala_output_' + data_filename + '.npy'),
-                    mala)
 
     def xest_plot_protein_observations(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
@@ -985,7 +911,7 @@ class TestInference(unittest.TestCase):
             heights, bins, _ = plt.hist(output[:,2],bins=logbins_transcription,density=True,ec='black',color='#20948B',alpha=0.3)
             plt.vlines(np.log(true_parameters[4]),0,1.1*max(heights),color='k',lw=2)
             plt.xlim(xmin=0.2,xmax=7)
-            plt.xticks([1,5],labels=[1,5])
+            plt.xticks([1,6],labels=[1,6])
             plt.xlabel('log($\\alpha_m$) (1/min)',fontsize=font_size)
 
             plt.subplot(1,5,4)
@@ -1015,7 +941,7 @@ class TestInference(unittest.TestCase):
                                         "$\\alpha_p$",
                                         "$\\tau$"])
 
-            # output[:,[2,3]] = np.exp(output[:,[2,3]])
+            output[:,[2,3]] = np.exp(output[:,[2,3]])
             df = pd.DataFrame(output[::10,:],columns=parameter_names)
 
             from scipy.stats import pearsonr
@@ -1041,15 +967,15 @@ class TestInference(unittest.TestCase):
             sns.heatmap(correlation_matrix,mask=mask,annot=True,cmap=cm,cbar_kws={'label': 'Correlation coefficient, $\\nu$'},ax=ax)
             plt.savefig(saving_path + 'correlations_' + ps_string + '.png'); plt.close()
 
-            # # Create a pair grid instance
-            # # import pdb; pdb.set_trace()
-            # grid = sns.PairGrid(data= df[parameter_names[[0,2]]])
-            # # Map the plots to the locations
-            # grid = grid.map_upper(corrfunc)
-            # grid = grid.map_lower(sns.scatterplot, alpha=0.002,color='#20948B')
-            # grid = grid.map_lower(sns.kdeplot,color='k')
-            # grid = grid.map_diag(sns.histplot, bins = 20,color='#20948B');
-            # plt.savefig(saving_path + 'high_corr_pairplot_' + ps_string + '.png'); plt.close()
+            # Create a pair grid instance
+            # import pdb; pdb.set_trace()
+            grid = sns.PairGrid(data= df[parameter_names[[0,3]]])
+            # Map the plots to the locations
+            grid = grid.map_upper(corrfunc)
+            grid = grid.map_lower(sns.scatterplot, alpha=0.002,color='#20948B')
+            grid = grid.map_lower(sns.kdeplot,color='k')
+            grid = grid.map_diag(sns.histplot, bins = 20,color='#20948B');
+            plt.savefig(saving_path + 'low_corr_pairplot_' + ps_string + '.png'); plt.close()
 
     def xest_plot_experimental_mala_posteriors(self):
         saving_path = os.path.join(os.path.dirname(__file__), 'output','')
@@ -1218,8 +1144,8 @@ class TestInference(unittest.TestCase):
 
     def xest_compare_mala_random_walk_histograms(self):
         saving_path  = os.path.join(os.path.dirname(__file__), 'output','')
-        mala = np.load(saving_path + 'mala_output_transcription.npy')
-        random_walk = np.load(saving_path + 'transcription_final_mh_output_protein_observations_90_ps3_ds1.npy')[0,:,:]
+        mala = np.load(saving_path + 'mala_output_repression.npy')
+        random_walk = np.load(saving_path + 'random_walk_repression.npy')
         true_values = np.load("data/ps3_parameter_values.npy")
         # import pdb; pdb.set_trace()
         # mh_mean_error = [np.std(random_walk[:i])/3407.99 for i in range(2000)]
@@ -1234,25 +1160,24 @@ class TestInference(unittest.TestCase):
         # plt.tight_layout()
         # plt.savefig(saving_path + '2d_cov_repression.png')
 
-        height = 10
+        height = 0.012
         bw = 0.3
         bins=50
+        lw = 3
 
         my_figure = plt.figure(figsize=(13.35*0.7,6.68*0.7))
         _,bins,_ = plt.hist(mala,density=True,bins=bins,alpha=0.8,color='#20948B',label='MALA')
-        sns.kdeplot(mala[:,0],bw_method=bw,color='#20948B')
-        plt.vlines(np.mean(mala),0,height,color='#20948B',label='MALA mean')
-        plt.hist(random_walk[:,2],density=True,bins=bins,alpha=0.6,color='#F18D9E',label='MH')
-        sns.kdeplot(random_walk[:,2],bw_method=bw,color='#F18D9E')
-        plt.vlines(np.mean(random_walk[:,2]),0,height,color='#F18D9E',linestyle='dashed',label='MH Mean')
-        plt.vlines(np.log(true_values[4]),0,height,color='k',label='True Mean')
-        plt.xlabel("$\log(\\alpha_m)$",fontsize=font_size)
+        plt.vlines(np.mean(mala),0,height,color='#20948B',label='MALA mean',lw=lw)
+        plt.hist(random_walk[:,0],density=True,bins=bins,alpha=0.6,color='#F18D9E',label='MH')
+        plt.vlines(np.mean(random_walk[:,0]),0,height,color='#F18D9E',linestyle='dashed',label='MH Mean',lw=lw)
+        plt.vlines(true_values[0],0,height,color='k',label='True Mean',lw=lw)
+        plt.xlabel("$P_0$",fontsize=font_size)
         plt.legend()
         plt.xlim(xmin=2*bins[0]-bins[2],xmax=2*bins[-1]-bins[-3])
         plt.ylabel('Probability',fontsize=font_size)
         plt.tight_layout()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','algo_comparison_transcription.png'))
+                                       'output','algo_comparison_repression.png'))
 
     def xest_compare_mala_random_walk_autocorrelation(self):
         import emcee as em
@@ -1358,36 +1283,6 @@ class TestInference(unittest.TestCase):
 
         plt.clf()
 
-
-    def xest_plot_mala(self):
-        saving_path  = os.path.join(os.path.dirname(__file__), 'output','mala_output_protein_observations_360_ps3_ds4_2d')
-        output = np.load(saving_path + '.npy')
-
-        # parameters = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,np.log(15.86),np.log(1.27),30]) # ps3
-
-        # fig, ax = plt.subplots(output.shape[1],1,figsize=(8,12))
-        # for i in range(output.shape[1]):
-        #     if i in [4,5]:
-        #         ax[i].semilogy(np.exp(output[:,i]))
-        #         ax[i].set_xlabel('$\\theta_{}$'.format(i))
-        #         ax[i].hlines(np.exp(parameters[i]),0,50000,color='r')
-        #     else:
-        #         ax[i].plot(output[:,i])
-        #         ax[i].hlines(parameters[i],0,50000,color='r')
-        #         ax[i].set_xlabel('$\\theta_{}$'.format(i))
-        # plt.tight_layout()
-        # fig.savefig(os.path.join(os.path.dirname(__file__),
-        #                                'output','mala_traceplots.pdf'))
-        g = sns.PairGrid(pd.DataFrame(output[:,[0,1]],columns=['Repression\nThreshold',
-                                                      'Hill\nCoefficient']),diag_sharey=False)
-        g = g.map_upper(sns.scatterplot,size=2,color='#20948B')
-        g = g.map_lower(sns.kdeplot,color="#20948B",shade=True,shade_lowest=False)
-        g = g.map_diag(sns.distplot,color='#20948B')
-        plt.tight_layout()
-        plt.savefig(os.path.join(os.path.dirname(__file__),
-                                 'output','pair_grid_mala_2d.png'))
-
-
     def xest_relationship_between_steady_state_mean_and_variance(self):
 
         model_parameters = [10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0]
@@ -1417,48 +1312,6 @@ class TestInference(unittest.TestCase):
         print('mean =',mean)
         print('mRNA_variance/mRNA_mean =',LNA_mRNA_variance/mean[0])
         print('protein_variance/protein_mean =',LNA_protein_variance/mean[1])
-
-    def xest_generate_multiple_protein_observations(self):
-        loading_path = os.path.join(os.path.dirname(__file__), 'data','')
-        saving_path = os.path.join(os.path.dirname(__file__), 'output','')
-        ps_string = "ps3"
-        parameters = np.load(loading_path + ps_string + "_parameter_values.npy")
-        observation_duration  = 1800
-        observation_frequency = 5
-        no_of_observations    = np.int(observation_duration/observation_frequency)
-
-        true_data = hes5.generate_langevin_trajectory(duration = observation_duration,
-                                                      repression_threshold = parameters[0],
-                                                      hill_coefficient = parameters[1],
-                                                      mRNA_degradation_rate = parameters[2],
-                                                      protein_degradation_rate = parameters[3],
-                                                      basal_transcription_rate = parameters[4],
-                                                      translation_rate = parameters[5],
-                                                      transcription_delay = parameters[6],
-                                                      equilibration_time = 1000)
-        np.save(loading_path + 'true_data_' + ps_string + '.npy',
-                true_data)
-
-        ## the F constant matrix is left out for now
-        # protein_at_observations = true_data[:,(0,2)]
-        # protein_at_observations[:,1] += np.random.randn(true_data.shape[0])*100
-        # protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
-        # np.save(loading_path + 'protein_observations_90_' + ps_string + '_ds1.npy',
-        #             protein_at_observations[0:900:10,:])
-        # np.save(loading_path + 'protein_observations_180_' + ps_string + '_ds2.npy',
-        #             protein_at_observations[0:900:5,:])
-        # np.save(loading_path + 'protein_observations_180_' + ps_string + '_ds3.npy',
-        #             protein_at_observations[0:1800:10,:])
-        # np.save(loading_path + 'protein_observations_360_' + ps_string + '_ds4.npy',
-        #             protein_at_observations[0:1800:5,:])
-
-        # my_figure = plt.figure()
-        # plt.scatter(np.arange(0,1800),protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations')
-        # plt.title('Protein Observations')
-        # plt.xlabel('Time')
-        # plt.ylabel('Protein Copy Numbers')
-        # plt.tight_layout()
-        # my_figure.savefig(saving_path + 'protein_observations_' + ps_string + '.pdf')
 
     def xest_generate_multiple_protein_observations(self):
         loading_path = os.path.join(os.path.dirname(__file__), 'data','')
@@ -1691,25 +1544,6 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','in_silico_data.pdf'))
-
-
-
-    def xest_get_likelihood_at_parameters(self):
-
-        true_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
-
-        protein_at_observations = true_data[0:900:10,(0,2)]
-        protein_at_observations[:,1] += np.random.randn(90)*100
-        protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
-
-        parameters = [10000,5,np.log(2)/30, np.log(2)/90, 1, 1, 29]
-        #parameters2 = [10000,5,np.log(2)/30, np.log(2)/90, 2, 7, 29]
-
-        likelihood = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,parameters,measurement_variance = 10000)
-        #likelihood2 = hes_inference.calculate_log_likelihood_at_parameter_point(protein_at_observations,parameters2,measurement_variance = 10000)
-        print(likelihood)
-        #print(likelihood2)
-        #print(np.exp(likelihood2/likelihood))
 
     def xest_kalman_random_walk_for_profiling(self):
 
@@ -2038,53 +1872,6 @@ class TestInference(unittest.TestCase):
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_translation.npy'),likelihood_at_multiple_parameters)
 
-    def xest_multiple_random_walk_traces_in_parallel(self):
-        saving_path             = os.path.join(os.path.dirname(__file__), 'data','')
-        protein_at_observations = np.load(saving_path + 'kalman_trace_observations_180_ps2_ds1.npy')
-        previous_random_walk    = np.load(saving_path + 'full_random_walk_180_ps2_ds1.npy')
-
-        hyper_parameters = np.array([100,20100,2,4,0,1,0,1,np.log10(0.1),np.log10(60)+1,np.log10(0.1),np.log10(40)+1,5,35]) # uniform
-        measurement_variance = 10000.0
-
-        covariance     = np.diag(np.array([np.var(previous_random_walk[:,0]),np.var(previous_random_walk[:,1]),
-                                           0,                                0,
-                                           np.var(previous_random_walk[:,2]),np.var(previous_random_walk[:,3]),
-                                           np.var(previous_random_walk[:,4])]))
-        # draw 8 random initial states for the parallel random walk
-        from scipy.stats import uniform
-        initial_states          = np.zeros((8,7))
-        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
-        for initial_state_index in initial_states:
-            initial_states[initial_state_index,(0,1,4,5,6)] = uniform.rvs(np.array([100,2,np.log10(0.1),np.log10(0.1),5]),
-                        np.array([20100,4,np.log10(60)+1,np.log10(40)+1,35]))
-
-        number_of_iterations = 25000
-
-        pool_of_processes = mp_pool.ThreadPool(processes = 8)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(number_of_iterations,protein_at_observations,hyper_parameters,measurement_variance,0.15,covariance,initial_state))
-                            for initial_state in initial_states ]
-        ## Let the pool know that these are all so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
-
-        list_of_random_walks = []
-        list_of_acceptance_rates = []
-        for process_result in process_results:
-            this_random_walk, this_acceptance_rate = process_result.get()
-            list_of_random_walks.append(this_random_walk)
-            list_of_acceptance_rates.append(this_acceptance_rate)
-        pool_of_processes.join()
-        print(list_of_acceptance_rates)
-
-        for i in range(len(initial_states)):
-            np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_random_walk__180_ps2_ds1_{cap}.npy').format(cap=i),list_of_random_walks[i])
-
-        #array_of_random_walks = np.array(list_of_random_walks)
-        #self.assertEqual(array_of_random_walks.shape[0], len(initial_states))
-        #self.assertEqual(array_of_random_walks.shape[1], number_of_iterations)
-
-
     def xest_make_figure_4_mh_and_mala_convergence(self,data_filename = 'protein_observations_ps11_ds4.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
@@ -2295,236 +2082,6 @@ class TestInference(unittest.TestCase):
         my_figure.subplots_adjust(top=0.85)
         my_figure.savefig(os.path.join(loading_path,'short_and_long_posteriors_mh.pdf'))
 
-    def xest_figure_4_mh_and_mala_data(self,data_filename = 'protein_observations_ps9_1_cells_12_minutes_2.npy'):
-        # load data and true parameter values
-        saving_path = os.path.join(os.path.dirname(__file__),'data','')
-        loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        protein_at_observations = np.array([np.load(os.path.join(saving_path + 'figure_5/',data_filename))])
-        ps_string_index_start = data_filename.find('ps')
-        ps_string_index_end = data_filename.find('_cells')-2
-        ps_string = data_filename[ps_string_index_start:ps_string_index_end]
-        true_parameter_values = np.load(os.path.join(saving_path,ps_string + '_parameter_values.npy'))
-        measurement_variance = np.power(true_parameter_values[-1],2)
-
-        # define known parameters
-        all_parameters = {'repression_threshold' : [0,true_parameter_values[0]],
-                          'hill_coefficient' : [1,true_parameter_values[1]],
-                          'mRNA_degradation_rate' : [2,np.log(true_parameter_values[2])],
-                          'protein_degradation_rate' : [3,np.log(true_parameter_values[3])],
-                          'basal_transcription_rate' : [4,np.log(true_parameter_values[4])],
-                          'translation_rate' : [5,np.log(true_parameter_values[5])],
-                          'transcription_delay' : [6,true_parameter_values[6]]}
-
-        known_parameters = {k:all_parameters[k] for k in ('mRNA_degradation_rate',
-                                                          'protein_degradation_rate') if k in all_parameters}
-
-        known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
-        unknown_parameter_indices = [i for i in range(len(all_parameters)) if i not in known_parameter_indices]
-        number_of_parameters = len(unknown_parameter_indices)
-
-        number_of_samples = 50000
-        number_of_chains = 8
-        step_size = 0.001
-
-        # make sure all data starts from time "zero"
-        for i in range(protein_at_observations.shape[0]):
-            protein_at_observations[i,:,0] -= protein_at_observations[i,0,0]
-
-        mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
-
-        ##########################################################################################
-
-        print("MALA sampling now")
-
-        initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
-        initial_states[:,(0,1,4,5,6)] = np.load(loading_path + "figure_5/final_parallel_mala_output_protein_observations_ps9_1_cells_12_minutes_2.npy")[0,0,:]
-
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
-                                                          args=(protein_at_observations,
-                                                                measurement_variance,
-                                                                number_of_samples,
-                                                                initial_state,
-                                                                step_size,
-                                                                np.power(np.diag([2*mean_protein,4,9,8,39]),2),# initial variances are width of prior squared
-                                                                1, # thinning rate
-                                                                known_parameters))
-                            for initial_state in initial_states ]
-        ## Let the pool know that these are all so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
-
-        array_of_chains = np.zeros((number_of_chains,number_of_samples,5))
-        for chain_index, process_result in enumerate(process_results):
-            this_chain = process_result.get()
-            array_of_chains[chain_index,:,:] = this_chain
-        pool_of_processes.join()
-
-        np.save(os.path.join(os.path.dirname(__file__), 'output','short_proposal_mala_output_' + data_filename),
-                array_of_chains[:,:5000,:])
-
-        np.save(os.path.join(os.path.dirname(__file__), 'output','long_proposal_mala_output_' + data_filename),
-                array_of_chains)
-
-        short_samples_with_burn_in = array_of_chains[:,int(5000/2):5000,:].reshape(int(5000/2)*number_of_chains,number_of_parameters)
-        long_samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
-
-        short_proposal_covariance = np.cov(short_samples_with_burn_in.T)
-        long_proposal_covariance = np.cov(long_samples_with_burn_in.T)
-
-        # make new initial states
-        # start from mode
-        short_initial_states = np.zeros((number_of_chains,7))
-        short_initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
-        short_initial_states[:,(0,1,4,5,6)] = np.mean(short_samples_with_burn_in,axis=0)
-
-        long_initial_states = np.zeros((number_of_chains,7))
-        long_initial_states[:,(2,3)] = np.array([np.log(np.log(2)/30),np.log(np.log(2)/90)])
-        long_initial_states[:,(0,1,4,5,6)] = np.mean(long_samples_with_burn_in,axis=0)
-
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
-                                                          args=(protein_at_observations,
-                                                                measurement_variance,
-                                                                number_of_samples,
-                                                                initial_state,
-                                                                step_size,
-                                                                short_proposal_covariance,
-                                                                1, # thinning rate
-                                                                known_parameters))
-                            for initial_state in short_initial_states ]
-        ## Let the pool know that these are all finished so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
-
-        array_of_chains = np.zeros((number_of_chains,number_of_samples,5))
-        for chain_index, process_result in enumerate(process_results):
-            this_chain = process_result.get()
-            array_of_chains[chain_index,:,:] = this_chain
-        pool_of_processes.join()
-
-        np.save(os.path.join(os.path.dirname(__file__), 'output','short_warm_up_mala_output_' + data_filename),array_of_chains)
-
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
-                                                          args=(protein_at_observations,
-                                                                measurement_variance,
-                                                                number_of_samples,
-                                                                initial_state,
-                                                                step_size,
-                                                                long_proposal_covariance,# initial variances are width of prior squared
-                                                                1, # thinning rate
-                                                                known_parameters))
-                            for initial_state in long_initial_states ]
-        ## Let the pool know that these are all finished so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
-
-        array_of_chains = np.zeros((number_of_chains,number_of_samples,5))
-        for chain_index, process_result in enumerate(process_results):
-            this_chain = process_result.get()
-            array_of_chains[chain_index,:,:] = this_chain
-        pool_of_processes.join()
-
-        np.save(os.path.join(os.path.dirname(__file__), 'output','long_warm_up_mala_output_' + data_filename),array_of_chains)
-
-        #########################################################################################
-
-        print("Random walk sampling now")
-
-        initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
-        initial_states[:,(0,1,4,5,6)] = np.load(loading_path + "figure_5/final_parallel_mala_output_protein_observations_ps9_1_cells_12_minutes_2.npy")[0,0,:]
-
-        hyper_parameters = np.array([50,2*mean_protein-50,2,6-2,0,1,0,1,0.01,120-0.01,0.01,40-0.01,1,40-1])
-
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(number_of_samples,
-                                                                protein_at_observations,
-                                                                hyper_parameters,
-                                                                measurement_variance,
-                                                                step_size,
-                                                                np.power(np.diag([2*mean_protein,4,9,8,39]),2),
-                                                                initial_state))
-                            for initial_state in initial_states ]
-        ## Let the pool know that these are all so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
-
-        array_of_chains = np.zeros((number_of_chains,number_of_samples,5))
-        for chain_index, process_result in enumerate(process_results):
-            this_chain = process_result.get()
-            array_of_chains[chain_index,:,:] = this_chain
-        pool_of_processes.join()
-
-        np.save(os.path.join(os.path.dirname(__file__), 'output','short_proposal_mh_output_' + data_filename),
-                array_of_chains[:,:5000,:])
-
-        np.save(os.path.join(os.path.dirname(__file__), 'output','long_proposal_mh_output_' + data_filename),
-                array_of_chains)
-
-        short_samples_with_burn_in = array_of_chains[:,int(5000/2):5000,:].reshape(int(5000/2)*number_of_chains,number_of_parameters)
-        long_samples_with_burn_in = array_of_chains[:,int(number_of_samples/2):,:].reshape(int(number_of_samples/2)*number_of_chains,number_of_parameters)
-
-        short_proposal_covariance = np.cov(short_samples_with_burn_in.T)
-        long_proposal_covariance = np.cov(long_samples_with_burn_in.T)
-
-        # make new initial states
-        # start from mode
-        short_initial_states = np.zeros((number_of_chains,7))
-        short_initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
-        short_initial_states[:,(0,1,4,5,6)] = np.mean(short_samples_with_burn_in,axis=0)
-
-        long_initial_states = np.zeros((number_of_chains,7))
-        long_initial_states[:,(2,3)] = np.array([np.log(2)/30,np.log(2)/90])
-        long_initial_states[:,(0,1,4,5,6)] = np.mean(long_samples_with_burn_in,axis=0)
-
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(number_of_samples,
-                                                                protein_at_observations,
-                                                                hyper_parameters,
-                                                                measurement_variance,
-                                                                step_size,
-                                                                short_proposal_covariance,
-                                                                initial_state))
-                            for initial_state in short_initial_states ]
-        ## Let the pool know that these are all finished so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
-
-        array_of_chains = np.zeros((number_of_chains,number_of_samples,5))
-        for chain_index, process_result in enumerate(process_results):
-            this_chain = process_result.get()
-            array_of_chains[chain_index,:,:] = this_chain
-        pool_of_processes.join()
-
-        np.save(os.path.join(os.path.dirname(__file__), 'output','short_warm_up_mh_output_' + data_filename),array_of_chains)
-
-        pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
-        process_results = [ pool_of_processes.apply_async(hes_inference.kalman_random_walk,
-                                                          args=(number_of_samples,
-                                                                protein_at_observations,
-                                                                hyper_parameters,
-                                                                measurement_variance,
-                                                                step_size,
-                                                                long_proposal_covariance,
-                                                                initial_state))
-                            for initial_state in long_initial_states ]
-        ## Let the pool know that these are all finished so that the pool will exit afterwards
-        # this is necessary to prevent memory overflows.
-        pool_of_processes.close()
-
-        array_of_chains = np.zeros((number_of_chains,number_of_samples,5))
-        for chain_index, process_result in enumerate(process_results):
-            this_chain = process_result.get()
-            array_of_chains[chain_index,:,:] = this_chain
-        pool_of_processes.join()
-
-        np.save(os.path.join(os.path.dirname(__file__), 'output','long_warm_up_mh_output_' + data_filename),array_of_chains)
-
     def xest_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_5.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
@@ -2640,7 +2197,7 @@ class TestInference(unittest.TestCase):
                              number_of_chains,
                              number_of_samples)
 
-    def test_mala_experimental_data_parnian(self,data_filename = 'protein_observations_cell_1_detrended.npy'):
+    def xest_mala_experimental_data_parnian(self,data_filename = 'protein_observations_cell_1_detrended.npy'):
         # load data and true parameter values
         loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data_parnian/detrended_data/')
         protein_at_observations = np.array([np.load(os.path.join(loading_path,data_filename))])
@@ -2860,59 +2417,6 @@ class TestInference(unittest.TestCase):
             az.plot_posterior(chains); plt.savefig(loading_path + 'posterior_' + chain_path_string[:-4] + '.png'); plt.close()
             az.plot_pair(chains,kind='kde'); plt.savefig(loading_path + 'pairplot_' + chain_path_string[:-4] + '.png'); plt.close()
             # np.save(loading_path + chain_path_string,mala)
-
-    def xest_accuracy_of_chains_by_sampling_discreteness(self):
-        loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('parallel_mala_output_protein_observations_ps')
-                              ]
-
-        coherence_values_ds1 = np.zeros(len([i for i in chain_path_strings if 'ds1' in i]))
-        precision_values_ds1 = np.zeros(len([i for i in chain_path_strings if 'ds1' in i]))
-        coherence_values_ds2 = np.zeros(len([i for i in chain_path_strings if 'ds2' in i]))
-        precision_values_ds2 = np.zeros(len([i for i in chain_path_strings if 'ds2' in i]))
-        coherence_values_ds3 = np.zeros(len([i for i in chain_path_strings if 'ds3' in i]))
-        precision_values_ds3 = np.zeros(len([i for i in chain_path_strings if 'ds3' in i]))
-        coherence_values_ds4 = np.zeros(len([i for i in chain_path_strings if 'ds4' in i]))
-        precision_values_ds4 = np.zeros(len([i for i in chain_path_strings if 'ds4' in i]))
-
-        for chain_path_string in chain_path_strings:
-            mala = np.load(loading_path + chain_path_string)[:,10000:,:]
-            samples = mala.reshape(mala.shape[0]*mala.shape[1],mala.shape[2])
-            # samples[:,[2,3]] = np.exp(samples[:,[2,3]])
-            parameter_set_string = chain_path_string[chain_path_string.find('ps'):chain_path_string.find('_ds')]
-            data_set_string = chain_path_string[chain_path_string.find('ds'):chain_path_string.find('.npy')]
-            true_values = np.load(loading_path + '../data/' + parameter_set_string + '_parameter_values.npy')[[0,1,4,5,6]]
-            sample_mean = np.mean(samples,axis=0)
-            sample_std = np.std(samples,axis=0)
-            iqr_ratio = (np.quantile(samples,.75,axis=0)-np.quantile(samples,.25,axis=0))/(np.quantile(samples,.75,axis=0)+np.quantile(samples,.25,axis=0))
-
-            if data_set_string == 'ds1':
-                coherence_values_ds1[np.where(coherence_values_ds1==0)[0][0]] = np.load(loading_path + '../data/' + parameter_set_string + '_parameter_values.npy')[-2]
-                precision_values_ds1[np.where(precision_values_ds1==0)[0][0]] = np.sum((np.abs(true_values-sample_mean)+sample_std)/true_values) # product of mean difference and std
-                # precision_values_ds1[np.where(precision_values_ds1==0)[0][0]] = np.sum((np.abs(true_values-sample_mean))/true_values+iqr_ratio) # product of mean difference and std
-            elif data_set_string == 'ds2':
-                coherence_values_ds2[np.where(coherence_values_ds2==0)[0][0]] = np.load(loading_path + '../data/' + parameter_set_string + '_parameter_values.npy')[-2]
-                precision_values_ds2[np.where(precision_values_ds2==0)[0][0]] = np.sum((np.abs(true_values-sample_mean)+sample_std)/true_values) # product of mean difference and std
-                # precision_values_ds2[np.where(precision_values_ds2==0)[0][0]] = np.sum((np.abs(true_values-sample_mean))/true_values+iqr_ratio) # product of mean difference and std
-            elif data_set_string == 'ds3':
-                coherence_values_ds3[np.where(coherence_values_ds3==0)[0][0]] = np.load(loading_path + '../data/' + parameter_set_string + '_parameter_values.npy')[-2]
-                precision_values_ds3[np.where(precision_values_ds3==0)[0][0]] = np.sum((np.abs(true_values-sample_mean)+sample_std)/true_values) # product of mean difference and std
-                # precision_values_ds3[np.where(precision_values_ds3==0)[0][0]] = np.sum((np.abs(true_values-sample_mean))/true_values+iqr_ratio) # product of mean difference and std
-            elif data_set_string == 'ds4':
-                coherence_values_ds4[np.where(coherence_values_ds4==0)[0][0]] = np.load(loading_path + '../data/' + parameter_set_string + '_parameter_values.npy')[-2]
-                precision_values_ds4[np.where(precision_values_ds4==0)[0][0]] = np.sum((np.abs(true_values-sample_mean)+sample_std)/true_values) # product of mean difference and std
-                # precision_values_ds4[np.where(precision_values_ds4==0)[0][0]] = np.sum((np.abs(true_values-sample_mean))/true_values+iqr_ratio) # product of mean difference and std
-
-
-        plt.scatter(coherence_values_ds1,precision_values_ds1,label='DS1',s=20)
-        plt.scatter(coherence_values_ds2,precision_values_ds2,label='DS2',s=20)
-        plt.scatter(coherence_values_ds3,precision_values_ds3,label='DS3',s=20)
-        plt.scatter(coherence_values_ds4,precision_values_ds4,label='DS4',s=20)
-        plt.xlabel('Coherence')
-        plt.ylabel('Accuracy ($\hat{A}$)')
-        plt.tight_layout()
-        plt.legend()
-        plt.savefig(loading_path + 'accuracy.png')
 
     def xest_accuracy_of_chains_by_coherence(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','output_jan_17/')
@@ -3299,45 +2803,6 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         # plt.show()
         my_figure.savefig(saving_path + 'coherence_comparison.pdf')
-
-    def xest_summary_statistics_from_inferred_parameters(self):
-        saving_path = os.path.join(os.path.dirname(__file__), 'data','parallel_random_walk_')
-        random_walk = np.load(saving_path + '360_ps3_ds4_4.npy')
-        random_walk = random_walk[100000:,:]
-
-        # select inferred parameter values and calculate mean mRNAs from them
-        parameter_values = random_walk[:250000:100,:]
-        parameter_values[:,[4,5]] = np.power(10,parameter_values[:,[4,5]])
-        summary_statistics = hes_inference.calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 100,
-                                                                                               number_of_cpus = 12)
-        # compute mean mRNA from true parameter values
-        true_parameter_values = np.array([3407.99,5.17,np.log(2)/30,np.log(2)/90,15.86,1.27,30])
-        true_summary_statistics = hes_inference.calculate_langevin_summary_statistics_at_parameter_point(true_parameter_values, number_of_traces = 100)
-        inferred_mean_mRNA = summary_statistics[:,4]
-        true_mean_mRNA = true_summary_statistics[4]
-
-        # compute mean mRNA from mean inferred parameter values
-        mean_inferred_parameters = np.mean(random_walk,axis=0)
-        mean_summary_statistics = hes_inference.calculate_langevin_summary_statistics_at_parameter_point(mean_inferred_parameters, number_of_traces = 100)
-        mean_parameters_mRNA = mean_summary_statistics[4]
-
-        # compute mean mRNA from most likely inferred parameter values
-        from scipy.stats import gaussian_kde as gkde
-        most_likely_inferred_parameters = np.amax(gkde(np.transpose(random_walk)).dataset,axis=1)
-        most_likely_summary_statistics = hes_inference.calculate_langevin_summary_statistics_at_parameter_point(most_likely_inferred_parameters, number_of_traces = 100)
-        most_likely_parameters_mRNA = most_likely_summary_statistics[4]
-
-        # plot results on a histogram
-        my_figure = plt.figure()
-        plt.hist(inferred_mean_mRNA,25)
-        plt.axvline(true_mean_mRNA,label='True mean mRNA',color='#F69454')
-        plt.axvline(mean_parameters_mRNA,label='Inferred mean mRNA from mean parameters',color='#20948B')
-        plt.axvline(most_likely_parameters_mRNA,label='Inferred mean mRNA from most likely parameters',color='#BA1E1B')
-        plt.xlabel('Number of mRNA')
-        plt.ylabel('Number of occurrences')
-        plt.title('mean mRNA using parameters inferred from PS3_DS4')
-        plt.legend(fontsize='x-small')
-        my_figure.savefig(os.path.join(os.path.dirname(__file__),'output','mRNA_histogram_ps3.pdf'))
 
     def xest_generate_langevin_trace(self):
         langevin_trajectory_data = hes5.generate_langevin_trajectory(duration = 720,
