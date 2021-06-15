@@ -2,19 +2,20 @@ import math
 import numpy as np
 import hes5
 from numpy import number
+import os.path
 
 from numba import jit
 # suppresses annoying performance warnings about np.dot() being
 # faster on contiguous arrays. should look at fixing it but this
 # is good for now
-from numba.errors import NumbaPerformanceWarning
+from numba.core.errors import NumbaPerformanceWarning
 import warnings
 warnings.simplefilter('ignore', category=NumbaPerformanceWarning)
 
 from scipy.stats import gamma, multivariate_normal, uniform
 import multiprocessing as mp
 
-def kalman_filter(protein_at_observations,model_parameters,measurement_variance = 10):
+def kalman_filter(protein_at_observations,model_parameters,measurement_variance):
     """
     Perform Kalman-Bucy filter based on observation of protein
     copy numbers. This implements the filter described by Calderazzo et al., Bioinformatics (2018).
@@ -101,6 +102,7 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
     # for observation_index, current_observation in enumerate(protein_at_observations[1:]):
     for observation_index in range(len(protein_at_observations)-1):
         if number_of_observations != 1:
+            saving_path = os.path.join(os.path.dirname(__file__), '../test/output/','')
             current_observation = protein_at_observations[1+observation_index,:]
             state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative = kalman_prediction_step(state_space_mean,
                                                                                                                                       state_space_variance,
@@ -142,7 +144,7 @@ def kalman_filter(protein_at_observations,model_parameters,measurement_variance 
                                                                                                                                   measurement_variance)
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
-def kalman_filter_state_space_initialisation(protein_at_observations,model_parameters,measurement_variance = 10):
+def kalman_filter_state_space_initialisation(protein_at_observations,model_parameters,measurement_variance):
     """
     A function for initialisation of the state space mean and variance, and update for the "negative" times that
      are a result of the time delay. Initialises the negative times using the steady state of the deterministic system,
@@ -408,10 +410,9 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
                                                                                                                                   time_delay,
                                                                                                                                   observation_time_step,
                                                                                                                                   measurement_variance)
-
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
-@jit(nopython = True)
+#@jit(nopython = True)
 def kalman_observation_distribution_parameters(predicted_observation_distributions,
                                                current_observation,
                                                state_space_mean,
@@ -490,7 +491,7 @@ def kalman_observation_distribution_parameters(predicted_observation_distributio
 
     return predicted_observation_distributions[observation_index + 1]
 
-@jit(nopython = True)
+#@jit(nopython = True)
 def kalman_observation_derivatives(predicted_observation_mean_derivatives,
                                    predicted_observation_variance_derivatives,
                                    current_observation,
@@ -562,10 +563,9 @@ def kalman_observation_derivatives(predicted_observation_mean_derivatives,
                 predicted_observation_variance_derivatives[observation_index+1,parameter_index,short_row_index,short_column_index] = state_space_variance_derivative[parameter_index,
                                                                                                                                                    long_row_index,
                                                                                                                                                    long_column_index]
-
     return predicted_observation_mean_derivatives[observation_index + 1], predicted_observation_variance_derivatives[observation_index + 1]
 
-@jit(nopython = True)
+#@jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -709,17 +709,16 @@ def kalman_prediction_step(state_space_mean,
     for next_time_index in range(current_number_of_states, current_number_of_states + number_of_hidden_states):
         current_time_index = next_time_index - 1 # this corresponds to t
         past_time_index = current_time_index - discrete_delay # this corresponds to t-tau
+
         # indexing with 1:3 for numba
         current_mean = state_space_mean[current_time_index,1:3]
         past_protein = state_space_mean[past_time_index,2]
 
         hill_function_value = 1.0/(1.0+np.power(past_protein/repression_threshold,hill_coefficient))
-
         hill_function_derivative_value = - hill_coefficient*np.power(past_protein/repression_threshold,
                                                                      hill_coefficient - 1)/( repression_threshold*
                                            np.power(1.0+np.power( past_protein/repression_threshold,
                                                                 hill_coefficient),2))
-
         # jacobian of f is derivative of f with respect to past state ([past_mRNA, past_protein])
         delayed_jacobian = np.array([[0.0,basal_transcription_rate*hill_function_derivative_value],[0.0,0.0]])
         delayed_jacobian_transpose = np.transpose(delayed_jacobian)
@@ -728,7 +727,6 @@ def kalman_prediction_step(state_space_mean,
         derivative_of_mean = ( np.array([[-mRNA_degradation_rate,0.0],
                                          [translation_rate,-protein_degradation_rate]]).dot(current_mean) +
                                np.array([basal_transcription_rate*hill_function_value,0]) )
-
         next_mean = current_mean + discretisation_time_step*derivative_of_mean
         # ensures the prediction is non negative
         next_mean = np.maximum(next_mean,0)
@@ -741,7 +739,6 @@ def kalman_prediction_step(state_space_mean,
                                                                     total_number_of_states+current_time_index]):
                 current_covariance_matrix[short_row_index,short_column_index] = state_space_variance[long_row_index,
                                                                                                      long_column_index]
-
         # this is P(t-\tau,t) in page 5 of the supplementary material of Calderazzo et. al
         for short_row_index, long_row_index in enumerate([past_time_index,
                                                           total_number_of_states+past_time_index]):
@@ -837,7 +834,6 @@ def kalman_prediction_step(state_space_mean,
         current_mean_derivative = state_space_mean_derivative[current_time_index,:,0:2]
         past_mean_derivative = state_space_mean_derivative[past_time_index,:,0:2]
         past_protein_derivative = state_space_mean_derivative[past_time_index,:,1]
-
         # calculate predictions for derivative of mean wrt each parameter
         # repression threshold
         hill_function_derivative_value_wrt_repression = hill_coefficient*np.power(past_protein/repression_threshold,
@@ -845,7 +841,6 @@ def kalman_prediction_step(state_space_mean,
                                                                                   np.power(1.0+np.power( past_protein/repression_threshold,
                                                                                                          hill_coefficient),
                                                                                            2))
-
         repression_derivative = ( instant_jacobian.dot(current_mean_derivative[0]).reshape((2,1)) +
                                   delayed_jacobian.dot(past_mean_derivative[0]).reshape((2,1)) +
                                   np.array([[basal_transcription_rate*hill_function_derivative_value_wrt_repression],[0.0]]) )
@@ -856,7 +851,6 @@ def kalman_prediction_step(state_space_mean,
         hill_function_derivative_value_wrt_hill_coefficient = - np.log(past_protein/repression_threshold)*np.power(past_protein/repression_threshold,
                                                                      hill_coefficient)/( np.power(1.0+np.power( past_protein/repression_threshold,
                                                                      hill_coefficient),2))
-
         hill_coefficient_derivative = ( instant_jacobian.dot(current_mean_derivative[1]).reshape((2,1)) +
                                         delayed_jacobian.dot(past_mean_derivative[1]).reshape((2,1)) +
                                         np.array(([[basal_transcription_rate*hill_function_derivative_value_wrt_hill_coefficient],[0.0]])) )
@@ -869,7 +863,6 @@ def kalman_prediction_step(state_space_mean,
                                              np.array(([[-current_mean[0]],[0.0]])) )
 
         next_mean_derivative[2] = current_mean_derivative[2] + discretisation_time_step*(mRNA_degradation_rate_derivative.reshape((1,2)))
-
         # protein degradation rate
         protein_degradation_rate_derivative = ( instant_jacobian.dot(current_mean_derivative[3]).reshape((2,1)) +
                                                 delayed_jacobian.dot(past_mean_derivative[3]).reshape((2,1)) +
@@ -948,6 +941,7 @@ def kalman_prediction_step(state_space_mean,
                                                                                        covariance_derivative_matrix_past_to_now[parameter_index]) +
                                                                                 np.dot(covariance_derivative_matrix_now_to_past[parameter_index],
                                                                                        delayed_jacobian_transpose) )
+
 
         hill_function_second_derivative_value = hill_coefficient*np.power(past_protein/repression_threshold,
                                                                           hill_coefficient)*(
@@ -1139,6 +1133,7 @@ def kalman_prediction_step(state_space_mean,
 
             covariance_matrix_derivative_intermediate_to_next[0] = covariance_matrix_derivative_intermediate_to_current[0] + discretisation_time_step*(derivative_of_intermediate_variance_wrt_repression_threshold)
 
+
             # hill coefficient
             derivative_of_intermediate_variance_wrt_hill_coefficient = ( common_intermediate_state_space_variance_derivative_element[1] +
                                                                          np.dot(covariance_matrix_intermediate_to_past,np.transpose(delayed_jacobian_derivative_wrt_hill_coefficient)))
@@ -1200,7 +1195,7 @@ def kalman_prediction_step(state_space_mean,
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-@jit(nopython = True)
+#@jit(nopython = True)
 def kalman_update_step(state_space_mean,
                        state_space_variance,
                        state_space_mean_derivative,
@@ -1290,7 +1285,6 @@ def kalman_update_step(state_space_mean,
 
     # funny indexing with 1:3 instead of (1,2) to make numba happy
     predicted_final_state_space_mean = np.copy(state_space_mean[current_number_of_states-1,1:3])
-    # print('predicted_final_state_space_mean 1',predicted_final_state_space_mean)
 
     # extract covariance matrix up to delay
     # corresponds to P(t+Deltat-delay:t+deltat,t+Deltat-delay:t+deltat)
@@ -1304,11 +1298,10 @@ def kalman_update_step(state_space_mean,
         for shortened_column_index, long_column_index in enumerate(all_indices_up_to_delay):
             shortened_covariance_matrix[shortened_row_index,shortened_column_index] = state_space_variance[long_row_index,
                                                                                                            long_column_index]
+
     # extract P(t+Deltat-delay:t+deltat,t+Deltat), replacing ((discrete_delay),-1) with a splice for numba
     # shortened_covariance_matrix_past_to_final = np.ascontiguousarray(shortened_covariance_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)])
     shortened_covariance_matrix_past_to_final = shortened_covariance_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1)]
-    # print(shortened_covariance_matrix_past_to_final.flags)
-
     # and P(t+Deltat,t+Deltat-delay:t+deltat), replacing ((discrete_delay),-1) with a splice for numba
     # shortened_covariance_matrix_final_to_past = np.ascontiguousarray(shortened_covariance_matrix[discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:])
     shortened_covariance_matrix_final_to_past = shortened_covariance_matrix[discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:]
@@ -1332,7 +1325,6 @@ def kalman_update_step(state_space_mean,
     # This is C in the paper
     adaptation_coefficient = shortened_covariance_matrix_past_to_final.dot(
                                 np.transpose(observation_transform.reshape((1,2))) )*helper_inverse
-
     # This is rho*
     updated_stacked_state_space_mean = ( stacked_state_space_mean +
                                          (adaptation_coefficient*(current_observation[1] -
@@ -1381,7 +1373,6 @@ def kalman_update_step(state_space_mean,
 
     # funny indexing with 0:2 instead of (0,1) to make numba happy (this gives a 7 x 2 numpy array)
     predicted_final_state_space_mean_derivative = state_space_mean_derivative[current_number_of_states-1,:,0:2]
-
     # extract covariance derivative matrix up to delay
     # using for loop indexing for numba
     shortened_covariance_derivative_matrix = np.zeros((7,all_indices_up_to_delay.shape[0],all_indices_up_to_delay.shape[0]))
@@ -1398,7 +1389,6 @@ def kalman_update_step(state_space_mean,
     # and d_P(t+Deltat,t+Deltat-delay:t+deltat)/d_theta, replacing ((discrete_delay),-1) with a splice for numba
     # shortened_covariance_derivative_matrix_final_to_past = np.ascontiguousarray(shortened_covariance_derivative_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:])
     shortened_covariance_derivative_matrix_final_to_past = shortened_covariance_derivative_matrix[:,discrete_delay:2*(discrete_delay+1):(discrete_delay+1),:]
-
     # This is the derivative of P(t+Deltat,t+Deltat) in the paper
     predicted_final_covariance_derivative_matrix = np.zeros((7,2,2))
     for parameter_index in range(7):
@@ -1410,7 +1400,6 @@ def kalman_update_step(state_space_mean,
                                                                                                                                                    long_row_index,
                                                                                                                                                    long_column_index]
 
-    # need derivative of the adaptation_coefficient
     # observation_transform = observation_transform.reshape((1,2))
     adaptation_coefficient_derivative = np.zeros((7,all_indices_up_to_delay.shape[0]))
     for parameter_index in range(7):
@@ -1418,18 +1407,18 @@ def kalman_update_step(state_space_mean,
                                                              (shortened_covariance_matrix_past_to_final.dot(np.transpose(observation_transform.reshape((1,2))).dot(observation_transform.reshape((1,2)).dot(
                                                              predicted_final_covariance_derivative_matrix[parameter_index].dot(np.transpose(observation_transform.reshape((1,2))))))))*np.power(helper_inverse,2) ).reshape(all_indices_up_to_delay.shape[0])
 
+    test2 = (shortened_covariance_matrix_past_to_final.dot(np.transpose(observation_transform.reshape((1,2))).dot(observation_transform.reshape((1,2)).dot(
+                             predicted_final_covariance_derivative_matrix[2].dot(np.transpose(observation_transform.reshape((1,2))))))))*np.power(helper_inverse,2)
+
     # This is d_rho*/d_theta
     updated_stacked_state_space_mean_derivative = np.zeros((7,2*(discrete_delay+1)))
-    # print('predicted_final_state_space_mean 2',predicted_final_state_space_mean)
     for parameter_index in range(7):
         updated_stacked_state_space_mean_derivative[parameter_index] = ( stacked_state_space_mean_derivative[parameter_index] +
                                                                          adaptation_coefficient_derivative[parameter_index]*(current_observation[1] -
                                                                          observation_transform.reshape((1,2)).dot(predicted_final_state_space_mean.reshape((2,1))))[0][0] -
                                                                          adaptation_coefficient.dot(observation_transform.reshape((1,2)).dot(
                                                                          predicted_final_state_space_mean_derivative[parameter_index])) )
-
     # unstack the rho into two columns, one with mRNA and one with protein
-
     updated_state_space_mean_derivative = np.zeros(((discrete_delay+1),7,2))
     for parameter_index in range(7):
         updated_state_space_mean_derivative[:,parameter_index,:] = np.column_stack((updated_stacked_state_space_mean_derivative[parameter_index,:(discrete_delay+1)],
@@ -1437,7 +1426,9 @@ def kalman_update_step(state_space_mean,
 
     # Fill in the updated values
     # funny indexing with 0:2 instead of (0,1) to make numba happy
+
     state_space_mean_derivative[current_number_of_states-(discrete_delay+1):current_number_of_states,:,0:2] = updated_state_space_mean_derivative
+
 
     # This is d_P*/d_theta
     updated_shortened_covariance_derivative_matrix = np.zeros((7,all_indices_up_to_delay.shape[0],all_indices_up_to_delay.shape[0]))
@@ -1460,7 +1451,7 @@ def kalman_update_step(state_space_mean,
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-def calculate_log_likelihood_at_parameter_point(model_parameters,protein_at_observations,measurement_variance = 10):
+def calculate_log_likelihood_at_parameter_point(model_parameters,protein_at_observations,measurement_variance):
     """
     Calculates the negative log of the likelihood of our data given the paramters, using the Kalman filter. It uses the
     predicted_observation_distributions from the kalman_filter function. The entries of this array in the second and
@@ -1507,7 +1498,7 @@ def calculate_log_likelihood_at_parameter_point(model_parameters,protein_at_obse
         log_likelihood += np.sum(norm.logpdf(observations,mean,sd))
     return -log_likelihood
 
-def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,model_parameters,mean_protein,measurement_variance = 10):
+def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,model_parameters,mean_protein,measurement_variance):
     """
     Calculates the log of the likelihood, and the derivative of the negative log likelihood wrt each parameter, of our data given the
     paramters, using the Kalman filter. It uses the predicted_observation_distributions, predicted_observation_mean_derivatives, and
@@ -1571,6 +1562,105 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     # at equation (28) in Mbalawata, Särkkä, Haario (2013)
     observation_transform = np.array([[0.0,1.0]])
     helper_inverse = 1.0/predicted_observation_distributions[:,2]
+
+    log_likelihood_derivative = np.zeros(number_of_parameters)
+
+    for parameter_index in range(number_of_parameters):
+        for time_index in range(number_of_observations):
+            log_likelihood_derivative[parameter_index] -= 0.5*(helper_inverse[time_index]*np.trace(observation_transform.dot(
+                                                                                                            predicted_observation_variance_derivatives[time_index,parameter_index].dot(
+                                                                                                            np.transpose(observation_transform))))
+                                                                         -
+                                                                         helper_inverse[time_index]*np.transpose(observation_transform.dot(
+                                                                                                                 predicted_observation_mean_derivatives[time_index,parameter_index]))[0]*
+                                                                                                     (observations[time_index] - mean[time_index])
+                                                                         -
+                                                                         np.power(helper_inverse[time_index],2)*np.power(observations[time_index] - mean[time_index],2)*
+                                                                         observation_transform.dot(
+                                                                         predicted_observation_variance_derivatives[time_index,parameter_index].dot(
+                                                                         np.transpose(observation_transform)))
+                                                                         -
+                                                                         helper_inverse[time_index]*(observations[time_index] - mean[time_index])*
+                                                                         observation_transform.dot(predicted_observation_mean_derivatives[time_index,parameter_index])[0])
+
+    return log_likelihood, log_likelihood_derivative
+
+def calculate_log_likelihood_and_derivative_at_parameter_point_with_mRNA(protein_at_observations,model_parameters,mean_protein,measurement_variance,mRNA_parameters):
+    """
+    Calculates the log of the likelihood, and the derivative of the negative log likelihood wrt each parameter, of our data given the
+    paramters, using the Kalman filter. It uses the predicted_observation_distributions, predicted_observation_mean_derivatives, and
+    predicted_observation_variance_derivatives from the kalman_filter function. It returns the log likelihood as in the
+    calculate_log_likelihood_at_parameter_point function, and also returns an array of the derivative wrt each parameter.
+
+    Parameters
+    ----------
+
+    protein_at_observations : numpy array.
+        Observed protein. The dimension is n x 2, where n is the number of observation time points.
+        The first column is the time, and the second column is the observed protein copy number at
+        that time.
+
+    model_parameters : numpy array.
+        An array containing the moderowl parameters in the following order:
+        repression_threshold, hill_coefficient, mRNA_degradation_rate,
+        protein_degradation_rate, basal_transcription_rate, translation_rate,
+        transcription_delay.
+
+    mean_protein : float.
+        The mean protein value, used to set prior bounds for the repression threshold
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    mRNA_parameters : numpy array.
+        two element array, mean and standard deviation of the mRNA distribution
+
+    Returns
+    -------
+
+    log_likelihood : float.
+        The log of the likelihood of the data.
+
+    log_likelihood_derivative : numpy array.
+        The derivative of the log likelihood of the data, wrt each model parameter
+    """
+    from scipy.stats import norm, gamma, uniform
+    number_of_parameters = model_parameters.shape[0]
+
+    if ((uniform(50,2*mean_protein-50).pdf(model_parameters[0]) == 0) or
+        (uniform(2,6-2).pdf(model_parameters[1]) == 0) or
+        (uniform(np.log(2)/150,np.log(2)/10 - np.log(2)/150).pdf(model_parameters[2]) == 0) or
+        (uniform(np.log(2)/150,np.log(2)/10 - np.log(2)/150).pdf(model_parameters[3]) == 0) or
+        (uniform(0.01,120-0.01).pdf(model_parameters[4]) == 0) or
+        (uniform(0.01,40-0.01).pdf(model_parameters[5]) == 0) or
+        (uniform(1,40-1).pdf(model_parameters[6]) == 0) ):
+        return -np.inf, np.zeros(number_of_parameters)
+
+    state_space_mean, _, _, _, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = kalman_filter(protein_at_observations,
+                                                                                                                                                        model_parameters,
+                                                                                                                                                        measurement_variance)
+    mean_mRNA = np.mean(state_space_mean[:,1])
+    # calculate log likelihood as before
+    if protein_at_observations.reshape(-1,2).shape[0] == 1:
+        number_of_observations = 1
+        observations = [protein_at_observations[1]]
+    else:
+        number_of_observations = protein_at_observations.shape[0]
+        observations = protein_at_observations[:,1]
+
+    mean = predicted_observation_distributions[:,1]
+    sd = np.sqrt(predicted_observation_distributions[:,2])
+
+    # add mRNA penalty
+    log_likelihood = np.sum(norm.logpdf(observations,mean,sd)) + norm.logpdf(mean_mRNA,
+                                                                             mRNA_parameters[0],
+                                                                             mRNA_parameters[1])
+
+    # now for the computation of the derivative of the negative log likelihood. An expression of this can be found
+    # at equation (28) in Mbalawata, Särkkä, Haario (2013)
+    observation_transform = np.array([[0.0,1.0]])
+    helper_inverse = 1.0/predicted_observation_distributions[:,2]
+
     log_likelihood_derivative = np.zeros(number_of_parameters)
 
     for parameter_index in range(number_of_parameters):
@@ -1966,6 +2056,55 @@ def kalman_specific_likelihood_function(proposed_position,*specific_args):
         log_likelihood_derivative += single_log_likelihood_derivative
     return log_likelihood, log_likelihood_derivative
 
+def kalman_specific_likelihood_function_with_mRNA(proposed_position,*specific_args):
+    """
+    Likelihood function called by the generic_mala function inside the kalman_mala_with_mRNA function. It takes the
+    proposed position and computes the likelihood and its gradient at that point.
+
+    Parameters
+    ----------
+
+    proposed_position : numpy array
+        Proposed position in parameter space in the MALA function.
+
+    protein_at_observations : numpy array
+        Observed protein. The dimension is n x 2, where n is the number of observation time points.
+        The first column is the time, and the second column is the observed protein copy number at
+        that time. The filter assumes that observations are generated with a fixed, regular time interval.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    Returns
+    -------
+
+    log_likelihood : float
+        the likelihood evaluated by the Kalman filter at the given proposed position in parameter space.
+
+    log_likelihood_derivative : numpy array
+        the derivative of the likelihood with respect to each of the model parameters of the negative feedback
+        loop, at the given proposed position in parameter space.
+
+    """
+    reparameterised_proposed_position = np.copy(proposed_position)
+    reparameterised_proposed_position[[2,3,4,5]] = np.exp(reparameterised_proposed_position[[2,3,4,5]])
+    log_likelihood, log_likelihood_derivative = 0, np.zeros(proposed_position.shape[0])
+    for protein_at_observations in specific_args[0]:
+        # quick and dirty clean up (make data start at '0')
+        protein_at_observations[:,0] -= protein_at_observations[0,0]
+        single_log_likelihood, single_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point_with_mRNA(protein_at_observations,
+                                                                                                                                       reparameterised_proposed_position,
+                                                                                                                                       specific_args[1],
+                                                                                                                                       specific_args[2],
+                                                                                                                                       specific_args[3]) # mRNA mean and std
+        single_log_likelihood_derivative[2] = reparameterised_proposed_position[2]*single_log_likelihood_derivative[2]
+        single_log_likelihood_derivative[3] = reparameterised_proposed_position[3]*single_log_likelihood_derivative[3]
+        single_log_likelihood_derivative[4] = reparameterised_proposed_position[4]*single_log_likelihood_derivative[4]
+        single_log_likelihood_derivative[5] = reparameterised_proposed_position[5]*single_log_likelihood_derivative[5]
+        log_likelihood += single_log_likelihood
+        log_likelihood_derivative += single_log_likelihood_derivative
+    return log_likelihood, log_likelihood_derivative
+
 def kalman_mala(protein_at_observations,
                 measurement_variance,
                 number_of_samples,
@@ -2022,6 +2161,76 @@ def kalman_mala(protein_at_observations,
     mean_protein = np.mean([np.mean(i[j,1]) for i in protein_at_observations for j in range(i.shape[0])])
     kalman_args = (protein_at_observations,mean_protein,measurement_variance)
     mcmc_samples = generic_mala(kalman_specific_likelihood_function,
+                                number_of_samples,
+                                initial_position,
+                                step_size,
+                                proposal_covariance,
+                                thinning_rate,
+                                known_parameter_dict,
+                                *kalman_args)
+
+    return mcmc_samples
+
+def kalman_mala_with_mRNA(protein_at_observations,
+                          mRNA,
+                          measurement_variance,
+                          number_of_samples,
+                          initial_position,
+                          step_size,
+                          proposal_covariance=np.eye(1),
+                          thinning_rate=1,
+                          known_parameter_dict=None):
+    """
+    Metropolis adjusted Langevin algorithm which takes as input a model and returns a N x q matrix of MCMC samples, where N is the number of
+    samples and q is the number of parameters. Proposals, x', are drawn centered from the current position, x, by
+    x + h/2*proposal_covariance*log_likelihood_gradient + h*sqrt(proposal_covariance)*normal(0,1), where h is the step_size
+
+    Parameters
+    ----------
+
+    protein_at_observations : numpy array of numpy arrays
+        Collection of observed protein values. For each numpy array, the dimension is n x 2, where n is the number of
+        observation time points. The first column is the time, and the second column is the observed protein copy number
+        at that time. The filter assumes that observations are generated with a fixed, regular time interval.
+
+    mNRA : numpy array
+        The known mean and variance of the mRNA distribution for the data.
+
+    measurement_variance : float.
+        The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    number_of_samples : integer
+        the number of samples the random walk proposes
+
+    initial_position : numpy array
+        starting value of the Markov chain
+
+    proposal_covariance: numpy array
+        a q x q matrix where q is the number of paramters in the model. For optimal sampling this
+        should represent the covariance structure of the samples
+
+    step size : double
+        a tuning parameter in the proposal step. this is a user defined parameter, change in order to get acceptance ratio ~0.5
+
+    thinning_rate : integer
+        the number of samples out of which you will keep one. this parameter can be increased to reduce autocorrelation if required
+
+    known_parameter_dict : dict
+        a dict which contains values for parameters where the ground truth is known. The key is the name of the parameter,
+        the value is a 2d array, where the first entry is its parameter index in the likelihood function, and the second
+        entry is the ground truth.
+
+    Returns
+    -------
+
+    mcmc_samples : numpy array
+        an N x q matrix of MCMC samples, where N is the number of samples and q is the number of parameters. These
+        are the accepted positions in parameter space
+
+    """
+    mean_protein = np.mean([np.mean(i[:,1]) for i in protein_at_observations])
+    kalman_args = (protein_at_observations,mean_protein,measurement_variance,mRNA)
+    mcmc_samples = generic_mala(kalman_specific_likelihood_function_with_mRNA,
                                 number_of_samples,
                                 initial_position,
                                 step_size,
