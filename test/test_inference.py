@@ -2760,6 +2760,46 @@ class TestInference(unittest.TestCase):
                              number_of_chains,
                              number_of_samples)
 
+    def test_multiple_mala_traces_figure_5_coherence(self,data_filename = 'protein_observations_coherence_0.npy'):
+        # load data and true parameter values
+        saving_path = os.path.join(os.path.dirname(__file__),'data','figure_5_b')
+        loading_path = os.path.join(os.path.dirname(__file__),'output','')
+        protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
+        ps_string_index_start = data_filename.find('coher')
+        ps_string_index_end = data_filename.find('.npy')
+        ps_string = data_filename[ps_string_index_start:ps_string_index_end]
+        true_parameter_values = np.load(os.path.join(saving_path,"parameter_values_" + ps_string + '.npy'))
+        measurement_variance = np.power(true_parameter_values[-1],2)
+
+        # define known parameters
+        all_parameters = {'repression_threshold' : [0,true_parameter_values[0]],
+                          'hill_coefficient' : [1,true_parameter_values[1]],
+                          'mRNA_degradation_rate' : [2,np.log(true_parameter_values[2])],
+                          'protein_degradation_rate' : [3,np.log(true_parameter_values[3])],
+                          'basal_transcription_rate' : [4,np.log(true_parameter_values[4])],
+                          'translation_rate' : [5,np.log(true_parameter_values[5])],
+                          'transcription_delay' : [6,true_parameter_values[6]]}
+
+        known_parameters = {k:all_parameters[k] for k in ('mRNA_degradation_rate',
+                                                          'protein_degradation_rate') if k in all_parameters}
+
+        known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
+        unknown_parameter_indices = [i for i in range(len(all_parameters)) if i not in known_parameter_indices]
+        number_of_parameters = len(unknown_parameter_indices)
+
+        number_of_samples = 80000
+        number_of_chains = 8
+        step_size = 0.001
+
+        run_mala_for_dataset(data_filename,
+                             protein_at_observations,
+                             measurement_variance,
+                             number_of_parameters,
+                             known_parameters,
+                             step_size,
+                             number_of_chains,
+                             number_of_samples)
+
     def test_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps9_1_cells_12_minutes_2.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
@@ -3869,6 +3909,69 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         # plt.show()
         my_figure.savefig(saving_path + 'coherence_comparison.pdf')
+
+    def xest_figure_5_b_make_data(self):
+        loading_path = os.path.join(os.path.dirname(__file__), 'data',
+                                   'sampling_results_extended')
+        saving_path = os.path.join(os.path.dirname(__file__), 'data','figure_5_b/')
+        model_results = np.load(loading_path + '.npy')
+        prior_samples = np.load(loading_path + '_parameters.npy')
+
+        bands = np.arange(0,1,.01)
+        observation_duration  = 735
+        observation_frequency = 15
+        import random
+
+        for index, start_point in enumerate(bands):
+            coherence_band = [start_point,start_point + 0.005]
+
+            accepted_indices = np.where(np.logical_and(model_results[:,0]>30000, #protein number
+                                        np.logical_and(model_results[:,0]<65000, #protein_number
+                                        np.logical_and(model_results[:,1]>0.05, #standard deviation
+                                        np.logical_and(model_results[:,1]<0.15,  #standard deviation
+                                        np.logical_and(model_results[:,3]>coherence_band[0], #coherence
+                                        np.logical_and(model_results[:,3]<coherence_band[1], #coherence
+                                                       prior_samples[:,4]<6))))))) # hill coefficient
+
+            my_posterior_samples = prior_samples[accepted_indices]
+            my_model_results = model_results[accepted_indices]
+
+            if len(my_posterior_samples) == 0:
+                continue
+
+            this_parameter = my_posterior_samples[random.sample(range(len(my_posterior_samples)),1)][0]
+            this_results = my_model_results[random.sample(range(len(my_model_results)),1)][0]
+
+            parameters = np.array([this_parameter[2],
+                                   this_parameter[4],
+                                   np.log(2)/30,
+                                   np.log(2)/90,
+                                   this_parameter[0],
+                                   this_parameter[1],
+                                   this_parameter[3],
+                                   this_results[3]])
+
+            protein_at_observations = np.zeros((observation_duration//observation_frequency,2))
+
+            true_data = hes5.generate_langevin_trajectory(duration = observation_duration,
+                                                          repression_threshold = parameters[0],
+                                                          hill_coefficient = parameters[1],
+                                                          mRNA_degradation_rate = parameters[2],
+                                                            protein_degradation_rate = parameters[3],
+                                                          basal_transcription_rate = parameters[4],
+                                                          translation_rate = parameters[5],
+                                                          transcription_delay = parameters[6],
+                                                          equilibration_time = 1000)
+
+            measurement_variance = np.sqrt(0.1*np.mean(true_data[:,2]))
+            parameters = np.append(parameters,measurement_variance)
+            protein_at_observations = true_data[::observation_frequency,(0,2)]
+            protein_at_observations[:,1] += np.random.randn(true_data.shape[0]//observation_frequency)*parameters[-1]
+            protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
+            np.save(saving_path + "parameter_values_coherence_" + str(index) + ".npy",parameters)
+            np.save(saving_path + 'true_data_coherence_' + str(index) + '.npy', true_data)
+            np.save(saving_path + 'protein_observations_coherence_' + str(index) + '.npy', protein_at_observations)
+
 
     def xest_generate_langevin_trace(self):
         langevin_trajectory_data = hes5.generate_langevin_trajectory(duration = 720,
