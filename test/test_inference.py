@@ -2760,7 +2760,7 @@ class TestInference(unittest.TestCase):
                              number_of_chains,
                              number_of_samples)
 
-    def xest_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps9_1_cells_12_minutes_2.npy'):
+    def test_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps9_1_cells_12_minutes_2.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.array([np.load(os.path.join(saving_path+'/figure_5',data_filename))])
