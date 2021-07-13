@@ -43,15 +43,10 @@ class TestInference(unittest.TestCase):
 
         # run the current kalman filter using the same parameters and observations, then compare
         parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
-        protein_observations = np.array([[0, 100],[10, 200],[20,500],[30,700],[40,400]])
-        # state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative,predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(protein_observations,#fixed_protein_observations,
-        #                                                                                                                                                                                                                                                            parameters,
-        #                                                                                                                                                                                                                                                            measurement_variance=10)#000)
-        loglik, loglikd = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
-                                                                                                   parameters,
-                                                                                                   10000,
-                                                                                                   measurement_variance=10000)
-        import pdb; pdb.set_trace()
+        state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative,predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,#fixed_protein_observations,
+                                                                                                                                                                                                                                                                   parameters,
+                                                                                                                                                                                                                                                                   measurement_variance=10000,
+                                                                                                                                                                                                                                                                   derivative=True)
         # print(log_likelihood)
         np.testing.assert_almost_equal(state_space_mean,true_kalman_prediction_mean)
         np.testing.assert_almost_equal(state_space_variance,true_kalman_prediction_variance)
@@ -109,6 +104,49 @@ class TestInference(unittest.TestCase):
         #
         # from scipy.stats import norm
         # print(np.sum(norm.logpdf(observations,mean,sd)))
+
+    def qest_runtime_mh_vs_mala(self,data_filename='protein_observations_ps9_1_cells_12_minutes_2.npy'):
+        saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
+        fixed_langevin_trace                 = np.load(saving_path + '_true_data.npy')
+        fixed_protein_observations           = np.load(saving_path + '_observations.npy')
+        # true_kalman_prediction_mean          = np.load(saving_path + '_prediction_mean.npy')
+        # true_kalman_prediction_variance      = np.load(saving_path + '_prediction_variance.npy')
+        # true_kalman_prediction_distributions = np.load(saving_path + '_prediction_distributions.npy')
+        # true_kalman_negative_log_likelihood_derivative = np.load(saving_path + '_negative_log_likelihood_derivative.npy')
+
+        # run the current kalman filter using the same parameters and observations, then compare
+        parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
+
+        # first run for JIT compilation
+        _ = hes_inference.calculate_log_likelihood_at_parameter_point(parameters,
+                                                                      np.array([fixed_protein_observations]),
+                                                                      measurement_variance=10000)
+        from time import time
+        start_time_mh = time()
+        for _ in range(5000):
+            _ = hes_inference.calculate_log_likelihood_at_parameter_point(parameters,
+                                                                          np.array([fixed_protein_observations]),
+                                                                          measurement_variance=10000)
+        mh_time = time()-start_time_mh
+
+        # first run for JIT compilation
+        _, _ = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
+                                                                                        parameters,
+                                                                                        5000,
+                                                                                        measurement_variance=10000)
+
+        # MALA
+        start_time_mala = time()
+        for _ in range(5000):
+            _, _ = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
+                                                                                            parameters,
+                                                                                            5000,
+                                                                                            measurement_variance=10000)
+        mala_time = time()-start_time_mala
+        print("MH time: ",mh_time," seconds")
+        print("MALA time: ",mala_time," seconds")
+        print("Factor: ",mala_time/mh_time)
+
 
     def xest_likelihood_derivative_working(self):
         saving_path             = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
@@ -517,8 +555,8 @@ class TestInference(unittest.TestCase):
 
         my_figure, ax1 = plt.subplots(figsize=(12.47*0.7,8.32*0.7))
         ax1.scatter(data[:,0],data[:,2],marker='o',s=3,color='#20948B',alpha=0.75,label='protein')
-        ax1.scatter(data[0:-1:10,0],protein[0:-1:10],marker='o',s=10,color='#F18D9E')
-        # ax1.scatter(protein[:,0],protein[:,1],marker='o',s=10,c='#F18D9E')
+        ax1.scatter(data[0:-1:10,0],protein[0:-1:10],marker='o',s=14,color='#F18D9E')
+        # ax1.scatter(protein[:,0],protein[:,1],marker='o',s=14,c='#F18D9E')
         ax2 = ax1.twinx()
         ax2.scatter(data[0:-1:10,0],data[0:-1:10,1],marker='o',s=3,color='#86AC41',alpha=0.75,label='mRNA',zorder=1)
         ax1.tick_params(axis='y', labelcolor='#F18D9E')
@@ -1647,7 +1685,7 @@ class TestInference(unittest.TestCase):
 
         mean_protein = np.mean(protein_at_observations[:,1])
 
-        iterations = 200000
+        iterations = 2000
         number_of_chains = 8
         step_size = 1.0
         measurement_variance = np.power(true_parameter_values[-1],2)
@@ -1874,28 +1912,28 @@ class TestInference(unittest.TestCase):
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','likelihood_translation.npy'),likelihood_at_multiple_parameters)
 
-    def xest_make_figure_4_mh_and_mala_convergence(self,data_filename = 'protein_observations_ps11_ds4.npy'):
+    def qest_make_figure_4_mh_and_mala_convergence(self,data_filename = 'protein_observations_ps11_ds4.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
         ps_string_index_start = data_filename.find('ps')
         ps_string_index_end = data_filename.find('ps') + 3
         ps_string = data_filename[ps_string_index_start:ps_string_index_end]
+        # protein_at_observations = np.array([np.load(os.path.join(saving_path,'protein_observations_'+ps_string))])
         true_parameter_values = np.load(os.path.join(saving_path,ps_string + '_parameter_values.npy'))
         measurement_variance = np.power(true_parameter_values[-1],2)
 
-        true_posterior = np.load(loading_path + "final_mh_output_" + data_filename)
+        true_posterior = np.load(loading_path + "final_mh_output_" + data_filename).reshape(8,200000,5)
+        # import pdb; pdb.set_trace()
         mean = np.mean(true_posterior.reshape(true_posterior.shape[0]*true_posterior.shape[1],true_posterior.shape[2]),axis=0)
         std = np.std(true_posterior.reshape(true_posterior.shape[0]*true_posterior.shape[1],true_posterior.shape[2]),axis=0)
 
-        datasets = {'MALA 5k' : np.load(loading_path + 'short_warm_up_parallel_mala_output_' + data_filename).reshape(2,200000,5),
-                    'MALA 50k' : np.load(loading_path + 'long_warm_up_parallel_mala_output_' + data_filename).reshape(2,200000,5),
-                    'True' : true_posterior}
+        datasets = {'MH' : np.load(loading_path + 'long_warm_up_mh_output_' + data_filename).reshape(8,50000,5),
+                    'MALA' : np.load(loading_path + 'long_warm_up_parallel_mala_output_' + data_filename).reshape(8,50000,5)}
         fig, ax = plt.subplots(1,2,figsize=(14,6))
-        burn_in = 100
+        burn_in = 0
         window = 1000
-        indices = np.concatenate((np.arange(burn_in+1,1000),np.arange(1000,200000,window)))
+        indices = np.concatenate((np.arange(burn_in+1,burn_in+1000),np.arange(burn_in+1000,50000-10,window)))
         mean_error_dict = {}
         std_error_dict = {}
         cov_error_dict = {}
@@ -1905,7 +1943,7 @@ class TestInference(unittest.TestCase):
             std_error_dict[key] = np.zeros(len(indices))
             cov_error_dict[key] = np.zeros(len(indices))
             for index, chain_length in enumerate(indices):
-                short_chains = datasets[key][:,burn_in:chain_length,:] # DIMS: 8 x chain_length x 5
+                short_chains = datasets[key][:,burn_in:chain_length+10,:] # DIMS: 8 x chain_length x 5
                 # mean
                 short_chain_means = np.mean(short_chains,axis=1) # 8 x 5
                 short_chain_mean_errors = np.abs(mean - short_chain_means)/mean # 8 x 5
@@ -1926,51 +1964,55 @@ class TestInference(unittest.TestCase):
 
         ax[0].set_yscale('log')
         ax[0].set_xscale('log')
-        for key, value in mean_error_dict.items():
-            ax[0].plot(indices,value,label=key)
-        ax[0].set_ylabel("Relative mean error")
+        for key, value in std_error_dict.items():
+            ax[0].plot(indices,value)
+        ax[0].set_ylabel("Relative std error")
         ax[0].set_xlabel("Iterations")
 
         ax[1].set_yscale('log')
         ax[1].set_xscale('log')
-        for key, value in std_error_dict.items():
-            ax[1].plot(indices,value)
-        ax[1].set_ylabel("Relative std error")
+        for key, value in mean_error_dict.items():
+            ax[1].plot(indices,value,label=key)
+        ax[1].set_ylabel("Relative mean error")
         ax[1].set_xlabel("Iterations")
 
         plt.tight_layout()
         fig.legend(loc="center right",
-                   borderaxespad=0.1)
-        plt.subplots_adjust(right=.82)
-        plt.savefig(loading_path + "multivariate_mh_vs_mala_convergence_speed" + "_long_and_short_bimodal_test.png")
+                   borderaxespad=0.25)
+        plt.subplots_adjust(right=.85)
+        plt.savefig(loading_path + "multivariate_mh_vs_mala_convergence_speed" + "_long_warm_up_bimodal.png")
         plt.clf()
 
-    def xest_make_figure_4_qqplots(self,data_filename = 'protein_observations_ps11_ds4.npy'):
+    def qest_make_figure_4_qqplots(self,data_filename = 'protein_observations_ps9_1_cells_12_minutes_2.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
+        # protein_at_observations = np.array([np.load(os.path.join(saving_path,data_filename))])
         ps_string_index_start = data_filename.find('ps')
         ps_string_index_end = data_filename.find('_ds')
         ps_string = data_filename[ps_string_index_start:ps_string_index_end]
-        true_parameter_values = np.load(os.path.join(saving_path,ps_string + '_parameter_values.npy'))
-        measurement_variance = np.power(true_parameter_values[-1],2)
+        # true_parameter_values = np.load(os.path.join(saving_path,ps_string + '_parameter_values.npy'))
+        # measurement_variance = np.power(true_parameter_values[-1],2)
 
-        parameter_labels = ['Repression Threshold',
-                            'Hill Coefficient',
-                            'log(Transcription Rate)',
-                            'log(Translation Rate)',
-                            'Transcriptional Delay']
+        parameter_labels = np.array(["$P_0$",
+                                    "$h$",
+                                    "$\log(\\alpha_m)$ (1/min)",
+                                    "$\log(\\alpha_p)$ (1/min)",
+                                    "$\\tau$ (mins)"])
+
+        # parameter_labels = ['Repression Threshold',
+        #                     'Hill Coefficient',
+        #                     'log(Transcription Rate)',
+        #                     'log(Translation Rate)',
+        #                     'Transcriptional Delay']
 
         quantile_indices = np.arange(0,1,0.01)
 
-        true_posterior = np.load(loading_path + "final_mh_output_protein_observations_ps11_ds4.npy").reshape(1600000,5)
+        true_posterior = np.load(loading_path + "final_mh_output_" + data_filename).reshape(1600000,5)
         true_quantiles = np.quantile(true_posterior,quantile_indices,axis=0)
 
-        datasets = {'MALA 5k' : np.load(loading_path + 'short_warm_up_parallel_mala_output_' + data_filename)[:,25000:,:].reshape(200000,5),
-                    'MALA 50k' : np.load(loading_path + 'long_warm_up_parallel_mala_output_' + data_filename)[:,25000:,:].reshape(200000,5),
-                    'MH 5k' : np.load(loading_path + 'short_warm_up_mh_output_' + data_filename)[:,25000:,:].reshape(200000,5),
-                    'MH 50k' : np.load(loading_path + 'long_warm_up_mh_output_' + data_filename)[:,25000:,:].reshape(200000,5)}
+        datasets = {'MH' : np.load(loading_path + 'long_warm_up_mh_output_' + data_filename)[:,25000:,:].reshape(200000,5),
+                    'MALA' : np.load(loading_path + 'long_warm_up_parallel_mala_output_' + data_filename)[:,25000:,:].reshape(200000,5)}
 
         fig, ax = plt.subplots(1,5,figsize=(22,5))
         quantiles_dict = {}
@@ -1980,21 +2022,21 @@ class TestInference(unittest.TestCase):
 
         for i in range(5):
             if i == 0: # label
-                ax[i].plot(true_quantiles[:,i],true_quantiles[:,i],color='k',label='True')
+                ax[i].plot(true_quantiles[:,i],true_quantiles[:,i],color='grey',label='True',alpha=0.7,linewidth=2)
                 ax[i].set_xlabel(parameter_labels[i])
             else:
-                ax[i].plot(true_quantiles[:,i],true_quantiles[:,i],color='k')
+                ax[i].plot(true_quantiles[:,i],true_quantiles[:,i],color='grey',alpha=0.7,linewidth=2)
                 ax[i].set_xlabel(parameter_labels[i])
             for key, value in quantiles_dict.items():
                 if i == 0: # label
-                    ax[i].plot(true_quantiles[:,i],quantiles_dict[key][:,i],'--',alpha=0.5,label=key)
+                    ax[i].plot(true_quantiles[:,i],quantiles_dict[key][:,i],'--',alpha=0.5,label=key,linewidth=3)
                 else:
-                    ax[i].plot(true_quantiles[:,i],quantiles_dict[key][:,i],'--',alpha=0.5)
+                    ax[i].plot(true_quantiles[:,i],quantiles_dict[key][:,i],'--',alpha=0.5,linewidth=3)
         plt.tight_layout()
         fig.legend(loc="center right",
-                   borderaxespad=0.1)
-        plt.subplots_adjust(right=.87)
-        plt.savefig(loading_path + "multivariate_mh_vs_mala_qqplots.png")
+                   borderaxespad=0.25)
+        plt.subplots_adjust(right=.9)
+        plt.savefig(loading_path + "multivariate_mh_vs_mala_qqplots_unimodal.png")
         plt.clf()
 
     def xest_make_figure_4_mh_and_mala_histograms(self,data_filename = 'protein_observations_ps11_ds4.npy'):
@@ -2087,13 +2129,107 @@ class TestInference(unittest.TestCase):
     def qest_coherence_vs_sampling_frequency(self):
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
+        sampling_frequencies = [1,5,8,12,15,30,50]
+        parameter_set_strings = ['ps6','ps7','ps8','ps9','ps10','ps11','ps12']
+        parameter_sets = np.zeros((len(parameter_set_strings),5))
+        for index, parameter_set_string in enumerate(parameter_set_strings):
+            parameter_sets[index,:] = np.load(saving_path + parameter_set_string + '_parameter_values.npy')[[4,5,0,6,1]]
 
-        summary_statistics = calculate_langevin_summary_statistics_at_parameters(parameter_values, number_of_traces_per_sample = 100,
-                                                                                 number_of_cpus = number_of_available_cores,
-                                                                                 model = 'langevin',
-                                                                                 timestep = 0.5,
-                                                                                 simulation_duration = 1500,
-                                                                                 power_spectrum_smoothing_window = 0.001)
+        coherence_values = np.zeros((len(parameter_set_strings),len(sampling_frequencies)))
+
+        for parameter_set_index, parameter_set in enumerate(parameter_sets):
+            for sampling_index, frequency in enumerate(sampling_frequencies):
+                summary_statistics = hes5.calculate_langevin_summary_statistics_at_parameter_point(parameter_set,
+                                                                                                   number_of_traces = 200,
+                                                                                                   simulation_duration = 5*1500,
+                                                                                                   power_spectrum_smoothing_window = 0.001,
+                                                                                                   sampling_frequency = frequency)
+                coherence_values[parameter_set_index,sampling_index] = summary_statistics[3]
+
+        fig, ax = plt.subplots(figsize=(10,5))
+        # ax.set_ylim(0,.05)
+        for i in range(len(parameter_set_strings)):
+            ax.plot(sampling_frequencies,coherence_values[i],color = '#20948B')
+        ax.set_xlabel('Sampling interval (mins)')
+        ax.set_ylabel('Coherence')
+
+        plt.tight_layout()
+        plt.savefig(loading_path + 'sampling_frequency_vs_coherence.pdf')
+
+    def qest_visualise_kalman_filter(self):
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        loading_path = os.path.join(os.path.dirname(__file__),'output','')
+
+        data = np.load(saving_path + 'true_data_ps3.npy')
+        protein = np.maximum(0,data[:,2] + 1000*np.random.randn(data.shape[0]))
+
+        my_figure, ax1 = plt.subplots(figsize=(12.47*0.7,8.32*0.7))
+        ax1.scatter(data[:,0],data[:,2],marker='o',s=3,color='#20948B',alpha=0.75,label='protein')
+        ax1.scatter(data[0:-1:10,0],protein[0:-1:10],marker='o',s=14,color='#F18D9E')
+        # ax1.scatter(protein[:,0],protein[:,1],marker='o',s=14,c='#F18D9E')
+        ax2 = ax1.twinx()
+        ax2.scatter(data[0:-1:10,0],data[0:-1:10,1],marker='o',s=3,color='#86AC41',alpha=0.75,label='mRNA',zorder=1)
+        ax1.tick_params(axis='y', labelcolor='#F18D9E')
+        ax2.tick_params(axis='y', labelcolor='#86AC41')
+        ax1.set_xlabel('Time (mins)')
+        ax1.set_ylabel('Number of protein molecules')
+        ax2.set_ylabel('Number of mRNA molecules')
+        ax1.set_zorder(ax2.get_zorder()+1)
+        ax1.patch.set_visible(False)
+        plt.tight_layout()
+        my_figure.savefig(os.path.join(saving_path,'ps3_data.pdf'))
+
+
+        true_data = np.load(os.path.join(saving_path,'true_data_ps3.npy'))
+        protein_observations = true_data[::10,[0,2]]
+        protein_observations[:,1] = protein[0:-1:10]
+        true_parameters = np.load(os.path.join(saving_path,'ps3_parameter_values.npy'))[:7]
+
+        true_state_space_mean, true_state_space_variance, _,_,_,_,_ = hes_inference.kalman_filter(protein_observations,
+                                                                                                  true_parameters,
+                                                                                                  measurement_variance=1000000,
+                                                                                                  derivative=False)
+
+        number_of_states = true_state_space_mean.shape[0]
+
+        true_protein_covariance_matrix = true_state_space_variance[number_of_states:,number_of_states:]
+        true_protein_variance = np.diagonal(true_protein_covariance_matrix)
+        true_protein_error = np.sqrt(true_protein_variance)*2
+        # remove negatives from error bar calc
+        true_protein_error = np.zeros((2,len(true_protein_variance)))
+        true_protein_error[0,:] = np.minimum(true_state_space_mean[:,2],np.sqrt(true_protein_variance)*2)
+        true_protein_error[1,:] = np.sqrt(true_protein_variance)*2
+
+        true_mRNA_covariance_matrix = true_state_space_variance[:number_of_states,:number_of_states]
+        true_mRNA_variance = np.diagonal(true_mRNA_covariance_matrix)
+        true_mRNA_error = np.sqrt(true_mRNA_variance)*2
+        # remove negatives from error bar calc
+        true_mRNA_error = np.zeros((2,len(true_mRNA_variance)))
+        true_mRNA_error[0,:] = np.minimum(true_state_space_mean[:,1],np.sqrt(true_mRNA_variance)*2)
+        true_mRNA_error[1,:] = np.sqrt(true_mRNA_variance)*2
+
+        fig, ax = plt.subplots(2,1,figsize=(0.76*15.38,0.76*15.38))
+        # ground truth
+        ax[0].scatter(protein_observations[:,0],protein_observations[:,1],s=14,label='observed protein (known)',color='#F18D9E',zorder=2)
+        ax[0].scatter(protein_observations[:,0],true_data[::10,2],s=14,label='ground truth protein (unknown)',color='black',alpha=0.5,zorder=2)
+        # state space
+        ax[0].scatter(true_state_space_mean[np.int(true_parameters[-1])::10,0],true_state_space_mean[np.int(true_parameters[-1])::10,2],s=14,label='state space protein',color='#20948B',zorder=1)
+        ax[0].errorbar(true_state_space_mean[30:,0],true_state_space_mean[30:,2],yerr=true_protein_error[:,30:],ecolor='#98DBC6',alpha=0.25,zorder=1)
+        ax[0].set_xlabel('Time',fontsize=1.1*font_size)
+        ax[0].set_ylabel('Protein Copy Numbers',fontsize=1.1*font_size)
+        ax[0].legend(fontsize=0.7*font_size)
+
+        # ground truth
+        ax[1].scatter(protein_observations[:,0],true_data[::10,1],s=14,label='ground truth mRNA (unknown)',color='#8d9ef1',zorder=2)
+        # state space
+        ax[1].scatter(true_state_space_mean[np.int(true_parameters[-1])::10,0],true_state_space_mean[np.int(true_parameters[-1])::10,1],s=8,label='state space mRNA',color='#F69454',zorder=1)
+        ax[1].errorbar(true_state_space_mean[30:,0],true_state_space_mean[30:,1],yerr=true_mRNA_error[:,30:],ecolor='#F9be98',alpha=0.25,zorder=1)
+        ax[1].set_xlabel('Time',fontsize=1.1*font_size)
+        ax[1].set_ylabel('mRNA Copy Numbers',fontsize=1.1*font_size)
+        ax[1].legend(fontsize=0.7*font_size)
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','figure_2_kalman_visualisation.pdf'))
 
     def qest_state_space_mean_mRNA_uncertainty_plots(self):
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
@@ -2122,13 +2258,13 @@ class TestInference(unittest.TestCase):
             posterior_mode[value] = bins[heights.argmax()]
         posterior_mode[[4,5]] = np.exp(posterior_mode[[4,5]])
 
-        mRNA_mode = np.zeros(7)
-        mRNA_mode[[2,3]] = [np.log(2)/30,np.log(2)/90]
-        counter = 0
-        for index,value in enumerate([0,1,4,5,6]):
-            heights, bins, _ = plt.hist(mRNA_chain[:,index],bins=45)
-            mRNA_mode[value] = bins[heights.argmax()]
-        mRNA_mode[[4,5]] = np.exp(mRNA_mode[[4,5]])
+        # mRNA_mode = np.zeros(7)
+        # mRNA_mode[[2,3]] = [np.log(2)/30,np.log(2)/90]
+        # counter = 0
+        # for index,value in enumerate([0,1,4,5,6]):
+        #     heights, bins, _ = plt.hist(mRNA_chain[:,index],bins=45)
+        #     mRNA_mode[value] = bins[heights.argmax()]
+        # mRNA_mode[[4,5]] = np.exp(mRNA_mode[[4,5]])
 
         true_state_space_mean, true_state_space_variance, _,_,_,_,_ = hes_inference.kalman_filter(protein_observations,
                                                                                                   true_parameters,
@@ -2138,9 +2274,9 @@ class TestInference(unittest.TestCase):
                                                                                                   posterior_mode,
                                                                                                   measurement_variance=1000000)
 
-        mRNA_state_space_mean, mRNA_state_space_variance, _,_,_,_,_ = hes_inference.kalman_filter(protein_observations,
-                                                                                                  mRNA_mode,
-                                                                                                  measurement_variance=1000000)
+        # mRNA_state_space_mean, mRNA_state_space_variance, _,_,_,_,_ = hes_inference.kalman_filter(protein_observations,
+        #                                                                                           mRNA_mode,
+        #                                                                                           measurement_variance=1000000)
 
         # ground truth error
         number_of_states = true_state_space_mean.shape[0]
@@ -2161,86 +2297,365 @@ class TestInference(unittest.TestCase):
         mode_mRNA_error[0,:] = np.minimum(mode_state_space_mean[:,1],np.sqrt(mode_mRNA_variance)*2)
         mode_mRNA_error[1,:] = np.sqrt(mode_mRNA_variance)*2
 
-        # with mRNA error
-        number_of_states = mRNA_state_space_mean.shape[0]
-        mRNA_mRNA_covariance_matrix = mRNA_state_space_variance[:number_of_states,:number_of_states]
-        mRNA_mRNA_variance = np.diagonal(mRNA_mRNA_covariance_matrix)
-        # remove negatives from error bar calc
-        mRNA_mRNA_error = np.zeros((2,len(mRNA_mRNA_variance)))
-        mRNA_mRNA_error[0,:] = np.minimum(mRNA_state_space_mean[:,1],np.sqrt(mRNA_mRNA_variance)*2)
-        mRNA_mRNA_error[1,:] = np.sqrt(mRNA_mRNA_variance)*2
+        # # with mRNA error
+        # number_of_states = mRNA_state_space_mean.shape[0]
+        # mRNA_mRNA_covariance_matrix = mRNA_state_space_variance[:number_of_states,:number_of_states]
+        # mRNA_mRNA_variance = np.diagonal(mRNA_mRNA_covariance_matrix)
+        # # remove negatives from error bar calc
+        # mRNA_mRNA_error = np.zeros((2,len(mRNA_mRNA_variance)))
+        # mRNA_mRNA_error[0,:] = np.minimum(mRNA_state_space_mean[:,1],np.sqrt(mRNA_mRNA_variance)*2)
+        # mRNA_mRNA_error[1,:] = np.sqrt(mRNA_mRNA_variance)*2
 
         fig, ax = plt.subplots(figsize=(10,5))
         # plt.subplot(2,1,1)
         # ground truth
-        ax.scatter(true_state_space_mean[np.int(true_parameters[-1])::12,0],true_state_space_mean[np.int(true_parameters[-1])::12,1],s=6,label='ground truth',color='#20948B',zorder=2)
+        ax.scatter(true_state_space_mean[np.int(true_parameters[-1])::12,0],true_state_space_mean[np.int(true_parameters[-1])::12,1],s=6,label='inferred mRNA copy numbers at ground truth',color='#20948B',zorder=2)
         ax.errorbar(true_state_space_mean[:,0],true_state_space_mean[:,1],yerr=true_mRNA_error,ecolor='#98DBC6',alpha=0.25,zorder=1)
         # without mRNA posterior mode
-        ax.scatter(mode_state_space_mean[np.int(posterior_mode[-1])::12,0],mode_state_space_mean[np.int(posterior_mode[-1])::12,1],s=6,label='posterior mode (without mRNA)',color='#F18D9E',zorder=2)
+        ax.scatter(mode_state_space_mean[np.int(posterior_mode[-1])::12,0],mode_state_space_mean[np.int(posterior_mode[-1])::12,1],s=6,label='inferred mRNA copy numbers (without mRNA data)',color='#F18D9E',zorder=2)
         ax.errorbar(mode_state_space_mean[:,0],mode_state_space_mean[:,1],yerr=mode_mRNA_error,ecolor='#f8c6ce',alpha=0.25,zorder=1)
         # with mRNA posterior mode
-        ax.scatter(mRNA_state_space_mean[np.int(mRNA_mode[-1])::12,0],mRNA_state_space_mean[np.int(mRNA_mode[-1])::12,1],s=6,label='posterior mode (with mRNA)',color='#F69454',zorder=2)
-        ax.errorbar(mRNA_state_space_mean[:,0],mRNA_state_space_mean[:,1],yerr=mRNA_mRNA_error,ecolor='#F9be98',alpha=0.25,zorder=1)
+        # ax.scatter(mRNA_state_space_mean[np.int(mRNA_mode[-1])::12,0],mRNA_state_space_mean[np.int(mRNA_mode[-1])::12,1],s=6,label='posterior mode (with mRNA)',color='#F69454',zorder=2)
+        # ax.errorbar(mRNA_state_space_mean[:,0],mRNA_state_space_mean[:,1],yerr=mRNA_mRNA_error,ecolor='#F9be98',alpha=0.25,zorder=1)
         ax.set_xlabel('Time')
         ax.set_ylabel('mRNA Copy Numbers')
         plt.legend(fontsize='x-small')
         plt.tight_layout()
-
-        # plt.subplot(2,1,2)
-        # plt.plot(true_data[:,0],true_data[:,1],label='true mRNA',linewidth=0.89,zorder=3)
-        # plt.plot(state_space_mean[:,0],state_space_mean[:,1],label='inferred mRNA',color='#86AC41',zorder=2)
-        # plt.errorbar(state_space_mean[:,0],state_space_mean[:,1],yerr=mRNA_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
-        # plt.legend(fontsize='x-small')
-        # plt.title('Predicted mRNA')
-        # plt.xlabel('Time')
-        # plt.ylabel('mRNA Copy Numbers')
-        # plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','state_space_uncertainty_posterior_mean_test.pdf'))
+                                       'output','state_space_uncertainty_posterior_mode.pdf'))
+
+    def qest_state_space_mRNA_uncertainty(self):
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        loading_path = os.path.join(os.path.dirname(__file__),'output','figure_5/')
+
+        protein_observations = np.load(os.path.join(saving_path,'figure_5/protein_observations_ps9_1_cells_12_minutes_2.npy'))
+        true_parameters = np.load(os.path.join(saving_path,'ps9_parameter_values.npy'))[:7]
+        chain = np.load(os.path.join(loading_path,'final_parallel_mala_output_protein_observations_ps9_1_cells_12_minutes_2.npy'))
+
+        # reshape and sample
+        chain = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
+
+        number_of_samples = 1000
+        samples = np.zeros((number_of_samples,7))
+        samples[:,[2,3]] = [np.log(2)/30,np.log(2)/90]
+        import random
+        samples[:,[0,1,4,5,6]] = chain[random.sample(range(chain.shape[0]),number_of_samples)]
+        samples[:,[4,5]] = np.exp(samples[:,[4,5]])
 
 
+        true_state_space_mean, true_state_space_variance, _,_,_,_,_ = hes_inference.kalman_filter(protein_observations,
+                                                                                                  true_parameters,
+                                                                                                  measurement_variance=1000000)
+        # remove negative times
+        zero_index = np.where(true_state_space_mean[:,0]==0)[0][0]
+        # ground truth error
+        true_state_space_mean = true_state_space_mean[zero_index:]
+        number_of_states = true_state_space_mean.shape[0]
+        true_mRNA_covariance_matrix = true_state_space_variance[zero_index:number_of_states+zero_index,
+                                                                zero_index:number_of_states+zero_index]
+        true_mRNA_variance = np.diagonal(true_mRNA_covariance_matrix)
+        # remove negatives from error bar calc
+        true_mRNA_error = np.zeros((2,len(true_mRNA_variance)))
+        true_mRNA_error[0,:] = np.minimum(true_state_space_mean[:,1],np.sqrt(true_mRNA_variance)*2)
+        true_mRNA_error[1,:] = np.sqrt(true_mRNA_variance)*2
 
+        total_means = np.zeros((number_of_samples,733))
+        total_variances = np.zeros((number_of_samples,733))
+        for index, sample in enumerate(samples):
+            # mean
+            state_space_mean, state_space_variance, _,_,_,_,_ = hes_inference.kalman_filter(protein_observations,
+                                                                                            sample,
+                                                                                            measurement_variance=1000000)
 
-        # number_of_states = state_space_mean.shape[0]
-        # protein_covariance_matrix = state_space_variance[number_of_states:,number_of_states:]
-        # protein_variance = np.diagonal(protein_covariance_matrix)
-        # protein_error = np.sqrt(protein_variance)*2
-        #
-        # true_protein_covariance_matrix = true_kalman_prediction_variance[number_of_states:,number_of_states:]
-        # true_protein_variance = np.diagonal(true_protein_covariance_matrix)
-        # true_protein_error = np.sqrt(protein_variance)*2
+            # remove negative times
+            zero_index = np.where(state_space_mean[:,0]==0)[0][0]
+            #mean
+            total_means[index] = state_space_mean[zero_index:,1]
+            # variance
+            number_of_states = state_space_mean[zero_index:,1].shape[0]
+            mRNA_covariance_matrix = state_space_variance[zero_index:number_of_states+zero_index,
+                                                          zero_index:number_of_states+zero_index]
+            total_variances[index] = np.diagonal(mRNA_covariance_matrix)
+            # mRNA_std = np.sqrt(mRNA_variance) # *2 for 2 standard deviations?
 
-        # don't need this shit
-        #
-        # my_figure = plt.figure()
+        mean_of_total_means = np.mean(total_means,axis=0)
+        variance_of_total_variances = np.mean(total_variances,axis=0) + np.var(total_means,axis=0)
+        # remove negatives from error bar calc
+        total_mRNA_error = np.zeros((2,len(mean_of_total_means)))
+        total_mRNA_error[0,:] = np.minimum(mean_of_total_means,np.sqrt(variance_of_total_variances)*2)
+        total_mRNA_error[1,:] = np.sqrt(variance_of_total_variances)*2
+
+        fig, ax = plt.subplots(figsize=(10,5))
         # plt.subplot(2,1,1)
-        # plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
-        # plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
-        # plt.plot(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
-        # plt.scatter(np.arange(0,900,10),true_kalman_prediction_distributions[:,1],marker='o',s=4,c='#98DBC6',label='likelihood',zorder=2)
-        # plt.errorbar(true_kalman_prediction_mean[:,0],true_kalman_prediction_mean[:,2],yerr=true_protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
-        # plt.errorbar(true_kalman_prediction_distributions[:,0],true_kalman_prediction_distributions[:,1],
-        #              yerr=np.sqrt(true_kalman_prediction_distributions[:,2])*2,ecolor='#98DBC6',alpha=0.6,linestyle="None",zorder=1)
-        # plt.legend(fontsize='x-small')
-        # plt.title('What the Plot should look like')
-        # plt.xlabel('Time')
-        # plt.ylabel('Protein Copy Numbers')
+        # ground truth
+        ax.scatter(np.arange(0,733,12),true_state_space_mean[::12,1],s=6,label='inferred mRNA copy numbers at ground truth',color='#20948B',zorder=2)
+        ax.errorbar(np.arange(0,733,1),true_state_space_mean[:,1],yerr=true_mRNA_error,ecolor='#98DBC6',alpha=0.25,zorder=1)
+        # without mRNA posterior mode
+
+
+
+        ax.scatter(np.arange(0,733,12),mean_of_total_means[::12],s=6,label='inferred mRNA copy numbers (without mRNA data)',color='#F18D9E',zorder=2)
+        ax.errorbar(np.arange(0,733,1),mean_of_total_means,yerr=total_mRNA_error,ecolor='#f8c6ce',alpha=0.25,zorder=1)
+        # with mRNA posterior mode
+        # ax.scatter(mRNA_state_space_mean[np.int(mRNA_mode[-1])::12,0],mRNA_state_space_mean[np.int(mRNA_mode[-1])::12,1],s=6,label='posterior mode (with mRNA)',color='#F69454',zorder=2)
+        # ax.errorbar(mRNA_state_space_mean[:,0],mRNA_state_space_mean[:,1],yerr=mRNA_mRNA_error,ecolor='#F9be98',alpha=0.25,zorder=1)
+        ax.set_xlabel('Time (mins)')
+        ax.set_ylabel('mRNA Copy Numbers')
+        plt.legend(fontsize='x-small')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','state_space_uncertainty_posterior_samples.pdf'))
+
+    def xest_instantaneous_transcription_rate_with_and_without_mRNA(self):
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        loading_path = os.path.join(os.path.dirname(__file__),'output','figure_5/')
+        mRNA_loading_path = os.path.join(os.path.dirname(__file__),'output','mRNA_output/')
+
+        chain_path_strings = [i for i in os.listdir(loading_path) if '.npy' in i]
+        mRNA_chain_path_strings = [i for i in os.listdir(mRNA_loading_path) if '.npy' in i]
+
+        number_of_samples = 25000
+        import random
+        def hill_function(protein,repression_threshold,hill_coefficient):
+            return 1 / (1 + np.power(protein/repression_threshold,hill_coefficient))
+
+        for string in chain_path_strings:
+            ps_string = string[string.find('ions')+5:]
+            protein_observations = np.load(os.path.join(saving_path,'figure_5/protein_observations_' + ps_string))
+            mean_protein = np.mean(protein_observations[:,1])
+            true_parameters = np.load(os.path.join(saving_path,ps_string[:ps_string.find('_')] + '_parameter_values.npy'))[:7]
+            if os.path.exists(os.path.join(mRNA_loading_path,
+                                           'final_parallel_mala_output_protein_observations_with_mRNA_' + ps_string)):
+                mRNA_chain = np.load(os.path.join(mRNA_loading_path,'final_parallel_mala_output_protein_observations_with_mRNA_' + ps_string))
+                mRNA_chain = mRNA_chain.reshape(mRNA_chain.shape[0]*mRNA_chain.shape[1],mRNA_chain.shape[2])
+            else:
+                continue
+            chain = np.load(os.path.join(loading_path,'final_parallel_mala_output_protein_observations_' + ps_string))
+            chain = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
+
+            samples = np.zeros((number_of_samples,7))
+            samples[:,[2,3]] = [np.log(2)/30,np.log(2)/90]
+            samples[:,[0,1,4,5,6]] = chain[random.sample(range(chain.shape[0]),number_of_samples)]
+            samples[:,[4,5]] = np.exp(samples[:,[4,5]])
+
+            mRNA_samples = np.zeros((number_of_samples,7))
+            mRNA_samples[:,[2,3]] = [np.log(2)/30,np.log(2)/90]
+            mRNA_samples[:,[0,1,4,5,6]] = mRNA_chain[random.sample(range(chain.shape[0]),number_of_samples)]
+            mRNA_samples[:,[4,5]] = np.exp(mRNA_samples[:,[4,5]])
+
+            instant_transcription_rate = [i[4]*hill_function(mean_protein,i[0],i[1]) for i in samples]
+            mRNA_instant_transcription_rate = [i[4]*hill_function(mean_protein,i[0],i[1]) for i in mRNA_samples]
+
+            fig, ax = plt.subplots(figsize=(7,5))
+            ax.hist(instant_transcription_rate,bins=20,density=True,label='Without mRNA data')
+            heights, bins, _ = ax.hist(mRNA_instant_transcription_rate,bins=20,density=True,alpha=0.6,label='With mRNA data')
+            ax.vlines(true_parameters[4]*hill_function(mean_protein,true_parameters[0],true_parameters[1]),
+                      0,1.1*max(heights),color='k',lw=2,label='True value')
+
+            # plt.subplot(2,1,1)
+            # ground truth
+            ax.set_xlabel('Instantaneous Transcription Rate')
+            ax.set_ylabel('Probability')
+            plt.legend(fontsize='x-small')
+            plt.tight_layout()
+            plt.savefig(mRNA_loading_path + ps_string + '_instant_transcription_rate_histograms.png')
+            # import pdb; pdb.set_trace()
+
+    def xest_instantaneous_transcription_rate_with_and_without_mRNA_CoV(self):
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        loading_path = os.path.join(os.path.dirname(__file__),'output','figure_5/')
+        mRNA_loading_path = os.path.join(os.path.dirname(__file__),'output','mRNA_output/')
+
+        chain_path_strings = [i for i in os.listdir(loading_path) if '.npy' in i
+                                                                  if '1_cells_15_minutes' in i
+                                                                  if 'ps9' in i
+                                                                  if 'png' not in i]
+        mRNA_chain_path_strings = [i for i in os.listdir(mRNA_loading_path) if '.npy' in i
+                                                                            if '1_cells_15_minutes' in i
+                                                                            if 'ps9' in i
+                                                                            if 'png' not in i]
+
+        number_of_samples = 25000
+        import random
+        def hill_function(protein,repression_threshold,hill_coefficient):
+            return 1 / (1 + np.power(protein/repression_threshold,hill_coefficient))
+
+        cov_values = np.zeros(len(mRNA_chain_path_strings))
+        mRNA_cov_values = np.zeros(len(mRNA_chain_path_strings))
+
+        for cov_index, string in enumerate(chain_path_strings):
+            ps_string = string[string.find('ions')+5:]
+            protein_observations = np.load(os.path.join(saving_path,'figure_5/protein_observations_' + ps_string))
+            mean_protein = np.mean(protein_observations[:,1])
+            true_parameters = np.load(os.path.join(saving_path,ps_string[:ps_string.find('_')] + '_parameter_values.npy'))[:7]
+            if os.path.exists(os.path.join(mRNA_loading_path,
+                                           'final_parallel_mala_output_protein_observations_with_mRNA_' + ps_string)):
+                mRNA_chain = np.load(os.path.join(mRNA_loading_path,'final_parallel_mala_output_protein_observations_with_mRNA_' + ps_string))
+                mRNA_chain = mRNA_chain.reshape(mRNA_chain.shape[0]*mRNA_chain.shape[1],mRNA_chain.shape[2])
+            else:
+                continue
+            chain = np.load(os.path.join(loading_path,'final_parallel_mala_output_protein_observations_' + ps_string))
+            chain = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
+
+            samples = np.zeros((number_of_samples,7))
+            samples[:,[2,3]] = [np.log(2)/30,np.log(2)/90]
+            samples[:,[0,1,4,5,6]] = chain[random.sample(range(chain.shape[0]),number_of_samples)]
+            samples[:,[4,5]] = np.exp(samples[:,[4,5]])
+
+            mRNA_samples = np.zeros((number_of_samples,7))
+            mRNA_samples[:,[2,3]] = [np.log(2)/30,np.log(2)/90]
+            mRNA_samples[:,[0,1,4,5,6]] = mRNA_chain[random.sample(range(chain.shape[0]),number_of_samples)]
+            mRNA_samples[:,[4,5]] = np.exp(mRNA_samples[:,[4,5]])
+
+            instant_transcription_rate = [i[4]*hill_function(mean_protein,i[0],i[1]) for i in samples]
+            mRNA_instant_transcription_rate = [i[4]*hill_function(mean_protein,i[0],i[1]) for i in mRNA_samples]
+
+            cov_values[cov_index] = np.std(instant_transcription_rate)/np.mean(instant_transcription_rate)
+            mRNA_cov_values[cov_index] = np.std(mRNA_instant_transcription_rate)/np.mean(mRNA_instant_transcription_rate)
+
         #
-        # plt.subplot(2,1,2)
-        # plt.scatter(np.arange(0,900,10),fixed_protein_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
-        # plt.plot(fixed_langevin_trace[:,0],fixed_langevin_trace[:,2],label='true protein',color='#F69454',linewidth=0.89,zorder=3)
-        # plt.plot(state_space_mean[:,0],state_space_mean[:,2],label='inferred protein',color='#20948B',zorder=2)
-        # plt.scatter(np.arange(0,900,10),predicted_observation_distributions[:,1],marker='o',s=4,c='#98DBC6',label='likelihood',zorder=2)
-        # plt.errorbar(state_space_mean[:,0],state_space_mean[:,2],yerr=protein_error,ecolor='#98DBC6',alpha=0.1,zorder=1)
-        # plt.errorbar(predicted_observation_distributions[:,0],predicted_observation_distributions[:,1],
-        #              yerr=np.sqrt(predicted_observation_distributions[:,2])*2,ecolor='#98DBC6',alpha=0.6,linestyle="None",zorder=1)
+        #
+        # ax[0].plot([0.5,2.5],[fig5_cov,mRNA_cov],'o-',label='Without mRNA', color='#b5aeb0')
+        # # ax[0].scatter(1,mRNA_cov,label='With mRNA', color='#b5aeb0')
+        # # ax[0].set_xlim(15.5,4.5) # backwards for comparison to length
+        # # ax[0].set_xlabel("Sampling interval (mins)",fontsize=font_size)
+        # ax[0].set_xlim(0,3)
+        # ax[0].set_xticks([0.5,2.5])
+        # ax[0].set_xticklabels(['Without mRNA','With mRNA'])
+
+
+        fig, ax = plt.subplots(figsize=(8.63,6.95))
+        ax.plot([0.5,2.5],[cov_values,mRNA_cov_values],'o-',color='#b5aeb0')
+        ax.set_xticks([0.5,2.5])
+        ax.set_xticklabels(['Without mRNA','With mRNA'])
+
+        ax.set_ylabel('Coefficient of Variation')
         # plt.legend(fontsize='x-small')
-        # plt.title('What the current function gives')
-        # plt.xlabel('Time')
-        # plt.ylabel('Protein Copy Numbers')
-        # plt.tight_layout()
-        # my_figure.savefig(os.path.join(os.path.dirname(__file__),
-        #                                'output','kalman_check.pdf'))
+        plt.tight_layout()
+        plt.savefig(mRNA_loading_path + 'instant_transcription_rate_cov.png')
+        # import pdb; pdb.set_trace()
+
+    def xest_pair_plots_with_and_without_mRNA_CoV(self):
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        loading_path = os.path.join(os.path.dirname(__file__),'output','figure_5/')
+        mRNA_loading_path = os.path.join(os.path.dirname(__file__),'output','mRNA_output/')
+
+        chain_path_strings = [i for i in os.listdir(loading_path) if '.npy' in i
+                                                                  if '1_cells_15_minutes' in i
+                                                                  if 'ps6' in i
+                                                                  if 'png' not in i]
+        mRNA_chain_path_strings = [i for i in os.listdir(mRNA_loading_path) if '.npy' in i
+                                                                            if '1_cells_15_minutes' in i
+                                                                            if 'ps6' in i
+                                                                            if 'png' not in i]
+
+        number_of_samples = 25000
+        parameter_names = np.array(["$P_0$",
+                                    "$\\alpha_m$"])
+        import random
+        from scipy.stats import pearsonr
+        def corrfunc(x, y, ax=None, **kws):
+            """Plot the correlation coefficient in the top left hand corner of a plot."""
+            # import pdb; pdb.set_trace()
+            r, _ = pearsonr(x, y)
+            ax = ax or plt.gca()
+            ax.annotate(f'$\\nu$ = {r:.2f}', xy=(.1, .5), xycoords=ax.transAxes)
+            # ax.set_axis_off()
+
+        from matplotlib.colors import LinearSegmentedColormap
+        colors = ['#000000','#20948B','#FFFFFF']  # Black -> color -> White
+        n_bins = 200  # Discretizes the interpolation into bins
+        cmap_name = 'my_list'
+        cm = LinearSegmentedColormap.from_list(cmap_name, colors, N=n_bins)
+
+        for cov_index, string in enumerate(chain_path_strings):
+            ps_string = string[string.find('ions')+5:]
+            protein_observations = np.load(os.path.join(saving_path,'figure_5/protein_observations_' + ps_string))
+            mean_protein = np.mean(protein_observations[:,1])
+            true_parameters = np.load(os.path.join(saving_path,ps_string[:ps_string.find('_')] + '_parameter_values.npy'))[:7]
+            if os.path.exists(os.path.join(mRNA_loading_path,
+                                           'final_parallel_mala_output_protein_observations_with_mRNA_' + ps_string)):
+                mRNA_chain = np.load(os.path.join(mRNA_loading_path,'final_parallel_mala_output_protein_observations_with_mRNA_' + ps_string))
+                mRNA_chain = mRNA_chain.reshape(mRNA_chain.shape[0]*mRNA_chain.shape[1],mRNA_chain.shape[2])
+                mRNA_chain = mRNA_chain[:,[0,2]]
+            else:
+                continue
+            chain = np.load(os.path.join(loading_path,'final_parallel_mala_output_protein_observations_' + ps_string))
+            chain = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
+            chain = chain[:,[0,2]]
+
+            samples = chain[random.sample(range(chain.shape[0]),number_of_samples)]
+            mRNA_samples = mRNA_chain[random.sample(range(mRNA_chain.shape[0]),number_of_samples)]
+
+            # output[:,[2,3]] = np.exp(output[:,[2,3]])
+            df = pd.DataFrame(samples,columns=parameter_names)
+            mRNA_df = pd.DataFrame(mRNA_samples,columns=parameter_names)
+
+            # without mRNA
+            fig, ax = plt.subplots(figsize=(7.92*0.85,5.94*0.85))
+            # Create a pair grid instance
+            grid = sns.PairGrid(data= df[parameter_names])
+            # Map the plots to the locations
+            grid = grid.map_upper(corrfunc)
+            grid = grid.map_lower(sns.scatterplot, alpha=0.002,color='#20948B')
+            grid = grid.map_lower(sns.kdeplot,color='k')
+            grid = grid.map_diag(sns.histplot, bins = 20,color='#20948B');
+            plt.savefig(mRNA_loading_path + 'pairplot_' + ps_string[:-4] + '.png'); plt.close()
+
+            # with mRNA
+            fig, ax = plt.subplots(figsize=(7.92*0.85,5.94*0.85))
+            # Create a pair grid instance
+            grid = sns.PairGrid(data= mRNA_df[parameter_names])
+            # Map the plots to the locations
+            grid = grid.map_upper(corrfunc)
+            grid = grid.map_lower(sns.scatterplot, alpha=0.002,color='#20948B')
+            grid = grid.map_lower(sns.kdeplot,color='k')
+            grid = grid.map_diag(sns.histplot, bins = 20,color='#20948B');
+            plt.savefig(mRNA_loading_path + 'pairplot_' + ps_string[:-4] + '_with_mRNA.png'); plt.close()
+
+    def qest_mRNA_distribution(self):
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        loading_path = os.path.join(os.path.dirname(__file__),'output','mRNA_output')
+
+        protein_observations = np.load(os.path.join(saving_path,'figure_5/protein_observations_ps9_1_cells_12_minutes_2.npy'))
+        chain = np.load(os.path.join(loading_path,'final_parallel_mala_output_protein_observations_with_mRNA_ps9_1_cells_12_minutes_2.npy'))
+
+        # reshape and sample
+        chain = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
+
+        number_of_samples = 2500
+        samples = np.zeros((number_of_samples,7))
+        samples[:,[2,3]] = [np.log(2)/30,np.log(2)/90]
+        import random
+        samples[:,[0,1,4,5,6]] = chain[random.sample(range(chain.shape[0]),number_of_samples)]
+        samples[:,[4,5]] = np.exp(samples[:,[4,5]])
+
+        mRNA_samples = np.zeros(number_of_samples)
+        from scipy.stats import norm
+        for index, sample in enumerate(samples):
+            # mean
+            state_space_mean, state_space_variance, _,_,_,_,_ = hes_inference.kalman_filter(protein_observations,
+                                                                                            sample,
+                                                                                            measurement_variance=1000000)
+            # remove negative times
+            zero_index = np.where(state_space_mean[:,0]==0)[0][0]
+            #mean
+            mRNA_mean = state_space_mean[zero_index:,1]
+            # variance
+            number_of_states = state_space_mean[zero_index:,1].shape[0]
+            mRNA_covariance_matrix = state_space_variance[zero_index:number_of_states+zero_index,
+                                                          zero_index:number_of_states+zero_index]
+            mRNA_std = np.sqrt(np.diagonal(mRNA_covariance_matrix))
+            random_index = random.sample(range(number_of_states),1)[0]
+            mRNA_samples[index] = np.maximum(norm(mRNA_mean[random_index],mRNA_std[random_index]).rvs(1),0)[0]
+
+        fig, ax = plt.subplots(figsize=(10,5))
+        ax.hist(mRNA_samples,color='#20948B',density=True,bins=30)
+        ax.set_xlabel('mRNA copy numbers')
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.path.dirname(__file__),
+                                       'output','mRNA_distribution__with_mRNA_test.pdf'))
+
     def qest_get_mRNA_information_from_parameter_set(self,ps_strings=['ps6','ps7','ps8','ps9','ps10','ps11','ps12']):
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
@@ -2262,7 +2677,7 @@ class TestInference(unittest.TestCase):
             std_value = np.std(all_mRNA_counts)
             np.save(saving_path + ps_string + "_mRNA_distribution.npy",np.array([mean_value,std_value]))
 
-    def test_mala_with_mRNA_information(self,data_filename = 'protein_observations_ps10_1_cells_12_minutes_2.npy'):
+    def qest_mala_with_mRNA_information(self,data_filename = 'protein_observations_ps10_1_cells_12_minutes_2.npy'):
         data_filename = data_filename[:data_filename.find('ps')] + 'with_mRNA' + data_filename[data_filename.find('ps')-1:]
         saving_path = os.path.join(os.path.dirname(__file__),'data','figure_5')
         loading_path = os.path.join(os.path.dirname(__file__),'data','')
@@ -2305,7 +2720,7 @@ class TestInference(unittest.TestCase):
                                        number_of_chains,
                                        number_of_samples)
 
-    def xest_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps6_fig5_5.npy'):
+    def test_multiple_mala_traces_figure_5(self,data_filename = 'protein_observations_ps12_fig5_5.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
@@ -2345,7 +2760,7 @@ class TestInference(unittest.TestCase):
                              number_of_chains,
                              number_of_samples)
 
-    def qest_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps9_1_cells_12_minutes_2.npy'):
+    def xest_multiple_mala_traces_figure_5b(self,data_filename = 'protein_observations_ps9_1_cells_12_minutes_2.npy'):
         # load data and true parameter values
         saving_path = os.path.join(os.path.dirname(__file__),'data','')
         protein_at_observations = np.array([np.load(os.path.join(saving_path+'/figure_5',data_filename))])
@@ -2624,13 +3039,12 @@ class TestInference(unittest.TestCase):
             np.save(os.path.join(os.path.dirname(__file__), 'output','parallel_mala_output_' + data_filename),
             array_of_chains)
 
-    def xest_mala_analysis(self):
-        loading_path = os.path.join(os.path.dirname(__file__),'output/figure_5','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if 'ps6_1_cells_8_minutes_3' in i
-                                                                  if '.npy' in i]
+    def qest_mala_analysis(self):
+        loading_path = os.path.join(os.path.dirname(__file__),'output/mRNA_output','')
+        chain_path_strings = [i for i in os.listdir(loading_path) if '.npy' in i]
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
-            mala = mala[[0,1,2,4,5,6,7],:,:]
+            # mala = mala[[0,1,2,4,5,6,7],:,:]
             # mala[:,:,[2,3]] = np.exp(mala[:,:,[2,3]])
             chains = az.convert_to_dataset(mala)
             print('\n' + chain_path_string + '\n')
@@ -2652,6 +3066,8 @@ class TestInference(unittest.TestCase):
 
         for chain_path_string in chain_path_strings:
             # import pdb; pdb.set_trace()
+            mean_protein = np.mean(np.load(loading_path + '../../data/figure_5_coherence/protein_observations_' +
+                                           chain_path_string[chain_path_string.find('ps'):])[:,1])
             mala = np.load(loading_path + chain_path_string)
             samples = mala.reshape(mala.shape[0]*mala.shape[1],mala.shape[2])
             samples[:,[2,3]] = np.exp(samples[:,[2,3]])
@@ -2660,51 +3076,471 @@ class TestInference(unittest.TestCase):
             # true_values[[2,3]] = np.log(true_values[[2,3]])
             sample_mean = np.mean(samples,axis=0)
             sample_std = np.std(samples,axis=0)
-            # posterior mode
-            sample_mode = np.zeros(5)
-            for i in range(5):
-                heights, bins, _ = plt.hist(samples[:,i],bins=35)
-                sample_mode[i] = bins[heights.argmax()]
+            prior_widths = [2*mean_protein-50,4,120,40,40]
 
             coherence_values[np.where(coherence_values==0)[0][0]] = np.load(loading_path + '../../data/' + parameter_set_string + '_parameter_values.npy')[-2]
-
-            mean_error_values[np.where(mean_error_values==0)[0][0]] = np.sum((np.abs(true_values-sample_mode))/true_values) # mean difference
-            # cov_error_values[np.where(cov_error_values==0)[0][0]] = np.sum(sample_std/true_values) # std error
+            # mean_error_values[np.where(mean_error_values==0)[0][0]] = np.sum(((np.abs(true_values[[0,1,4,5,6]]-sample_mean))/true_values[[0,1,4,5,6]]))#[parameter_index]) # mean difference
+            # cov_error_values[np.where(cov_error_values==0)[0][0]] = np.sum((sample_std/true_values[[0,1,4,5,6]])[2])#[parameter_index]) # std error
+            cov_error_values[np.where(cov_error_values==0)[0][0]] = np.sum(sample_std/prior_widths) # std error
+            # import pdb; pdb.set_trace()
 
         plt.figure(figsize=(8.32,5.54))
         # mean error
         mean_mean = np.zeros(len(np.unique(coherence_values)))
         mean_std= np.zeros(len(np.unique(coherence_values)))
         for index, coherence in enumerate(np.unique(coherence_values)):
-            mean_error_per_coherence = mean_error_values[coherence_values==coherence]
+            mean_error_per_coherence = cov_error_values[coherence_values==coherence]
             plt.scatter(np.array([np.unique(coherence_values)[index]]*len(mean_error_per_coherence)),
                         mean_error_per_coherence,alpha=0.6,s=50, color='#b5aeb0')
-            mean_mean[index] = np.mean(mean_error_values[coherence_values==coherence])
-            mean_std[index] = np.std(mean_error_values[coherence_values==coherence])
-        # # cov
-        # cov_mean = np.zeros(len(np.unique(coherence_values)))
-        # cov_std= np.zeros(len(np.unique(coherence_values)))
-        # for index, coherence in enumerate(np.unique(coherence_values)):
-        #     cov_error_per_coherence = cov_error_values[coherence_values==coherence]
-        #     plt.scatter(np.array([np.unique(coherence_values)[index]]*len(cov_error_per_coherence)),
-        #                 cov_error_per_coherence,alpha=0.6,s=50, color='#b5aeb0')
-        #     cov_mean[index] = np.mean(cov_error_per_coherence)
-        #     # import pdb; pdb.set_trace()
-        #     cov_std[index] = np.std(cov_error_values[coherence_values==coherence])
-        # # plt.fill_between([np.unique(coherence_values)[0],0.25],0, 25, alpha=0.1,color='#188C19',label="Biologically observed values",zorder=1)
+            mean_mean[index] = np.mean(cov_error_values[coherence_values==coherence])
+            mean_std[index] = np.std(cov_error_values[coherence_values==coherence])
 
         plt.fill_between(np.unique(coherence_values),np.maximum(0,mean_mean-mean_std), mean_mean+mean_std, alpha=0.2,color='#b5aeb0',zorder=2)
         plt.plot(np.unique(coherence_values),mean_mean,c='#b5aeb0',alpha=0.5,zorder=3)
-        plt.scatter(np.unique(coherence_values)[0],0*mean_mean[0]-0.5,s=150,marker="v",color='#F18D9E',zorder=4,label="Low Coherence")
-        plt.scatter(np.unique(coherence_values)[3],0*mean_mean[3]-0.5,s=150,marker="v",color='#8d9ef1',zorder=5,label="High Coherence")
+        plt.scatter(np.unique(coherence_values)[0],0*mean_mean[0]+0.75,s=150,marker="v",color='#F18D9E',zorder=4,label="Low Coherence")
+        plt.scatter(np.unique(coherence_values)[3],0*mean_mean[3]+0.75,s=150,marker="v",color='#8d9ef1',zorder=5,label="High Coherence")
         # plt.errorbar(np.unique(coherence_values),variance_mean/5,variance_std/5,linestyle=None,fmt='o',label='Relative SD',alpha=0.7)
         plt.xlabel('Coherence',fontsize=font_size)
         # plt.xlim(0,0.25)
-        plt.ylabel('Relative mean error',fontsize=font_size)
+        plt.ylabel('Prior width norm',fontsize=font_size)
         # plt.ylim(0,100)
         plt.tight_layout()
         plt.legend()
-        plt.savefig(loading_path + 'coherence_mean_error_values.png')
+        plt.savefig(loading_path + 'coherence_prior_width_error_values.png')
+
+    def xest_accuracy_of_chains_by_coherence_per_parameter(self):
+        loading_path = os.path.join(os.path.dirname(__file__),'output','output_jan_17/')
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('final_parallel_mala_output_protein_observations_ps')]
+
+        parameter_names = np.array(["$P_0$",
+                                    "$h$",
+                                    "$\\alpha_m$",
+                                    "$\\alpha_p$",
+                                    "$\\tau$"])
+
+        for parameter_index, parameter in enumerate(parameter_names):
+            coherence_values = np.zeros(len([i for i in chain_path_strings]))
+            mean_error_values = np.zeros(len([i for i in chain_path_strings]))
+            mode_error_values = np.zeros(len([i for i in chain_path_strings]))
+            cov_error_values = np.zeros(len([i for i in chain_path_strings]))
+
+            for chain_path_string in chain_path_strings:
+                # import pdb; pdb.set_trace()
+                mean_protein = np.mean(np.load(loading_path + '../../data/figure_5_coherence/protein_observations_' +
+                                               chain_path_string[chain_path_string.find('ps'):])[:,1])
+                mala = np.load(loading_path + chain_path_string)
+                samples = mala.reshape(mala.shape[0]*mala.shape[1],mala.shape[2])
+                samples[:,[2,3]] = np.exp(samples[:,[2,3]])
+                parameter_set_string = chain_path_string[chain_path_string.find('ps'):chain_path_string.find('_fig5')]
+                true_values = np.load(loading_path + '../../data/' + parameter_set_string + '_parameter_values.npy')[[0,1,4,5,6]]
+                # true_values[[2,3]] = np.log(true_values[[2,3]])
+                sample_mean = np.mean(samples,axis=0)
+                sample_std = np.std(samples,axis=0)
+                prior_widths = [2*mean_protein-50,4,120,40,40]
+
+                coherence_values[np.where(coherence_values==0)[0][0]] = np.load(loading_path + '../../data/' + parameter_set_string + '_parameter_values.npy')[-2]
+                # mean_error_values[np.where(mean_error_values==0)[0][0]] = np.sum(((np.abs(true_values[[0,1,4,5,6]]-sample_mean))/true_values[[0,1,4,5,6]]))#[parameter_index]) # mean difference
+                # cov_error_values[np.where(cov_error_values==0)[0][0]] = np.sum((sample_std/true_values[[0,1,4,5,6]])[2])#[parameter_index]) # std error
+                cov_error_values[np.where(cov_error_values==0)[0][0]] = np.sum((sample_std/prior_widths)[parameter_index]) # std error
+                # import pdb; pdb.set_trace()
+
+            plt.figure(figsize=(8.32,5.54))
+            # mean error
+            mean_mean = np.zeros(len(np.unique(coherence_values)))
+            mean_std= np.zeros(len(np.unique(coherence_values)))
+            for index, coherence in enumerate(np.unique(coherence_values)):
+                mean_error_per_coherence = cov_error_values[coherence_values==coherence]
+                plt.scatter(np.array([np.unique(coherence_values)[index]]*len(mean_error_per_coherence)),
+                            mean_error_per_coherence,alpha=0.6,s=50, color='#b5aeb0')
+                mean_mean[index] = np.mean(cov_error_values[coherence_values==coherence])
+                mean_std[index] = np.std(cov_error_values[coherence_values==coherence])
+
+            plt.fill_between(np.unique(coherence_values),np.maximum(0,mean_mean-mean_std), mean_mean+mean_std, alpha=0.2,color='#b5aeb0',zorder=2)
+            plt.plot(np.unique(coherence_values),mean_mean,c='#b5aeb0',alpha=0.5,zorder=3)
+            plt.scatter(np.unique(coherence_values)[0],0*mean_mean[0]+0.4,s=150,marker="v",color='#F18D9E',zorder=4,label="Low Coherence")
+            plt.scatter(np.unique(coherence_values)[3],0*mean_mean[3]+0.4,s=150,marker="v",color='#8d9ef1',zorder=5,label="High Coherence")
+            # plt.errorbar(np.unique(coherence_values),variance_mean/5,variance_std/5,linestyle=None,fmt='o',label='Relative SD',alpha=0.7)
+            plt.xlabel('Coherence',fontsize=font_size)
+            # plt.xlim(0,0.25)
+            plt.ylabel('Prior width norm, ' + parameter,fontsize=font_size)
+            # plt.ylim(0,100)
+            plt.tight_layout()
+            plt.legend()
+            plt.savefig(loading_path + 'coherence_prior_width_error_values_parameter_' + str(parameter_index) + '.png')
+
+    def xest_different_accuracy_metrics(self):
+        loading_path = os.path.join(os.path.dirname(__file__),'output','output_jan_17/')
+        chain_path_strings = [i for i in os.listdir(loading_path) if i.startswith('final_parallel_mala_output_protein_observations_ps')]
+
+        total_mean_error_values = np.zeros((5,len([i for i in chain_path_strings])))
+        total_median_error_values = np.zeros((5,len([i for i in chain_path_strings])))
+        total_cov_error_values = np.zeros((5,len([i for i in chain_path_strings])))
+        total_prior_error_values = np.zeros((5,len([i for i in chain_path_strings])))
+
+        for parameter_index in range(5):
+            mean_error_values = np.zeros(len([i for i in chain_path_strings]))
+            median_error_values = np.zeros(len([i for i in chain_path_strings]))
+            cov_error_values = np.zeros(len([i for i in chain_path_strings]))
+            prior_error_values = np.zeros(len([i for i in chain_path_strings]))
+
+            for chain_index, chain_path_string in enumerate(chain_path_strings):
+                mean_protein = np.mean(np.load(loading_path + '../../data/figure_5_coherence/protein_observations_' +
+                                               chain_path_string[chain_path_string.find('ps'):])[:,1])
+                mala = np.load(loading_path + chain_path_string)
+                # import pdb; pdb.set_trace()
+                samples = mala.reshape(mala.shape[0]*mala.shape[1],mala.shape[2])
+                samples[:,[2,3]] = np.exp(samples[:,[2,3]])
+                parameter_set_string = chain_path_string[chain_path_string.find('ps'):chain_path_string.find('_fig5')]
+                true_values = np.load(loading_path + '../../data/' + parameter_set_string + '_parameter_values.npy')[[0,1,4,5,6]]
+                # true_values[[2,3]] = np.log(true_values[[2,3]])
+                sample_mean = np.mean(samples,axis=0)
+                sample_std = np.std(samples,axis=0)
+                sample_median = np.quantile(samples,0.5,axis=0)
+                prior_widths = [2*mean_protein-50,4,120,40,40]
+                # prior_widths = [2*mean_protein-50,4,np.log(120)-np.log(0.01),np.log(40)-np.log(0.01),40]
+
+                mean_error = np.abs(true_values-sample_mean)/true_values
+                mean_error_values[chain_index] = mean_error[parameter_index]/np.sum(mean_error)
+
+                median_error = np.abs(true_values-sample_median)/true_values
+                median_error_values[chain_index] = median_error[parameter_index]/np.sum(median_error)
+
+                cov_error = sample_std/np.abs(true_values)
+                cov_error_values[chain_index] = cov_error[parameter_index]/np.sum(cov_error)
+
+                prior_error = sample_std/prior_widths
+                prior_error_values[chain_index] = prior_error[parameter_index]/np.sum(prior_error)
+
+            total_mean_error_values[parameter_index,:] = mean_error_values
+            total_median_error_values[parameter_index,:] = median_error_values
+            total_cov_error_values[parameter_index,:] = cov_error_values
+            total_prior_error_values[parameter_index,:] = prior_error_values
+
+        figure_strings = ["Mean Error","Median Error","CoV Error","Prior Width Error"]
+        for string_index, error_values in enumerate([total_mean_error_values,total_median_error_values,total_cov_error_values,total_prior_error_values]):
+            fig, ax = plt.subplots(figsize=(8,6))
+            labels = ['$P_0$', '$h$', '$\\alpha_m$', '$\\alpha_p$', '$\\tau$']
+            means = np.mean(error_values,axis=1)
+            std = np.std(error_values,axis=1)
+            width = 0.35
+            ax.bar(labels, means, width, yerr=std, label='Contribution to metric')
+            ax.set_ylabel('Proportion')
+            ax.set_title(figure_strings[string_index])
+            ax.legend()
+            plt.tight_layout()
+            plt.savefig(loading_path + figure_strings[string_index].replace(" ", "_").lower() + ".png")
+
+    def fest_accuracy_with_or_without_mrna(self):
+        fig5_loading_path = os.path.join(os.path.dirname(__file__),'output','figure_5/')
+        mRNA_loading_path = os.path.join(os.path.dirname(__file__),'output','mRNA_output/')
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        ps6_true_parameter_values = np.load(os.path.join(saving_path,'ps6_parameter_values.npy'))[[0,1,4,5,6]]
+        ps6_measurement_variance = np.power(ps6_true_parameter_values[-1],2)
+        ps9_true_parameter_values = np.load(os.path.join(saving_path,'ps9_parameter_values.npy'))[[0,1,4,5,6]]
+        ps9_measurement_variance = np.power(ps9_true_parameter_values[-1],2)
+
+
+        ps6_mRNA_chain_path_strings = [i for i in os.listdir(mRNA_loading_path) if i.startswith('final_parallel_mala_output_protein_observations_with_mRNA_ps6_1_cells_15_minutes')]
+        ps9_mRNA_chain_path_strings = [i for i in os.listdir(mRNA_loading_path) if i.startswith('final_parallel_mala_output_protein_observations_with_mRNA_ps9_1_cells_15_minutes')]
+        ps6_fig5_chain_path_strings = [i for i in os.listdir(fig5_loading_path) if i.startswith('final_parallel_mala_output_protein_observations_ps6_1_cells_15_minutes')]
+        ps9_fig5_chain_path_strings = [i for i in os.listdir(fig5_loading_path) if i.startswith('final_parallel_mala_output_protein_observations_ps9_1_cells_15_minutes')]
+        ps6_mRNA_datasets = {}
+        ps9_mRNA_datasets = {}
+        ps6_fig5_datasets = {}
+        ps9_fig5_datasets = {}
+        prior_widths = [2*50000,4,np.log(120)-np.log(0.01),np.log(40)-np.log(0.01),40]
+
+        for string in ps6_mRNA_chain_path_strings:
+            ps6_mRNA_datasets[string] = np.load(mRNA_loading_path + string)
+        for string in ps6_fig5_chain_path_strings:
+            ps6_fig5_datasets[string] = np.load(fig5_loading_path + string)
+
+        for string in ps9_mRNA_chain_path_strings:
+            ps9_mRNA_datasets[string] = np.load(mRNA_loading_path + string)
+        for string in ps9_fig5_chain_path_strings:
+            ps9_fig5_datasets[string] = np.load(fig5_loading_path + string)
+
+        ps6_mRNA_mean_error_dict = {}
+        ps6_mRNA_cov_dict = {}
+        ps9_mRNA_mean_error_dict = {}
+        ps9_mRNA_cov_dict = {}
+
+        ps6_fig5_mean_error_dict = {}
+        ps6_fig5_cov_dict = {}
+        ps9_fig5_mean_error_dict = {}
+        ps9_fig5_cov_dict = {}
+
+        for key in ps6_mRNA_datasets.keys():
+            ps6_mRNA_mean_error_dict[key] = 0
+            ps6_mRNA_cov_dict[key] = 0
+            short_chains = ps6_mRNA_datasets[key].reshape(ps6_mRNA_datasets[key].shape[0]*ps6_mRNA_datasets[key].shape[1],5)
+            # short_chains[:,[2,3]] = np.exp(short_chains[:,[2,3]])
+            short_chains_mean = np.mean(short_chains,axis=0)
+            short_chains_std = np.std(short_chains,axis=0)
+            # coefficient of variation
+            # short_chain_cov = np.sum(short_chains_std/ps6_true_parameter_values)
+            short_chain_cov = np.sum(short_chains_std/prior_widths)
+            # print(short_chains_std/ps6_true_parameter_values)
+            print(short_chains_std/prior_widths)
+            # relative mean
+            relative_mean = np.sum(np.abs(ps6_true_parameter_values - short_chains_mean)/ps6_true_parameter_values)
+            ps6_mRNA_mean_error_dict[key] = relative_mean
+            ps6_mRNA_cov_dict[key] = short_chain_cov
+            # import pdb; pdb.set_trace()
+
+        for key in ps9_mRNA_datasets.keys():
+            ps9_mRNA_mean_error_dict[key] = 0
+            ps9_mRNA_cov_dict[key] = 0
+            short_chains = ps9_mRNA_datasets[key].reshape(ps9_mRNA_datasets[key].shape[0]*ps9_mRNA_datasets[key].shape[1],5)
+            # short_chains[:,[2,3]] = np.exp(short_chains[:,[2,3]])
+            short_chains_mean = np.mean(short_chains,axis=0)
+            short_chains_std = np.std(short_chains,axis=0)
+            # coefficient of variation
+            # short_chain_cov = np.sum(short_chains_std/ps9_true_parameter_values)
+            short_chain_cov = np.sum(short_chains_std/prior_widths)
+            # relative mean
+            relative_mean = np.sum(np.abs(ps9_true_parameter_values - short_chains_mean)/ps9_true_parameter_values)
+            ps9_mRNA_mean_error_dict[key] = relative_mean
+            ps9_mRNA_cov_dict[key] = short_chain_cov
+
+        for key in ps6_fig5_datasets.keys():
+            ps6_fig5_mean_error_dict[key] = 0
+            ps6_fig5_cov_dict[key] = 0
+            short_chains = ps6_fig5_datasets[key].reshape(ps6_fig5_datasets[key].shape[0]*ps6_fig5_datasets[key].shape[1],5)
+            # short_chains[:,[2,3]] = np.exp(short_chains[:,[2,3]])
+            short_chains_mean = np.mean(short_chains,axis=0)
+            short_chains_std = np.std(short_chains,axis=0)
+            # coefficient of variation
+            # short_chain_cov = np.sum(short_chains_std/ps6_true_parameter_values)
+            short_chain_cov = np.sum(short_chains_std/prior_widths)
+            # relative mean
+            relative_mean = np.sum(np.abs(ps6_true_parameter_values - short_chains_mean)/ps6_true_parameter_values)
+            ps6_fig5_mean_error_dict[key] = relative_mean
+            ps6_fig5_cov_dict[key] = short_chain_cov
+
+        for key in ps9_fig5_datasets.keys():
+            ps9_fig5_mean_error_dict[key] = 0
+            ps9_fig5_cov_dict[key] = 0
+            short_chains = ps9_fig5_datasets[key].reshape(ps9_fig5_datasets[key].shape[0]*ps9_fig5_datasets[key].shape[1],5)
+            # short_chains[:,[2,3]] = np.exp(short_chains[:,[2,3]])
+            short_chains_mean = np.mean(short_chains,axis=0)
+            short_chains_std = np.std(short_chains,axis=0)
+            # coefficient of variation
+            # short_chain_cov = np.sum(short_chains_std/ps9_true_parameter_values)
+            short_chain_cov = np.sum(short_chains_std/prior_widths)
+            # relative mean
+            relative_mean = np.sum(np.abs(ps9_true_parameter_values - short_chains_mean)/ps9_true_parameter_values)
+            ps9_fig5_mean_error_dict[key] = relative_mean
+            ps9_fig5_cov_dict[key] = short_chain_cov
+
+        plotting_strings = ['1_cells_15_minutes']
+        dataset_string = ['1.npy',
+                          '2.npy',
+                          '3.npy',
+                          '4.npy',
+                          '5.npy',]
+
+        fig, ax = plt.subplots(1,2,figsize=(8.63*2,6.95))
+        mRNA_mean_and_sd_covs = np.zeros(2)
+        mRNA_mean_and_sd_means = np.zeros(2)
+        fig5_mean_and_sd_covs = np.zeros(2)
+        fig5_mean_and_sd_means = np.zeros(2)
+        for string in plotting_strings:
+            mRNA_mean_and_sd_covs[0] = np.mean([y for x, y in ps6_mRNA_cov_dict.items()])
+            mRNA_mean_and_sd_covs[1] = np.std([y for x, y in ps6_mRNA_cov_dict.items()])
+            mRNA_mean_and_sd_means[0] = np.mean([y for x, y in ps6_mRNA_mean_error_dict.items()])
+            mRNA_mean_and_sd_means[1] = np.std([y for x, y in ps6_mRNA_mean_error_dict.items()])
+            fig5_mean_and_sd_covs[0] = np.mean([y for x, y in ps6_fig5_cov_dict.items()])
+            fig5_mean_and_sd_covs[1] = np.std([y for x, y in ps6_fig5_cov_dict.items()])
+            fig5_mean_and_sd_means[0] = np.mean([y for x, y in ps6_fig5_mean_error_dict.items()])
+            fig5_mean_and_sd_means[1] = np.std([y for x, y in ps6_fig5_mean_error_dict.items()])
+
+            for index, substring in enumerate(dataset_string):
+                # 1/cov
+                mRNA_cov = [y for x, y in ps6_mRNA_cov_dict.items() if substring in x][0]
+                fig5_cov = [y for x, y in ps6_fig5_cov_dict.items() if substring in x][0]
+                # xcoords = [np.int(string[string.find('lls_')+4:string.find('_min')])]*len(covs)
+                ax[0].plot([0.5,2.5],[fig5_cov,mRNA_cov],'o-',label='Without mRNA', color='#b5aeb0')
+                # ax[0].scatter(1,mRNA_cov,label='With mRNA', color='#b5aeb0')
+                # ax[0].set_xlim(15.5,4.5) # backwards for comparison to length
+                # ax[0].set_xlabel("Sampling interval (mins)",fontsize=font_size)
+                ax[0].set_xlim(0,3)
+                ax[0].set_xticks([0.5,2.5])
+                ax[0].set_xticklabels(['Without mRNA','With mRNA'])
+                ax[0].set_ylabel("Coefficient of Variation",fontsize=font_size)
+                ax[0].tick_params(axis='x',rotation=30)
+                # mean error
+                mRNA_mean_errors = [y for x, y in ps6_mRNA_mean_error_dict.items() if substring in x][0]
+                fig5_mean_errors = [y for x, y in ps6_fig5_mean_error_dict.items() if substring in x][0]
+                ax[1].plot([0.5,2.5],[fig5_mean_errors,mRNA_mean_errors],'o-',label='Without mRNA', color='#b5aeb0')
+                # ax[1].scatter(0,fig5_mean_errors,label=string, color='#b5aeb0')
+                # ax[1].scatter(1,mRNA_mean_errors,label=string, color='#b5aeb0')
+                # ax[1].set_xlim(15.5,4.5) # backwards for comparison to length
+                # ax[1].set_xlabel("Sampling interval (mins)",fontsize=font_size)
+                ax[1].set_xlim(0,3)
+                ax[1].set_xticks([0.5,2.5])
+                ax[1].set_xticklabels(['Without mRNA','With mRNA'])
+                ax[1].set_ylabel("Relative mean error",fontsize=font_size)
+                ax[1].tick_params(axis='x',rotation=30)
+                # plt.legend()
+
+
+            ax[0].plot([0.5,2.5],[fig5_mean_and_sd_covs[0],mRNA_mean_and_sd_covs[0]],color='#F18D9E',alpha=0.5)
+            ax[0].fill_between([0.5,2.5], [fig5_mean_and_sd_covs[0]-fig5_mean_and_sd_covs[1],
+                                                              mRNA_mean_and_sd_covs[0]-mRNA_mean_and_sd_covs[1]],
+                                                             [fig5_mean_and_sd_covs[0]+fig5_mean_and_sd_covs[1],
+                                                              mRNA_mean_and_sd_covs[0]+mRNA_mean_and_sd_covs[1]],alpha=0.2,color='#F18D9E')
+            ax[1].plot([0.5,2.5],[fig5_mean_and_sd_means[0],mRNA_mean_and_sd_means[0]],color='#F18D9E',alpha=0.5)
+            ax[1].fill_between([0.5,2.5], [fig5_mean_and_sd_means[0]-fig5_mean_and_sd_means[1],
+                                                              mRNA_mean_and_sd_means[0]-mRNA_mean_and_sd_means[1]],
+                                                             [fig5_mean_and_sd_means[0]+fig5_mean_and_sd_means[1],
+                                                              mRNA_mean_and_sd_means[0]+mRNA_mean_and_sd_means[1]],alpha=0.2,color='#F18D9E')
+        plt.tight_layout()
+        plt.savefig(mRNA_loading_path + 'ps6_with_and_without_mRNA_error_values_frequency_prior.png')
+
+        fig, ax = plt.subplots(1,2,figsize=(8.63*2,6.95))
+        mRNA_mean_and_sd_covs = np.zeros(2)
+        mRNA_mean_and_sd_means = np.zeros(2)
+        fig5_mean_and_sd_covs = np.zeros(2)
+        fig5_mean_and_sd_means = np.zeros(2)
+
+        for string in plotting_strings:
+            mRNA_mean_and_sd_covs[0] = np.mean([y for x, y in ps9_mRNA_cov_dict.items()])
+            mRNA_mean_and_sd_covs[1] = np.std([y for x, y in ps9_mRNA_cov_dict.items()])
+            mRNA_mean_and_sd_means[0] = np.mean([y for x, y in ps9_mRNA_mean_error_dict.items()])
+            mRNA_mean_and_sd_means[1] = np.std([y for x, y in ps9_mRNA_mean_error_dict.items()])
+            fig5_mean_and_sd_covs[0] = np.mean([y for x, y in ps9_fig5_cov_dict.items()])
+            fig5_mean_and_sd_covs[1] = np.std([y for x, y in ps9_fig5_cov_dict.items()])
+            fig5_mean_and_sd_means[0] = np.mean([y for x, y in ps9_fig5_mean_error_dict.items()])
+            fig5_mean_and_sd_means[1] = np.std([y for x, y in ps9_fig5_mean_error_dict.items()])
+
+            for index, substring in enumerate(dataset_string):
+                # 1/cov
+                mRNA_cov = [y for x, y in ps9_mRNA_cov_dict.items() if substring in x][0]
+                fig5_cov = [y for x, y in ps9_fig5_cov_dict.items() if substring in x][0]
+                # xcoords = [np.int(string[string.find('lls_')+4:string.find('_min')])]*len(covs)
+                ax[0].plot([0.5,2.5],[fig5_cov,mRNA_cov],'o-',label='Without mRNA', color='#b5aeb0')
+                # ax[0].scatter(1,mRNA_cov,label='With mRNA', color='#b5aeb0')
+                # ax[0].set_xlim(15.5,4.5) # backwards for comparison to length
+                # ax[0].set_xlabel("Sampling interval (mins)",fontsize=font_size)
+                ax[0].set_xlim(0,3)
+                ax[0].set_xticks([0.5,2.5])
+                ax[0].set_xticklabels(['Without mRNA','With mRNA'])
+                ax[0].set_ylabel("Coefficient of Variation",fontsize=font_size)
+                ax[0].tick_params(axis='x',rotation=30)
+                # mean error
+                mRNA_mean_errors = [y for x, y in ps9_mRNA_mean_error_dict.items() if substring in x][0]
+                fig5_mean_errors = [y for x, y in ps9_fig5_mean_error_dict.items() if substring in x][0]
+                ax[1].plot([0.5,2.5],[fig5_mean_errors,mRNA_mean_errors],'o-',label='Without mRNA', color='#b5aeb0')
+                # ax[1].scatter(0,fig5_mean_errors,label=string, color='#b5aeb0')
+                # ax[1].scatter(1,mRNA_mean_errors,label=string, color='#b5aeb0')
+                # ax[1].set_xlim(15.5,4.5) # backwards for comparison to length
+                # ax[1].set_xlabel("Sampling interval (mins)",fontsize=font_size)
+                ax[1].set_xlim(0,3)
+                ax[1].set_xticks([0.5,2.5])
+                ax[1].set_xticklabels(['Without mRNA','With mRNA'])
+                ax[1].set_ylabel("Relative mean error",fontsize=font_size)
+                ax[1].tick_params(axis='x',rotation=30)
+                # plt.legend()
+
+
+            ax[0].plot([0.5,2.5],[fig5_mean_and_sd_covs[0],mRNA_mean_and_sd_covs[0]],color='#8d9ef1',alpha=0.5)
+            ax[0].fill_between([0.5,2.5], [fig5_mean_and_sd_covs[0]-fig5_mean_and_sd_covs[1],
+                                                              mRNA_mean_and_sd_covs[0]-mRNA_mean_and_sd_covs[1]],
+                                                             [fig5_mean_and_sd_covs[0]+fig5_mean_and_sd_covs[1],
+                                                              mRNA_mean_and_sd_covs[0]+mRNA_mean_and_sd_covs[1]],alpha=0.2,color='#8d9ef1')
+            ax[1].plot([0.5,2.5],[fig5_mean_and_sd_means[0],mRNA_mean_and_sd_means[0]],color='#8d9ef1',alpha=0.5)
+            ax[1].fill_between([0.5,2.5], [fig5_mean_and_sd_means[0]-fig5_mean_and_sd_means[1],
+                                                              mRNA_mean_and_sd_means[0]-mRNA_mean_and_sd_means[1]],
+                                                             [fig5_mean_and_sd_means[0]+fig5_mean_and_sd_means[1],
+                                                              mRNA_mean_and_sd_means[0]+mRNA_mean_and_sd_means[1]],alpha=0.2,color='#8d9ef1')
+            # ax[1].plot(['Without mRNA','With mRNA'],mean_and_sd_means[:,1],color='#8d9ef1',alpha=0.5)
+                # ax[1].fill_between(['Without mRNA','With mRNA'], np.maximum(0,mean_and_sd_means[:,1]-mean_and_sd_means[:,2]), mean_and_sd_means[:,1]+mean_and_sd_means[:,2], alpha=0.2,color='#F18D9E')
+
+        plt.tight_layout()
+        plt.savefig(mRNA_loading_path + 'ps9_with_and_without_mRNA_error_values_frequency_prior.png')
+
+    def fest_transcription_accuracy_with_or_without_mrna(self):
+        fig5_loading_path = os.path.join(os.path.dirname(__file__),'output','figure_5/')
+        mRNA_loading_path = os.path.join(os.path.dirname(__file__),'output','mRNA_output/')
+        saving_path = os.path.join(os.path.dirname(__file__),'data','')
+        ps6_true_parameter_values = np.load(os.path.join(saving_path,'ps6_parameter_values.npy'))
+        ps9_true_parameter_values = np.load(os.path.join(saving_path,'ps9_parameter_values.npy'))
+
+
+        ps6_mRNA_chain_path_strings = [i for i in os.listdir(mRNA_loading_path) if i.startswith('final_parallel_mala_output_protein_observations_with_mRNA_ps6_1_cells_15_minutes')]
+        ps9_mRNA_chain_path_strings = [i for i in os.listdir(mRNA_loading_path) if i.startswith('final_parallel_mala_output_protein_observations_with_mRNA_ps9_1_cells_15_minutes')]
+        ps6_fig5_chain_path_strings = [i for i in os.listdir(fig5_loading_path) if i.startswith('final_parallel_mala_output_protein_observations_ps6_1_cells_15_minutes')]
+        ps9_fig5_chain_path_strings = [i for i in os.listdir(fig5_loading_path) if i.startswith('final_parallel_mala_output_protein_observations_ps9_1_cells_15_minutes')]
+        ps6_mRNA_datasets = {}
+        ps9_mRNA_datasets = {}
+        ps6_fig5_datasets = {}
+        ps9_fig5_datasets = {}
+
+        for string in ps6_mRNA_chain_path_strings:
+            ps6_mRNA_datasets[string] = np.load(mRNA_loading_path + string)
+        for string in ps6_fig5_chain_path_strings:
+            ps6_fig5_datasets[string] = np.load(fig5_loading_path + string)
+
+        for string in ps9_mRNA_chain_path_strings:
+            ps9_mRNA_datasets[string] = np.load(mRNA_loading_path + string)
+        for string in ps9_fig5_chain_path_strings:
+            ps9_fig5_datasets[string] = np.load(fig5_loading_path + string)
+
+        plotting_strings = ['1_cells_15_minutes']
+        dataset_string = ['1.npy',
+                          '2.npy',
+                          '3.npy',
+                          '4.npy',
+                          '5.npy',]
+
+        for string in plotting_strings:
+            for index, substring in enumerate(dataset_string):
+                fig, ax = plt.subplots(2,1,figsize=(6.95,8.63*1.25))
+                mRNA_chain = [y for x, y in ps6_mRNA_datasets.items() if substring in x][0]
+                mRNA_chain = mRNA_chain.reshape(640000,5)
+                fig5_chain = [y for x, y in ps6_fig5_datasets.items() if substring in x][0]
+                fig5_chain = fig5_chain.reshape(640000,5)
+                # xcoords = [np.int(string[string.find('lls_')+4:string.find('_min')])]*len(covs)
+                heights, bins, _ = ax[0].hist(mRNA_chain[:,2],bins=30,density=True,color='#F18D9E',ec='grey',alpha=0.8)
+                ax[0].vlines(np.log(ps6_true_parameter_values[4]),0,1.1*max(heights),color='k',lw=2,label='True value')
+                heights, bins, _ = ax[1].hist(fig5_chain[:,2],bins=30,density=True,color='#F18D9E',ec='grey',alpha=0.8)
+                ax[1].vlines(np.log(ps6_true_parameter_values[4]),0,1.1*max(heights),color='k',lw=2,label='True value')
+                # ax[0].scatter(1,mRNA_cov,label='With mRNA', color='#b5aeb0')
+                # ax[0].set_xlim(15.5,4.5) # backwards for comparison to length
+                # ax[0].set_xlabel("Sampling interval (mins)",fontsize=font_size)
+                ax[0].set_xlim(-1.5,5)
+                ax[1].set_xlim(-1.5,5)
+                ax[0].set_ylabel("Probability",fontsize=font_size)
+                ax[1].set_ylabel("Probability",fontsize=font_size)
+                ax[0].set_xlabel("$\log(\\alpha_m)$ without mRNA data",fontsize=font_size)
+                ax[1].set_xlabel("$\log(\\alpha_m)$ with mRNA data",fontsize=font_size)
+
+                plt.tight_layout()
+                plt.savefig(mRNA_loading_path + 'ps6_transcription_hist_' + substring[0] + '.png')
+
+        for string in plotting_strings:
+            for index, substring in enumerate(dataset_string):
+                fig, ax = plt.subplots(2,1,figsize=(6.95,8.63*1.25))
+                mRNA_chain = [y for x, y in ps9_mRNA_datasets.items() if substring in x][0]
+                mRNA_chain = mRNA_chain.reshape(640000,5)
+                fig5_chain = [y for x, y in ps9_fig5_datasets.items() if substring in x][0]
+                fig5_chain = fig5_chain.reshape(640000,5)
+
+                heights, bins, _ = ax[0].hist(mRNA_chain[:,2],bins=30,density=True,color='#8d9ef1',ec='grey',alpha=0.8)
+                ax[0].vlines(np.log(ps9_true_parameter_values[4]),0,1.1*max(heights),color='k',lw=2,label='True value')
+                heights, bins, _ = ax[1].hist(fig5_chain[:,2],bins=30,density=True,color='#8d9ef1',ec='grey',alpha=0.8)
+                ax[1].vlines(np.log(ps9_true_parameter_values[4]),0,1.1*max(heights),color='k',lw=2,label='True value')
+
+                ax[0].set_xlim(-1.5,5)
+                ax[1].set_xlim(-1.5,5)
+                ax[0].set_ylabel("Probability",fontsize=font_size)
+                ax[1].set_ylabel("Probability",fontsize=font_size)
+                ax[0].set_xlabel("$\log(\\alpha_m)$ without mRNA data",fontsize=font_size)
+                ax[1].set_xlabel("$\log(\\alpha_m)$ with mRNA data",fontsize=font_size)
+
+                plt.tight_layout()
+                plt.savefig(mRNA_loading_path + 'ps9_transcription_hist_' + substring[0] + '.png')
 
     def xest_accuracy_of_chains_by_sampling_and_cells(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','figure_5/')
@@ -2730,8 +3566,10 @@ class TestInference(unittest.TestCase):
         ps6_cov_dict = {}
         ps9_mean_error_dict = {}
         ps9_cov_dict = {}
-
         for key in ps6_datasets.keys():
+            mean_protein = np.mean(np.load(loading_path + '../../data/figure_5/protein_observations_' +
+                                           key[key.find('ps'):])[:,1])
+            prior_widths = [2*mean_protein-50,4,120,40,40]
             ps6_mean_error_dict[key] = 0
             ps6_cov_dict[key] = 0
             short_chains = ps6_datasets[key].reshape(ps6_datasets[key].shape[0]*ps6_datasets[key].shape[1],5)
@@ -2739,13 +3577,17 @@ class TestInference(unittest.TestCase):
             short_chains_mean = np.mean(short_chains,axis=0)
             short_chains_std = np.std(short_chains,axis=0)
             # coefficient of variation
-            short_chain_cov = np.sum(short_chains_std/ps6_true_parameter_values)
+            # short_chain_cov = np.sum(short_chains_std/ps6_true_parameter_values)
+            short_chain_cov = np.sum(short_chains_std/prior_widths)
             # relative mean
             relative_mean = np.sum(np.abs(ps6_true_parameter_values - short_chains_mean)/ps6_true_parameter_values)
             ps6_mean_error_dict[key] = relative_mean
             ps6_cov_dict[key] = short_chain_cov
 
         for key in ps9_datasets.keys():
+            mean_protein = np.mean(np.load(loading_path + '../../data/figure_5/protein_observations_' +
+                                           key[key.find('ps'):])[:,1])
+            prior_widths = [2*mean_protein-50,4,120,40,40]
             ps9_mean_error_dict[key] = 0
             ps9_cov_dict[key] = 0
             short_chains = ps9_datasets[key].reshape(ps9_datasets[key].shape[0]*ps9_datasets[key].shape[1],5)
@@ -2753,7 +3595,8 @@ class TestInference(unittest.TestCase):
             short_chains_mean = np.mean(short_chains,axis=0)
             short_chains_std = np.std(short_chains,axis=0)
             # coefficient of variation
-            short_chain_cov = np.sum(short_chains_std/ps9_true_parameter_values)
+            # short_chain_cov = np.sum(short_chains_std/ps9_true_parameter_values)
+            short_chain_cov = np.sum(short_chains_std/prior_widths)
             # relative mean
             relative_mean = np.sum(np.abs(ps9_true_parameter_values - short_chains_mean)/ps9_true_parameter_values)
             ps9_mean_error_dict[key] = relative_mean
@@ -2802,7 +3645,7 @@ class TestInference(unittest.TestCase):
         ax[1].fill_between(mean_and_sd_means[:,0], np.maximum(0,mean_and_sd_means[:,1]-mean_and_sd_means[:,2]), mean_and_sd_means[:,1]+mean_and_sd_means[:,2], alpha=0.2,color='#F18D9E')
 
         plt.tight_layout()
-        plt.savefig(loading_path + 'ps6_cov_and_mean_error_values_frequency.png')
+        plt.savefig(loading_path + 'ps6_cov_and_mean_error_values_frequency_prior.png')
 
         fig, ax = plt.subplots(1,2,figsize=(8.63*2,6.95))
         for index, string in enumerate(plotting_strings):
@@ -2840,7 +3683,7 @@ class TestInference(unittest.TestCase):
         ax[1].fill_between(mean_and_sd_means[:,0], np.maximum(0,mean_and_sd_means[:,1]-mean_and_sd_means[:,2]), mean_and_sd_means[:,1]+mean_and_sd_means[:,2], alpha=0.2,color='#8d9ef1')
 
         plt.tight_layout()
-        plt.savefig(loading_path + 'ps9_cov_and_mean_error_values_frequency.png')
+        plt.savefig(loading_path + 'ps9_cov_and_mean_error_values_frequency_prior.png')
 
         plotting_strings = ['1_cells_15_minutes',
                             '2_cells_15_minutes',
@@ -2888,7 +3731,7 @@ class TestInference(unittest.TestCase):
         ax[1].fill_between(mean_and_sd_means[:,0],np.maximum(0,mean_and_sd_means[:,1]-mean_and_sd_means[:,2]), mean_and_sd_means[:,1]+mean_and_sd_means[:,2], alpha=0.2,color='#F18D9E')
 
         plt.tight_layout()
-        plt.savefig(loading_path + 'ps6_cov_and_mean_error_values_length.png')
+        plt.savefig(loading_path + 'ps6_cov_and_mean_error_values_length_prior.png')
 
         fig, ax = plt.subplots(1,2,figsize=(8.63*2,6.95))
         for index, string in enumerate(plotting_strings):
@@ -2927,7 +3770,7 @@ class TestInference(unittest.TestCase):
         ax[1].fill_between(mean_and_sd_means[:,0], np.maximum(0,mean_and_sd_means[:,1]-mean_and_sd_means[:,2]), mean_and_sd_means[:,1]+mean_and_sd_means[:,2], alpha=0.2,color='#8d9ef1')
 
         plt.tight_layout()
-        plt.savefig(loading_path + 'ps9_cov_and_mean_error_values_length.png')
+        plt.savefig(loading_path + 'ps9_cov_and_mean_error_values_length_prior.png')
 
     def xest_identify_oscillatory_parameters(self):
         loading_path = os.path.join(os.path.dirname(__file__), 'data',
@@ -3206,6 +4049,110 @@ class TestInference(unittest.TestCase):
             # import pdb; pdb.set_trace()
         measurement_variance = np.sqrt(0.1*np.mean(detrended_variances))
         np.save(loading_path + 'measurement_variance_detrended.npy',measurement_variance)
+
+    def xest_oscillation_quality(self):
+        # load data
+        loading_path = os.path.join(os.path.dirname(__file__),'data','figure_5_coherence/')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','output_jan_17/')
+
+        experimental_data_strings = [i for i in os.listdir(loading_path) if 'npy' in i
+                                                                         if 'quality' not in i]
+
+        # make data from each trace and save
+        for index, cell_string in enumerate(experimental_data_strings):
+            protein = np.load(loading_path + cell_string)
+            protein[:,0] -= protein[0,0] # start time = 0
+            mean_protein = np.mean(protein[:,1])
+            protein_around_mean = protein[:,1] - mean_protein
+            times = np.linspace(0, np.int(protein[-1,0]), np.int(protein[-1,0])+1)
+            mean, var, quality = hes5.calculate_oscillation_quality(protein)
+            np.save(loading_path + cell_string[:-4] + "_oscillation_quality.npy",quality)
+
+            ## plot
+            plt.figure(figsize=(12, 6))
+            plt.scatter(protein[:,0], protein_around_mean, label="data")
+            plt.plot(times, mean[:,0], lw=2)
+            plt.fill_between(
+                times,
+                mean[:,0] - 1.96 * np.sqrt(var[:,0]),
+                mean[:,0] + 1.96 * np.sqrt(var[:,0]),
+                color="C0",
+                alpha=0.2,
+            )
+            plt.text(50,6000,str(round(quality,2)))
+            plt.savefig(saving_path + cell_string[:-4] + "_oscillation_quality.png")
+            # import pdb; pdb.set_trace()
+
+    def xest_oscillation_quality_vs_accuracy(self):
+        # load data
+        loading_path = os.path.join(os.path.dirname(__file__),'data','figure_5_coherence/')
+        saving_path = os.path.join(os.path.dirname(__file__),'output','output_jan_17/')
+
+        experimental_data_strings = [i for i in os.listdir(loading_path) if 'npy' in i
+                                                                         if 'quality' not in i
+                                                                         if 'ps12_fig5_5' not in i]
+        # coefficient of variation
+        fig, ax = plt.subplots(figsize=(8,6))
+        for data_string in experimental_data_strings:
+            quality = np.load(loading_path + data_string[:-4] + '_oscillation_quality.npy')
+            ps_string = data_string[data_string.find('ps'):data_string.find('fig5')-1]
+            true_values = np.load(loading_path + '../' + ps_string + '_parameter_values.npy')[[0,1,4,5,6]]
+            # true_values[[2,3]] = np.log(true_values[[2,3]])
+            chain = np.load(saving_path + 'final_parallel_mala_output_' + data_string)
+            chain = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
+            chain[:,[2,3]] = np.exp(chain[:,[2,3]])
+            sample_std = np.std(chain,axis=0)
+            sample_mean = np.mean(chain,axis=0)
+            coefficient_of_variation = np.sum(sample_std/np.abs(sample_mean))
+            ax.scatter(quality,coefficient_of_variation,color='#20948B')
+
+        ax.set_xlabel("Oscillation quality")
+        ax.set_ylabel("Coefficient of Variation")
+        # ax.set_ylim(0,7)
+        plt.tight_layout()
+        plt.savefig(saving_path + "oscillation_vs_cov.png")
+
+        # prior width
+        # prior_widths = [2*50000,4,np.log(120)-np.log(0.01),np.log(40)-np.log(0.01),40]
+        # prior_widths = [2*50000,4,120,40,40]
+        fig, ax = plt.subplots(figsize=(8,6))
+        for data_string in experimental_data_strings:
+            quality = np.load(loading_path + data_string[:-4] + '_oscillation_quality.npy')
+            ps_string = data_string[data_string.find('ps'):data_string.find('fig5')-1]
+            chain = np.load(saving_path + 'final_parallel_mala_output_' + data_string)
+            chain = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
+            mean_protein = np.mean(np.load(loading_path + 'protein_observations_' + data_string[data_string.find('ps'):])[:,1])
+            prior_widths = [2*mean_protein-50,4,120,40,40]
+            # import pdb; pdb.set_trace()
+            chain[:,[2,3]] = np.exp(chain[:,[2,3]])
+            sample_std = np.std(chain,axis=0)
+            prior_norm = np.sum(sample_std/prior_widths)
+            ax.scatter(quality,prior_norm,color='#20948B')
+
+        ax.set_xlabel("Oscillation quality")
+        ax.set_ylabel("Normalisation by Prior width")
+        # ax.set_xlim(0,1.3)
+        plt.tight_layout()
+        plt.savefig(saving_path + "oscillation_vs_prior_norm.png")
+
+        # rel mean error
+        # prior_widths = [2*50000,4,np.log(120)-np.log(0.01),np.log(40)-np.log(0.01),40]
+        fig, ax = plt.subplots(figsize=(8,6))
+        for data_string in experimental_data_strings:
+            quality = np.load(loading_path + data_string[:-4] + '_oscillation_quality.npy')
+            ps_string = data_string[data_string.find('ps'):data_string.find('fig5')-1]
+            true_values = np.load(loading_path + '../' + ps_string + '_parameter_values.npy')[[0,1,4,5,6]]
+            chain = np.load(saving_path + 'final_parallel_mala_output_' + data_string)
+            chain = chain.reshape(chain.shape[0]*chain.shape[1],chain.shape[2])
+            chain[:,[2,3]] = np.exp(chain[:,[2,3]])
+            sample_mean = np.mean(chain,axis=0)
+            prior_norm = np.sum(np.abs(sample_mean-true_values)/true_values)
+            ax.scatter(quality,prior_norm,color='#20948B')
+
+        ax.set_xlabel("Oscillation quality")
+        ax.set_ylabel("Relative Mean Error")
+        plt.tight_layout()
+        plt.savefig(saving_path + "oscillation_vs_rel_mean.png")
 
     def xest_multiple_traces(self):
         # load data and true parameter values
