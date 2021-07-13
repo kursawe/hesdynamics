@@ -1,1 +1,0 @@
-python -c "import test_inference; class_instance = test_inference.TestInference(); class_instance.test_multiple_mala_traces_figure_5_coherence('protein_observations_coherence_9.npy')"
