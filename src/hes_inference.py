@@ -707,6 +707,7 @@ def kalman_prediction_step(state_space_mean,
         # indexing with 1:3 for numba
         current_mean = state_space_mean[current_time_index,1:3]
         past_protein = state_space_mean[past_time_index,2]
+        past_mRNA = state_space_mean[past_time_index,1]
 
         hill_function_value = 1.0/(1.0+np.power(past_protein/repression_threshold,hill_coefficient))
         hill_function_derivative_value = - hill_coefficient*np.power(past_protein/repression_threshold,
@@ -881,7 +882,9 @@ def kalman_prediction_step(state_space_mean,
 
             # transcriptional delay
             transcription_delay_derivative = ( instant_jacobian.dot(current_mean_derivative[6]).reshape((2,1)) +
-                                               delayed_jacobian.dot(past_mean_derivative[6]).reshape((2,1)) )
+                                               delayed_jacobian.dot(past_mean_derivative[6]).reshape((2,1)) +
+                                               np.array(([[-basal_transcription_rate*hill_function_derivative_value*(
+                                                           translation_rate*past_mRNA - protein_degradation_rate*past_protein)],[0.0]])) )
 
             next_mean_derivative[6] = current_mean_derivative[6] + discretisation_time_step*(transcription_delay_derivative.reshape((1,2)))
 

@@ -5039,7 +5039,7 @@ def calculate_oscillation_quality(data):
     regression_model.kernel.kernels[0].kernels[0].variance.assign(0.2*np.var(data[:,1]))
     regression_model.kernel.kernels[0].kernels[1].lengthscales.assign(240)
     regression_model.kernel.kernels[0].kernels[1].variance.assign(1)
-    regression_model.kernel.kernels[1].variance.assign(1000000-1)
+    regression_model.kernel.kernels[1].variance.assign(1000000)
     set_trainable(regression_model.kernel.kernels[0].kernels[1].variance, False)
     set_trainable(regression_model.kernel.kernels[1].variance, False)
     set_trainable(regression_model.likelihood.variance, False)
@@ -5050,7 +5050,7 @@ def calculate_oscillation_quality(data):
                             options=dict(maxiter=100),
                             bounds = [(10e-1,10000),
                                       (0.1*np.var(data[:,1]),2*np.var(data[:,1])),
-                                      (100,10000)],
+                                      (100,1000)],
                             method='L-BFGS-B')
     print_summary(regression_model)
     # import pdb; pdb.set_trace()
