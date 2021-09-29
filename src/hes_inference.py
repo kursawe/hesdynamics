@@ -405,7 +405,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
                                                                                                                                   derivative)
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_observation_distribution_parameters(predicted_observation_distributions,
                                                current_observation,
                                                state_space_mean,
@@ -484,7 +484,7 @@ def kalman_observation_distribution_parameters(predicted_observation_distributio
 
     return predicted_observation_distributions[observation_index + 1]
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_observation_derivatives(predicted_observation_mean_derivatives,
                                    predicted_observation_variance_derivatives,
                                    current_observation,
@@ -558,7 +558,7 @@ def kalman_observation_derivatives(predicted_observation_mean_derivatives,
                                                                                                                                                    long_column_index]
     return predicted_observation_mean_derivatives[observation_index + 1], predicted_observation_variance_derivatives[observation_index + 1]
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -700,16 +700,21 @@ def kalman_prediction_step(state_space_mean,
     instant_jacobian = np.array([[-mRNA_degradation_rate,0.0],[translation_rate,-protein_degradation_rate]])
     instant_jacobian_transpose = np.transpose(instant_jacobian)
 
-    for next_time_index in range(current_number_of_states, current_number_of_states + number_of_hidden_states):
+    for ii, next_time_index in enumerate(range(current_number_of_states, current_number_of_states + number_of_hidden_states)):
         current_time_index = next_time_index - 1 # this corresponds to t
         past_time_index = current_time_index - discrete_delay # this corresponds to t-tau
 
         # indexing with 1:3 for numba
         current_mean = state_space_mean[current_time_index,1:3]
         past_protein = state_space_mean[past_time_index,2]
+        if ii == 0:
+            print(current_mean)
+            print(state_space_mean[past_time_index,1:3])
         past_mRNA = state_space_mean[past_time_index,1]
 
         hill_function_value = 1.0/(1.0+np.power(past_protein/repression_threshold,hill_coefficient))
+        # if ii == 0:
+            # print(hill_function_value)
         hill_function_derivative_value = - hill_coefficient*np.power(past_protein/repression_threshold,
                                                                      hill_coefficient - 1)/( repression_threshold*
                                            np.power(1.0+np.power( past_protein/repression_threshold,
@@ -1193,7 +1198,7 @@ def kalman_prediction_step(state_space_mean,
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def kalman_update_step(state_space_mean,
                        state_space_variance,
                        state_space_mean_derivative,

@@ -19,7 +19,7 @@ from jitcdde import jitcdde,y,t
 import time
 from scipy.spatial.distance import euclidean
 from scipy import stats
-import pymc3 as pm
+# import pymc3 as pm
 import arviz as az
 # make sure we find the right python module
 sys.path.append(os.path.join(os.path.dirname(__file__),'..','src'))
@@ -47,10 +47,10 @@ class TestInference(unittest.TestCase):
                                                                                                                                                                                                                                                                    parameters,
                                                                                                                                                                                                                                                                    measurement_variance=10000,
                                                                                                                                                                                                                                                                    derivative=True)
-        loglik, loglikd = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
-                                                                                                   parameters,
-                                                                                                   5000,
-                                                                                                   measurement_variance=10000)
+        # loglik, loglikd = hes_inference.calculate_log_likelihood_and_derivative_at_parameter_point(fixed_protein_observations,
+                                                                                                   # parameters,
+                                                                                                   # 5000,
+                                                                                                   # measurement_variance=10000)
         import pdb; pdb.set_trace()
         # print(log_likelihood)
         np.testing.assert_almost_equal(state_space_mean,true_kalman_prediction_mean)
