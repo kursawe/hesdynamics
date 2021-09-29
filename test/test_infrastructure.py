@@ -33,7 +33,7 @@ class TestInfrastructure(unittest.TestCase):
 
         figuresize = (4,2.75)
         my_figure = plt.figure()
-        plt.plot(my_trajectory[:,0], 
+        plt.plot(my_trajectory[:,0],
                  my_trajectory[:,1], label = 'mRNA', color = 'black')
         plt.plot(my_trajectory[:,0],
                  my_trajectory[:,2]*0.03, label = 'Hes protein', color = 'black', ls = '--')
@@ -56,7 +56,7 @@ class TestInfrastructure(unittest.TestCase):
 
         figuresize = (4,2.75)
         my_figure = plt.figure()
-        plt.plot(my_trajectory[:,0], 
+        plt.plot(my_trajectory[:,0],
                  my_trajectory[:,1], label = 'mRNA', color = 'black')
         plt.plot(my_trajectory[:,0],
                  my_trajectory[:,2]*0.03, label = 'Hes protein (scaled)', color = 'black', ls = '--')
@@ -80,10 +80,10 @@ class TestInfrastructure(unittest.TestCase):
                                                          initial_protein = 31400,
                                                          equilibration_time = 1000)
 
-        
+
         figuresize = (4,2.5)
         my_figure = plt.figure()
-        plt.plot(my_trajectory[:,0], 
+        plt.plot(my_trajectory[:,0],
                  my_trajectory[:,1]*1000, label = 'mRNA*1000', color = 'black')
         plt.plot(my_trajectory[:,0],
                  my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
@@ -95,7 +95,7 @@ class TestInfrastructure(unittest.TestCase):
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','hes5_stochastic_trajectory_equilibrated.pdf'))
-        
+
     def test_calculate_power_spectrum_of_specific_trace(self):
         interval_length = 100
         x_values = np.linspace(1,interval_length,1000)
@@ -108,14 +108,14 @@ class TestInfrastructure(unittest.TestCase):
 
         my_figure = plt.figure()
         my_figure.add_subplot(211)
-        plt.plot(x_values, 
+        plt.plot(x_values,
                  function_values, label = r'$3sin(2\pi 0.5x) + 2sin(2\pi 0.2x)$', color = 'black')
         plt.xlabel('x')
         plt.ylabel('f(x)')
         plt.legend()
 
         my_figure.add_subplot(212)
-        plt.plot(power_spectrum[:,0], 
+        plt.plot(power_spectrum[:,0],
                  power_spectrum[:,1], color = 'black')
         plt.xlim(0,1)
         plt.xlabel('Frequency')
@@ -136,11 +136,11 @@ class TestInfrastructure(unittest.TestCase):
                                                          initial_mRNA = 3,
                                                          initial_protein = 23000)
 
-        
+
         self.assertGreaterEqual(np.min(my_trajectory),0.0)
         figuresize = (4,2.5)
         my_figure = plt.figure()
-        plt.plot(my_trajectory[:,0], 
+        plt.plot(my_trajectory[:,0],
                  my_trajectory[:,1]*10000, label = 'mRNA*1000', color = 'black')
         plt.plot(my_trajectory[:,0],
                  my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
@@ -163,11 +163,11 @@ class TestInfrastructure(unittest.TestCase):
                                                                  transcription_delay = 29,
                                                                  initial_mRNA = 3,
                                                                  initial_protein = 23000)
-        
+
         self.assertGreaterEqual(np.min(my_trajectory),0.0)
         figuresize = (4,2.5)
         my_figure = plt.figure()
-        plt.plot(my_trajectory[:,0], 
+        plt.plot(my_trajectory[:,0],
                  my_trajectory[:,1]*10000, label = 'mRNA*1000', color = 'black')
         plt.plot(my_trajectory[:,0],
                  my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
@@ -196,13 +196,13 @@ class TestInfrastructure(unittest.TestCase):
                                                          initial_protein = 31400,
                                                          equilibration_time = 1000)
         end = time.clock()
-        
+
 #         print('needed ' + str(end-start) + ' seconds')
 
-        
+
         figuresize = (4,2.5)
         my_figure = plt.figure()
-        plt.plot(my_trajectory[:,0], 
+        plt.plot(my_trajectory[:,0],
                  my_trajectory[:,1]*1000, label = 'mRNA*1000', color = 'black')
         plt.plot(my_trajectory[:,0],
                  my_trajectory[:,2], label = 'Hes protein', color = 'black', ls = '--')
@@ -237,7 +237,7 @@ class TestInfrastructure(unittest.TestCase):
         protein_deviation = np.std(mRNA_trajectories[:,1:])
         mean_mRNA_trajectory = np.mean(mRNA_trajectories[:,1:], axis = 1)
         mRNA_deviation = np.std(mRNA_trajectories[:,1:])
-        
+
         figuresize = (4,2.75)
         my_figure = plt.figure()
         # want to plot: protein and mRNA for stochastic and deterministic system,
@@ -279,7 +279,7 @@ class TestInfrastructure(unittest.TestCase):
         protein_deviation = np.std(mRNA_trajectories[:,1:])
         mean_mRNA_trajectory = np.mean(mRNA_trajectories[:,1:], axis = 1)
         mRNA_deviation = np.std(mRNA_trajectories[:,1:])
-        
+
         figuresize = (4,2.75)
         my_figure = plt.figure()
         # want to plot: protein and mRNA for stochastic and deterministic system,
@@ -321,11 +321,11 @@ class TestInfrastructure(unittest.TestCase):
                                                                 logarithmic = True,
                                                                 simulation_timestep = 1.0,
                                                                 simulation_duration = 1500*5)
-        
-        self.assertEquals(my_prior_samples.shape, 
+
+        self.assertEquals(my_prior_samples.shape,
                           (total_number_of_samples, 5))
- 
-        self.assertEquals(my_prior_results.shape, 
+
+        self.assertEquals(my_prior_results.shape,
                           (total_number_of_samples, 12))
 
     def test_make_logarithmic_degradation_rate_sweep(self):
@@ -338,7 +338,7 @@ class TestInfrastructure(unittest.TestCase):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','test_sampling_results')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
+
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
                                     np.logical_and(model_results[:,0]<65000, #cell_number
                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
@@ -365,7 +365,7 @@ class TestInfrastructure(unittest.TestCase):
         saving_path = os.path.join(os.path.dirname(__file__), 'data','test_sampling_results')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
+
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #cell number
                                     np.logical_and(model_results[:,0]<65000, #cell_number
                                     np.logical_and(model_results[:,1]<0.15, #standard deviation
@@ -377,7 +377,7 @@ class TestInfrastructure(unittest.TestCase):
                                                                                      number_of_parameter_points,
                                                                                      number_of_trajectories,
                                                                                      relative = True)
-        
+
         for parameter_name in my_parameter_sweep_results:
             np.save(os.path.join(os.path.dirname(__file__), 'output','test_relative_sweeps_' + parameter_name + '.npy'),
                     my_parameter_sweep_results[parameter_name])
@@ -405,21 +405,21 @@ class TestInfrastructure(unittest.TestCase):
         full_parameter = [1.08771820e+00, 1.27012825e+01, 8.10682842e+04, 5.00000000e+01, 2.42679925e+00, 2.31049060e-02, 7.70163534e-03]
         full_parameter = [5.22348438e-01, 2.11394860e+01, 1.19414879e+05, 7.80000000e+01, 4.47302277e+00, 2.31049060e-02, 7.70163534e-03]
 
-        my_trajectory = hes5.generate_deterministic_trajectory(1500*5+1000, 
-                                                                full_parameter[2], 
-                                                                full_parameter[4], 
-                                                                full_parameter[5], 
-                                                                full_parameter[6], 
-                                                                full_parameter[0], 
+        my_trajectory = hes5.generate_deterministic_trajectory(1500*5+1000,
+                                                                full_parameter[2],
+                                                                full_parameter[4],
+                                                                full_parameter[5],
+                                                                full_parameter[6],
+                                                                full_parameter[0],
                                                                 full_parameter[1],
-                                                                full_parameter[3], 
-                                                                10, 
-                                                                full_parameter[2], 
+                                                                full_parameter[3],
+                                                                10,
+                                                                full_parameter[2],
                                                                 for_negative_times = 'no_negative')
-        
+
         figuresize = (4,2.75)
         my_figure = plt.figure()
-        plt.plot(my_trajectory[:,0], 
+        plt.plot(my_trajectory[:,0],
                  my_trajectory[:,1], label = 'mRNA', color = 'black')
         plt.plot(my_trajectory[:,0],
                  my_trajectory[:,2]*0.03, label = 'Hes protein', color = 'black', ls = '--')
@@ -438,11 +438,11 @@ class TestInfrastructure(unittest.TestCase):
         translation_rate = 1.0
         repression_threshold = 100.0
         hill_coefficient = 5
-        
-        is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold, 
-                                                              hill_coefficient = hill_coefficient, 
-                                                              mRNA_degradation_rate = mrna_degradation, 
-                                                              protein_degradation_rate = protein_degradation, 
+
+        is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold,
+                                                              hill_coefficient = hill_coefficient,
+                                                              mRNA_degradation_rate = mrna_degradation,
+                                                              protein_degradation_rate = protein_degradation,
                                                               basal_transcription_rate = basal_transcription_rate,
                                                               translation_rate = translation_rate,
                                                               transcription_delay = transcription_delay)
@@ -457,11 +457,11 @@ class TestInfrastructure(unittest.TestCase):
         translation_rate = 320.0
         repression_threshold = 60000
         hill_coefficient = 5
-        
-        is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold, 
-                                                              hill_coefficient = hill_coefficient, 
-                                                              mRNA_degradation_rate = mrna_degradation, 
-                                                              protein_degradation_rate = protein_degradation, 
+
+        is_oscillatory = hes5.is_parameter_point_deterministically_oscillatory( repression_threshold = repression_threshold,
+                                                              hill_coefficient = hill_coefficient,
+                                                              mRNA_degradation_rate = mrna_degradation,
+                                                              protein_degradation_rate = protein_degradation,
                                                               basal_transcription_rate = basal_transcription_rate,
                                                               translation_rate = translation_rate,
                                                               transcription_delay = transcription_delay)
@@ -477,11 +477,11 @@ class TestInfrastructure(unittest.TestCase):
         translation_rate = 1.0
         repression_threshold = 100.0
         hill_coefficient = 5
-        
-        is_oscillatory = hes5.is_parameter_point_stochastically_oscillatory( repression_threshold = repression_threshold, 
-                                                              hill_coefficient = hill_coefficient, 
-                                                              mRNA_degradation_rate = mrna_degradation, 
-                                                              protein_degradation_rate = protein_degradation, 
+
+        is_oscillatory = hes5.is_parameter_point_stochastically_oscillatory( repression_threshold = repression_threshold,
+                                                              hill_coefficient = hill_coefficient,
+                                                              mRNA_degradation_rate = mrna_degradation,
+                                                              protein_degradation_rate = protein_degradation,
                                                               basal_transcription_rate = basal_transcription_rate,
                                                               translation_rate = translation_rate,
                                                               transcription_delay = transcription_delay )
@@ -496,11 +496,11 @@ class TestInfrastructure(unittest.TestCase):
         translation_rate = 17.32
         repression_threshold = 88288.6
         hill_coefficient = 5.59
-        
-        is_oscillatory = hes5.is_parameter_point_stochastically_oscillatory( repression_threshold = repression_threshold, 
-                                                              hill_coefficient = hill_coefficient, 
-                                                              mRNA_degradation_rate = mrna_degradation, 
-                                                              protein_degradation_rate = protein_degradation, 
+
+        is_oscillatory = hes5.is_parameter_point_stochastically_oscillatory( repression_threshold = repression_threshold,
+                                                              hill_coefficient = hill_coefficient,
+                                                              mRNA_degradation_rate = mrna_degradation,
+                                                              protein_degradation_rate = protein_degradation,
                                                               basal_transcription_rate = basal_transcription_rate,
                                                               translation_rate = translation_rate,
                                                               transcription_delay = transcription_delay)
@@ -513,7 +513,7 @@ class TestInfrastructure(unittest.TestCase):
         period_values = hes5.get_period_measurements_from_signal(time_points,signal_values)
         for period_value in period_values[1:-1]:
             self.assertAlmostEqual(period_value, 2.0, 3)
-        
+
         signal_values = np.sin(2*np.pi/1.42*time_points) + 10
         period_values = hes5.get_period_measurements_from_signal(time_points,signal_values)
         # print(period_values)
@@ -532,17 +532,17 @@ class TestInfrastructure(unittest.TestCase):
 
         dde_gradient = [ basal_transcription_rate*1.0/(1.0+(y(1,t - time_delay)/repression_threshold)**hill_coefficient)- mRNA_degradation_rate*y(0),
                          translation_rate*y(0) - protein_degradation_rate*y(1)]
-        
+
         DDE = jitcdde(dde_gradient)
-        
+
         initial_condition = [10, repression_threshold]
-        
+
         DDE.add_past_point(-time_delay , initial_condition, np.zeros(2))
 #         DDE.add_past_point(-time_delay*0.001 , [10,1000*repression_threshold], np.zeros(2))
 #         DDE.constant_past([0,0], 0.0)
         DDE.add_past_point(0.0   , initial_condition, np.zeros(2))
         DDE.step_on_discontinuities()
-        
+
         times = np.arange(DDE.t,DDE.t+1000,1.0)
         results = np.zeros((len(times),3))
         time_index = 0
@@ -551,13 +551,13 @@ class TestInfrastructure(unittest.TestCase):
             results[time_index,0] = time
             results[time_index,1:] = DDE.integrate(time)
             time_index += 1
-            
+
         my_trajectory = results
         print(my_trajectory)
 
         figuresize = (4,2.75)
         my_figure = plt.figure()
-        plt.plot(my_trajectory[:,0], 
+        plt.plot(my_trajectory[:,0],
                  my_trajectory[:,1], label = 'mRNA', color = 'black')
         plt.plot(my_trajectory[:,0],
                  my_trajectory[:,2]*0.03, label = 'Hes protein', color = 'black', ls = '--')
@@ -566,7 +566,7 @@ class TestInfrastructure(unittest.TestCase):
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','test_jitcdde.pdf'))
-       
+
     def xest_generate_further_alternative_deterministic_trajectory(self):
         basal_transcription_rate = 5.0
         translation_rate = 20.0
@@ -578,17 +578,17 @@ class TestInfrastructure(unittest.TestCase):
 
         dde_gradient = [ basal_transcription_rate*1.0/(1.0+(y(1,t - time_delay)/repression_threshold)**hill_coefficient)- mRNA_degradation_rate*y(0),
                          translation_rate*y(0) - protein_degradation_rate*y(1)]
-        
+
         DDE = jitcdde(dde_gradient)
-        
+
         initial_condition = [10, repression_threshold]
-        
+
         DDE.add_past_point(-time_delay , initial_condition, np.zeros(2))
 #         DDE.add_past_point(-time_delay*0.001 , [10,1000*repression_threshold], np.zeros(2))
 #         DDE.constant_past([0,0], 0.0)
         DDE.add_past_point(0.0   , initial_condition, np.zeros(2))
         DDE.step_on_discontinuities()
-        
+
         times = np.arange(DDE.t,DDE.t+1000,1.0)
         results = np.zeros((len(times),3))
         time_index = 0
@@ -597,13 +597,13 @@ class TestInfrastructure(unittest.TestCase):
             results[time_index,0] = time
             results[time_index,1:] = DDE.integrate(time)
             time_index += 1
-            
+
         my_trajectory = results
         print(my_trajectory)
 
         figuresize = (4,2.75)
         my_figure = plt.figure()
-        plt.plot(my_trajectory[:,0], 
+        plt.plot(my_trajectory[:,0],
                  my_trajectory[:,1], label = 'mRNA', color = 'black')
         plt.plot(my_trajectory[:,0],
                  my_trajectory[:,2]*0.03, label = 'Hes protein', color = 'black', ls = '--')
@@ -612,12 +612,12 @@ class TestInfrastructure(unittest.TestCase):
         plt.legend()
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','test_jitcdde.pdf'))
- 
+
     def xest_website_jitcdde_example(self):
         omega = np.random.normal(0.89, 0.0089, 2)
         kappa = 0.25
         delay = 4.5
-        
+
         f = [
             omega[0] * (-y(1) - y(2)),
             omega[0] * (y(0) + 0.165 * y(1)),
@@ -626,16 +626,16 @@ class TestInfrastructure(unittest.TestCase):
             omega[1] * (y(3) + 0.165 * y(4)),
             omega[1] * (0.2 + y(5) * (y(3) - 10.0))
             ]
-        
+
         DDE = jitcdde(f)
-        
+
         start_state = np.random.uniform(-0.5,0.5,6)
-        
+
         DDE.add_past_point(-delay, start_state, np.zeros(6))
         DDE.add_past_point(0.0   , start_state, np.zeros(6))
-        
+
         DDE.step_on_discontinuities()
-        
+
         times = np.arange(DDE.t,DDE.t+1000,0.1)
         data = np.vstack(DDE.integrate(T) for T in times)
         np.savetxt("two_roesslers.dat", data)

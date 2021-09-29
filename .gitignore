@@ -11,6 +11,7 @@ output/
 
 # documents
 *.pdf
+*.xlsx
 
 # numpy arrays
 *.npy

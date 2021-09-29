@@ -4,7 +4,7 @@ os.environ["OMP_NUM_THREADS"] = "1"
 import os.path
 import sys
 import matplotlib as mpl
-import matplotlib.gridspec 
+import matplotlib.gridspec
 mpl.use('Agg')
 # matplotlib.rcParams['text.usetex'] = True
 # mpl.rcParams['ps.fonttype'] = 3
@@ -25,8 +25,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__),'..','..','src'))
 import hes5
 
 class TestMakeFinalFigures(unittest.TestCase):
-                                 
-    def xest_make_period_distribution_plot(self):
+
+    def test_make_period_distribution_plot(self):
         hilbert_periods = np.load(os.path.join(os.path.dirname(__file__), 'data',
                                 'shortened_posterior_hilbert_periods_per_cell_one_sample.npy'))
 #                                   'shortened_smoothened_posterior_hilbert_periods_per_cell_one_sample.npy'))
@@ -45,15 +45,15 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.xlabel('Period [hrs]')
 #         plt.ylim(0,1)
         plt.ylabel('Likelihood')
-        
+
         plt.tight_layout()
         file_name = os.path.join(os.path.dirname(__file__), 'output',
                                    'hilbert_period_distribution_for_paper')
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
 
-    def xest_make_standard_deviation_distribution_plot(self):
-        
+    def test_make_standard_deviation_distribution_plot(self):
+
 #         string_option = 'divided1'
 #         string_option = 'divided2'
 #         string_option = 'empty'
@@ -65,7 +65,7 @@ class TestMakeFinalFigures(unittest.TestCase):
                                    'sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
- 
+
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
                                                    model_results[:,1]>0.05)))  #standard deviation
@@ -85,7 +85,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         print(np.median(all_standard_deviations))
         print('standard deviation of standard deviation is')
         print(np.std(all_standard_deviations))
-#       
+#
         plt.hist(all_standard_deviations,bins = 20, edgecolor = 'black')
         plt.ylabel("Likelihood")
         if string_option == 'standard':
@@ -109,14 +109,14 @@ class TestMakeFinalFigures(unittest.TestCase):
                                    'standard_deviation_predicted_distribution_for_paper_' + string_option)
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
-        
-    def xest_make_model_visualisation(self):
-        
+
+    def test_make_model_visualisation(self):
+
                 # sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
+
         number_of_traces = 10
         figuresize = (7.3,3)
         my_figure = plt.figure(figsize = figuresize)
@@ -125,7 +125,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         coherence_bands = [[0,0.05],
                            [0.45,0.47],
                            [0.85,0.9]]
-        
+
         panel_labels = {0: 'i', 1: 'ii', 2: 'iii'}
 
         for coherence_index, coherence_band in enumerate(coherence_bands):
@@ -138,7 +138,7 @@ class TestMakeFinalFigures(unittest.TestCase):
 
             my_posterior_results = model_results[accepted_indices]
             my_posterior_samples = prior_samples[accepted_indices]
-       
+
             this_double_grid = matplotlib.gridspec.GridSpecFromSubplotSpec(2, 1,
                     subplot_spec = outer_grid[coherence_index],
 #                     height_ratios= [number_of_traces, 1])
@@ -148,7 +148,7 @@ class TestMakeFinalFigures(unittest.TestCase):
                     subplot_spec=this_double_grid[0], hspace=0.0)
             this_parameter = my_posterior_samples[0]
             this_results = my_posterior_results[0]
-            
+
             print(this_parameter)
 
             for subplot_index in range(number_of_traces):
@@ -174,14 +174,14 @@ class TestMakeFinalFigures(unittest.TestCase):
                 plt.yticks([])
                 this_axis.tick_params(axis='both', length = 1)
                 if subplot_index == 0:
-                    plt.title('Coherence: ' + '{:.2f}'.format(this_results[3]), 
+                    plt.title('Coherence: ' + '{:.2f}'.format(this_results[3]),
                               fontsize = 10)
 #                     plt.title('Coherence: ' + '{:.2f}'.format(this_results[3]),
 #                               fontsize = 5)
                     plt.gca().text(-0.12, 2.1, panel_labels[coherence_index], transform=plt.gca().transAxes)
                 if subplot_index < number_of_traces - 1:
                     this_axis.xaxis.set_ticklabels([])
-                if subplot_index !=9 or coherence_index != 0: 
+                if subplot_index !=9 or coherence_index != 0:
                     this_axis.yaxis.set_ticklabels([])
                 else:
                     plt.yticks([4,8], fontsize = 8)
@@ -225,14 +225,14 @@ class TestMakeFinalFigures(unittest.TestCase):
 
         plt.tight_layout()
         my_figure.subplots_adjust(hspace = 0.7)
-            
+
         file_name = os.path.join(os.path.dirname(__file__),'output',
                                  'final_model_visualisation_for_paper')
 
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.png', dpi = 600)
-        
-    def xest_plot_coherence_curves(self):
+
+    def test_plot_coherence_curves(self):
 
         my_figure = plt.figure( figsize = (2.5, 1.9) )
 
@@ -241,7 +241,7 @@ class TestMakeFinalFigures(unittest.TestCase):
 #                                                           'repeated_degradation_sweep.npy'))
 #         print(my_degradation_sweep_results[0,:,0])
 #         print(np.log(2)/90)
-#         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] - 
+#         my_filtered_indices = np.where(np.logical_and(my_degradation_sweep_results[:,9,4] -
 #                                                       my_degradation_sweep_results[:,3,4]>
 #                                                       my_degradation_sweep_results[:,3,4]*1.0,
 #                                                       my_degradation_sweep_results[:,3,4]>0.1))
@@ -266,11 +266,11 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.tight_layout()
         file_name = os.path.join(os.path.dirname(__file__),
                                  'output','coherence_curves_for_paper')
- 
+
         plt.savefig(file_name + '.pdf', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
-        
-    def xest_plot_bifurcation_analysis(self):
+
+    def test_plot_bifurcation_analysis(self):
 #         option = 'stochastic'
 #         option = 'stochastic'
         option = 'deterministic'
@@ -291,7 +291,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.scatter(np.log(2)/90, np.log(2)/30)
         plt.xlabel("Protein degradation [min$^{-1}$]", labelpad = 1.3)
         plt.ylabel("mRNA degradation\n[min$^{-1}$]", y=0.4)
-        
+
         divider = make_axes_locatable(plt.gca())
         cax = divider.new_vertical(size=0.07, pad=0.5, pack_start=True)
         this_figure.add_axes(cax)
@@ -301,18 +301,18 @@ class TestMakeFinalFigures(unittest.TestCase):
         this_colorbar.locator = tick_locator
         this_colorbar.update_ticks()
         for ticklabel in this_colorbar.ax.get_xticklabels():
-            ticklabel.set_horizontalalignment('left') 
+            ticklabel.set_horizontalalignment('left')
         this_colorbar.ax.set_ylabel('Expected\ncoherence', rotation = 0, verticalalignment = 'top', labelpad = 30)
         plt.tight_layout(pad = 0.05)
 #         plt.tight_layout()
 
         file_name = os.path.join(os.path.dirname(__file__),
                                  'output','oscillation_coherence_for_paper_' + option)
- 
+
         plt.savefig(file_name + '.pdf', dpi = 600)
         plt.savefig(file_name + '.eps', dpi = 600)
         plt.savefig(file_name + '.png', dpi = 600)
-        
+
     def test_make_likelihood_plot(self):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'data','sampling_results_narrowed')
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_repeated')
@@ -320,14 +320,14 @@ class TestMakeFinalFigures(unittest.TestCase):
 #         saving_path = os.path.join(os.path.dirname(__file__), 'output','sampling_results_extended')
         model_results = np.load(saving_path + '.npy' )
         prior_samples = np.load(saving_path + '_parameters.npy')
-        
+
         accepted_indices = np.where(np.logical_and(model_results[:,0]>55000, #protein number
                                     np.logical_and(model_results[:,0]<65000, #protein_number
                                                    model_results[:,1]>0.05)))
 
         label_fontsize = 10
         my_posterior_samples = prior_samples[accepted_indices]
-        
+
         accepted_model_results = model_results[accepted_indices]
 
         number_of_absolute_samples = len(accepted_indices[0])
@@ -344,7 +344,7 @@ class TestMakeFinalFigures(unittest.TestCase):
         x_labels = dict()
         x_labels['basal_transcription_rate'] = 'Transcription rate'
         x_labels['translation_rate'] = 'Translation rate'
-        x_labels['repression_threshold'] = 'Repression threshold' 
+        x_labels['repression_threshold'] = 'Repression threshold'
         x_labels['time_delay'] = 'Transcription delay'
         x_labels['mRNA_degradation_rate'] = 'mRNA degradation'
         x_labels['protein_degradation_rate'] = 'Protein degradation'
@@ -355,21 +355,21 @@ class TestMakeFinalFigures(unittest.TestCase):
         bardata = []
         for parameter_name in parameter_names:
             print('investigating ' + parameter_name)
-            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__), 
+            my_parameter_sweep_results = np.load(os.path.join(os.path.dirname(__file__),
                                                         'data',
 #                                                           'output',
-#                                                           'narrowed_relative_sweeps_' + 
-                                                        'repeated_relative_sweeps_' + 
-#                                                           'extended_relative_sweeps_' + 
+#                                                           'narrowed_relative_sweeps_' +
+                                                        'repeated_relative_sweeps_' +
+#                                                           'extended_relative_sweeps_' +
                                                           parameter_name + '.npy'))
- 
+
             print('these accepted base samples are')
 #             number_of_absolute_samples = len(np.where(np.logical_or(my_parameter_sweep_results[:,9,3] > 600,
 #                                                                     my_parameter_sweep_results[:,9,4] < 0.1))[0])
             number_of_absolute_samples = len(np.where(np.logical_or(accepted_model_results[:,2] > 600,
                                                                     accepted_model_results[:,3] < 0.1))[0])
             print(number_of_absolute_samples)
-            
+
             decrease_indices = np.where(np.logical_and(np.logical_or(accepted_model_results[:,3] < 0.1,
                                                                     accepted_model_results[:,2] > 600),
                                         np.logical_and(my_parameter_sweep_results[:,0,3] < 300,
@@ -401,7 +401,7 @@ class TestMakeFinalFigures(unittest.TestCase):
             print('these increase samples are')
             number_of_increase_samples = len(increase_indices[0])
             print(number_of_increase_samples)
-                
+
         increase_bars = [increase_ratios[parameter_name] for parameter_name
                          in parameter_names]
 
@@ -411,12 +411,12 @@ class TestMakeFinalFigures(unittest.TestCase):
         increase_positions = np.arange(len(increase_bars))
         decrease_positions = np.arange(len(decrease_bars)) + len(increase_bars)
         all_positions = np.hstack((increase_positions, decrease_positions))
-        
+
         all_bars = np.array( increase_bars + decrease_bars)
 
         labels_up = [x_labels[parameter_name] + ' up' for parameter_name in parameter_names]
         labels_down = [x_labels[parameter_name] + ' down' for parameter_name in parameter_names]
-        
+
         all_labels = labels_up + labels_down
         sorting_indices = np.argsort(all_bars)
         sorted_labels = [all_labels[sorting_index] for
@@ -427,8 +427,8 @@ class TestMakeFinalFigures(unittest.TestCase):
         my_figure = plt.figure( figsize = (6.25, 1.9) )
         plt.bar(all_positions, sorted_bars[::-1], edgecolor = 'black')
         sorted_labels.reverse()
-#         plt.xticks( all_positions + 0.4 , 
-        plt.xticks( all_positions, 
+#         plt.xticks( all_positions + 0.4 ,
+        plt.xticks( all_positions,
                     sorted_labels,
                     rotation = 30,
                     fontsize = label_fontsize,
@@ -444,4 +444,3 @@ class TestMakeFinalFigures(unittest.TestCase):
         plt.savefig(file_name + '.pdf')
         plt.savefig(file_name + '.eps')
         plt.savefig(file_name + '.png', dpi = 600)
- 
