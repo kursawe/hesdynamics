@@ -11,7 +11,7 @@ This repository contains supplementary material for the papers
   <https://doi.org/10.1101/608604>
 * Inferring kinetic parameters of oscillatory gene regulation from single cell time series data,
   J. Burton, C. S. Manning, M. Rattray, N. Papalopulu, J. Kursawe
-  (to be submitted)
+  <https://royalsocietypublishing.org/doi/10.1098/rsif.2021.0393>
  
 All computational results in these papers can be re-generated from here.
 
