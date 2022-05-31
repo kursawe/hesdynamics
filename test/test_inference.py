@@ -42,7 +42,7 @@ class TestInference(unittest.TestCase):
         # true_kalman_negative_log_likelihood_derivative = np.load(saving_path + '_negative_log_likelihood_derivative.npy')
 
         # run the current kalman filter using the same parameters and observations, then compare
-        parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 29.0])
+        parameters = np.array([10000.0,5.0,np.log(2)/30, np.log(2)/90, 1.0, 1.0, 5.0])
         state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative,predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = hes_inference.kalman_filter(fixed_protein_observations,#fixed_protein_observations,
                                                                                                                                                                                                                                                                    parameters,
                                                                                                                                                                                                                                                                    measurement_variance=10000,
@@ -1560,35 +1560,55 @@ class TestInference(unittest.TestCase):
 
     def xest_insilico_data_generation(self):
         ## run a sample simulation to generate example protein data
-        in_silico_data = hes5.generate_langevin_trajectory(duration = 900, equilibration_time = 1000)
+        in_silico_data = hes5.generate_langevin_trajectory(duration = 900,
+                                                           repression_threshold = 47514,
+                                                           hill_coefficient = 4.77,
+                                                           mRNA_degradation_rate = np.log(2)/30,
+                                                           protein_degradation_rate = np.log(2)/90,
+                                                           basal_transcription_rate = 2.65,
+                                                           translation_rate = 17.6,
+                                                           transcription_delay = 38,
+                                                           equilibration_time = 1000)
 
-        ## the F constant matrix is left out for now
-        true_protein_at_observations = in_silico_data[0:900:10,(0,2)]
-        protein_at_observations = np.copy(true_protein_at_observations)
-        protein_at_observations[:,1] += np.random.randn(90)*150
-        protein_at_observations[:,1] = np.maximum(protein_at_observations[:,1],0)
+        new_in_silico_data = hes5.generate_langevin_trajectory(duration = 900,
+                                                               repression_threshold = 47514,
+                                                               hill_coefficient = 4.77,
+                                                               mRNA_degradation_rate = np.log(2)/30,
+                                                               protein_degradation_rate = np.log(2)/90,
+                                                               basal_transcription_rate = 2.65,
+                                                               translation_rate = 17.6,
+                                                               transcription_delay = 38,
+                                                               equilibration_time = 1000)
 
-        my_figure = plt.figure(figsize=(8,10))#,fontsize=100)
-        plt.subplot(3,1,1)
-        plt.plot(in_silico_data[:,0],in_silico_data[:,2],c='#F18D9E',label='Protein')
-        plt.title('True Protein time course')
+        x = np.linspace(1,900,900)
+        my_figure = plt.figure(figsize=(8,6))#,fontsize=100)
+        plt.subplot(2,1,1)
+        plt.plot(x,1000*np.sin(x/100)+50000,c='#F18D9E',label='Protein',lw=3)
         plt.xlabel('Time')
         plt.ylabel('Molecule Number')
 
-        plt.subplot(3,1,2)
-        plt.scatter(np.arange(0,900,10),true_protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='true value')
-        plt.title('True Protein')
+        plt.subplot(2,1,2)
+        plt.plot(x,50000*np.ones(900)+np.random.randint(0,10,900),c='#F18D9E',label='Protein',lw=3)
         plt.xlabel('Time')
         plt.ylabel('Molecule Number')
+        plt.ylim([49000,51000])
 
-        plt.subplot(3,1,3)
-        plt.scatter(np.arange(0,900,10),protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
-        plt.title('Observed Protein')
-        plt.xlabel('Time')
-        plt.ylabel('Molecule Number')
+
         plt.tight_layout()
+        #
+        # plt.subplot(3,1,2)
+        # plt.scatter(np.arange(0,900,10),true_protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='true value')
+        # plt.title('True Protein')
+        # plt.xlabel('Time')
+        # plt.ylabel('Molecule Number')
+        #
+        # plt.subplot(3,1,3)
+        # plt.scatter(np.arange(0,900,10),protein_at_observations[:,1],marker='o',s=4,c='#F18D9E',label='observations',zorder=4)
+        # plt.title('Observed Protein')
+        # plt.xlabel('Time')
+        # plt.ylabel('Molecule Number')
         my_figure.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','in_silico_data.pdf'))
+                                       'output','oscillatory_and_flat.pdf'))
 
     def xest_kalman_random_walk_for_profiling(self):
 
@@ -2161,12 +2181,14 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(loading_path + 'sampling_frequency_vs_coherence.pdf')
 
-    def qest_visualise_kalman_filter(self):
-        saving_path = os.path.join(os.path.dirname(__file__),'data','')
-        loading_path = os.path.join(os.path.dirname(__file__),'output','')
+    def xest_visualise_kalman_filter(self):
+        saving_path = os.path.join(os.path.dirname(__file__),'test_burton_et_al_2021/data','')
+        loading_path = os.path.join(os.path.dirname(__file__),'test_burton_et_al_2021/output','')
 
+        np.random.seed(42)
         data = np.load(saving_path + 'true_data_ps3.npy')
-        protein = np.maximum(0,data[:,2] + 1000*np.random.randn(data.shape[0]))
+        measurement_variance = 500
+        protein = np.maximum(0,data[:,2] + measurement_variance*np.random.randn(data.shape[0]))
 
         my_figure, ax1 = plt.subplots(figsize=(12.47*0.7,8.32*0.7))
         ax1.scatter(data[:,0],data[:,2],marker='o',s=3,color='#20948B',alpha=0.75,label='protein')
@@ -2191,8 +2213,8 @@ class TestInference(unittest.TestCase):
         true_parameters = np.load(os.path.join(saving_path,'ps3_parameter_values.npy'))[:7]
 
         true_state_space_mean, true_state_space_variance, _,_,_,_,_ = hes_inference.kalman_filter(protein_observations,
-                                                                                                  true_parameters,
-                                                                                                  measurement_variance=1000000,
+                                                                                                  true_parameters*0.3,
+                                                                                                  measurement_variance=np.power(measurement_variance,2),
                                                                                                   derivative=False)
 
         number_of_states = true_state_space_mean.shape[0]
@@ -2215,26 +2237,26 @@ class TestInference(unittest.TestCase):
 
         fig, ax = plt.subplots(2,1,figsize=(0.76*15.38,0.76*15.38))
         # ground truth
-        ax[0].scatter(protein_observations[:,0],protein_observations[:,1],s=14,label='observed protein (known)',color='#F18D9E',zorder=2)
-        ax[0].scatter(protein_observations[:,0],true_data[::10,2],s=14,label='ground truth protein (unknown)',color='black',alpha=0.5,zorder=2)
+        ax[0].scatter(protein_observations[:,0],protein_observations[:,1],s=18,label='observed protein (known)',color='#F18D9E',zorder=2)
+        ax[0].scatter(protein_observations[:,0],true_data[::10,2],s=18,label='ground truth protein (unknown)',color='black',alpha=0.6,zorder=2)
         # state space
-        ax[0].scatter(true_state_space_mean[np.int(true_parameters[-1])::10,0],true_state_space_mean[np.int(true_parameters[-1])::10,2],s=14,label='state space protein',color='#20948B',zorder=1)
-        ax[0].errorbar(true_state_space_mean[30:,0],true_state_space_mean[30:,2],yerr=true_protein_error[:,30:],ecolor='#98DBC6',alpha=0.25,zorder=1)
-        ax[0].set_xlabel('Time',fontsize=1.1*font_size)
+        ax[0].scatter(true_state_space_mean[np.int(true_parameters[-1])::10,0],true_state_space_mean[np.int(true_parameters[-1])::10,2],s=18,label='state space protein',color='#20948B',zorder=1)
+        ax[0].errorbar(true_state_space_mean[30:,0],true_state_space_mean[30:,2],yerr=true_protein_error[:,30:],ecolor='#98DBC6',alpha=0.1,zorder=1)
+        ax[0].set_xlabel('Time (mins)',fontsize=1.1*font_size)
         ax[0].set_ylabel('Protein Copy Numbers',fontsize=1.1*font_size)
-        ax[0].legend(fontsize=0.7*font_size)
+        # ax[0].legend(fontsize=0.7*font_size)
 
         # ground truth
         ax[1].scatter(protein_observations[:,0],true_data[::10,1],s=14,label='ground truth mRNA (unknown)',color='#8d9ef1',zorder=2)
         # state space
         ax[1].scatter(true_state_space_mean[np.int(true_parameters[-1])::10,0],true_state_space_mean[np.int(true_parameters[-1])::10,1],s=8,label='state space mRNA',color='#F69454',zorder=1)
-        ax[1].errorbar(true_state_space_mean[30:,0],true_state_space_mean[30:,1],yerr=true_mRNA_error[:,30:],ecolor='#F9be98',alpha=0.25,zorder=1)
-        ax[1].set_xlabel('Time',fontsize=1.1*font_size)
+        ax[1].errorbar(true_state_space_mean[30:,0],true_state_space_mean[30:,1],yerr=true_mRNA_error[:,30:],ecolor='#F9be98',alpha=0.1,zorder=1)
+        ax[1].set_xlabel('Time (mins)',fontsize=1.1*font_size)
         ax[1].set_ylabel('mRNA Copy Numbers',fontsize=1.1*font_size)
-        ax[1].legend(fontsize=0.7*font_size)
+        # ax[1].legend(fontsize=0.7*font_size)
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
-                                       'output','figure_2_kalman_visualisation.pdf'))
+                                       'output','figure_2_kalman_visualisation_bad.pdf'))
 
     def qest_state_space_mean_mRNA_uncertainty_plots(self):
         saving_path = os.path.join(os.path.dirname(__file__),'data','')

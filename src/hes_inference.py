@@ -405,7 +405,7 @@ def kalman_filter_state_space_initialisation(protein_at_observations,model_param
                                                                                                                                   derivative)
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_observation_distribution_parameters(predicted_observation_distributions,
                                                current_observation,
                                                state_space_mean,
@@ -484,7 +484,7 @@ def kalman_observation_distribution_parameters(predicted_observation_distributio
 
     return predicted_observation_distributions[observation_index + 1]
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_observation_derivatives(predicted_observation_mean_derivatives,
                                    predicted_observation_variance_derivatives,
                                    current_observation,
@@ -558,7 +558,7 @@ def kalman_observation_derivatives(predicted_observation_mean_derivatives,
                                                                                                                                                    long_column_index]
     return predicted_observation_mean_derivatives[observation_index + 1], predicted_observation_variance_derivatives[observation_index + 1]
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_prediction_step(state_space_mean,
                            state_space_variance,
                            state_space_mean_derivative,
@@ -707,9 +707,6 @@ def kalman_prediction_step(state_space_mean,
         # indexing with 1:3 for numba
         current_mean = state_space_mean[current_time_index,1:3]
         past_protein = state_space_mean[past_time_index,2]
-        if ii == 0:
-            print(current_mean)
-            print(state_space_mean[past_time_index,1:3])
         past_mRNA = state_space_mean[past_time_index,1]
 
         hill_function_value = 1.0/(1.0+np.power(past_protein/repression_threshold,hill_coefficient))
@@ -1198,7 +1195,7 @@ def kalman_prediction_step(state_space_mean,
 
     return state_space_mean, state_space_variance, state_space_mean_derivative, state_space_variance_derivative
 
-# @jit(nopython = True)
+@jit(nopython = True)
 def kalman_update_step(state_space_mean,
                        state_space_variance,
                        state_space_mean_derivative,
@@ -2048,7 +2045,7 @@ def kalman_specific_likelihood_function(proposed_position,*specific_args):
     reparameterised_proposed_position[[2,3,4,5]] = np.exp(reparameterised_proposed_position[[2,3,4,5]])
     log_likelihood, log_likelihood_derivative = 0, np.zeros(proposed_position.shape[0])
     for protein_at_observations in specific_args[0]:
-        # quick and dirty clean up (make data start at '0')
+        # quick and dirty clean up (make data start at time '0')
         protein_at_observations[:,0] -= protein_at_observations[0,0]
         single_log_likelihood, single_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
                                                                                                                              reparameterised_proposed_position,
