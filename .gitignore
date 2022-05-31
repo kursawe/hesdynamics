@@ -3,6 +3,9 @@ __pycache__/
 *.pyc
 *$py.class
 
+# notebooks
+*.ipynb
+
 # files in any output folders
 output/
 
@@ -19,8 +22,9 @@ output/
 # vim backups
 *~
 
-# images
+# images and videos
 *.png 
+*.mp4
 
 # eclipse crap
 .project
