@@ -1498,7 +1498,7 @@ def calculate_log_likelihood_at_parameter_point(model_parameters,protein_at_obse
         log_likelihood += np.sum(norm.logpdf(observations,mean,sd))
     return -log_likelihood
 
-def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,model_parameters,mean_protein,measurement_variance):
+def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,model_parameters,mean_protein,measurement_variance,prior_bounds):
     """
     Calculates the log of the likelihood, and the derivative of the negative log likelihood wrt each parameter, of our data given the
     paramters, using the Kalman filter. It uses the predicted_observation_distributions, predicted_observation_mean_derivatives, and
@@ -1519,8 +1519,15 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
         protein_degradation_rate, basal_transcription_rate, translation_rate,
         transcription_delay.
 
+    mean_protein : float.
+        The mean protein expression computed from the data.
+
     measurement_variance : float.
         The variance in our measurement. This is given by Sigma_e in Calderazzo et. al. (2018).
+
+    prior_bounds : numpy array
+        An d x 2 array where d is the number of parameters. The first column is the lower bound of a
+        uniform distribution, and the second column is the upper bound.
 
     Returns
     -------
@@ -1534,13 +1541,13 @@ def calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observ
     from scipy.stats import norm, gamma, uniform
     number_of_parameters = model_parameters.shape[0]
 
-    if ((uniform(50,2*mean_protein-50).pdf(model_parameters[0]) == 0) or
-        (uniform(2,6-2).pdf(model_parameters[1]) == 0) or
-        (uniform(np.log(2)/150,np.log(2)/10 - np.log(2)/150).pdf(model_parameters[2]) == 0) or
-        (uniform(np.log(2)/150,np.log(2)/10 - np.log(2)/150).pdf(model_parameters[3]) == 0) or
-        (uniform(0.01,120-0.01).pdf(model_parameters[4]) == 0) or
-        (uniform(0.01,40-0.01).pdf(model_parameters[5]) == 0) or
-        (uniform(1,40-1).pdf(model_parameters[6]) == 0) ):
+    if ((uniform(prior_bounds[0,0],prior_bounds[0,1]).pdf(model_parameters[0]) == 0) or
+        (uniform(prior_bounds[1,0],prior_bounds[1,1]).pdf(model_parameters[1]) == 0) or
+        (uniform(prior_bounds[2,0],prior_bounds[2,1]).pdf(model_parameters[2]) == 0) or
+        (uniform(prior_bounds[3,0],prior_bounds[3,1]).pdf(model_parameters[3]) == 0) or
+        (uniform(prior_bounds[4,0],prior_bounds[4,1]).pdf(model_parameters[4]) == 0) or
+        (uniform(prior_bounds[5,0],prior_bounds[5,1]).pdf(model_parameters[5]) == 0) or
+        (uniform(prior_bounds[6,0],prior_bounds[6,1]).pdf(model_parameters[6]) == 0) ):
         return -np.inf, np.zeros(number_of_parameters)
 
     _, _, _, _, predicted_observation_distributions, predicted_observation_mean_derivatives, predicted_observation_variance_derivatives = kalman_filter(protein_at_observations,
@@ -2049,8 +2056,9 @@ def kalman_specific_likelihood_function(proposed_position,*specific_args):
         protein_at_observations[:,0] -= protein_at_observations[0,0]
         single_log_likelihood, single_log_likelihood_derivative = calculate_log_likelihood_and_derivative_at_parameter_point(protein_at_observations,
                                                                                                                              reparameterised_proposed_position,
-                                                                                                                             specific_args[1],
-                                                                                                                             specific_args[2])
+                                                                                                                             specific_args[1],# mean protein
+                                                                                                                             specific_args[2],# measurement variance
+                                                                                                                             specific_args[3])# prior bounds
         single_log_likelihood_derivative[2] = reparameterised_proposed_position[2]*single_log_likelihood_derivative[2]
         single_log_likelihood_derivative[3] = reparameterised_proposed_position[3]*single_log_likelihood_derivative[3]
         single_log_likelihood_derivative[4] = reparameterised_proposed_position[4]*single_log_likelihood_derivative[4]
@@ -2113,6 +2121,7 @@ def kalman_mala(protein_at_observations,
                 number_of_samples,
                 initial_position,
                 step_size,
+                prior_bounds,
                 proposal_covariance=np.eye(1),
                 thinning_rate=1,
                 known_parameter_dict=None):
@@ -2162,7 +2171,7 @@ def kalman_mala(protein_at_observations,
 
     """
     mean_protein = np.mean([np.mean(i[j,1]) for i in protein_at_observations for j in range(i.shape[0])])
-    kalman_args = (protein_at_observations,mean_protein,measurement_variance)
+    kalman_args = (protein_at_observations,mean_protein,measurement_variance,prior_bounds)
     mcmc_samples = generic_mala(kalman_specific_likelihood_function,
                                 number_of_samples,
                                 initial_position,

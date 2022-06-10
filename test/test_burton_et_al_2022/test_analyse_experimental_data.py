@@ -31,9 +31,9 @@ font_size = 25
 cm_to_inches = 0.3937008
 class TestInference(unittest.TestCase):
     
-    def test_mala_experimental_data(self,data_filename = 'protein_observations_28hpf_141117_test_cell_1_detrended.npy'):
+    def test_mala_experimental_data(self,data_filename = 'protein_observations_28hpf_141117_test_cell_1.npy'):
         # load data and true parameter values
-        loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/detrended_data/')
+        loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/')
         experiment_name = data_filename[21:data_filename.find('cell')-1]
         protein_at_observations = np.array([np.load(os.path.join(loading_path,data_filename))])
         measurement_variance = np.power(np.round(np.load(loading_path + experiment_name + "_measurement_variance_detrended.npy"),4),2)
@@ -43,12 +43,14 @@ class TestInference(unittest.TestCase):
         all_parameters = {'repression_threshold' : [0,None],
                           'hill_coefficient' : [1,None],
                           'mRNA_degradation_rate' : [2,None],
-                          'protein_degradation_rate' : [3,None],
+                          'protein_degradation_rate' : [3,np.log(np.log(2)/11)],
                           'basal_transcription_rate' : [4,None],
                           'translation_rate' : [5,None],
                           'transcription_delay' : [6,None]}
 
-        known_parameters = {}
+
+        known_parameters = {k:all_parameters[k] for k in ['protein_degradation_rate'] if k in all_parameters}
+        # known_parameters = all_parameters['protein_degradation_rate']
 
         known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
         unknown_parameter_indices = [i for i in range(len(all_parameters)) if i not in known_parameter_indices]
@@ -58,32 +60,45 @@ class TestInference(unittest.TestCase):
         number_of_chains = 8
         step_size = 0.001
 
+        mean_protein = mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
+
+        prior_bounds = np.array([50,2*mean_protein-50,
+                                 2,6-2,
+                                 np.log(2)/11,np.log(2)/1-np.log(2)/11,
+                                 np.log(2)/12,np.log(2)/12,
+                                 1.0,120.0-1.0,
+                                 0.1,40.0-0.1,
+                                 1,11-1]).reshape(-1,2)
+
         run_mala_for_dataset(data_filename,
                              protein_at_observations,
                              measurement_variance,
                              number_of_parameters,
                              known_parameters,
+                             prior_bounds,
                              step_size,
                              number_of_chains,
                              number_of_samples)
 
-    def test_mala_analysis(self):
+    def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
         chain_path_strings = [i for i in os.listdir(loading_path) if '.npy' in i and 'final' in i]
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
             # mala = mala[[0,1,2,4,5,6,7],:,:]
-            # mala[:,:,[2,3]] = np.exp(mala[:,:,[2,3]])
+            mala[:,:,[2,3,4]] = np.exp(mala[:,:,[2,3,4]])
+            mala[:,:,[2,3]] = np.log(2) / mala[:,:,[2,3]]
             chains = az.convert_to_dataset(mala)
             # print('\n' + chain_path_string + '\n')
             # print('\nrhat:\n',az.rhat(chains))
             # print('\ness:\n',az.ess(chains))
-            az.plot_trace(chains); plt.savefig(loading_path + 'traceplot_' + chain_path_string[:-4] + '.png'); plt.close()
+            az.plot_trace(chains,compact=False); plt.savefig(loading_path + 'traceplot_' + chain_path_string[:-4] + '.png'); plt.close()
             az.plot_posterior(chains); plt.savefig(loading_path + 'posterior_' + chain_path_string[:-4] + '.png'); plt.close()
+            plot_histograms(mala,chain_path_string)
             # az.plot_pair(chains,kind='kde'); plt.savefig(loading_path + 'pairplot_' + chain_path_string[:-4] + '.png'); plt.close()
             # np.save(loading_path + chain_path_string,mala)
 
-    def test_make_experimental_data(self):
+    def xest_make_experimental_data(self):
         loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/')
         saving_path = os.path.join(os.path.dirname(__file__),'output','')
         # import spreadsheets as dataframes
@@ -134,7 +149,7 @@ class TestInference(unittest.TestCase):
                     cell_intensity_values)
 
 
-    def test_detrend_trace(self,experiment_name = '28hpf_141117'):
+    def xest_detrend_trace(self,experiment_name = '28hpf_141117'):
         # load data
         loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/')
         data_saving_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/detrended_data/')
@@ -178,12 +193,12 @@ class TestInference(unittest.TestCase):
         measurement_variance = np.sqrt(0.1*np.mean(detrended_variances))
         np.save(data_saving_path + experiment_name + '_measurement_variance_detrended.npy',measurement_variance)
 
-
 def run_mala_for_dataset(data_filename,
                         protein_at_observations,
                         measurement_variance,
                         number_of_parameters,
                         known_parameters,
+                        prior_bounds,
                         step_size = 1,
                         number_of_chains = 8,
                         number_of_samples = 80000):
@@ -215,7 +230,8 @@ def run_mala_for_dataset(data_filename,
 
         # start from mode
         initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,:] = np.mean(samples_with_burn_in,axis=0)
+        initial_states[:,3] = np.array([np.log(np.log(2)/12)])
+        initial_states[:,(0,1,2,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -224,6 +240,7 @@ def run_mala_for_dataset(data_filename,
                                                                 number_of_samples,
                                                                 initial_state,
                                                                 step_size,
+                                                                prior_bounds,
                                                                 proposal_covariance,
                                                                 1,
                                                                 known_parameters))
@@ -247,17 +264,17 @@ def run_mala_for_dataset(data_filename,
         # Initialise by minimising the function using a constrained optimization method witout gradients
         print("Optimizing using Powell's method for initial guess...")
         from scipy.optimize import minimize
-        initial_guess = np.array([mean_protein,5.0,np.log(2)/30,np.log(2)/90,1.0,1.0,10.0])
+        initial_guess = np.array([mean_protein,4.5,np.log(2)/5,np.log(2)/12,1.0,1.0,5.0])
         optimiser = minimize(hes_inference.calculate_log_likelihood_at_parameter_point,
                              initial_guess,
                              args=(protein_at_observations,measurement_variance),
                              bounds=np.array([(0.3*mean_protein,1.3*mean_protein),
                                               (2.0,5.0),
-                                              (np.log(2)/150,np.log(2)/10),
-                                              (np.log(2)/150,np.log(2)/10),
-                                              (0.01,120.0),
-                                              (0.01,40.0),
-                                              (1.0,40.0)]),
+                                              (np.log(2)/11,np.log(2)/1),
+                                              (np.log(2)/12,np.log(2)/12),
+                                              (1.0,120.0),
+                                              (1.0,40.0),
+                                              (1.0,11.0)]),
                              method='Powell')
 
         initial_states = np.zeros((number_of_chains,7))
@@ -273,7 +290,8 @@ def run_mala_for_dataset(data_filename,
                                                                 initial_burnin_number_of_samples,
                                                                 initial_state,
                                                                 step_size,
-                                                                np.power(np.diag([2*mean_protein,4,9,8,1.0,1.0,39]),2),# initial variances are width of prior squared
+                                                                prior_bounds,
+                                                                np.power(np.diag([2*mean_protein,4,8,1.0,1.0,10]),2),# initial variances are width of prior squared, only include unknown parameters
                                                                 1, # thinning rate
                                                                 known_parameters))
                             for initial_state in initial_states ]
@@ -299,7 +317,8 @@ def run_mala_for_dataset(data_filename,
         # make new initial states
         # start from mode
         initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,:] = np.mean(samples_with_burn_in,axis=0)
+        initial_states[:,3] = np.array([np.log(np.log(2)/12)])
+        initial_states[:,(0,1,2,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -308,6 +327,7 @@ def run_mala_for_dataset(data_filename,
                                                                 second_burnin_number_of_samples,
                                                                 initial_state,
                                                                 step_size,
+                                                                prior_bounds,
                                                                 proposal_covariance,
                                                                 1, # thinning rate
                                                                 known_parameters))
@@ -333,7 +353,8 @@ def run_mala_for_dataset(data_filename,
         # make new initial states
         # start from mode
         initial_states = np.zeros((number_of_chains,7))
-        initial_states[:,:] = np.mean(samples_with_burn_in,axis=0)
+        initial_states[:,3] = np.array([np.log(np.log(2)/12)])
+        initial_states[:,(0,1,2,4,5,6)] = np.mean(samples_with_burn_in,axis=0)
 
         pool_of_processes = mp_pool.ThreadPool(processes = number_of_chains)
         process_results = [ pool_of_processes.apply_async(hes_inference.kalman_mala,
@@ -342,6 +363,7 @@ def run_mala_for_dataset(data_filename,
                                                                 number_of_samples,
                                                                 initial_state,
                                                                 step_size,
+                                                                prior_bounds,
                                                                 proposal_covariance,
                                                                 1, # thinning rate
                                                                 known_parameters))
@@ -358,3 +380,42 @@ def run_mala_for_dataset(data_filename,
 
         np.save(os.path.join(os.path.dirname(__file__), 'output','final_parallel_mala_output_' + data_filename),
         array_of_chains)
+
+def plot_histograms(output, path):
+    output = output.reshape(output.shape[0]*output.shape[1],output.shape[2])
+    alpha = 0.35
+    fig, ax = plt.subplots(1,6,figsize=(1.4*17,1.4*3.02))
+    parameters = [3,4,2,0,5,1]
+    parameter_names = np.array(["$\\alpha_m$ (1/min)",
+                                "$\\alpha_p$ (1/min)",
+                                "mRNA half-life (min)",
+                                "$P_0$",
+                                "$\\tau$ (mins)",
+                                "$h$",])
+
+    for index, parameter in enumerate(parameters):
+        if parameter in [0,1,2,3]:
+        #     hist, bins = np.histogram(np.exp(output[:,parameter]),density=True,bins=20)
+        #     logbins = np.geomspace(bins[0],bins[-1],20)
+        #     # import pdb; pdb.set_trace()
+        #     ax[index].hist(output[:,parameter],density=True,bins=logbins,alpha=alpha,color='#20948B')
+        #     ax[index].set_xlabel(parameter_names[index],fontsize=font_size*1.2)
+        #     ax[index].set_xlim(0,6)
+        #     ax[index].set_ylim(0,1.0)
+        # if parameter == 3:
+            ax[index].hist(output[:,parameter],density=True,bins=np.geomspace(np.min(output[:,parameter]),np.max(output[:,parameter]),20),alpha=alpha,color='#20948B')
+            ax[index].set_xlabel(parameter_names[index],fontsize=font_size*1.2)
+        else:
+            ax[index].hist(output[:,parameter],density=True,bins=20,alpha=alpha,color='#20948B')
+            ax[index].set_xlabel(parameter_names[index],fontsize=font_size*1.2)
+    # ax[1].set_ylim(0,5)
+    ax[0].set_ylabel("Probability",fontsize=font_size*1.2)
+
+    def format_tick_labels(x, pos):
+            return '{:.0e}'.format(x)
+    from matplotlib.ticker import FuncFormatter
+    ax[2].yaxis.set_major_formatter(FuncFormatter(format_tick_labels))
+
+    # ax[2].set_yticklabels()
+    plt.tight_layout()
+    plt.savefig(path + "_posteriors.png")
