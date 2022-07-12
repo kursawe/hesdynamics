@@ -22,7 +22,7 @@ def make_and_submit_jobscripts(joblist_path):
         print(1)
         job_file = open(os.path.join(joblist_path,job_file))
         for line in job_file:
-            jobscript_file_name = os.path.join(jobscripts_directory, 'script_'+ line[line.find('ns_')+3:line.find('.npy')] + '.sh')
+            jobscript_file_name = os.path.join(jobscripts_directory, 'script_'+ line[line.find('(\'')+2:-3] + '.sh')
             job_script = open(jobscript_file_name,'w')
             job_script.write('#!/bin/bash --login')
             job_script.write('\n#$ -cwd # Job runs in current directory (where you run qsub)')
