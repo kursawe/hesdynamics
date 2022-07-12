@@ -31,7 +31,7 @@ font_size = 25
 cm_to_inches = 0.3937008
 class TestInference(unittest.TestCase):
     
-    def test_mala_experimental_data(self,data_filename = 'protein_observations_28hpf_141117_test_cell_1.npy'):
+    def xest_mala_experimental_data(self,data_filename = 'protein_observations_28hpf_141117_test_cell_1.npy'):
         # load data and true parameter values
         loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/')
         experiment_name = data_filename[21:data_filename.find('cell')-1]
@@ -80,76 +80,185 @@ class TestInference(unittest.TestCase):
                              number_of_chains,
                              number_of_samples)
 
+    def test_mala_experimental_data_multiple(self,experiment_name = 'MBS_34hpf_051018'):
+        # load data and true parameter values
+        data_filename = experiment_name + '.npy'
+        loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/')
+        chain_path_strings = [i for i in os.listdir(loading_path) if '.npy' in i and 'protein_observations_'+experiment_name in i]
+        # experiment_name = data_filename[21:data_filename.find('cell')-1]
+        protein_at_observations = np.array([np.load(os.path.join(loading_path,path_string)) for path_string in chain_path_strings])
+        measurement_variance = np.power(np.round(np.load(loading_path + experiment_name + "_measurement_variance_detrended.npy"),4),2)
+
+
+        # define known parameters
+        all_parameters = {'repression_threshold' : [0,None],
+                          'hill_coefficient' : [1,None],
+                          'mRNA_degradation_rate' : [2,None],
+                          'protein_degradation_rate' : [3,np.log(np.log(2)/11)],
+                          'basal_transcription_rate' : [4,None],
+                          'translation_rate' : [5,None],
+                          'transcription_delay' : [6,None]}
+
+
+        known_parameters = {k:all_parameters[k] for k in ['protein_degradation_rate'] if k in all_parameters}
+        # known_parameters = all_parameters['protein_degradation_rate']
+
+        known_parameter_indices = [list(known_parameters.values())[i][0] for i in [j for j in range(len(known_parameters.values()))]]
+        unknown_parameter_indices = [i for i in range(len(all_parameters)) if i not in known_parameter_indices]
+        number_of_parameters = len(unknown_parameter_indices)
+
+        number_of_samples = 80000
+        number_of_chains = 8
+        step_size = 0.001
+
+        import pdb; pdb.set_trace()
+
+        mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
+
+        prior_bounds = np.array([50,4*mean_protein-50, # times 4 due to larger spread of expression values at population level
+                                 2,6-2,
+                                 np.log(2)/11,np.log(2)/1-np.log(2)/11,
+                                 np.log(2)/12,np.log(2)/12,
+                                 1.0,120.0-1.0,
+                                 0.1,40.0-0.1,
+                                 1,11-1]).reshape(-1,2)
+
+        run_mala_for_dataset(data_filename,
+                             protein_at_observations,
+                             measurement_variance,
+                             number_of_parameters,
+                             known_parameters,
+                             prior_bounds,
+                             step_size,
+                             number_of_chains,
+                             number_of_samples)
+
     def xest_mala_analysis(self):
         loading_path = os.path.join(os.path.dirname(__file__),'output','')
-        chain_path_strings = [i for i in os.listdir(loading_path) if '.npy' in i and 'final' in i]
+        chain_path_strings = [i for i in os.listdir(loading_path) if '.npy' in i and 'final' in i and 'png' not in i]
         for chain_path_string in chain_path_strings:
             mala = np.load(loading_path + chain_path_string)
-            # mala = mala[[0,1,2,4,5,6,7],:,:]
             mala[:,:,[2,3,4]] = np.exp(mala[:,:,[2,3,4]])
-            mala[:,:,[2,3]] = np.log(2) / mala[:,:,[2,3]]
+            mala[:,:,2] = np.log(2) / mala[:,:,2]
             chains = az.convert_to_dataset(mala)
             # print('\n' + chain_path_string + '\n')
             # print('\nrhat:\n',az.rhat(chains))
             # print('\ness:\n',az.ess(chains))
             az.plot_trace(chains,compact=False); plt.savefig(loading_path + 'traceplot_' + chain_path_string[:-4] + '.png'); plt.close()
             az.plot_posterior(chains); plt.savefig(loading_path + 'posterior_' + chain_path_string[:-4] + '.png'); plt.close()
-            plot_histograms(mala,chain_path_string)
+            plot_histograms(mala,loading_path + chain_path_string[:-4])
             # az.plot_pair(chains,kind='kde'); plt.savefig(loading_path + 'pairplot_' + chain_path_string[:-4] + '.png'); plt.close()
             # np.save(loading_path + chain_path_string,mala)
+
+    def xest_overlap_histograms(self):
+        loading_path = os.path.join(os.path.dirname(__file__),'output','')
+        chain_path_strings = [i for i in os.listdir(loading_path) if '.npy' in i and 'MBS_34hpf_051018' in i and 'png' not in i]
+        alpha = 0.35
+        fig, ax = plt.subplots(1,6,figsize=(1.4*17,1.4*3.02))
+        parameters = [3,4,2,0,5,1]
+        parameter_names = np.array(["$\\alpha_m$ (1/min)",
+                                    "$\\alpha_p$ (1/min)",
+                                    "mRNA half-life (min)",
+                                    "$P_0$",
+                                    "$\\tau$ (mins)",
+                                    "$h$",])
+        for chain_path_string in chain_path_strings:
+            mala = np.load(loading_path + chain_path_string)
+            mala[:,:,[2,3,4]] = np.exp(mala[:,:,[2,3,4]])
+            mala[:,:,2] = np.log(2) / mala[:,:,2]
+            # plot_histograms(mala,loading_path + chain_path_string[:-4],save=False)
+
+            mala = mala.reshape(mala.shape[0]*mala.shape[1],mala.shape[2])
+
+            for index, parameter in enumerate(parameters):
+                if parameter in [0,1,2,3]:
+                    ax[index].hist(mala[:,parameter],density=True,bins=np.geomspace(np.min(mala[:,parameter]),np.max(mala[:,parameter]),20),alpha=alpha,color='#20948B')
+                    ax[index].set_xlabel(parameter_names[index],fontsize=font_size*1.2)
+                else:
+                    ax[index].hist(mala[:,parameter],density=True,bins=20,alpha=alpha,color='#20948B')
+                    ax[index].set_xlabel(parameter_names[index],fontsize=font_size*1.2)
+            # ax[1].set_ylim(0,5)
+            ax[0].set_ylabel("Probability",fontsize=font_size*1.2)
+
+            def format_tick_labels(x, pos):
+                    return '{:.0e}'.format(x)
+            from matplotlib.ticker import FuncFormatter
+            ax[2].yaxis.set_major_formatter(FuncFormatter(format_tick_labels))
+
+            # ax[2].set_yticklabels()
+        plt.tight_layout()
+        plt.savefig(loading_path + "overlap_MBS_051018.png")
 
     def xest_make_experimental_data(self):
         loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/')
         saving_path = os.path.join(os.path.dirname(__file__),'output','')
         # import spreadsheets as dataframes
-        FCS_df = pd.DataFrame(pd.read_excel(loading_path + "FCS_molec_different_development_stages_Hindbrain.xlsx",header=0))
-        experiment_date = '28hpf_141117_test' # 28hpf_141117, 30hpf_170517, 34hpf_160617
-        cell_intensity_df = pd.DataFrame(pd.read_excel(loading_path + "CTRL_venus_h2b_ratio_" + experiment_date + ".xls",header=None))
+        dates = ["34hpf_051018", "34hpf_230519", "34hpf_240118", "34hpf_250718"]
+        # 28hpf_141117, 30hpf_170517, 34hpf_160617, 34hp_051018, 34hp_230519, 34hp_240118, 34hp_250718
+        experiment_dates = ["MBS_" + s for s in dates] + ["CTRL_" + s for s in dates]
+        for experiment_date in experiment_dates:
+            if "CTRL" in experiment_date:
+                FCS_df = pd.DataFrame(pd.read_excel(loading_path + "CTRL_FCS_Hindbrain.xlsx",header=0))
+            else:
+                FCS_df = pd.DataFrame(pd.read_excel(loading_path + "MBS_FCS_Hindbrain.xlsx",header=0))
 
-        # convert to numpy arrays for plotting / fitting
-        intensities = cell_intensity_df.iloc[:,1:].astype(float).values.flatten()
-        intensities = intensities[~(np.isnan(intensities))]
-        
+            
+            
+            cell_intensity_df = pd.DataFrame(pd.read_excel(loading_path + experiment_date + ".xls",header=None))
 
-        hpf_keys = ['19hpf','29hpf','33hpf','35hpf','48hpf']
-        wanted_keys = ['29hpf','33hpf','35hpf']
-        FCS_at_hpf = {}
-        for key in hpf_keys:
-            FCS_at_hpf[key] = FCS_df[key].astype(float).values.flatten()
-            FCS_at_hpf[key] = FCS_at_hpf[key][~(np.isnan(FCS_at_hpf[key]))]
-        FCS_at_hpf['all_hpf'] = np.hstack(FCS_at_hpf.values())
-        FCS_at_hpf['correct_hpf'] = np.hstack(list( map(FCS_at_hpf.get, wanted_keys) ))
+            # convert to numpy arrays for plotting / fitting
+            intensities = cell_intensity_df.iloc[:,1:].astype(float).values.flatten()
+            intensities = intensities[~(np.isnan(intensities))]
+            
 
-        # make qqplots and calculate gradients
-        gradients = np.zeros(len(FCS_at_hpf.keys()))
-        fig, ax = plt.subplots(1,len(FCS_at_hpf.keys()),figsize=(25*1.5,5*1.5))
-        for index, key in enumerate(FCS_at_hpf.keys()):
-            x = np.quantile(intensities,np.linspace(0.0,1.0,101))
-            y = np.quantile(FCS_at_hpf[key],np.linspace(0.0,1.0,101))
-            gradient = (np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[-1]))-np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[0])))/(np.unique(x[-1]-x[0]))
-            gradients[index] = gradient[0]
-            ax[index].scatter(x,y)
-            ax[index].plot(np.unique(x[5:96]), np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[5:96])),color='r')
-            ax[index].set_ylabel(key + 'FCS')
-            ax[index].set_xlabel("Cell intensities")
-            gradient_string = "Gradient is " + str(np.round(gradients[index],4))
-            ax[index].text(1,1,gradient_string)
-        plt.tight_layout()
-        plt.savefig(loading_path + 'molecule_qq_plot_test.png')
+            if "CTRL" in experiment_date:
+                hpf_keys = ['19hpf','29hpf','33hpf','35hpf','48hpf']
+                wanted_keys = ['29hpf','33hpf','35hpf']
+            else:
+                hpf_keys = ['34hpf','48hpf','56hpf','69hpf']
+                
+            FCS_at_hpf = {}
+            for key in hpf_keys:
+                FCS_at_hpf[key] = FCS_df[key].astype(float).values.flatten()
+                FCS_at_hpf[key] = FCS_at_hpf[key][~(np.isnan(FCS_at_hpf[key]))]
+            FCS_at_hpf['all_hpf'] = np.hstack(FCS_at_hpf.values())
+            if "CTRL" in experiment_date:
+                FCS_at_hpf['correct_hpf'] = np.hstack(list( map(FCS_at_hpf.get, wanted_keys) ))
 
-        # make data from each trace and save
-        for cell_index in range(1,cell_intensity_df.shape[1]):
-            cell_intensity_values = cell_intensity_df.iloc[2:,[0,cell_index]].astype(float).values
-            # remove NaNs
-            cell_intensity_values = cell_intensity_values[~np.isnan(cell_intensity_values[:,1])]
-            cell_intensity_values[:,0] *= 60 # turn hours to minutes
-            cell_intensity_values[:,1] *= gradients[-1] # average of hom, het, het and hom?
-            # cell_cluster = int(cell_intensity_df.iloc[0,cell_index])
-            np.save(loading_path + 'protein_observations_' + experiment_date + '_cell_' + str(cell_index),
-                    cell_intensity_values)
+            # make qqplots and calculate gradients
+            gradients = np.zeros(len(FCS_at_hpf.keys()))
+            fig, ax = plt.subplots(1,len(FCS_at_hpf.keys()),figsize=(5*len(FCS_at_hpf.keys())*1.5,5*1.5))
+            for index, key in enumerate(FCS_at_hpf.keys()):
+                x = np.quantile(intensities,np.linspace(0.0,1.0,101))
+                y = np.quantile(FCS_at_hpf[key],np.linspace(0.0,1.0,101))
+                gradient = (np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[-1]))-np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[0])))/(np.unique(x[-1]-x[0]))
+                gradients[index] = gradient[0]
+                ax[index].scatter(x,y)
+                ax[index].plot(np.unique(x[5:96]), np.poly1d(np.polyfit(x[5:96], y[5:96], 1))(np.unique(x[5:96])),color='r')
+                ax[index].set_ylabel(key + 'FCS')
+                ax[index].set_xlabel("Cell intensities")
+                gradient_string = "Gradient is " + str(np.round(gradients[index],4))
+                ax[index].text(1,1,gradient_string)
+            plt.tight_layout()
+            plt.savefig(loading_path + 'molecule_qq_plot_' + experiment_date + '_.png')
+
+            # make data from each trace and save
+            for cell_index in range(1,cell_intensity_df.shape[1]):
+                cell_intensity_values = cell_intensity_df.iloc[2:,[0,cell_index]].astype(float).values
+                # remove NaNs
+                cell_intensity_values = cell_intensity_values[~np.isnan(cell_intensity_values[:,1])]
+                cell_intensity_values[:,0] *= 60 # turn hours to minutes
+                if "CTRL" in experiment_date:
+                    cell_intensity_values[:,1] *= gradients[-1]
+                else:
+                    cell_intensity_values[:,1] *= gradients[0]
+                # cell_cluster = int(cell_intensity_df.iloc[0,cell_index])
+                np.save(loading_path + 'protein_observations_' + experiment_date + '_cell_' + str(cell_index),
+                        cell_intensity_values)
 
 
-    def xest_detrend_trace(self,experiment_name = '28hpf_141117'):
+    def xest_detrend_trace(self,experiment_name = 'CTRL_34hpf_250718'):
+        # 34hpf_051018, 34hpf_230519, 34hpf_240118, 34hpf_250718
         # load data
         loading_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/')
         data_saving_path = os.path.join(os.path.dirname(__file__),'data','experimental_data/detrended_data/')
@@ -162,7 +271,6 @@ class TestInference(unittest.TestCase):
                                      and not 'detrended' in i]
         variances = np.zeros(len(experimental_data_strings))
         detrended_variances = np.zeros(len(experimental_data_strings))
-        # import pdb; pdb.set_trace()
 
         # make data from each trace and save
         for index, cell_string in enumerate(experimental_data_strings):
@@ -210,7 +318,7 @@ def run_mala_for_dataset(data_filename,
     """
     # make sure all data starts from time "zero"
     for i in range(protein_at_observations.shape[0]):
-        protein_at_observations[i,:,0] -= protein_at_observations[i,0,0]
+        protein_at_observations[i][:,0] -= protein_at_observations[i][0,0]
 
     mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
 
@@ -381,7 +489,7 @@ def run_mala_for_dataset(data_filename,
         np.save(os.path.join(os.path.dirname(__file__), 'output','final_parallel_mala_output_' + data_filename),
         array_of_chains)
 
-def plot_histograms(output, path):
+def plot_histograms(output, path, save=True):
     output = output.reshape(output.shape[0]*output.shape[1],output.shape[2])
     alpha = 0.35
     fig, ax = plt.subplots(1,6,figsize=(1.4*17,1.4*3.02))
@@ -417,5 +525,6 @@ def plot_histograms(output, path):
     ax[2].yaxis.set_major_formatter(FuncFormatter(format_tick_labels))
 
     # ax[2].set_yticklabels()
-    plt.tight_layout()
-    plt.savefig(path + "_posteriors.png")
+    if save:
+        plt.tight_layout()
+        plt.savefig(path + "_posteriors.png")

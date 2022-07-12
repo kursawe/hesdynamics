@@ -31,7 +31,7 @@ font_size = 25
 cm_to_inches = 0.3937008
 class TestInference(unittest.TestCase):
 
-    def test_check_kalman_filter_not_broken(self):
+    def xest_check_kalman_filter_not_broken(self):
         # load in some saved observations and correct kalman filter predictions
         saving_path                          = os.path.join(os.path.dirname(__file__), 'data','kalman_test_trace')
         fixed_langevin_trace                 = np.load(saving_path + '_true_data.npy')
@@ -2181,7 +2181,7 @@ class TestInference(unittest.TestCase):
         plt.tight_layout()
         plt.savefig(loading_path + 'sampling_frequency_vs_coherence.pdf')
 
-    def xest_visualise_kalman_filter(self):
+    def test_visualise_kalman_filter(self):
         saving_path = os.path.join(os.path.dirname(__file__),'test_burton_et_al_2021/data','')
         loading_path = os.path.join(os.path.dirname(__file__),'test_burton_et_al_2021/output','')
 
@@ -2214,7 +2214,7 @@ class TestInference(unittest.TestCase):
 
         true_state_space_mean, true_state_space_variance, _,_,_,_,_ = hes_inference.kalman_filter(protein_observations,
                                                                                                   true_parameters*0.3,
-                                                                                                  measurement_variance=np.power(measurement_variance,2),
+                                                                                                  measurement_variance=np.power(measurement_variance,2)/4,
                                                                                                   derivative=False)
 
         number_of_states = true_state_space_mean.shape[0]
@@ -2235,10 +2235,10 @@ class TestInference(unittest.TestCase):
         true_mRNA_error[0,:] = np.minimum(true_state_space_mean[:,1],np.sqrt(true_mRNA_variance)*2)
         true_mRNA_error[1,:] = np.sqrt(true_mRNA_variance)*2
 
-        fig, ax = plt.subplots(2,1,figsize=(0.76*15.38,0.76*15.38))
+        fig, ax = plt.subplots(4,1,figsize=(0.76*15.38,0.76*15.38*2))
         # ground truth
         ax[0].scatter(protein_observations[:,0],protein_observations[:,1],s=18,label='observed protein (known)',color='#F18D9E',zorder=2)
-        ax[0].scatter(protein_observations[:,0],true_data[::10,2],s=18,label='ground truth protein (unknown)',color='black',alpha=0.6,zorder=2)
+        ax[0].scatter(protein_observations[:,0],true_data[::10,2],s=18,label='ground truth protein (unknown)',color='black',alpha=0.8,zorder=2)
         # state space
         ax[0].scatter(true_state_space_mean[np.int(true_parameters[-1])::10,0],true_state_space_mean[np.int(true_parameters[-1])::10,2],s=18,label='state space protein',color='#20948B',zorder=1)
         ax[0].errorbar(true_state_space_mean[30:,0],true_state_space_mean[30:,2],yerr=true_protein_error[:,30:],ecolor='#98DBC6',alpha=0.1,zorder=1)
@@ -2254,6 +2254,23 @@ class TestInference(unittest.TestCase):
         ax[1].set_xlabel('Time (mins)',fontsize=1.1*font_size)
         ax[1].set_ylabel('mRNA Copy Numbers',fontsize=1.1*font_size)
         # ax[1].legend(fontsize=0.7*font_size)
+
+        ax[2].scatter(protein_observations[:,0],protein_observations[:,1],s=18,label='observed protein (known)',color='#F18D9E',zorder=2)
+        ax[2].scatter(protein_observations[:,0],true_data[::10,2],s=18,label='ground truth protein (unknown)',color='black',alpha=0.8,zorder=2)
+        # state space
+        # ax[2].scatter(true_state_space_mean[np.int(true_parameters[-1])::10,0],true_state_space_mean[np.int(true_parameters[-1])::10,2],s=18,label='state space protein',color='#20948B',zorder=1)
+        # ax[2].errorbar(true_state_space_mean[30:,0],true_state_space_mean[30:,2],yerr=true_protein_error[:,30:],ecolor='#98DBC6',alpha=0.1,zorder=1)
+        ax[2].set_xlabel('Time (mins)',fontsize=1.1*font_size)
+        ax[2].set_ylabel('Protein Copy Numbers',fontsize=1.1*font_size)
+
+        ax[3].scatter(protein_observations[:,0],protein_observations[:,1],s=18,label='observed protein (known)',color='#F18D9E',zorder=2)
+        # ax[3].scatter(protein_observations[:,0],true_data[::10,2],s=18,label='ground truth protein (unknown)',color='black',alpha=0.6,zorder=2)
+        # state space
+        # ax[2].scatter(true_state_space_mean[np.int(true_parameters[-1])::10,0],true_state_space_mean[np.int(true_parameters[-1])::10,2],s=18,label='state space protein',color='#20948B',zorder=1)
+        # ax[2].errorbar(true_state_space_mean[30:,0],true_state_space_mean[30:,2],yerr=true_protein_error[:,30:],ecolor='#98DBC6',alpha=0.1,zorder=1)
+        ax[3].set_xlabel('Time (mins)',fontsize=1.1*font_size)
+        ax[3].set_ylabel('Protein Copy Numbers',fontsize=1.1*font_size)
+
         plt.tight_layout()
         plt.savefig(os.path.join(os.path.dirname(__file__),
                                        'output','figure_2_kalman_visualisation_bad.pdf'))
