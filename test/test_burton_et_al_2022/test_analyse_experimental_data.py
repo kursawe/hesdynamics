@@ -111,8 +111,6 @@ class TestInference(unittest.TestCase):
         number_of_chains = 8
         step_size = 0.001
 
-        import pdb; pdb.set_trace()
-
         mean_protein = np.mean([i[j,1] for i in protein_at_observations for j in range(i.shape[0])])
 
         prior_bounds = np.array([50,4*mean_protein-50, # times 4 due to larger spread of expression values at population level
